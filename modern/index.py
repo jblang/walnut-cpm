@@ -9,7 +9,7 @@ def parse_header(data):
     data = data.splitlines()
     return {
         "path": data[1].strip().split(":")[1].strip().split("\\")[1:],
-        "description": data[0].strip()
+        "desc": data[0].strip()
     }
     
 def parse_date(date):
@@ -22,7 +22,7 @@ def parse_file(data):
         "name": data[:12].strip(),
         "size": int(data[14:22].strip()),
         "date": parse_date(data[23:32].strip()),
-        "description": data[33:].strip(),
+        "desc": data[33:].strip(),
     }
     
 def parse_directory(data):
@@ -31,7 +31,7 @@ def parse_directory(data):
     for line in lines[2:]:
         line = line.strip()
         if line.startswith("|"):
-            files[-1]["description"] += "\n" + line[2:].strip()
+            files[-1]["desc"] += "\n" + line[2:].strip()
         else:
             files.append(parse_file(line))
     return files
@@ -66,7 +66,7 @@ def db_file():
 CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS directories (
     path text,
-    description text
+    desc text
 );
 
 CREATE TABLE IF NOT EXISTS files (
@@ -74,15 +74,15 @@ CREATE TABLE IF NOT EXISTS files (
     name text,
     size integer,
     date text,
-    description text
+    desc text
 );
 """
 
-INSERT_DIR = "INSERT INTO directories (path, description) VALUES(?, ?)"
+INSERT_DIR = "INSERT INTO directories (path, desc) VALUES(?, ?)"
 
 INSERT_FILE = """
-INSERT INTO files (path, name, size, date, description)
-VALUES(:path, :name, :size, :date, :description);
+INSERT INTO files (path, name, size, date, desc)
+VALUES(:path, :name, :size, :date, :desc);
 """
 
 def sqlite_index(index):
@@ -95,7 +95,7 @@ def sqlite_index(index):
     db.executescript(CREATE_TABLES)
     for directory in index:
         path = "/".join(directory["path"])
-        desc = directory["description"]
+        desc = directory["desc"]
         db.execute(INSERT_DIR, (path, desc))
         for file in directory["files"]:
             file["path"] = path
