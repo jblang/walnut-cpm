@@ -1,0 +1,89 @@
+; LEXLATE.CSM
+; Lexical Character order translate
+; *******************************************************************
+; Returns a lexical order number of the character argument
+; *******************************************************************
+; '\0' translates to itself
+; ' ' translates to the lowest lexical order
+;
+; The Other Ordering is:
+;
+; 0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+;
+; ALL other bytes in the range 0 thru 255
+; translate to a non-existence mark (0xff)
+;
+; The equivalent C code if statics and static initialization
+; were available would be:
+;
+; char
+; lexlate(c)
+;   char c;
+; {
+;	static char xlate[] = {THE_ORDER_SEQUENCE_256_BYTES};
+;
+;	return (xlate[c]);
+; }
+;
+; Alternatively, if external initialization were available:
+;
+; char xlate[] = {THE_ORDER_SEQUENCE_256_BYTES};
+; #define lexlate(c) (xlate[c & 0xff])
+;
+; *******************************************************************
+;
+
+	maclib	bds
+	
+X	equ	0ffh		; Non-Existence Mark
+
+	FUNCTION lexlate
+	pop	d		; DE = return address
+	pop	h		; HL = argument
+	push	h		; argument = HL
+	push	d		; return address = DE
+	lxi	d,xlate		; DE = &xlate[0]
+	mvi	h,0		; HL = offset into xlate
+	dad	d		; hl = &xlate[argument]
+	mov	l,m	
+	mvi	h,0		; hl = xlate[argument]
+	ret
+;
+xlate:	db	0,X,X,X,X,X,X,X		; ^@^A^B^C^D^E^F^G
+	db	X,X,X,X,X,X,X,X		; ^H^I^J^K^L^M^N^O
+	db	X,X,X,X,X,X,X,X		; ^P^Q^R^S^T^U^V^W
+	db	X,X,X,X,X,X,X,X		; ^X^Y^Z^[^\^]^^^_
+	db	1,X,X,X,X,X,X,X		; <sp><EXCLAIM>"#$%&'
+	db	X,X,X,X,X,X,X,X		; ()*+,-./
+	db	2,3,4,5,6,7,8,9		; 01234567
+	db	10,11,X,X,X,X,X,X	; 89:;<=>?
+	; note: state 12 not used (WAS previously inadvertently assigned to :)
+	db	X,13,15,17,19,21,23,25	; @ABCDEFG
+	db	27,29,31,33,35,37,39,41	; HIJKLMNO
+	db	43,45,47,49,51,53,55,57	; PQRSTUVW
+	db	59,61,63,X,X,X,X,X	; XYZ[\]^_
+	db	X,14,16,18,20,22,24,26	; `abcdefg
+	db	28,30,32,34,36,38,40,42	; hijklmno
+	db	44,46,48,50,52,54,56,58	; pqrstuvw
+	db	60,62,64,X,X,X,X,X	; xyz{|}~<del>
+;
+;	 Same Stuff with MSB SET
+;
+	db	X,X,X,X,X,X,X,X		; ^@^A^B^C^D^E^F^G
+	db	X,X,X,X,X,X,X,X		; ^H^I^J^K^L^M^N^O
+	db	X,X,X,X,X,X,X,X		; ^P^Q^R^S^T^U^V^W
+	db	X,X,X,X,X,X,X,X		; ^X^Y^Z^[^\^]^^^_
+	db	X,X,X,X,X,X,X,X		; <sp><EXCLAIM>"#$%&'
+	db	X,X,X,X,X,X,X,X		; ()*+,-./
+	db	X,X,X,X,X,X,X,X		; 01234567
+	db	X,X,X,X,X,X,X,X		; 89:;<=>?
+	db	X,X,X,X,X,X,X,X		; @ABCDEFG
+	db	X,X,X,X,X,X,X,X		; HIJKLMNO
+	db	X,X,X,X,X,X,X,X		; PQRSTUVW
+	db	X,X,X,X,X,X,X,X		; XYZ[\]^_
+	db	X,X,X,X,X,X,X,X		; `abcdefg
+	db	X,X,X,X,X,X,X,X		; hijklmno
+	db	X,X,X,X,X,X,X,X		; pqrstuvw
+	db	X,X,X,X,X,X,X,X		; xyz{|}~<del>
+
+	endfunc

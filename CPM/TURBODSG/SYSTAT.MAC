@@ -1,0 +1,255 @@
+; SYSTAT ver 1.00 by ESKAY
+; Created (big bang) 13 Jul 85
+;
+cr	equ	0dh
+lf	equ	0ah
+cfunc	equ	5
+tfunc	equ	50h
+;
+.z80
+.request syslib
+;
+start:	ld	sp,stack
+	call	print##
+	cr,lf,lf
+	'SYSTAT v1.00 by ESKAY',cr,lf,lf
+	'TurboDOS Version ',0
+	ld	c,12
+	call	tfunc
+	ld	a,c
+	and	0f0h
+	rra
+	rra
+	rra
+	rra
+	or	30h
+	call	cout##
+	ld	a,'.'
+	call	cout##
+	ld	a,c
+	and	0fh
+	or	30h
+	call	cout##
+	call	print##
+	', TurboDOS Serial Number ',0
+	call	phlfdc##
+	ld	a,'/'
+	call	cout##
+	ex	de,hl
+	call	phlfdc##
+	call	print##
+	', ',0
+	ld	a,b
+	or	a
+	jr	nz,..pri
+	call	print##
+	'Non-',0
+..pri:	call	print##
+	'Privileged logon.',cr,lf,0
+	ld	c,43
+	ld	e,0ffh
+	call	tfunc			; get current bank
+	push	af			; save it
+	ld	c,43
+	ld	e,1
+	call	tfunc			; set to bank 1
+	ld	c,43
+	ld	e,0ffh
+	call	tfunc			; check bank
+	or	a			; bank 1 active?
+	jr	nz,..bnk
+	call	print##
+	'Non-',0
+..bnk:	call	print##
+	'Banked system (current bank = ',0
+	pop	af			; get original bank
+	call	pafdc##
+	ld	e,a
+	ld	c,43
+	call	tfunc			; if changed, set back
+	call	print##
+	') on circuit ',0
+	ld	c,12
+	call	cfunc
+	ld	a,d
+	call	pafdc##
+	call	print##
+	', node ',0
+	ld	a,e
+	call	pafdc##
+	call	print##
+	'. CP/M version ',0
+	ld	a,l
+	and	0f0h
+	rra
+	rra
+	rra
+	rra
+	or	30h
+	call	cout##
+	ld	a,'.'
+	call	cout##
+	ld	a,l
+	and	0fh
+	or	30h
+	call	cout##
+	call	print##
+	cr,lf
+	'Memory free in current bank: ',0
+	ld	hl,(6)
+	dec	h
+	call	phlfdc##
+	call	print##
+	' bytes (top of TPA = ',0
+	inc	h
+	dec	hl
+	call	phl4hc##
+	call	print##
+	'H).',cr,lf,'Default drive is ',0
+	ld	c,25
+	call	cfunc
+	ld	e,a
+	ld	c,19
+	call	tfunc
+	bit	7,a
+	jr	z,..rem
+	call	print##
+	'fixed',0
+	jr	..rfd
+;
+..rem:	call	print##
+	'removable',0
+..rfd:	and	7
+	ld	b,a
+	ld	a,1
+	dec	b
+	dec	b
+cbls:	dec	b
+	jr	z,cble
+	add	a,a
+	jr	cbls
+;
+cble:	call	print##
+	', block size = ',0
+	call	pafdc##
+	ld	b,a			; save block size
+	call	print##
+	'k. Disk has ',0
+	ex	de,hl
+	call	phlfdc##
+	call	print##
+	' free blocks.',cr,lf
+	'Accessible drives are : ',0
+	ld	c,24
+	call	cfunc
+	ld	a,'A'
+	ld	b,8
+	call	..rh
+	ld	l,h
+	ld	b,8
+	call	..rh
+	call	print##
+	cr,lf
+	'Number of buffers: ',0
+	ld	c,24
+	call	tfunc
+	ld	a,h
+	call	pafdc##
+	call	print##
+	'. Buffer size: ',0
+	ld	b,l
+	ld	hl,64
+	inc	b
+..bfs:	add	hl,hl
+	djnz	..bfs
+	call	phlfdc##
+	call	print##
+	' bytes.',cr,lf
+	'Current printing set to ',0
+	ld	c,27
+	ld	de,0ffffh
+	ld	b,d
+	call	tfunc
+	inc	l
+	dec	l
+	jr	z,prdir
+	dec	l
+	jr	z,prspl
+	call	print##
+	'CONSOLE',cr,lf,0
+	jr	prend
+;
+prdir:	call	print##
+	'DIRECT TO PRINTER ',0
+	ld	a,h
+	add	a,'@'
+	call	cout##
+	call	crlf##
+	jr	prend
+;
+prspl:	call	print##
+	'SPOOLER ON DRIVE ',0
+	add	a,'A'
+	call	cout##
+	ld	a,h
+	or	a
+	jr	z,pren0
+	call	print##
+	' TO QUEUE ',0
+	add	a,'@'
+	call	cout##
+pren0:	call	crlf##
+prend:	call	print##
+	'System printer assignments : ',cr,lf,0
+	ld	b,0
+syspl:	push	bc
+	ld	de,0ffffh
+	ld	c,29
+	call	tfunc
+	inc	a			; valid?
+	jr	z,invp1
+	call	print##
+	9,9,'Printer ',0
+	pop	bc
+	push	bc
+	ld	a,'A'
+	add	a,b
+	call	cout##
+	dec	l			; check mode
+	jp	z,sstop			; stopped
+	ld	a,h			; get queue assignment
+	or	a			; check offline
+	jp	z,soffl
+	call	print##
+	': Queue ',0
+	add	a,'@'
+	call	cout##
+	call	crlf##
+	jr	invp1
+;
+soffl:	call	print##
+	': Offline',cr,lf,0
+	jr	invp1
+;
+sstop:	call	print##
+	': Stopped',cr,lf,0
+invp1:	pop	bc			; get printer
+	inc	b
+	ld	a,b
+	cp	16
+	jp	nz,syspl		; continue till done
+	call	crlf##
+	rst	0
+;
+..rh:	rr	l
+	call	c,cout##
+	inc	a
+	djnz	..rh
+	ret
+;
+	dseg
+;
+
+	ds	100
+stack	equ	$
+	end

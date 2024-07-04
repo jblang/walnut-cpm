@@ -1,0 +1,329 @@
+                                                               13 January 1986
+
+                                  Z-NEWS 402
+
+Comment Line.   Time invested in learning software and money spent on hardware 
+makes us all want  to continue  pushing 8-bit computing.   We don't quickly or
+easily discard what has  served  so  well, provided base to think freely, open
+our minds, learn.  It's fact!  
+     You  notice  we  go against grain,  don't troop (Z-News  304),  offer  an 
+alternative that's upward-compatible with CP/M,  similar to UNIX, but fast and 
+efficient:   Z-System,  an 8-bit OS soon to have multitasking capability added 
+to its other present big-system features.
+     By summer we should have new elements in place (Z-News 401), debugged, to 
+permit  8-bit systems to communicate over local area networks and  to  control 
+and be controlled by 16/32/64-bit machines running other OSs.  And coming from 
+others,  industry-standard  bit-mapped  graphics interface  packages  will  be 
+available.
+     Z-System  multitasking means low-priority tasks get processed  when  main 
+processor  unit has time to work with them.  Top priority is always  given  to 
+task the console (keyboard and CRT) is associated with.  Nonetheless, operator 
+is alerted through screen status window when background tasks need  attention, 
+i.e., input from keyboard. 
+
+FLASH.   Ready now!  We have ZCPR3 extended TCAP business-graphics  (straight-
+lines,  squared  corners,  intersects, and boxes)  provided  by  modern  ASCII 
+terminals,  e.g.,  TeleVideo 950/955, Wyse 50, Qume 108, etc.,  in  GRXLIB.REL 
+library,  written by Z-Team member, Dennis Wright.  Plus windows!  Yes, up  to 
+16 of them using new GRWLIB.REL library, also from Dennis.  (Small windows are 
+used to monitor concurrent task status in multitasking OS.)
+     Primitives handle everything for you, make job intuitive.  Simple syntax:
+function  call followed by (in decimal notation) row, column, length,  height, 
+direction, etc., as appropriate for particular drawing.  Next newsletter shows 
+what  our kind of graphics and windows look like--beautiful.  Price is  $49.00 
+for the two REL libraries on disk and online and printed documentation.
+     We  ponder impact of graphics and windows on our tools and utilities,  on 
+8-bit application programs in general.  Z-Nodes presently have a demonstration 
+file (GRXDEMO.LBR) to show what can be accomplished with graphics and windows.
+     Presently  over 32 subroutines exist to handle new functions.   Functions 
+like DRVERT, DRHORZ, DRBOX, OPENW, WXYMSG, and CLEARW for draw vertical  line, 
+draw horizontal line, draw box, open window, write text at window row, column, 
+and clear contents of an open window, respectively.  Windows are numbered from 
+1  to 16.  Windows may overlap on screen, be used as panels and tiles,  or  be 
+pop-up style.
+     Example (sample code fragment placed in utility or application program):
+
+    ext    wxymsg     ;reference routines to fetch at link time..
+    ext    drbox      ;..from GRXLIB and GRWLIB libraries
+           ...
+    call   drbox      ;draw a box using graphics characters
+    db     2,3,6,34   ;box upper left row, column, box height, width
+           ...
+    call   wxymsg     ;print message at window row and column
+    db     5,2,4      ;window number, window row and column
+    db     'After selecting options, please'   ;msg first line
+    db     'Strike Any Key to continue... ',0  ;msg ending
+
+DOUBLE FLASH!   No later than 15 February ZCPR3: The Libraries ships.   Loose-Šleaf,  3-M  ring plastic binding, 8.5" by 11.0", 300+  pages,  comprehensively 
+cross  indexed  by  subroutine  name,  chapter-named  logical  function,   and 
+relocatable library name.  Extensive Table of Contents (TOC), 5 pages.  Dozens 
+of  examples  make  learning easy.  Now there's no excuse  to  not  learn  the 
+advantages of structured assembly language programming.  Author, Richard Conn, 
+using both Reference Manual and User's Guide sections of The Libraries,  takes 
+reader  by the hand, and together, walk the path of learning efficient  design 
+and coding techniques.  We are taking orders now for The Libraries.  Price  is 
+$29.95, plus $4.00 shipping and handling if within USA.
+     Incidentally,   manual  covers  Rick's  recently   completed   subroutine 
+expansions,  SYSLIB  Version  3.6, Z3LIB Version 1.3, and  VLIB  Version  1.1.
+Loose-leaf book makes it easy to keep up with changes--simply add and  replace 
+pages as changes occur.  New price for 9 to 12 diskette set (number depends on 
+computer   disk   size  and  format),  including  source   code   and   online 
+documentation, is $69.00.
+     Entire  libraries package, book, graphics documentation,  SYSLIB,  Z3LIB, 
+VLIB,  GRXLIB, and GRWLIB, is discount priced at $129.00, a saving  of  $18.95 
+from individual package purchases.  Order now.
+
+Z TIPS.   ZRDOS COMP utility, Version 2.8, with trailing T option for  setting 
+Register 9 (of ZCPR3 REG utility) with codes 0 to 3, indicating files  (source 
+and destination) not found, and files are either identical or different, makes 
+for some interesting possibilities.  Updating backup-disks from RAM disk,  and 
+loading or re-loading RAM disk from hard or floppy disk, come to mind.   Using 
+GOTO  loop,  AC36  archive-bit file copy, and IF13  wild  card  file  matching 
+capabilities, it should be possible to create a ZEX file completely automating 
+all-important disk backup chores.
+     Single file copy offering (COPYIF.ZEX, on Z-Nodes) from Dennis Wright:
+
+COMP $1 $2 /T  ;note compare two files with test-only option
+IF 9 1         ;note if source not found
+  ECHO -- $1 NOT FOUND
+ELSE
+  IF 9 2       ;note if destination not found
+    ECHO -- DESTINATION FILE DOES NOT EXIST, COPYING $1 TO DESTINATION
+    AC $2=$1
+  ELSE
+    IF 9 3     ;note if difference found
+      ECHO -- FILES ARE DIFFERENT, UPDATING $2 WITH $1
+      AC $2=$1
+    ELSE
+      ECHO -- FILES ARE IDENTICAL, UPDATE NOT REQUIRED
+    FI         ;note if 9 3
+  FI           ;note if 9 2
+FI             ;note if 9 1
+
+Syntax  is COPYIF <du:source filename> <du:destination filename><cr>.   Script 
+works  as  alias  or, as Dennis suggested, ZEX file.  Now,  think  of  another 
+level,  that  uses  above script to process one file, that  allows  wild  card 
+declared  files, each file handled by Dennis's script as nested alias in  GOTO 
+loop.  Okay, we think!
+     New  subject.   A neat CMD command line we use under VFILER to  edit  and 
+auto  back-up files you might wish to experiment with (also try in a  MENU  or 
+VMENU  command line, but don't forget to alter for syntax differences  between 
+VFILER and menus):
+
+1 %d%u:;nw %f;if12 %f=z.?0?;ac BACKUP:=%f /a;fiŠ
+Pointer  file (%f is full file name) is called to load under Newword  (or  any 
+other word processor or editor).  After edit session, if file matches wildcard 
+name  (using  IF12 or later version to determine), it is  auto  copied  (using 
+ZRDOS  AC)  to  BACKUP directory disk, but only if file has  been  altered  by 
+editing.   Notice  how we hard log into current  directory--make  current  the 
+default--before  calling  editor.  Such allows moving from user area  to  user 
+area, finding pointer file, with BAK file created by edit process placed where 
+it  logically should go:  on current drive in current user area.  (See page  4 
+below for another assembly automation script.)
+
+PRODUCT REVIEW.   Newword word processor (Version 2.17 sells for $125.00  plus 
+$4.00 S&H) from Newstar Software, Inc., 1601 Oak Park Blvd., Pleasant Hill, CA 
+94523,  telephone 415/932-2526, looks good to us because, among other  things, 
+it tells of useò areas.  And has lots of printer support, 
+including  HP LaserJet (though not  with 
+justified,  proportional  spacing)   and 
+late-model dot matrix types.  And  after 
+using WordStar for years, to use Newword        Sketch of White Knight and
+is like coming home to a freshly painted               Queen Alice.
+house,  like  finding  a  little  of  El 
+Dorado.    NW  is  a  superset  of   WS.  
+Newstar supports 8-bit computing; Sorcim 
+is  another!  (Ashton-Tate and  MicroPro 
+go way of DRI, forget their origins?)
+     In   this   one   package   there's 
+Mergeprint,  like  WordStar's  MailMerge 
+but  more  conditional  IF,  THEN,  ELSE 
+testing  possibilities available, up  to 
+three lines for header and footer  text, 
+and   most  importantly,   an   undelete 
+command.   The  latter (command  is  ^U) 
+lets you recover a word, line, or  block 
+of text accidently erased, something  WS 
+has  needed from its beginning.   And  a 
+^QS  save  quickly brings  you  back  to 
+exactly where you were in the file.  You 
+don't end at beginning of file and  have 
+to enter ^QP to return to where you were 
+before save.
+     Another feature is automatic whole-
+document   reform,   in   addition    to 
+paragraph-at-a-time,  with ^QB  command.  
+In  find (search) and  replace  function 
+there's   an  option  R  for  "rest   of 
+document," in addition to global; latter 
+starts  at beginning of file and is  not 
+always  desired.   Command ^QP  finds  a 
+numbered page.  The column replace  (^KI 
+in  addition to ^KN, WS's  column  mode) 
+command  requires no  reformatting  when 
+moving columns around.  And there's six, 
+instead of four, user functions (^PQ,^PW,^PE,^PR,^P[, and ^P]) to control  the 
+printer.
+     If you are in a user area other than zero, sorted file directory and main 
+menus  (but  not status line) show both area and drive.  Main menu  L  command 
+permits logging into any user area.  And PUBLIC ZRDOS Plus makes using NW from Šany  directory,  as  with WS, a snap, with but one copy of  main  program  and 
+overlays  on disk system.  Incidentally, NW can be installed to have  internal 
+directory  not display COM, REL, OVR, and other files a text editor  shouldn't 
+be  used on.  WS directory function seems to fall apart after about  70  files 
+are included, shows all files in strange sort.
+     A  feature hard to describe, must see to appreciate fully:  the  .RM  and 
+once, WS only one.  These two commands permit many indents and different right 
+margins to exist in a single file.  The below-status-line ruler showing  left, 
+right  margins and tab stops in effect automatically change as you,  within  a 
+file, cross over an RM or LM dot statement--real video magic!
+     Number of copies to print is built-in and selected as response to  prompt 
+(default  is one copy).  Multiple printer drivers are also built-in,  so  only 
+one copy of installed program need be resident to control several printers you 
+use.   One  thing  lacking is ability to print a file  from  within  the  edit 
+session--that  we miss!  (Feature in not included because of concern for  data 
+security;  NSI  is  a conservative company.)  And also the  tight  spacing  of 
+punctuation  provided by WS is not performed by NW; that too we miss.  But  NW 
+microjustify algorithm more closely follows classical typographical  standards 
+than  does  WS.  To justify right margin, white space is added  between  words 
+rather  than between characters of words.  Overall effect is more pleasing  to 
+the  eye in former case; WS uses latter.  Compare printing of Z-News 402  with 
+401.
+     Newword impresses as refined product, developed by people who knew how to 
+design  a  super word processor.  Though NW and WS  operations  are  similar--
+commands  are  near identical--we know NW to be an original work  of  art  and 
+recommend  it  to anyone wishing a full-feature word processing  program.   We 
+have seen none better, few as good.  (Next, we review a super spelling checker 
+from CompuView.)
+
+From Our Mail Box.   Mike Lambert, 1153 Dublin Place, Herndon, VA 22070, signs 
+up  as Good-Neighbor Helper.  He runs an Eagle IIE and has full  knowledge  of 
+what  it  takes  to install ZCPR3.  Give Mike a call if  you  need  assistance 
+getting Z3 installed.  His voice telephone is 703/471-0429.
+     Mark  Little, Z-Node #50, also signs up as Good-Neighbor Helper.   Mark's 
+new  address  and  home voice phone is 1 Waving Court,  Alice  Springs,  N.T., 
+Australia   5750,  (089)  528  230.   Down-under  folks  needing   help   with 
+understanding  Z-System should give him a call, especially if using Big  Board 
+I.
+     "ZCPR3 is great and I don't know how I ever lived without it this  long!" 
+from Art Carlson, publisher of The Computer Journal.  Art, if more writers and 
+editors took the time, as you have, to get Z-System running on their machines, 
+they too would understand what we have been reporting for so long.  Alas, such 
+people are too busy with bigger and more important things than 8-bit software.
+     "I  am glad you are still in business and supporting the  non-IBM  world.
+You  have  spent  a lot of money on newsletters to me and  I  am  enclosing  a 
+check...  " comes from Bob Chappelear, Cincinnati, OH.  Thanks for  money  and 
+words of encouragement, Bob; we could use a little more of both.
+     Another  writes  to add his name to Good-Neighbor  Helper  Roster:   Mike 
+Blackwell,  for  Otrona assistance, One South 135 Eliot Lane, Villa  Park,  IL 
+60181,  312/882-4673.   Thanks,  Mike, for joining list  of  helpers--we  need 
+assistance from all corners.
+
+Amateur Z User's Corner.   Lots of you are getting your feet wet with assembly 
+language programming using Z-System source code as a base.  A neat CMD command 
+line  we  use  here,  instead of a ZEX file, you may wish  to  try  when  next 
+developing  a  changed  program.   It's our number 2  macro  command  used  by 
+VFILER.CMD in ASM directory:Š
+2 %d%u:;if12 %f=*.z80;zas %n;if ~er;zlink %d:%n,a:z3lib/,a:vlib/,
+  a:syslib/;era %n.rel;era %n.bak;echo done;else;echo errors - link
+  cancelled;fi;else;echo file not z80 type;fi
+
+We  use  Version  2.2a of ZAS which sets the ZCPR3 error message  flag  if  an 
+assembly error occurs.  (Any who bought or upgraded to 2.2 may receive a  free 
+update,  if original diskette is returned along with $4.00 to  cover  shipping 
+and handling.)
+     Simply  point to the file to be assembled and linked from REL to COM  and 
+VFILER  does  the  rest.   If you point to a file not of  type  Z80,  you  are 
+informed;  general  housekeeping is automatic, erasing BAK and REL  files  not 
+normally  required.  Of course similar command script can be used to  do  just 
+about  anything  you  need  to do, greatly reducing  the  number  of  required 
+keystrokes (and inevitable typing errors) from you.
+     Notice  we  log into current directory as script is  executed.   We  have 
+found  this  generally better than staying with the default being  other  than 
+current.   Using many directory areas, moving freely from one to another,  and 
+still  have  CMD  script work correctly with a  wide  variety  of  application 
+situations is what we seek.
+     Don't  forget  command line (CL) length limitation  (SHOW  utility  tells 
+length  available;  use  #1 menu.) of  approximately  200  characters.   Also, 
+remember  alias parameters are expanded and actual command stings usually  are 
+longer than script character count.
+
+Z-Node  Activity.   Another node online--Peter Glaskowsky, 13421 SW 69  Court, 
+Miami,  FL  33156, signs as Z-Node #53.  Remember from Z-News 309, Pete  is  a 
+Lobo  MAX-80  expert.  Dial, hopefully using Term3  *.TXD  telephone  library, 
+305/235-1645 to reach him.
+     Jim  Altman, Z-Node #46, with his 200 megabyte hard disk system  (see  Z-
+News  309), signs up as downloader of EI proprietary software.   Atlanta  area 
+computerists  wishing  to  buy Z-System packages, and also  those  wishing  to 
+check-out such a big system, should give Jim's node a call: 404/627-7127.
+     And,  Sysop  Richard Jacobson adds another telephone line to  his  Z-Node 
+#15,  has two RAS numbers.  New, second line is devoted to Z-System  software; 
+original line is more general.  Try 312/664-1730 for pure Z, 312/649-1730  for 
+normal node.
+
+Announcement.    Trenton Computer Festival (conference and  swap-meet)  occurs 
+19, 20 April this year.  Richard Conn is a featured speaker with two  subjects 
+scheduled: (1) Ada Language and (2) Z-System Evolution.  Trenton, in its  11th 
+year,  is the oldest of such microcomputer gatherings.  Plan to  attend.   Who 
+knows,  you may see Dennis Wright, Dave McCord, or other members of  Echelon's 
+team  there, along with, for sure, Steve Ciarcia, Steve Leon, and  Sol  Libes, 
+and maybe, Irv Hoff.
+
+Doings.    High  level  language,  Modula 2,  being  developed  to  take  full 
+advantage of Micromint SB180 computer and Hitachi HD64180 processor  features, 
+includes  use  of  large  memory address  space  and  hardware  multiply  (MLT 
+instruction,  see Z-News 208).  In beat test now, designed by none other  than 
+Borland  International, Scotts Valley, CA, 408/438-8400.  If  consistent  with 
+Borland's  normal  pricing,  should  be economical  to  buy.   (Early  testing 
+indicates it's much faster than Tubro Pascal on a Z80.)
+     Mr.  Robert Andrews, Zilog marketing manager for new  products,  recently 
+told  us of progress made with their Z800 chip, the one  code-compatible  with 
+Z80.   He reports giving up design of NMOS product because of internal  micro-
+thermal  hot  spots,  have converted the product to  low  power  CMOS.   First Šversion  will  run at 10 mHz with execution through-puts of from  1.1  to  5.2 
+MIPS,  depending  on  instruction mix (sounds like a 5  or  6  stage  pipeline 
+design).   Chip has on-board MMU, DMA, cache memory, UART, and CTCs.   Perhaps 
+Hitachi  HD64180  will have competition in third quarter of  1986,  when  Z800 
+full-production is scheduled.  What a wait this is!
+
+One  More Time.   Many computer magazine editors have little or no  investment 
+in  or emotion for our industry or its hardware.  But they  heavily  influence 
+the  reading  majority.   Yet  these same editors  seem  to  realize  not  the 
+importance  of their leadership positions, seem to take the easy, shallow  way 
+to  living.  They sense not the opening available to each of them; they  don't 
+go  for IT!  They tread, they grind; but what a drag!  You notice they  seldom 
+say anything that offends anyone; you notice they remind melba toast.  If  you 
+follow  their recommendations and you happen to come up short, what have  they 
+lost?   They simply recommend another of the many similar products  available.
+They show little love!  Remember, their revenue comes mainly from advertisers, 
+not  from  you  their readers.  But increasingly, anything  that  is  not  IBM 
+compatible  won't  fly well in corporate America, or with  these  editors  and 
+their
+reporting staff.  What do estimated over-2-million CP/M users read?  Not much!
+     What  grade are we in?  Do we troop, live deeply; are we less than  high-
+grade?  See you down the lines...
+                                                                 Echelon, Inc.
+                                                              101 First Street
+ 		                                          Los Altos, CA  94022
+					               Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+Trademarks:   SB180,  COMM180, TKBBS, Micromint;  HD64180,  Hitachi;  Z80/800, 
+Zilog;  NSC800, National; Z-System, ZCPR3, ZRDOS, Z-Tools, Z-Com, Zas,  Zlink, 
+ZDM,  Revas4,  Z-Msg, DSD, Term3, Lasting-Value Software,  Echelon  and  their 
+respective  owners  and authors; CP/M, Digital  Research;  WY-30/50/75/85/350, 
+Wyse  Technology;  PropStar;  Civil Computing;  WordStar,  MicroPro;  Newword, 
+Newstar; SCSI/Plus, AMPRO Computers.
+
+
+                                                        big thumb
+                     *                                     here
+
+
+                                   Z   F r e e s !
+
+
+                     *                                        *
+
+
+Z-News  402 is Copyright 1985 Echelon, Inc.  All Rights Reserved.   Permission 
+to  reprint,  wholly or partially, automatically granted if source  credit  is 
+given to Echelon.
+

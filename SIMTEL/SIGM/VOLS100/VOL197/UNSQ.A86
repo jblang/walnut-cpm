@@ -1,0 +1,472 @@
+
+;	------------------------------------------------------------
+;	UNSQ.A86 is similar to the program USQ.COM (SIG/M 58.27).
+;	The latter appears to have been compiled from BDS "C" source
+;	code, which is known to be from ten to twenty times more
+;	voluminous than code derived from assembly language source.
+;	UNSQ.A86 was written on the basis of information concerning
+;	Huffman codes found in the literature, an inspection of a
+;	disassembly of USQ.COM, and several experiments in which
+;	test files were squeezed and the squeezed files then dumped.
+;	UNSQ recovers the original unsqueezed file, which it places
+;	on the same disk as output.
+;
+;			 UNSQ.A86  Copyright (C) 1984
+;			Universidad Autonoma de Puebla
+;				July 16, 1984
+;
+;	[Harold V. McIntosh, 16 July 1984]
+;	------------------------------------------------------------
+
+BDOS	equ	224			;bdos interrupt
+
+qfcb	equ	005CH			;squeezed FCB
+tsiz	equ	0080H
+usiz	equ	0080H			;size of .UNS buffer
+qsiz	equ	0080H			;size of squeezed file buffer
+qbuf	equ	0080H			;squeezed buffer
+csiz	equ	512			;max chars in Huffman code
+
+;	Nongraphic characters.
+
+LF	equ	0AH
+CR	equ	0DH
+
+;	-------------
+	org	0100H
+;	-------------
+
+begn:	mov	bx,(offset qfcb+1)	;squeezed FCB
+	cmp	(byte ptr[bx]),' '
+	jnz	notu
+	mov	dx,(offset tuto)
+ferm:	call	mssg
+exit:	mov	dl,00
+	mov	cl,00
+	int	bdos
+
+notu:	mov	uptr,(offset ubuf)	;unsqueezed buffer
+	mov	qptr,(offset qbuf)	;squeezed buffer
+
+	mov	cx,0021H		;33 00's
+	mov	bx,(offset ufcb)	;unsqueezed FCB
+	call	fiuc			;block fill
+
+	mov	cx,200BH		;11 blanks
+	mov	bx,(offset ufcb+1)	;unsqueezed FCB
+	call	fiuc			;block fill
+
+	call	opef			;open squeezed file
+
+	mov	qctr,0000
+	mov	uctr,usiz+1		;size of .UNS buffer
+	mov	roco,1
+
+cota:	call	rwor			;fetch one byte from input stream
+	cmp	bx,0FF76H
+	jz	rchk			;read checksum
+	mov	dx,(offset nsqz)	;'not a squeezed file'
+	jmp	ferm			;final (error) message
+
+;	The "squeezed" marker is followed by a two-byte checksum,
+;	which is the simple sum of all the one-byte characters in
+;	the source file, carried as a two byte sum modulo 2**16.
+
+rchk:	call	rwor			;fetch two bytes from input stream
+	mov	cksm,bx			;checksum
+
+;	Unsqueezed file name. It is an ASCII sequence, may be lower
+;	case if SQ.UNS received it in response to a prompt, ending
+;	with a zero byte. Some trash may be present if SQ.UNS wasn't
+;	used correctly.
+
+	mov	cx,8
+	mov	bx,(offset ufcb+1)	;unsqueezed FCB
+luup:	call	rbyt			;fetch one byte from input stream
+	or	al,al
+	jz	luuw			;load code dictionary
+	cmp	al,'.'
+	jz	luuw
+	call	ucfo
+	mov	[bx],al
+	inc	bx
+	call	cona
+	loop	luup
+luuz:	call	rbyt
+	or	al,al
+	jz	ldic
+	cmp	al,'.'
+	jnz	luuz
+luuw:	call	cona
+	mov	cx,3
+	mov	bx,(offset ufcb+9)	;unsqueezed FCB
+luur:	call	rbyt
+	or	al,al
+	jz	ldic
+	call	ucfo
+	mov	[bx],al
+	inc	bx
+	call	cona
+	loop	luur
+luus:	call	rbyt
+	or	al,al
+	jnz	luus
+
+;	Load code dictionary. It is preceded by its two-byte length,
+;	and consists of a series of pairs of two-byte addresses. For
+;	each bit in the code, select the first element (0) or the
+;	second (1) element of the pair. If the pair is positive, it
+;	is the table entry (code + 4*index) at which to continue with
+;	the next bit. If the pair is negative, it is the complement
+;	of the coded ASCII character (low order byte except for [end]).
+
+ldic:	call	rwor			;fetch two bytes from input stream
+	cmp	bx,(csiz+1)
+	jc	ldii
+	mov	dx,(offset ntab)	;'insufficient dictionary space'
+	jmp	ferm			;final (error) message
+
+ldii:	add	bx,bx
+	add	bx,bx
+	mov	cx,bx
+	mov	si,(offset code)	;decoding table
+luuq:	call	rbyt			;fetch one byte from input stream
+	mov	[si],al
+	inc	si
+	loop	luuq
+
+	call	crlf			;type CR,LF
+
+	mov	cl,26			;(1A) set DMA address
+	mov	dx,(offset ubuf)	;unsqueezed buffer
+	int	BDOS
+
+	mov	dx,(offset ufcb)	;unsqueezed FCB
+	mov	cl,17			;(11) search for file
+	int	BDOS
+	inc	al
+	jz	nexi
+	mov	dx,(offset yexi)	;'file already exists'
+	jmp	ferm			;final (error) message
+
+nexi:	mov	dx,(offset ufcb)	;unsqueezed FCB
+	mov	cl,22			;(16) create file
+	int	BDOS
+
+	mov	dx,(offset ufcb)	;unsqueezed FCB
+	mov	cl,15			;(0F) open file
+	int	BDOS
+	cmp	al,0FFH
+	mov	dx,(offset nodi)	;'no more directory'
+	jnz G14 ! jmp ferm ! G14:	;final (error) message
+
+	call	cbuz			;clear output buffer to zeroes
+
+;	Type unsqueezed code. Beware of the [end] marker,
+;	and also the repeat marker 90H which occurs in the
+;	combination <char><90H><count>. When count is zero,
+;	90H itself is intended; otherwise <char> is to be
+;	repeated <count> times, including the occurrence just
+;	before 90H was seen.
+
+tusq:	call	dnch			;decode next character
+	jnc G15 ! jmp chek ! G15:	;verify the checksum
+	cmp	al,090H			;repeat last character
+	jnz	tusu			;normal character
+	call	dnch			;decode next character
+	or	al,al
+	jnz	tusr
+	mov	al,090H
+	call	tpye
+	jmp	tusq
+
+tusr:	dec	al			;get count, adjust it
+	mov	ch,al			;set count aside
+tust:	mov	al,lach			;last character typed
+	call	tpye			;type char & add to checksum
+	dec	ch			;update count
+	jnz	tust			;repeat until exhausted
+	jmp	tusq			;type unsqueezed code
+
+tusu:	mov	lach,al			;last character typed
+	call	tpye			;type char & add to checksum
+	jmp	tusq			;type unsqueezed code
+
+;	Decode next character.
+
+dnch:	mov	bx,(offset code)	;decoding table
+dncr:	call	rbit			;read next bit
+	jnc	dncs			;skip for 1, stay for 0
+	inc	bx
+	inc	bx
+dncs:	mov	ax,[bx]			;get next offset
+	cmp	ax,0FEFFH
+	jz	dnct
+	or	ax,ax
+	jns	dncu			;p means new offset
+	not	al
+	stc
+	cmc
+	ret
+
+dnct:	stc				;flag [end] with carry bit
+	ret
+
+;	Calculate <code>+4*<offset>.
+
+dncu:	mov	bx,(offset code)	;decoding table
+	add	ax,ax
+	add	ax,ax
+	add	bx,ax
+	jmp	dncr
+
+;	Type CR, LF.
+
+crlf:	mov	al,CR
+	call	cona			;type character at console
+	mov	al,LF
+	jmp	cona			;type character at console
+
+;	Type unsqueezed text and accumulate checksum.
+
+tpye:	push	bx
+	push	dx
+	push	cx
+	push	ax
+	mov	bx,(offset cksm)	;checksum
+	mov	ch,al
+	mov	al,(byte ptr[bx])
+	sub	al,ch
+	mov	[bx],al
+	inc	bx
+	mov	al,(byte ptr[bx])
+	sbb	al,0
+	mov	[bx],al
+	mov	al,ch
+	call	wbyt			;send character to .COM file
+	pop	ax
+	pop	cx
+	pop	dx
+	pop	bx
+	ret
+
+;	Upper case fold.
+
+ucfo:	cmp	al,'a'
+	jc	ucfr
+	cmp	al,'{'
+	jnc	ucfr
+	and	al,5FH
+ucfr:	ret
+
+;	Send character in accumulator to console.
+
+cona:	push	bx
+	push	dx
+	push	cx
+	mov	cl,2			;(02) char to console
+	mov	dl,al
+	int	BDOS
+	pop	cx
+	pop	dx
+	pop	bx
+	ret
+
+;	Send message to the console.
+
+mssg:	mov	cl,9			;(09) print buffer
+	int	BDOS
+	ret
+
+;	Verify the checksum.
+
+chek:	mov	bx,cksm			;checksum
+	mov	al,bh
+	or	al,bl
+	jnz G24 ! jmp clof ! G24:	;close the file
+
+	mov	cl,19			;(13) delete file
+	mov	dx,(offset ufcb)	;unsqueezed FCB
+	int	BDOS
+
+	mov	dx,(offset chno)	;'Checksum failure.'
+	call	ferm			;final (error) message
+
+;	Open squeezed file.
+
+opef:	mov	bx,(offset qfcb+32)
+	mov	(byte ptr[bx]),00	;squeezed FCB
+	mov	dx,(offset qfcb)	;squeezed FCB
+	mov	cl,15			;(0F) open file
+	int	BDOS
+	inc	al
+	jz G25 ! ret ! G25:
+	mov	dx,(offset nfil)	;'requested file not found'
+	jmp	ferm			;final (error) message
+
+;	Close unsqueezed file.
+
+clof:	mov	al,uctr			;occupancy of .UNS buffer
+	cmp	al,usiz			;size of .UNS buffer
+	jz G26 ! call wrdi ! G26:
+	mov	cl,16			;(10) close file
+	mov	dx,(offset ufcb)	;unsqueezed FCB
+	int	BDOS
+	cmp	al,0FFH
+	mov	dx,(offset nclo)	;'cannot close file'
+	jnz G27 ! jmp ferm ! G27:	;final (error) message
+	jmp	exit
+
+;	Read one bit at a time.
+
+rbit:	push	bx
+	dec	roco			;rotation count
+	jnz	rbiu
+	mov	roco,8
+	call	rbyt			;fetch one byte from input stream
+	mov	roby,al			;rotating byte
+rbiu:	rcr	roby,1			;rotating byte
+	pop	bx
+	ret
+
+;	Read one word.
+
+rwor:	call	rbyt			;fetch one byte from input stream
+	push	ax
+	call	rbyt			;fetch one byte from input stream
+	pop	bx
+	mov	bh,al
+	ret
+
+;	Read one byte, refill buffer as needed.
+
+rbyt:	push	bx
+	mov	bx,qctr			;byte counter - input buffer
+	mov	al,bl
+	or	al,bh
+	jnz	rbyu
+	call	rdsk
+	mov	bx,(offset qbuf)	;squeezed buffer
+	mov	qptr,bx			;byte pointer - input buffer
+	mov	bx,(offset qsiz)	;size of squeezed file buffer
+rbyu:	dec	bx
+	mov	qctr,bx			;byte counter - input buffer
+	mov	bx,qptr			;byte pointer - input buffer
+	mov	al,(byte ptr[bx])
+	inc	bx
+	mov	qptr,bx			;byte pointer - input buffer
+	pop	bx
+	ret
+
+;	Insert byte in .UNS buffer.
+
+wbyt:	push	bx
+	mov	bx,(offset uctr)	;occupancy of .UNS buffer
+	dec	(byte ptr[bx])
+	jnz	wbyy
+	mov	(byte ptr[bx]),usiz	;size of .UNS buffer
+	push	ax
+	mov	bx,(offset ubuf)	;unsqueezed buffer
+	mov	uptr,bx			;pointer to .UNS buffer
+	call	wrdi
+	call	cbuz			;clear output buffer to zeroes
+	pop	ax
+wbyy:	mov	bx,uptr			;pointer to .UNS buffer
+	mov	[bx],al
+	inc	bx
+	mov	uptr,bx			;pointer to .UNS buffer
+	pop	bx
+	ret
+
+;	Send ubuf to disk.
+
+wrdi:	mov	cl,26			;(1A) set DMA address
+	mov	dx,(offset ubuf)	;unsqueezed buffer
+	int	BDOS
+
+	mov	cl,21			;(15) write one record
+	mov	dx,(offset ufcb)	;unsqueezed DCB
+	int	BDOS
+	cmp	al,00H
+	mov	dx,(offset werr)	;'disk write'
+	jz G31 ! jmp ferm ! G31:	;final (error) message
+	ret
+
+rdsk:	push	bx
+	push	dx
+	push	cx
+
+	mov	cl,26			;(1A) set DMA address
+	mov	dx,(offset qbuf)	;squeezed buffer
+	int	BDOS
+
+	mov	cl,20			;(14) read one record
+	mov	dx,(offset qfcb)	;squeezed FCB
+	int	BDOS
+
+	pop	cx
+	pop	dx
+	pop	bx
+	ret
+
+;	Fill ubuf with zeroes.
+
+cbuz:	xor	al,al
+	mov	ch,1			;one sector in buffer
+	mov	bx,(offset ubuf)	;unsqueezed buffer
+cbuy:	mov	cl,tsiz			;record size
+cbux:	mov	[bx],al
+	inc	bx
+	dec	cl
+	jnz	cbux
+	dec	ch
+	jnz	cbuy
+	ret
+
+;	Block fill with C B's starting at (HL).
+
+fiuc:	mov	(byte ptr[bx]),ch
+	inc	bx
+	dec	cl
+	jnz	fiuc			;block fill
+	ret
+
+logo	db	'          UNSQ/ICUAP',CR,LF
+	db	'Universidad Autonoma de Puebla',CR,LF
+	db	'        July 16, 1984',CR,LF,'$'
+
+tuto	db	'UNSQ.A86 will restore files which have been squeezed',CR,LF
+	db	'by SQ.COM or some similar program.',CR,LF,CR,LF
+	db	'    UNSQ [X:]FILE[.QQQ]',CR,LF
+	db	CR,LF
+	db	'will read [X:]FILE.SQZ to produce [X:]FILE.UNS.',CR,LF
+	db	'$'
+
+werr	db	CR,LF,'Disk write error.$'
+nfil	db	CR,LF,'Requested file not present.$'
+yexi	db	CR,LF,'Unsqueezed file already exists.$'
+ntab	db	CR,LF,'Insufficient space for dictionary.$'
+nsqz	db	CR,LF,'Not a squeezed file.$'
+chno	db	CR,LF,'Checksum failure.$'
+nopn	db	CR,LF,'Can''t open source.$'
+nodi	db	CR,LF,'Disk or Directory full.$'
+nclo	db	CR,LF,'Cannot close file.$'
+
+ufcb	rb	21H			;unsqueezed FCB
+uctr	rb	1			;occupancy of .UNS buffer
+uptr	rw	1			;pointer to .UNS buffer
+ubuf	rb	usiz			;unsqueezed buffer
+reco	rb	1			;record counter
+rbrk	rw	1			;record breakpoint
+lach	rb	1			;last character typed
+roco	rb	1			;rotating bit counter
+roby	rb	1			;rotating byte
+qctr	rw	1			;byte counter - input buffer
+qptr	rw	1			;byte pointer - input buffer
+cksm	rw	1			;checksum
+code	rb	4*csiz			;decoding table
+	rb	100
+stak	rw	1			;stackend
+
+	end
+

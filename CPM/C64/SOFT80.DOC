@@ -1,0 +1,229 @@
+SOFT80
+by Chris Lampton 75275,1373
+Copyright (c) 1984 by Chris Lampton
+Licensed for unlimited non-commercial
+     distribution
+
+
+     SOFT80 is a software 80-column
+modification for Commodore 64 CP/M.  It
+runs only under the CP/M option from
+Commodore Business Machines.  SOFT80
+takes no memory away from CP/M and will
+work with a full 48K system.  For best
+results, use with a video monitor.
+     To run SOFT80, place a copy on a
+formatted C-64 CP/M diskette under the
+name SOFT80.COM and type 'SOFT80' at
+the prompt.  SOFT80 will install itself
+automatically, clear the screen, print
+a copyright notice, and return to CP/M.
+     Most standard CP/M programs should
+work with SOFT80.  Programs that are
+NOT compatible with SOFT80 include:
+programs that use non-BDOS screen
+output or that make direct calls to
+video and keyboard routines in the C-64
+Kernal (J. Teloh's version of VDO.COM
+and my own MODEM64 fall into this
+category), programs that use interrupts
+(such as Mark Campbell Adam's
+adaptation of MODEM712), and programs
+that use the RAM behind the Kernal for
+data storage.
+     SOFT80 offers a range of ESC
+sequences that can be used to interface
+C-64 CP/M with programs that require
+relative and absolute cursor
+positioning.  To maintain compatibility
+with programs written (or adapted) for
+C-64 CP/M, the Commodore IOTYPE byte is
+partially recognized, to allow certain
+CBM control codes (for functions such
+as relative cursor positioning, reverse
+video, etc.) to be obtained in this
+manner.  In addition, screen and
+character colors can be controlled
+through ESC sequences.  A special
+underline mode is also available, for
+programmers who wish to take advantage
+of the bit-mapped character set.
+
+
+HOW IT WORKS
+
+     SOFT80 draws characters onto a
+bit-mapped high-resolution screen
+hidden discreetly behind the Kernal
+ROM, at 6510 address $E000.  Hi-res
+color memory is located at 6510 address
+$D000, behind the I/O area.  SOFT80
+itself resides in two locations:  at
+6510 address $D400 (behind the I/O
+area) and at 6510 address $0400 (former
+location of the lo-res video screen). 
+The actual code is primarily 6510
+machine language, to facilitate the
+complex bank-switching routines.  The
+bit-maps for the 80-column characters
+are located within the program itself. 
+Standard ASCII characters are used,
+rather than the Commodore character
+set.
+     When SOFT80 is executed, a short
+Z80 header block-moves a small portion
+of Z80 code into its permanent position
+at 6510 address $0400 (Z80 address
+$F400) and passes control to the 6510
+portion, which moves the 6510 code into
+place and makes a few minor
+modifications to BIOS80 and BIOS65. 
+Modifications to BIOS80 are made
+through the jump table and
+modifications to BIOS65 are made
+through the IOTBL, in order to maintain
+compatibility with altered versions of
+the BIOS.  (Any BIOS that maintains the
+IOTBL at its normal location will
+probably be compatible with SOFT80.)
+     There is one known bug in SOFT80: 
+the carriage return following a warm
+boot lacks a line-feed, so that the
+ensuing string of asterisks overwrites
+the current screen line.  This is
+aesthetically annoying, but
+functionally harmless.  It results from
+an "illegal" call to the BIOS CONOUT
+routine from within BIOS80 itself.  The
+fix is simple, but is almost guaranteed
+to crash any BIOS in which CONOUT has
+been modified.  Future versions of
+SOFT80 may contain the fix for this
+problem as a user-selectable option.
+
+
+ESC SEQUENCES FOR SOFT80
+
+    SOFT80 recognizes an ASCII 27 as an
+ESC character, that is, an "escape"
+code indicating that the next byte(s)
+carries special information.  All ESC
+sequences should be sent to SOFT80 via
+the BDOS Direct Console I/O call (BDOS
+function 6). Otherwise, some characters
+may be trapped out by BDOS.
+    The following is a list of these
+ESC functions.  'ESC' represents an
+ASCII 27; the character(s) following
+the ESC are the ASCII characters that
+carry the information.  The actual
+sequence of code numbers that should be
+sent follows this in parentheses.  All
+numbers are decimal, unless otherwise
+indicated.
+
+ESC 'A' (27 65) - Cursor up one line.
+ESC 'B' (27 66) - Cursor down one line.
+ESC 'C' (27 67) - Cursor right one
+   column.
+ESC 'D' (27 68) - Cursor left one
+   column.
+ESC 'Y' LINE# COLUMN# (27 89 -- --) -      Move cursor to (line#) (column#).
+   Line # should be in the range 0 to
+   24. Column # should be in the range
+   0 to 79.
+ESC 'S' (27 83) - Scroll screen up one
+   line.
+ESC 'T' (27 84) - Scroll screen down
+   one line.
+ESC 'U' (27 85) - Turn on automatic
+   underline mode.  All characters are
+   printed with an underscore until ESC
+   'V' is received.
+ESC 'V' (27 86) - Turn off automatic
+   underline mode
+ESC 'K' COLOR# (27 75 --) - Set
+   background color to (color#). Color#
+   is a standard C-64 color poke code
+   in the range 0 to 15.
+ESC 'H' COLOR# (27 72 --) - Set
+   character color to (color#). Color#
+   is a standard C-64 color poke code
+   in the range 0 to 15. Note that the
+   the color of all characters on the
+   screen will be changed simulta-
+   neously.
+
+
+THE IOTYPE BYTE
+
+     The Commodore IOTYPE byte is
+stored at Z80 address 0FCFFH (6510
+address $0CFF).  Each bit in this byte
+controls a specific feature of C-64
+CP/M output and/or input.  Bit 4
+controls the type of character codes
+recognized by CONOUT, the screen output
+routine.  If this bit is a 0, standard
+CP/M ASCII will be used.  If this bit
+is a 1, Commodore ASCII (Petscii, as
+Joel Rubin calls it) will be used. This
+feature can be used to obtain control
+codes not ordinarily available from
+CP/M.
+     SOFT80 partially recognizes this
+feature, and it may be used to obtain
+certain CBM control codes, some of
+which (such as relative cursor
+position, clear screen, etc.) may be
+obtained in other ways and some of
+which (such as reverse video and homing
+the cursor) may only be obtained in
+this fashion.  Upper and lowercase
+characters are NOT swapped when BIT 4
+of IOTYPE is set to 1. However, the
+following CBM codes are available
+through IOTYPE:
+
+CODE       FUNCTION
+
+17         Cursor down
+18         Reverse video on
+19         Home cursor
+20         Destructive backspace
+29         Cursor right
+145        Cursor up
+146        Reverse video off
+147        Clear screen
+157        Cursor left
+
+
+NOTES
+
+     Future versions of SOFT80 will be
+upwardly compatible with this version
+-- i.e. programs written or adapted to
+run under Version 1 will run under
+future versions, but not necessarily
+vice versa.
+     My experience with adapting CP/M
+programs to run on the C-64 is limited
+and I would appreciate hearing from
+anyone with an idea for a feature that
+would facilitate such adaptations under
+SOFT80.  I have several features in
+mind for future versions, and am open
+to any suggestions for additional
+features, especially ESC sequences. 
+And, of course, let me know about any
+bugs.  Correspondence should preferably
+be sent via Compuserve EMAIL or left in
+the Compuserve C-64 SIG or the CBM
+Programming SIG.
+     If anyone adapts the VDO screen
+editor to run under SOFT80, or has any
+suggestions regarding such an
+adaptation, I would like to hear from
+them.  In fact, I would like to hear
+about any programs configured to run
+under SOFT80.

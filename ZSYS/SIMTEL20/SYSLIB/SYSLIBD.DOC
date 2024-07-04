@@ -1,0 +1,1452 @@
+
+
+
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+
+                                             SYSLIB Distribution
+
+
+                                                  Written by
+                                                 Richard Conn
+
+                                        Copyright 1986   Richard Conn
+
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+          Marketed and Distributed by:  ||||||||||||||||||||||||||||||
+               Echelon, Inc             ||||||||||||||||||||||||||||||
+               101 First Street         ||||||||||||||||||||||||||||||
+               Los Altos, CA  94022     ||||||||||||||||||||||||||||||
+               415/948-3820             ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+          Z-Node Central:               ||||||||||||||||||||||||||||||
+               415/489-9005             ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+                                        ||||||||||||||||||||||||||||||
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                     T A B L E   OF   C O N T E N T S
+
+       1. SYSLIB.....................................................1
+          1.1. Character Input/Output................................1
+               1.1.1. Character Input................................1
+               1.1.2. Conditional Input..............................1
+               1.1.3. Character Output...............................1
+               1.1.4. Newline Output.................................1
+               1.1.5. Console Status.................................1
+          1.2. String Input/Output...................................2
+               1.2.1. String Print...................................2
+               1.2.2. File Name Output...............................2
+               1.2.3. Input Line Editors.............................2
+          1.3. Numeric Input/Output..................................3
+               1.3.1. Numeric Output, Hexadecimal Output of Register.3
+               1.3.2. Numeric Output, Decimal Output of Register A...3
+               1.3.3. Numeric Output, Hexadecimal Output of Register.3
+          1.4. File Manipulation.....................................5
+               1.4.1. File Input/Output..............................5
+               1.4.2. Byte-Oriented File Input/Output................5
+               1.4.3. Byte-Oriented File I/O with Variable Buffers...5
+               1.4.4. Byte-Oriented File I/O with UNGET..............5
+               1.4.5. Library Files..................................5
+               1.4.6. Miscellaneous..................................6
+          1.5. Directory Manipulation................................7
+               1.5.1. Buffer Allocation..............................7
+               1.5.2. Directory Alphabetization......................7
+               1.5.3. Directory Entry Selection......................7
+               1.5.4. Directory Load.................................7
+               1.5.5. Directory Pack.................................7
+               1.5.6. Disk Parameter Information Extraction..........7
+               1.5.7. File Size Computation..........................7
+               1.5.8. Free Space Computation.........................7
+               1.5.9. General-Purpose................................7
+          1.6. User Areas and Disks..................................8
+               1.6.1. Save and Restore Disk/User Area................8
+               1.6.2. Get and Set Current User Area..................8
+               1.6.3. Log Into a Disk/User...........................8
+               1.6.4. Return the Current Disk/User...................8
+          1.7. Branching.............................................9
+               1.7.1. Case with Register A...........................9
+               1.7.2. Case with Register Pair HL.....................9
+               1.7.3. Computed Goto with Register A..................9
+               1.7.4. Computed Goto with Register Pair HL............9
+               1.7.5. Arithmetic IF with Register A..................9
+               1.7.6. Arithmetic IF with Register Pair HL............9
+          1.8. Mathematical Functions...............................10
+               1.8.1. Arithmetic Operations.........................10
+               1.8.2. Complement Operations.........................10
+               1.8.3. Logical Operations............................10
+               1.8.4. Rotate and Shift Operations...................10
+               1.8.5. Random Number Generator.......................10
+               1.8.6. CRC Calculation...............................10
+          1.9. Utilities 1..........................................11
+               1.9.1. Memory Allocation.............................11
+
+
+                                    ii
+
+
+
+
+
+
+
+
+               1.9.2. Parsing Aids, Character Skip..................11
+               1.9.3. Parsing Aids, Character Test..................11
+               1.9.4. Parsing Aids, UNIX-Style ARGC/ARGV String Par.11
+               1.9.5. Sort..........................................11
+               1.9.6. String and Value Comparison...................11
+          1.10. Utilities 2.........................................12
+                1.10.1. BDOS and BIOS Access........................12
+                1.10.2. Capitalization..............................12
+                1.10.3. Command Line Tail Extraction................12
+                1.10.4. Convert ASCII to Hexadecimal................12
+                1.10.5. End of Code.................................12
+                1.10.6. Exchange Nybbles............................12
+                1.10.7. Memory Fill.................................12
+                1.10.8. Memory Move.................................12
+                1.10.9. Pause Execution.............................12
+                1.10.10. Version Number of SYSLIB...................12
+          1.11. Other Files.........................................13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    ii
+
+
+
+
+
+     
+
+
+     1. SYSLIB
+
+     1.1. Character Input/Output
+
+     1.1.1. Character Input
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CIN                     SCIN    .Z80      1      6  6304     C5
+     RIN                     SRIN    .Z80      1      6  4526     45
+     BIN                     SBIN    .Z80      1      3  AD77     5D
+     CAPIN, CAPINE           SCAPIN  .Z80      1      4  AA18     3C
+
+     1.1.2. Conditional Input
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CONDIN                  SCONDIN .Z80      1      6  E70F     CA
+
+     1.1.3. Character Output
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     COUT                    SCOUT   .Z80      1      7  4AE6     83
+     LOUT                    SLOUT   .Z80      1      7  7D3A     2A
+     POUT                    SPOUT   .Z80      1      7  1AFB     97
+     SOUT                    SSOUT   .Z80      1      5  13B3     23
+     BOUT                    SBOUT   .Z80      1      4  241A     B4
+     CCOUT                   SCCOUT  .Z80      2      9  BF30     59
+     CLOUT                   SCLOUT  .Z80      2      9  FDF7     58
+     CPOUT                   SCPOUT  .Z80      2      9  48FE     B4
+     CSOUT                   SSCOUT  .Z80      1      6  D193     18
+
+     1.1.4. Newline Output
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CRLF                    SCRLF   .Z80      1      6  04AB     4A
+     LCRLF                   SLCRLF  .Z80      1      6  AE47     60
+     SCRLF                   SSCRLF  .Z80      1      4  2CFA     B1
+
+     1.1.5. Console Status
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CST                     SCST    .Z80      1      7  5303     18
+     BIST                    SBIST   .Z80      1      3  695C     14
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     1
+
+
+
+
+
+     
+
+
+     1.2. String Input/Output
+
+     1.2.1. String Print
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     PRINT                   SPRINT  .Z80      1      4  88BC     83
+     EPRINT                  SEPRINT .Z80      1      4  33EF     0D
+     LPRINT                  SLPRINT .Z80      1      4  8E3D     D6
+     SPRINT                  SSPRINT .Z80      1      4  DD82     40
+     PSTR                    SPSTR   .Z80      2     14  336A     A6
+     EPSTR                   SEPSTR  .Z80      2     15  C125     3E
+     LPSTR                   SLPSTR  .Z80      2     14  FDAD     FF
+     SPSTR                   SSPSTR  .Z80      2     14  4F40     03
+
+     1.2.2. File Name Output
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LFN1                    SLFN1   .Z80      1      5  E852     6A
+     LFN2                    SLFN2   .Z80      1      5  747A     D4
+     LFN3                    SLFN3   .Z80      1      8  D399     0C
+     PFN1                    SPFN1   .Z80      1      5  06C3     48
+     PFN2                    SPFN2   .Z80      1      5  284A     66
+     PFN3                    SPFN3   .Z80      1      8  EE3A     E1
+     SFN1                    SSFN1   .Z80      1      5  89A5     B5
+     SFN2                    SSFN2   .Z80      1      6  E3E9     4F
+     SFN3                    SSFN3   .Z80      1      8  DEB4     5E
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     MFN1                    SMFN1   .Z80      1      5  40C1     B2
+     MFN2                    SMFN2   .Z80      1      6  6580     41
+     MFN3                    SMFN3   .Z80      1      8  2688     F1
+
+     1.2.3. Input Line Editors
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     BBLINE                  SBBLINE .Z80      3     17  0C38     2E
+     BLINE                   SBLINE  .Z80      3     21  A49F     33
+     INLINE                  SINLINE .Z80      6     45  41B2     42
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     2
+
+
+
+
+
+     
+
+
+     1.3. Numeric Input/Output
+
+     1.3.1. Numeric Output, Hexadecimal Output of Register A
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LA2HC                   SLA2HC  .Z80      1      6  BF37     D7
+     PA2HC                   SPA2HC  .Z80      1      6  87B5     B9
+     SA2HC                   SSA2HC  .Z80      1      6  A518     32
+     MA2HC                   SMA2HC  .Z80      1      7  104C     4A
+
+     1.3.2. Numeric Output, Decimal Output of Register A
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LA3DC                   SLADC   .Z80      2     11  CBCC     EB
+     PA3DC                   SPADC   .Z80      2     11  C01E     9B
+     SA3DC                   SSADC   .Z80      2     11  0067     95
+     MA3DC                   SMADC   .Z80      2     14  388B     8E
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LADC                    SLADC   .Z80      2     11  CBCC     EB
+     PADC                    SPADC   .Z80      2     11  C01E     9B
+     SADC                    SSADC   .Z80      2     11  0067     95
+     MADC                    SMADC   .Z80      2     14  388B     8E
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LAFDC                   SLAFDC  .Z80      2      9  FD48     9E
+     PAFDC                   SPAFDC  .Z80      2      9  360B     59
+     SAFDC                   SSAFDC  .Z80      2      9  8AC1     FA
+     MAFDC                   SMAFDC  .Z80      2     11  D7D3     6D
+
+     1.3.3. Numeric Output, Hexadecimal Output of Register Pair HL
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LHL4HC                  SLHL4HC .Z80      1      4  95D6     04
+     PHL4HC                  SPHL4HC .Z80      1      4  D3C7     89
+     SHL4HC                  SSHL4HC .Z80      1      4  7A71     E7
+     MHL4HC                  SMHL4HC .Z80      1      4  702D     3E
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LHL5DC                  SLHL5DC .Z80      2     13  E558     B7
+     PHL5DC                  SPHL5DC .Z80      2     13  D617     67
+     SHL5DC                  SSHL5DC .Z80      2     13  A0B8     61
+     MHL5DC                  SMHL5DC .Z80      3     19  1869     C8
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LHLDC                   SLHL5DC .Z80      2     13  E558     B7
+     PHLDC                   SPHL5DC .Z80      2     13  D617     67
+     SHLDC                   SSHL5DC .Z80      2     13  A0B8     61
+     MHLDC                   SMHL5DC .Z80      3     19  1869     C8
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LHLFDC                  SLHLFDC .Z80      2     12  E526     E6
+     PHLFDC                  SPHLFDC .Z80      2     12  3D21     C9
+     SHLFDC                  SSHLFDC .Z80      2     12  39B5     6A
+     MHLFDC                  SMHLFDC .Z80      2     16  0AEE     7E
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     EVAL                    SEVAL   .Z80      3     24  7AE5     F0
+
+
+                                     3
+
+
+
+
+
+     
+
+
+     EVAL16                  SEVAL2  .Z80      2     12  1864     07
+     EVAL10                  SEVAL1  .Z80      2     10  1AEF     5B
+     EVAL8                   SEVAL3  .Z80      2      9  0A3B     A3
+     EVAL2                   SEVAL4  .Z80      1      8  5366     2F
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     4
+
+
+
+
+
+     
+
+
+     1.4. File Manipulation
+
+     1.4.1. File Input/Output
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     F$APPEND, F$APPL        SFAPPEND.Z80      3     24  F13C     7E
+     F$CLOSE                 SFCLOSE .Z80      1      4  E9B6     41
+     F$DELETE                SFDELETE.Z80      1      3  B5AA     2B
+     F$EXIST                 SFEXIST .Z80      1      4  5C54     19
+     F$MAKE                  SFMAKE  .Z80      1      4  C7E2     1C
+     F$OPEN, F$MOPEN         SFOPEN  .Z80      2     10  6923     89
+     F$READ                  SFREAD  .Z80      1      4  D907     82
+     F$WRITE                 SFWRITE .Z80      1      4  69B2     AA
+     F$RENAME                SFRENAME.Z80      2     12  7CBB     CB
+     F$SIZE                  SFSIZE  .Z80      2     12  2D7A     93
+
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     GETRR, GETFS            SGRR    .Z80      2     13  E730     BE
+     GETRR1, GETFS1          SGRR1   .Z80      2     12  1B5A     9E
+     GFA                     SGFA    .Z80      3     20  7F5B     42
+     R$READ                  SRREAD  .Z80      2      9  9D6B     4D
+     R$WRITE                 SRWRITE .Z80      2      9  536F     AB
+     SCFA                    SSCFA   .Z80      2     16  78B6     E6
+     SFA                     SSFA    .Z80      2     16  057E     C1
+
+     1.4.2. Byte-Oriented File Input/Output
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FI0$OPEN, FI0$CLOSE,
+     FO0$OPEN, FO0$CLOSE,
+     F0$GET, F0$PUT          S0FILEIO.Z80      2     13  31E4     41
+     FI1$OPEN, FI1$CLOSE,
+     FO1$OPEN, FO1$CLOSE,
+     F1$GET, F1$PUT          S1FILEIO.Z80      2     13  0424     68
+     FI2$OPEN, FI2$CLOSE,
+     FO2$OPEN, FO2$CLOSE,
+     F2$GET, F2$PUT          S2FILEIO.Z80      2     13  C1F5     8F
+     FI3$OPEN, FI3$CLOSE,
+     FO3$OPEN, FO3$CLOSE,
+     F3$GET, F3$PUT          S3FILEIO.Z80      2     13  1ABD     B6
+
+     1.4.3. Byte-Oriented File I/O with Variable Buffers
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FXI$OPEN, FXI$CLOSE,
+     FXO$OPEN, FXO$CLOSE,
+     FX$GET, FX$PUT          SFXIO   .Z80     13    101  CFCC     7D
+
+     1.4.4. Byte-Oriented File I/O with UNGET
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FYI$OPEN, FYI$CLOSE, FY$UNGET,
+     FYO$OPEN, FYO$CLOSE,
+     FY$GET, FY$PUT,         SFYIO   .Z80     15    113  F4B4     14
+
+     1.4.5. Library Files
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LUINIT                  SLUINIT .Z80      3     18  843C     4F
+     LUDIR                   SLUDIR  .Z80      4     28  DF11     05
+
+
+                                     5
+
+
+
+
+
+     
+
+
+     LUOPEN                  SLUOPEN .Z80      3     22  911C     6C
+     LUREAD                  SLUREAD .Z80      2      9  174C     8D
+     LUCLOSE                 SLUCLOSE.Z80      1      5  DC01     7C
+
+     1.4.6. Miscellaneous
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FNAME                   SFNAME  .Z80      5     39  8622     0B
+     INITFCB                 SINITFCB.Z80      1      7  81D3     AF
+     SETDMA                  SSDMA   .Z80      1      4  0B91     D2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     6
+
+
+
+
+
+     
+
+
+     1.5. Directory Manipulation
+
+     1.5.1. Buffer Allocation
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DBUFFER                 SDIR01  .Z80      2     12  825A     4F
+
+     1.5.2. Directory Alphabetization
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DIRALPHA                SDIR06  .Z80     11     81  5A52     BD
+
+     1.5.3. Directory Entry Selection
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DIRSEL                  SDIR07  .Z80      3     17  1CCD     E9
+
+     1.5.4. Directory Load
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DIRLOAD, DIRSLOAD       SDIR05  .Z80      7     56  0698     85
+
+     1.5.5. Directory Pack
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DIRPACK                 SDIR09  .Z80      2     15  6816     42
+     DIRNPACK                SDIR08  .Z80      2     11  C2D0     F7
+
+     1.5.6. Disk Parameter Information Extraction
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DPARAMS                 SDIR02  .Z80      3     18  4063     DC
+
+     1.5.7. File Size Computation
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FSIZE                   SDIR04  .Z80      2     14  8BA4     50
+
+     1.5.8. Free Space Computation
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DFREE                   SDIR03  .Z80      2     16  015F     2B
+
+     1.5.9. General-Purpose
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     DIRF, DIRFS             SDIR    .Z80      2     14  0B34     4D
+     DIRQ                    SDIRQ   .Z80     18    138  E710     B7
+     DIRQS                   SDIRQS  .Z80     20    157  4490     49
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     7
+
+
+
+
+
+     
+
+
+     1.6. User Areas and Disks
+
+     1.6.1. Save and Restore Disk/User Area
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     GETUD, PUTUD            SUD1    .Z80      1      8  33E3     0D
+
+     1.6.2. Get and Set Current User Area
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     GUA                     SGUA    .Z80      1      5  919A     36
+     SUA                     SSUA    .Z80      1      5  C283     29
+
+     1.6.3. Log Into a Disk/User
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     LOGUD                   SUD2    .Z80      1      5  0E56     03
+
+     1.6.4. Return the Current Disk/User
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     RETUD                   SUD3    .Z80      1      5  56B6     94
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     8
+
+
+
+
+
+     
+
+
+     1.7. Branching
+
+     1.7.1. Case with Register A
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ACASE1                  SACAS1  .Z80      2     13  38A8     56
+     ACASE2                  SACAS2  .Z80      2     14  68AE     9F
+     ACASE3                  SACAS3  .Z80      2     16  5475     4D
+
+     1.7.2. Case with Register Pair HL
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     HCASE1                  SHCAS1  .Z80      3     17  26E6     FF
+     HCASE2                  SHCAS2  .Z80      3     18  296D     91
+     HCASE3                  SHCAS3  .Z80      3     20  F434     48
+
+     1.7.3. Computed Goto with Register A
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     AGOTO1                  SAGO1   .Z80      1      8  29A7     BE
+     AGOTO2                  SAGO2   .Z80      1      8  567E     1E
+     BGOTO1                  SBGO1   .Z80      2     10  83CC     04
+     BGOTO2                  SBGO2   .Z80      2     10  2B6C     CF
+
+     1.7.4. Computed Goto with Register Pair HL
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     HGOTO1                  SHGO1   .Z80      1      8  D45D     20
+     HGOTO2                  SHGO2   .Z80      2      9  62AF     06
+     DGOTO1                  SDGO1   .Z80      2     12  D46B     AE
+     DGOTO2                  SDGO2   .Z80      2     12  B52B     C3
+
+     1.7.5. Arithmetic IF with Register A
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     AIF1                    SAIF1   .Z80      1      7  1D89     A3
+     AIF2                    SAIF2   .Z80      1      7  B551     1A
+
+     1.7.6. Arithmetic IF with Register Pair HL
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     HIF1                    SHIF1   .Z80      2     10  66DE     E2
+     HIF2                    SHIF2   .Z80      2     10  202C     D3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                     9
+
+
+
+
+
+     
+
+
+     1.8. Mathematical Functions
+
+     1.8.1. Arithmetic Operations
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ADDHD                   SMTH01  .Z80      1      4  E9ED     4D
+     SUBHD                   SMTH02  .Z80      1      4  4060     EA
+     MULHD                   SMTH11  .Z80      2     13  E321     28
+     DIVHD                   SMTH12  .Z80      2     13  0B5B     5F
+
+     1.8.2. Complement Operations
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     NEGH, CMPH              SMTH10  .Z80      1      4  BBBC     03
+
+     1.8.3. Logical Operations
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ANDHD                   SMTH07  .Z80      1      3  DF1C     88
+     ORHD                    SMTH08  .Z80      1      3  DE30     D9
+     XORHD                   SMTH09  .Z80      1      3  9CF7     6E
+
+     1.8.4. Rotate and Shift Operations
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ROTLH                   SMTH03  .Z80      1      4  8F00     AE
+     ROTRH                   SMTH04  .Z80      1      3  2CAA     81
+     SHFTLH                  SMTH05  .Z80      1      4  DCAD     46
+     SHFTRH                  SMTH06  .Z80      1      4  E3BA     D6
+
+     1.8.5. Random Number Generator
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     RNDINIT, RNDSEED, RND   SRAND   .Z80      2     12  9CA3     18
+
+     1.8.6. CRC Calculation
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CRCCLR, CRCUPD,
+     CRCDONE                 SCRC    .Z80      3     24  5008     10
+     CRC1CLR, CRC1UPD,
+     CRC1DONE                SCRC1   .Z80      3     24  CBCC     25
+     CRC2CLR, CRC2UPD,
+     CRC2DONE                SCRC2   .Z80      3     22  B3EA     F2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    10
+
+
+
+
+
+     
+
+
+     1.9. Utilities 1
+
+     1.9.1. Memory Allocation
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ALLOC, IALLOC           SALLOC  .Z80      3     22  A20C     13
+
+     1.9.2. Parsing Aids, Character Skip
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     SKNPUN, SKPUN           SSKPUN  .Z80      1      8  F425     D6
+     SKNSP, SKSP             SSKSP   .Z80      1      7  FD9D     2C
+
+     1.9.3. Parsing Aids, Character Test
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ISALNUM                 SISALNUM.Z80      1      5  06A2     9B
+     ISALPHA                 SISALPHA.Z80      1      6  FBA0     77
+     ISCTRL                  SISCTRL .Z80      1      5  0467     E2
+     ISDIGIT                 SISDIGIT.Z80      1      5  21D9     6B
+     ISGRAPH                 SISGRAPH.Z80      1      5  24E2     5A
+     ISHEX                   SISHEX  .Z80      1      6  FB81     58
+     ISPRINT                 SISPRINT.Z80      1      5  63EE     C4
+     ISPUN                   SISPUN  .Z80      1      8  3A83     C1
+     ISSP                    SISSP   .Z80      1      8  D09C     F8
+
+     1.9.4. Parsing Aids, UNIX-Style ARGC/ARGV String Parser
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     ARGV                    SARGV   .Z80      3     22  0FD6     40
+
+     1.9.5. Sort
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     SORT, SSBINIT           SSORT   .Z80     15    113  8F0B     26
+
+     1.9.6. String and Value Comparison
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     INSTR                   SINSTR  .Z80      2     12  C950     89
+     COMPHD                  SCOMPHD .Z80      1      4  0FC6     BD
+     COMPB, COMPBC           SCOMP   .Z80      2      9  AB96     31
+     SCANNER                 SSCANNER.Z80      2     11  3C2D     0C
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    11
+
+
+
+
+
+     
+
+
+     1.10. Utilities 2
+
+     1.10.1. BDOS and BIOS Access
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     BDOS                    SBDOS   .Z80      1      4  842D     36
+     BIOS                    SBIOS   .Z80      3     17  064A     96
+
+     1.10.2. Capitalization
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CAPS                    SCAPS   .Z80      1      3  864E     34
+     CAPSTR                  SCAPSTR .Z80      1      5  B6BB     C8
+
+     1.10.3. Command Line Tail Extraction
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CLINE                   SCLINE  .Z80      2     11  7399     9C
+
+     1.10.4. Convert ASCII to Hexadecimal
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CATH                    SCATH   .Z80      1      5  DDEB     01
+
+     1.10.5. End of Code
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     CODEND, $MEMRY          SCODEND .Z80      1      7  DC7F     44
+
+     1.10.6. Exchange Nybbles
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     EN                      SEN     .Z80      1      2  879B     B9
+
+     1.10.7. Memory Fill
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     FILLB, FILLBC,
+     HFILB, HFILBC           SFILL   .Z80      2     10  C441     B9
+
+     1.10.8. Memory Move
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     MOVEB, MOVEBC,
+     HMOVB, HMOVBC           SMOVE   .Z80      3     19  398D     E9
+
+     1.10.9. Pause Execution
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     PAUSE                   SPAUSE  .Z80      3     23  965F     70
+
+     1.10.10. Version Number of SYSLIB
+     Contents                Filename.typ  Size K  Recs   CRC  Cksum
+     VERSION                 SVERSION.Z80      2     16  B82F     F3
+
+
+
+
+
+
+
+
+
+
+
+
+                                    12
+
+
+
+
+
+     
+
+
+     1.11. Other Files
+
+     SYSLIB.REL is the relocatable object code library of SYSLIB
+
+             Filename.typ  Size K  Recs   CRC  Cksum
+             SYSLIB  .REL     24    188  5CD9     9D
+
+     SBUILD.ZEX is used to assemble and create SYSLIB.REL
+     SYSLIB.SEQ shows the linking order of the modules in SYSLIB
+
+             Filename.typ  Size K  Recs   CRC  Cksum
+             SBUILD  .ZEX      7     54  C288     15
+             SYSLIB  .SEQ      3     21  821C     ED
+
+     STEST.LBR contains the test programs for SYSLIB
+
+             Filename.typ  Size K  Recs   CRC  Cksum
+             STEST   .LBR     66    528  2EFE     E1
+
+     The following are include files used by SYSLIB routines
+
+             Filename.typ  Size K  Recs   CRC  Cksum
+             LUDDEF  .LIB      1      8  D856     16
+             SDIRHDR .LIB      1      5  4451     B6
+
+     The following are the Help Files for SYSLIB
+
+             Filename.typ  Size K  Recs   CRC  Cksum
+             SYSLIB  .HLP      2     10  359F     FA
+             SYSLIB0 .HLP     14    112  86FE     65
+             SYSLIB1 .HLP     20    160  0F0A     93
+             SYSLIB2 .HLP      5     34  475B     8E
+             SYSLIB3 .HLP     24    186  F74C     07
+             SYSLIB4 .HLP     17    134  17A8     95
+             SYSLIB5 .HLP     12     90  DDF2     1C
+             SYSLIB6 .HLP      8     61  0B26     95
+             SYSLIB7 .HLP      6     46  3C31     64
+             SYSLIB8 .HLP      5     37  10B8     80
+             SYSLIB9 .HLP      4     26  8C8D     A5
+             SYSLIBA .HLP      7     55  84B4     0D
+             SYSLIBB .HLP      5     39  0DD6     A8
+             SYSLIBC .HLP      9     72  0FB9     93
+             SYSLIBD .HLP      7     51  DDE1     80
+             SYSLIBE .HLP      8     63  71F8     00
+             SYSLIBF .HLP      4     25  5A27     0D
+             SYSLIBG .HLP      3     21  1203     E7
+             SYSLIBH .HLP      2     14  2530     6F
+             SYSLIBI .HLP      6     44  B232     65
+             SYSLIBJ .HLP     21    162  6E76     3F
+             SYSLIBK .HLP      8     60  2C07     9F
+             SYSLIBL .HLP      1      4  D170     6A
+
+
+
+
+
+
+                                    13
+
+
+
+
+
+
+
+
+                          This Page Left Blank
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    14
+
+
+
+
+
+
+
+
+
+     $
+     $MEMRY, 12
+
+     A
+     ACASE1, 9
+     ACASE2, 9
+     ACASE3, 9
+     ADDHD, 10
+     AGOTO1, 9
+     AGOTO2, 9
+     AIF1, 9
+     AIF2, 9
+     ALLOC, 11
+     ANDHD, 10
+     ARGV, 11
+
+     B
+     BBLINE, 2
+     BDOS, 12
+     BGOTO1, 9
+     BGOTO2, 9
+     BIN, 1
+     BIOS, 12
+     BIST, 1
+     BLINE, 2
+     BOUT, 1
+
+     C
+     CAPIN, 1
+     CAPINE, 1
+     CAPS, 12
+     CAPSTR, 12
+     CATH, 12
+     CCOUT, 1
+     CIN, 1
+     CLINE, 12
+     CLOUT, 1
+     CMPH, 10
+     CODEND, 12
+     COMPB, 11
+     COMPBC, 11
+     COMPHD, 11
+     CONDIN, 1
+     COUT, 1
+     CPOUT, 1
+     CRC1CLR, 10
+     CRC1DONE, 10
+     CRC1UPD, 10
+     CRC2CLR, 10
+     CRC2DONE, 10
+     CRC2UPD, 10
+     CRCCLR, 10
+     CRCDONE, 10
+     CRCUPD, 10
+
+
+                                    15
+
+
+
+
+
+
+
+
+     CRLF, 1
+     CSOUT, 1
+     CST, 1
+
+     D
+     DBUFFER, 7
+     DFREE, 7
+     DGOTO1, 9
+     DGOTO2, 9
+     DIRALPHA, 7
+     DIRF, 7
+     DIRFS, 7
+     DIRLOAD, 7
+     DIRNPACK, 7
+     DIRPACK, 7
+     DIRQ, 7
+     DIRQS, 7
+     DIRSEL, 7
+     DIRSLOAD, 7
+     DIVHD, 10
+     DPARAMS, 7
+
+     E
+     EN, 12
+     EPRINT, 2
+     EPSTR, 2
+     EVAL, 3
+     EVAL10, 3
+     EVAL16, 3
+     EVAL2, 3
+     EVAL8, 3
+
+     F
+     F$APPEND, 5
+     F$APPL, 5
+     F$CLOSE, 5
+     F$DELETE, 5
+     F$EXIST, 5
+     F$MAKE, 5
+     F$MOPEN, 5
+     F$OPEN, 5
+     F$READ, 5
+     F$RENAME, 5
+     F$SIZE, 5
+     F$WRITE, 5
+     F0$GET, 5
+     F0$PUT, 5
+     F1$GET, 5
+     F1$PUT, 5
+     F2$GET, 5
+     F2$PUT, 5
+     F3$GET, 5
+     F3$PUT, 5
+     FI0$CLOSE, 5
+     FI0$OPEN, 5
+
+
+                                    16
+
+
+
+
+
+
+
+
+     FI1$CLOSE, 5
+     FI1$OPEN, 5
+     FI2$CLOSE, 5
+     FI2$OPEN, 5
+     FI3$CLOSE, 5
+     FI3$OPEN, 5
+     FILLB, 12
+     FILLBC, 12
+     FNAME, 6
+     FO0$CLOSE, 5
+     FO0$OPEN, 5
+     FO1$CLOSE, 5
+     FO1$OPEN, 5
+     FO2$CLOSE, 5
+     FO2$OPEN, 5
+     FO3$CLOSE, 5
+     FO3$OPEN, 5
+     FSIZE, 7
+     FX$GET, 5
+     FX$PUT, 5
+     FXI$CLOSE, 5
+     FXI$OPEN, 5
+     FXO$CLOSE, 5
+     FXO$OPEN, 5
+     FY$GET, 5
+     FY$PUT, 5
+     FYI$CLOSE, 5
+     FYI$OPEN, 5
+     FYO$CLOSE, 5
+     FYO$OPEN, 5
+
+     G
+     GETUD, 8
+     GUA, 8
+
+     H
+     HCASE1, 9
+     HCASE2, 9
+     HCASE3, 9
+     HFILB, 12
+     HFILBC, 12
+     HGOTO1, 9
+     HGOTO2, 9
+     HIF1, 9
+     HIF2, 9
+     HMOVB, 12
+     HMOVBC, 12
+
+     I
+     IALLOC, 11
+     INITFCB, 6
+     INLINE, 2
+     INSTR, 11
+     ISALNUM, 11
+     ISALPHA, 11
+
+
+                                    17
+
+
+
+
+
+
+
+
+     ISCTRL, 11
+     ISDIGIT, 11
+     ISGRAPH, 11
+     ISHEX, 11
+     ISPRINT, 11
+     ISPUN, 11
+     ISSP, 11
+
+     L
+     LA2HC, 3
+     LA3DC, 3
+     LADC, 3
+     LAFDC, 3
+     LCRLF, 1
+     LFNn, 2
+     LHL4HC, 3
+     LHL5DC, 3
+     LHLDC, 3
+     LHLFDC, 3
+     LOGUD, 8
+     LOUT, 1
+     LPRINT, 2
+     LPSTR, 2
+     LUCLOSE, 5
+     LUDIR, 5
+     LUINIT, 5
+     LUOPEN, 5
+     LUREAD, 5
+
+     M
+     MA2HC, 3
+     MA3DC, 3
+     MADC, 3
+     MAFDC, 3
+     MFNn, 2
+     MHL4HC, 3
+     MHL5DC, 3
+     MHLDC, 3
+     MHLFDC, 3
+     MOVEB, 12
+     MOVEBC, 12
+     MULHD, 10
+
+     N
+     NEGH, 10
+
+     O
+     ORHD, 10
+
+     P
+     PA2HC, 3
+     PA3DC, 3
+     PADC, 3
+     PAFDC, 3
+     PAUSE, 12
+
+
+                                    18
+
+
+
+
+
+
+
+
+     PFNn, 2
+     PHL4HC, 3
+     PHL5DC, 3
+     PHLDC, 3
+     PHLFDC, 3
+     PRINT, 2
+     PSTR, 2
+     PUTUD, 8
+
+     R
+     RETUD, 8
+     RIN, 1
+     RND, 10
+     RNDINIT, 10
+     RNDSEED, 10
+     ROTLH, 10
+     ROTRH, 10
+
+     S
+     SA2HC, 3
+     SA3DC, 3
+     SADC, 3
+     SAFDC, 3
+     SCANNER, 11
+     SCRLF, 1
+     SETDMA, 6
+     SFNn, 2
+     SHFTLH, 10
+     SHFTRH, 10
+     SHL4HC, 3
+     SHL5DC, 3
+     SHLDC, 3
+     SHLFDC, 3
+     SKNPUN, 11
+     SKNSP, 11
+     SKPUN, 11
+     SKSP, 11
+     SORT, 11
+     SOUT, 1
+     SPRINT, 2
+     SPSTR, 2
+     SSBINIT, 11
+     SUA, 8
+     SUBHD, 10
+     SYSLIB, 1
+
+     V
+     VERSION, 12
+
+     X
+     XORHD, 10
+
+
+
+
+
+
+                                    19
+
+
+
+
+

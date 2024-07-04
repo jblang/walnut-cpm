@@ -1,0 +1,91 @@
+El Paso, TX, 12-15-83
+
+Documentation for PUTUSR.ASM
+
+
+1. PURPOSE
+
+
+PUTUSR is a utility for North Star CP/M. A similar utility is distributed
+with Lifeboat's implementation of CP/M on the HORIZON, but not with North
+Star's version of CP/M. The idea of writing this routine was inspired by
+a book on CP/M and was realized in 3 hours, including debugging time.
+
+The purpose of PUTUSR is to assist the North Star CP/M user in placing a
+modified "user area" onto the system tracks without having to aginize
+through SYSGEN, DDT and calculating load offsets.
+
+
+2. REQUIREMENTS
+
+PUTUSR will only run on North Star CP/M 1.1.0 or 1.2.0 and will report an
+error message if it runs on a different implementation of CP/M or if the
+BDOS serial number is corrupt.
+For correct operation, the file USER.HEX must be present. The user is
+fully responsible for ensuring that USER.HEX contains the correctly
+ORGed code for a new user area (I/O patch area).
+
+
+3. USE
+
+NOTE: A response of CONTROL-C at any prompt will execute a warmboot.
+
+PUTUSR is started without arguments. Any command line arguments are
+ignored. The program will identify itself and then ask for the source
+drive letter to be typed. Drive letters are entered in accordance with
+CP/M's drive convention, rather than North Star's. PUTUSR will then
+prompt for a carriage return, allowing a disk change. After pressing RETURN,
+PUTUSR will read the file USER.HEX and translate it to binary code. Error
+messages reporting file not found, read error or checksum error will
+abort execution. When the file is translated, you are prompted for the
+destination drive letter, using same conventions as above. Be sure to
+specify a valid North Star CP/M drive. Again, the program now waits for
+a RETURN to be typed, allowing disk change. NOTE: the destination disk
+must be double density and it must contain a system track!
+
+The user area is now written into it's appropriate spot on the system
+track, at North Star sector 8, or CP/M sector 29.  Next, you are asked
+for more copies, allowing to quickly change I/O blocks on all your disks.
+Note that the disk system need not be reset, since the I/O mode is similar
+to North Star DOS.
+
+
+4. BRIEF PROGRAM DESCRIPTION
+
+The DCOM routine entry parameters (the BIOS low level disk driver) is
+explained in great detail in the file DIRDUMP.ASM which is supplied with
+all copies of North Star CP/M.
+
+PUTUSR.ASM is not memory efficient. I have deviated from straightforward
+coding to a somewhat modular approach, with a number of CALL instructions
+at the beginning and all major functions coded as subroutines (which in
+turn may call subroutines). Also, text display is achieved via normal
+BDOS call #9, rather than using the infamous and untraceable ILPRT. No
+range checking is done comparing the ORG of USER.HEX with the user area
+in the running system, as it may be desired to integrate USER.HEX into
+a system of different size from the running system.
+
+The program uses two buffers, a 512 byte buffer which is sufficient to
+hold the binary code, and a second buffer immediately thereafter, holding
+the HEX file. The hex file is translated to binary without regard for
+running location and errors will be reported if the checksum does not
+match or if the code size exceeds 512 bytes. All errors reported in
+PUTUSR are fatal.
+
+In contrast to the memory-wasting structure of PUTUSR I have saved two
+bytes on each warm boot jump by using RST 0 instead of JMP 0.
+
+For any further questions feel free to ask me by leaving your message
+on SENECA (the El Paso RCPM) any time at 1200 baud only. Also, please
+feel free to modify the program to your liking, but please give me
+credit for the original. And finally, I have tested the program on
+North Star CP/M 1.1.0 and it works. However, don't blame me if for
+whatever reason it doesn't in your system, especially don't ask me to
+replace any disks you might wipe out...
+
+PUTUSR.ASM should assemble under ASM, MAC, RMAC, M80, PDS and probably
+a few other assemblers with no or minor changes and therefore I feel
+it is unnecessary to distribute a COM file.
+
+						Have fun!
+

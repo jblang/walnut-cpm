@@ -1,0 +1,177 @@
+;**************************************************************************
+;***                                                                    ***
+;***    Screen Dump for the Kaypro 2 and older Kaypro 4's               ***
+;***           Original Version Micro Cornucopia Magazine               ***
+;***                    Adapted for Kaypro by Monte T. Schmiege         ***
+;***		Micro Cornucopia Release 1.....M80 coding...DmC         ***
+;***				 Release 2.....Removed hard address     ***
+;***					       for KBDIN so it will     ***
+;***					       run on both BIOS Versions***
+;***					       DmC 5/9/84               ***
+;***                                                                    ***
+;**************************************************************************
+
+	.z80
+
+	CR	equ	0Dh			; Ascii carriage return
+	LF	equ	0Ah			; Ascii line feed
+	CHAR	equ	017h			; dump scrn char ( CNTL W )
+	CPM	equ	05h			; BDOS
+	CRTMEM	equ	03000h			; begin CRT memory
+	BITDAT	equ	1Ch			; system bit port
+
+	CONIN	equ	0FA0Ah
+	BIOSLST	equ	0FA0FH			; BIOS LST: output
+	SDADDR	equ	0E300H			; address of screen dump code
+	OFFSET	equ	SDADDR-SDBEG		; offset for address calc
+
+
+	ASEG
+	ORG	100h
+
+; Set up local stack 
+
+	ld	hl,0				; zero hl register
+	add	hl,sp				; pickup stack pointer
+	ld	(STSTOR),hl			; save the pointer
+	ld	sp,SCRSTK			; set up local stack
+
+	ld	a,char				; plug dump screen character
+	ld	(dchar),a			; into routine here for easy
+						; patching later
+
+; Do block move of screen dump code ***************************************
+
+	ld	hl,(conin)
+	ld	a,h
+	cp	0E3h
+	jr	z,allred			; already loaded
+	
+	ld	c,9				; print string function
+	ld	de,MSG				; message pointer
+	call	5				; call BDOS
+
+	ld	hl,SDBEG			; beginning of screen dump
+						; code is source
+	ld	de,SDADDR			; destination for code
+	ld	bc,SDEND-SDBEG			; byte count for LDIR
+
+	ldir					; move the code to high mem
+
+; Setup new vector and change top of TPA address **************************
+
+	ld	hl,CPM				; source code address
+	ld	de,SDADDR			; destination address
+	ld	bc,3				; byte count
+
+	ldir					; move jump vector
+
+	ld	hl,SDADDR			; take address of new vector
+	ld	(CPM+1),hl			; replace old vector
+
+	ld	hl,(conin)			; get conin vector
+	ld	(kbdin+OFFSET),hl		; and load into our code
+	ld	hl,SDADDR+3			; address of new conin
+	ld	(conin),hl			; patch old conin vector
+
+getbak:	ld	hl,(STSTOR)			; get old stack pointer
+	ld	sp,hl				; put it back
+	ret					; go back to CCP control
+
+MSG:	'Installing Screen Dump$'
+MSG1:	'Screen Dump Already Installed$'
+
+allred:	ld	c,9
+	ld	de,MSG1
+	call	5
+	jr	getbak	
+
+SDBEG:	jp	0				; patch in address later
+SCRDMP:	DB	0CDH
+KBDIN:	DS	2				; get key board character
+	push	hl				;
+	ld	hl,DCHAR+OFFSET			; see if screen dump char
+	cp	(hl)
+	pop	hl
+	ret	nz				; return if not screendump
+
+SCR:	ld	(STSTOR+OFFSET),sp		; save the stack pointer
+	ld	sp,SCRSTK+OFFSET		; new stack pointer
+	push	hl
+	push	de
+	push	bc
+	push	ix
+	ld	hl,CRTMEM			; hl gets start of CRTMEM
+	ld	a,018h
+	ld	(LCNT+OFFSET),a			; load a with lines/screen
+
+SCR2:	push	hl				; save the starting location
+	pop	ix				; save hl in ix
+	ld	b,50h				; b gets character count
+SCR3:	DI					; disable interrupts during 
+						; other memory bank access
+	in	a,(BITDAT)			; switch memory bank to
+	set	7,a				; bank where CRT memory 
+	out	(BITDAT),a			; resides...............
+	ld	c,(hl)				; get char from CRT memory
+	in	a,(BITDAT)			; back to normal memory bank
+	res	7,a
+	out	(BITDAT),a
+	EI					; reenable interrupts 
+	inc	hl				; point to next character
+	push	hl				; save pointer
+	push	bc				; save character count
+	res	7,C				; clear high bit ( in case 
+						; the cursor was here )
+
+	call	BIOSLST				; character to printer
+	pop	bc				; get character counter
+	pop	hl				; get character pointer
+	djnz	SCR3 				; repeat til line is done
+	call	CRLF+OFFSET			; and new line at end 
+
+NXTLN:	push	ix				; get start back to hl
+	pop	hl
+	ld	a,(LCNT+OFFSET)			; find out where we are 
+	dec	a				; bump line counter
+	ld	(LCNT+OFFSET),a
+	jr	z,FIN				; if line count = 0 we are 
+	ld	de,080h				; de gets logical line length
+	or	a
+	add	hl,de				; hl points to next line
+	jr	SCR2				; do another line
+
+
+; Finish Screen Dump ******************************************************
+
+FIN:	call	CRLF+OFFSET
+	pop	ix
+	pop	bc
+	pop	de
+	pop	hl
+	ld	sp,(STSTOR+OFFSET)		; restore stack
+	jr	SCRDMP				; done dumping get next key-
+						; board character
+
+; Newline Routine *********************************************************
+
+CRLF:	ld	c,CR
+	CALL	BIOSLST	
+	ld	c,LF
+	call	BIOSLST
+	ret
+
+; High memory Scratch Ram *************************************************
+
+	LCNT:	defs	1
+	DCHAR:	defs	1
+	STSTOR:	defs	2
+		defs	24
+	SCRSTK:	defs	2
+	SDEND:	DEFS	1			; end of program
+
+;**************************************************************************
+	end
+
+
+

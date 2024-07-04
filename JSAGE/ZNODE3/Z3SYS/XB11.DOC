@@ -1,0 +1,399 @@
+This is the DOC file extracted from XB11.LBR, which I have moved to floppy
+archives for lack of disk space.  If you are interested in downloading the
+full file (about 160K), leave a request message on the BBS and I will be
+happy to make it available.    Jay Sage, December 26, 1987
+
+-----------------------------
+
+ XBD.DOC
+
+	The development of XB, a banked RCP and FCP for ZCPR3 systems is the
+	product of Edi Cramp and Ron Schwabel, with some minor assistance
+	from Steve Kapplin.
+
+	This release of XB is placed into the Public Domain for free distri-
+	bution so long as the use of the product is not for commercial sale
+	or gain, but for personal and non-profit usage.  Any commercial use
+	of XB or derivatives of XB must be done with the consent of the above
+	named author(s).  Failure to comply with this request may result in
+	legal action under the Trade Secrets Act.
+
+	The authors assume no responsibility direct or consequential for any
+	damage caused by XB, nor any obligation that XB work on your system
+	or any other system.
+
+	Development file name conventions....
+
+	filename.typ
+	12345678.123
+	|||||||| +++-------->	File type - standard unless documented.
+	||||||||			      .Z80 - source file
+	||||||||			      .LIB - library
+	||||||||			      .ZEX - Indirect command file
+	|||+++++------------>	Module name.
+	||+----------------->	Package type, G = global.
+	||				      B = banked.
+	||				      S = system.
+	||				      D = Documentation.
+	||				      L = Library.
+	||				      O = Overlay.
+	++------------------>	Package ID.
+
+
+Banked Command Processor (BCP) Features:-
+
+1.	Better and more accurate messages.  Several of the less commonly
+	used commands have standard ZCPR help built in (via //).
+
+2.	Full FCP implementation is standard. IF level 15 with the exception
+	of file lists (do I hear volunteers?).  "IF IN {string}" implemented.
+
+3.	Source is a collection of files (1 per command) instead of one huge
+	file so that debug and editing is less of an exercise in disk access
+	time.
+
+4.	Smaller resident packages, FCP is 128 bytes, RCP is 256 bytes.  This
+	is offset (and obtained) to some extent by the requirment that the
+	system have some extra buffers.  However, I feel that this will make
+	porting the BCP to new systems easier, and will enable additional
+	features to be implemented to expand use of additional memory.
+	Required buffers (and suggested sizes) are:-
+	   SYS$$POOL    - 256 bytes - for use by any program (bank-bank 
+			  copy etc).
+	   SYS$$EXEC    - 256 bytes - all memory managment code goes here.
+	   SYS$$COMN    - 80 bytes - used to transfer and store system 
+			   parameters.
+	The addresses for these buffers are set in SYSTEM.LIB, but space
+	must be provided for them.  The allocations are done in Z3BASE.LIB
+	by designating room in the allocation of space for the RCP.
+ 
+5.	Memory managment is a seperate package.  This should make porting
+	to a new system somewhat easier.
+
+6.	TYPE command is more video orientated and finally supports xon/xoff
+	and optional paging (still room for improvment though).
+
+7.	New IF command "EXIF" that flushes all IFs regardless of the current
+	IF state (XIF only runs if current state is TRUE). Using EXIF at the
+	end of ZEX and ALIAS files means you don't need those FI;FI;FI strings
+	and also offers some new posibilities (see XBSREL.ZEX).  A new form
+	of the IF IN command is permitted.  This form is IF IN <prompt>, 
+	where <prompt> is an alternative prompt line.  If no prompt is pro-
+	vided, then the standard form is default.  Also the IF IN <prompt> 
+	can be completely aborted by typing ^C as a response.  This permits 
+	using IF IN like SAK.  ^C will completely abort the remaining 
+	command line.
+
+8.	New RCP command SET /[no]option that tweeks various registers and
+	the QUIET flag in the environment.
+
+9.	RCP commands are quite terse if QUIET is ON "SET /QUIET".
+
+10.	FCP "NOISE" can be controlled via the SET /[NO]NOISE command.  Now
+	you can figure out why your IF aliases don't work.
+
+11.	Internal help command "H" gives a full list of FCP commands, however
+	the FCP still won't parse the longforms correctly.
+
+12.	New LDR package to load programs (.SEG) anywhere in memory in any
+	page.  It also responds to the QUIET flag and will give loading info
+	if run "NOQUIET" to help debugging.
+
+13.	PEEK and POKE display the full 24 bit address.
+
+14.	REG command display reformatted and now displays both the DEBUG and
+	NOISE registers.  These are two USER registers that can be easily
+	set and reset via the "SET /option" command.  NOISE is used by the FCP
+	while DEBUG is intended to provide an easy way of turning debugging
+	messages and actions on or off.
+
+15.	MU now includes use of '?' for a help screen, and a hex calculator
+	has been added so that the resident MU contains the same functions
+	as the transient version.
+
+16.	The 'S' (space) command has been added to RCP.  This command has the 
+	format S d: and will give the remaining space on the selected drive.
+	The CP and ERA commands will echo the remaining space on the desti-
+	nation drive automatically.
+
+17. 	The TST command accepts 'M'80, 'Z'AS, 'S'LR, or '8'0A for Microsoft's
+	M80 assembler, ZAS assembler, SLR Systems SLRMAC assembler, and SLR
+	Systems Z80ASM assembler, respectively.  M80 is version 3.45, ZAS is
+	version 2.0, SLRMAC is version 1.06, and Z80ASM is version 1.2.
+
+	*	*	*	*	*	*	*	*	*
+
+INSTALLATION REQUIREMENTS
+
+	XB requires the following for installation:
+
+	1.  A Z80 CPU
+	2.  ZCPR3 installed with segments for RCP, FCP, ENV, message
+	    buffers, stacks, etc.
+	3.  128k of memory in two (2) 64k banks.  The first bank is the
+	    TPA bank and the second is the SYSTEM bank.  The first and 
+	    second banks should have the bottom 48k bank-selected using 
+	    a bank port.  The TPA bank should have the top 16k set as
+	    global.  The top 16k in the SYSTEM bank is not enabled.  In
+	    a typical setup, the TPA bank is assigned to bank 0 while
+	    the SYSTEM bank is assigned to bank 1.  You must check your
+ 	    memory manuals to determine what byte must be sent to the
+	    bank port address to enable each bank.
+	4.  SLR Systems Z80ASM assembler and SLRNK (or SLRNK+) linker.
+	5.  About 500k of disk space for source files.  A RAM drive
+	    will greatly speed up assembly time.
+
+
+	This next section started out as a list of improvements that might
+	be desirable in the BCP.  Looking over it a month or so afterwards
+	I have to admit that it seems to be becoming a list of ideas for the
+	system as a whole.  This is more or less along the lines of the
+	original concept for the BCP when I started modifing the original
+	ZCPR3 code to build an "Operating System" instead of what seemed to
+	be ZCPR+BDOS+BIOS.  The general view is that the BDOS is in control
+	of the computer, ZCPR is a useful improvement on the D.R. CCP and
+	if you're lucky your BIOS won't have too many bugs in it.
+	I believe that this is the wrong approach, in that the control of the
+	whole system is in the I/O and that the way the BIOS is implemented
+	is the key to a usable system.  Thus the CCP and BDOS are programs
+	that are used by the BIOS to control the system.
+
+	*	*	*	*	*	*	*	*	*
+
+Wish List:-
+
+1.	FCP.	a. File lists accepted by FCP utilities.
+		b. Better REG processing... 8-bit arithmetic on registers and
+		   more logical negate handling (ie IF R1 ~0 or IF R1 -1).
+		c. How about LABELs?, GOTOs and IF <cond> GOTO...
+
+2.	RCP.	a. The current utilities package is a kluge and the whole RCP
+		   would benefit from a more consitent utilities treatment. Of
+		   course if SYSLIB, Z3LIB and VLIB could be linked to the
+		   banked portion everything would be much easier.
+		b. I should like to see a "No Message" option added to CP and
+		   REN so that files can be manipulated without the user
+		   having to answer questions ie.
+				CP b:=filename.typ /nm
+		   would copy the file to B: without asking questions even if
+		   a copy exists on B.
+		   Also it would be very nice if CP accepted file lists as
+		   input.
+		c. Replace the DIR program with SD or similar.
+		d. TYPE and LIST could handle SQ files and offer a list of
+		   filetype that they would refuse to print eg. COM, SYS etc.
+		e. MU needs some work, it still has bugs and I don't like the
+		   HEX line editor.  It also fails to stop ZEX processing when
+		   it is run.
+		f. CP does a fair bit of bank switching and copying.  Most 
+		   systems should be able to eliminate 50% of the overheads in
+		   CP by setting the DMA address to the target buffer instead
+		   of copying everything through the TPA buffers.
+		g. REN internal logic checks for the target file and may erase
+		   it before it looks to see if the source file exists.
+
+16-Mar-86	h. LIST command is designed to dump ASCII to a printer and so
+		   does TAB expansion.  This trashes Graphics Dumps therefore
+		   we need a /BIN (or similar) argument to LIST to kill TAB
+		   processing and make sure 8-bit chars are sent.
+		   There is no reason why LIST cannot spool the output to the
+		   printer (Get code from UNSPOOL).  The spooler performance
+		   would be helped if the IOP provided a small buffer (2-4k)
+		   for LST: device output.
+		i. Need to add redirection commands to pass status via SYSCOMN
+		   to the IOP for CON: and LST: redirection to files ie.
+				OPEN filename.typ > {LST:/CON:}
+		    		SHUT - close any open file and flush to disk.
+		j. Key redefinition is very desirable but needs some thought,
+		   the place for key redefinition is the IOP.
+		k. It is intended that the 16k buffer in the SYSTEM bank be
+		   allocatable in 2k chunks - so far this has not been done
+		   but the buffer could have multiple uses.
+		l. These additions are starting to point to the requirement
+		   for some sort of multiprocessing facility in the BIOS to
+		   handle the I/O.  Implementing interupt I/O drivers and
+		   buffering all I/O would be a good substitute.
+
+29-Mar-86	m. Add a "PORT" command to access I/O ports directly...
+		   "PORT pp nn" would write the value "nn" to port "pp"
+		   "PORT pp" would return the current value of port "pp"
+
+Information:-
+
+SYS.SEG	   This should contain all memory management utilities so that
+	   it will be easier to port the package to other systems.  I
+	   have only put in the stuff that is required at the moment
+	   but I plan to include all my system memory managment here.
+
+MVERSN	   This macro is placed prior to each package entry point and
+	   I plan to be able to display the version number of each
+	   package as it is run by setting the DEBUG register.
+
+LDR18	   I have modified this ZCPR3 utility to accept a filetype of
+	   ".SEG" if the file has a 128 byte header as the 1st sector.
+	   This header contains the destination information so that
+	   we do not have to change the Z3ENV descriptions. LDR18 will
+	   load a .SEG file to any bank of memory that it supports.
+	   Since one of the files that I plan to load is the memory
+	   management library, it is currently nessesary that LDR18
+	   contain its own memory routines.
+
+	*	*	*	*	*	*	*	*	*
+
+Files supplied in XB11.LBR
+
+Note:-
+1. Files marked (*) may need to be modified for system memory management.
+2. Files marked (#) should be read first.
+
+ASCII   .REL	- SLR rel library containing ASCII definitions.
+LDR18   .Z80	* Modifed ZCPR3 package loader.
+
+SYSCOMN .Z80	* System common definitions - a BIOS/SYSTEM "environment".
+SYSEXEC .Z80	* All memory managment routines.
+SYSTEM  .LIB	# System addresses (non-ZCPR3) and partitions.
+
+XB      .Z80 	# Main file to assemble the banked portion of the BCP.
+
+XBBBANK .Z80	- RCP bank command.
+XBBCLRT .Z80	- RCP Clear, Reset and Test commands.
+XBBCMDS .Z80	- RCP/FCP command scanner/proccessor.
+XBBCOPY .Z80	- RCP copy command.
+XBBDIRS .Z80 	- RCP directory command.
+XBBECHO .Z80	- RCP echo command.
+XBBERAS .Z80	- RCP erase command.
+XBBFCP  .Z80	- FCP commands.
+XBBLTYP .Z80	- RCP list and type commands.
+XBBMUTL .Z80 	- RCP MU3 command.
+XBBPEEK .Z80	- RCP peek and poke commands.
+XBBPROT .Z80	- RCP file protection command.
+XBBREGS .Z80	- RCP register command.
+XBBSPAC .Z80	- RCP space command.
+XBBRENM .Z80	- RCP rename command.
+XBBSETP .Z80 	- RCP set command.
+XBBUTIL .Z80	- Utilities used by banked s/w.
+XBBWHEL .Z80	- RCP wheel command.
+
+XBDNEW  .DOC	# General documentation and definitions.
+
+XBGFCP  .Z80 	- Global portion of FCP.
+XBGRCP  .Z80	- Global portion of RCP.
+
+XBLDEF  .LIB	# Combination of SYSRCP.LIB and SYSFCP.LIB
+
+XBSDIR  .SUB	- File list for assembler/linker.
+XBSHEAD .Z80	- Header definition for .SEG files.
+XBSREL  .ZEX 	- ZEX file to rebuild SYS.SEG, BNK.SEG, SYS.FCP and SYS.RCP
+		  Catch 22 - requires new FCP to run.
+
+Z3BASE  .LIB 	# Version of Rick Conns original for my system.
+
+
+Ammendments
+***********
+
+04-Mar-1986	DIR sort bug fixed (??)
+		8 bit chars now sent to printer by LIST cmd.
+16-Mar-1986	LIST still expands TABs so above mod is somewhat useless.
+
+***********
+Additional installation notes from Steven D. Kapplin 4/12/86
+
+The following notes should help in the installation of XBCP.
+
+1.  The space reserved for the RCP and FCP in the BIOS cold boot can
+be reduced.  Only one 256 byte block need be reserved for the RCP and
+one 128 byte block for the FCP.  Additionally, you must reserve one
+256 byte block for SYS$$EXEC and one 256 byte block for SYS$$POOL.  An 80
+byte block must be reserved for SYS$$COMN.  The addresses for these blocks
+are EQUated in SYSTEM.LIB.  Space is reserved in the RCP and should be 
+allocated in your Z3BASE.LIB.  A sample Z3BASE.LIB is included to show the 
+allocation required.  An easy way to accomplish this is to set RCPS
+in Z3BASE.LIB to 7.  This reserves adequate space for the RCP and
+the XB system space.  Also note that the byte values for selecting memory
+banks is also in SYSTEM.LIB.  They are TPA$$PAR and SYS$$PAR for TPA bank
+and SYSTEM bank, respectively.  They are currently EQUated to 1 and 2.  If
+your system requires something different, change these values.  The bank
+port address BANK is also EQUated in SYSTEM.LIB.  It is set for 040h.  If
+you use a different bank port address, change the value of BANK.
+
+2.  Check the file XBLDEF.LIB and determine what options you want turned
+on (or off) in your system.  As delivered, the entire RCP and FCP options
+are available including a resident version of MU.  Note that the EQUates
+for the error addresses for M80, ZAS, SLRMAC and Z80ASM are contained in
+the module XBBCLRT.Z80.  If you have different versions from those supported
+here, then you will need to change them.  Note that TST command no longer
+supports Microsoft's F80 Fortran compiler.
+
+3.  Configure SYSTEM.LIB for the proper addresses for SYSCOMN, SYSEXEC,
+and SYSPOOL.  These equates are labelled as SYS$$COMN, SYS$$EXEC, and
+SYS$$POOL in SYSTEM.LIB.  The easy way to do this is to set them up
+starting immediately after the RCP.  One 256 byte block is needed for
+the RCP, then these three addresses come immediately after in the
+memory map.  (See accompanying Z3BASE.LIB.)  For instance if your RCP is
+set to begin at 0F600h, then set SYS$$POOL at 0F700h, SYS$$EXEC at 0F800h,
+and SYS$$COMN at 0F900h.  The RCP is now 256 bytes long, SYSPOOL and
+SYSEXEC are allocated 256 bytes each.  SYS$$COMN needs only 80 bytes, so
+your next system address can begin at 0F980h.  This actually allocates
+128 bytes.  However RCPS can only be allocated in 128 byte chunks.  Set
+RCPS to 7 for this example.
+
+4.  The .ZEX files should be checked to be sure drive specifications are
+proper for your system.  If not, make appropriate changes.  However, do
+not change anything else in the .ZEX files other than drive specifiers or
+the filenames for the assembler and linker.
+
+5.  XB is setup to be assembled with the SLR Z80ASM assembler and
+SLRNK+ linker.  Major modifications may be needed to assemble with
+M80 or ZAS.
+
+6.  LDR18.Z80 requires SYSLIB.REL and Z3LIB.REL for assembly.  Be
+sure to use the LDR18.ZEX file for assembly.
+
+7.  There is a slight bug in the bank routines which causes the default
+user bank to be set to whatever byte is located at the memory address
+of PBANK.  Thus, MU and BANK may report some bank other than the ones
+actually in use on your system.  Under use this is a minor aggrevation,
+but no serious problem.  It does not affect how the banked system works,
+but when you use PEEK or POKE, BANK or MU, set the user bank to the one
+you want.  BANK <bank> will set the user bank to the value specified in
+<bank>.  For instance, BANK 1 sets the user bank to 1.  For simplicity
+you could do this as part of your STARTUP.
+
+8.  XB is assembled by the command -- ZEX XBSREL <cr>.  Answer 'Y' to
+each of the first three questions.  The rest is automatic.  LDR18 is
+assembled by the command -- ZEX LDR18 <cr>.
+
+9.  Questions can be directed to Edi Cramp, Ron Schwabel, or Steve Kapplin
+at the Tampa ZNODE -- 813-831-RCMP (7276).
+
+	SUMMARY OF FEATURES
+
+a.  Added MU as a resident command.  MU has a help menu and hex calculator
+built in, so that it closely resembles its transient counterpart.  A BANK
+command permits the user to set the memory bank to be examined by MU.  This
+is a feature missing from DDT and its ilk.  MU provides most of the features
+of DDT, except for the ability to move memory and read in files.
+
+b.  All RCP commands are implemented including several new ones.  New commands
+are BANK, R, and S.  The BANK command permits changing the user memory bank.
+R will reset the disk system (for those not using ZRDOS+ with auto disk
+relogging).  The S command provides remaining space on designated drive.  The
+S command is executed automatically after an ERA or CP finishes normal
+execution.
+
+c.  The IF processor has been completely updated to include all features of
+the transient version of IF, except for file lists.  The IF IN now permits
+a user-prompt (IF IN <prompt>) and allows an entire multiple command line
+to be aborted by responding with ^C.  IF now provides most features of SAK
+in a resident command.  EXIF has been added to the IF commands.  EXIF
+effectively removes all pending IFs, eliminating the need to follow nested
+IFs with a series of FIs.
+
+d.  The banked system will free up about 1.5k of additional TPA space, while
+permitting a combined RCP and FCP totaling about 9k.
+
+e.  The modular design makes it relatively easy to add commands to the
+existing command set.  Once familiar with the structure of a command source
+module, adding new commands becomes relatively simple.
+                                

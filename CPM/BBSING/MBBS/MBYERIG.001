@@ -1,0 +1,341 @@
+; March 18, 1985, Bucky Carr, World Peace (ZBBS) RCP/M, Denver, 303-320-4822
+;
+; Here is a little ditty that I snitched from an old BYE routine that a
+;friend had.  Have you ever found yourself looking at your CRT and wondering
+;if the blinking cursor actually means that BYE is working, and waiting for
+;a ring.  No need to wonder any more.  With these mods, your CRT will keep
+;you informed of what BYE is doing between calls.
+;
+; I specifically adapted this to Kim Levitt's MBYE35, but I left enough info
+;that virtually anyone should be able to make this work on any BYE that s/he
+;is running (I showed a friend how to do it to BYE331, last night in 5 mins!)
+;
+; My changes are represented by the symbology:
+;
+;***************************************
+;				       *
+; changes and additions inside the box *
+;				       *
+;***************************************
+;
+; These changes will make the CRT flash the following message on and off the
+;CRT at about 1 second intervals:  "Waiting for ring ...."
+;
+; First look for a label like this and the 'Await ringing' comment for the
+;next label
+;
+START2:
+;
+	XRA	A		;clear OPTION flag
+	STA	OPTION
+;
+; Await ringing - check local keyboard for CTL-C exit request,
+; CTL-G bell toggle or CTL-Z screen clear.
+;
+;************************************************************************
+; Need to initialize some counters that represent delay loops		*
+;and do this before the RINGWT label.  MHZ should be defined above in	*
+;your program already							*
+;									*
+LOOP:				;values are for about 1 second flashing *
+	LXI	B,MHZ*200	;counter for printing the 'waiting' msg *
+	LXI	D,(MHZ*400)-1	;counter for erasing the 'waiting' msg	*
+	LXI	H,MSGWT2	;print the 'waiting for ring ....' msg	*
+	CALL	LCLPRT		;gotta use DE & BC cuz #s big		*
+;									*
+; Call the local CRT, not the modem port and not both.	In BYE331 it is *
+;a routine called PRINTL, in MBYE35 it is LCLPRT.  MSGWT2 is the address*
+;of the 'Waiting for ring ....' msg (see near the end)			*
+;************************************************************************
+;
+RINGWT:
+;
+;************************************************************************
+; Actual delay for printing the message(s) occurs here. 		*
+;I found that the built in routine (DELAY) would not work reliably	*
+;so wrote this which does work reliably.  Notice that this does not	*
+;cause more than a few nanoseconds delay in the regular scanning of	*
+;the console (VCONSTAT) and the modem (MDINST or MDCARCK) ports 	*
+;									*
+	DCX	B		;decrement BC				*
+	MOV	A,B		;put B in A, OR it with C		*
+	ORA	C		;0 yet? yes=one second has elapsed	*
+	JZ	WAITMSG 	;erase the 'Waiting for ring ....' msg	*
+	DCX	D		;decrement DE				*
+	MOV	A,D		;put D in A, OR it with E		*
+	ORA	E		;0 yet? yes=another second has elapsed	*
+	JZ	LOOP		;re-print the 'Waiting for ring ...' msg*
+;									*
+THERE:				;need this label now (ESSENTIAL)	*
+;									*
+; the following is included for your orientation			*
+;************************************************************************
+	CALL	VCONSTAT	;check if console key ready
+	ORA	A
+	JZ	RNGWT1		;nope, check for ring/carrier
+	CALL	VCONIN		;yep, get console key
+	ANI	7FH		;strip parity bit
+;
+	 IF	FKEYS
+	CPI	BELKEY		;bell key?
+	CZ	TOGBEL		;if so, toggle console bell on/off
+	CPI	CLRKEY		;clear screen char?
+	CZ	CLRSCRN		;if so clear the screen
+	 ENDIF
+;
+	CPI	'C'-40H		;CTL-C?
+	JZ	USRCHK		;check for exit
+;
+; Now look for the next label we need, here called RNGWT1.  We are looking
+;for a spot to stick a small subroutine to which we can jump without
+;having it used for anything else accidentally.  You could technically stick
+;stick this little subroutine anywhere out of harm's way....
+;
+RNGWT1:
+;
+	 IF	NORING AND NOT (SMODEM OR SM1200 OR SM2400)
+	CALL	MDCARCK		;check for carrier
+	JNZ	ANSWER		;we have carrier, let's say hello.
+	JMP	RINGWT		;nope, loop
+	 ENDIF	;NORING AND NOT (SMODEM OR SM1200 OR SM2400)
+;
+	 IF	SMODEM OR SM1200 OR SM2400
+	CALL	MDINST		;check for data available
+	JZ	RINGWT		;nope, keep waiting
+	CALL	MDINP		;yep, get data (CR)
+	CPI	CR		;if CR,
+	JZ	RINGWT		;ignore it
+	CPI	'2'		;'RING?'
+	JZ	ANSWSM		;yes, answer the phone
+	CPI	'3'		;'NO CARRIER?'
+	JZ	START2		;yes, clear OPTION flag, cont.
+	PUSH	PSW		;no, save result code
+	CPI	'1'		;'300 CONNECT?'
+	 ENDIF	;SMODEM OR SM1200 OR SM2400
+;
+	 IF	SMODEM OR (SM1200 AND S300) OR (SM2400 AND S300) ;300 baud?
+	JZ	ANSWER		;yes, answer
+	 ENDIF
+;
+	 IF	(SM1200 OR SM2400) AND NOT S300
+	JZ	HANGUP1A	;if not, hang up on 'em
+	 ENDIF
+;
+	 IF	SM1200 OR SM2400
+	CPI	'5'		;'1200 CONNECT?'
+	JZ	ANSWER
+	 ENDIF	;SM1200 OR SM2400
+;
+	 IF	SM2400
+	CPI	'6'		;'2400 CONNECT?'
+	JZ	ANSWER
+	 ENDIF	;SM2400
+;
+	 IF	SMODEM OR SM1200 OR SM2400
+	POP	PSW		;not a response code
+	JMP	RINGWT		;ignore it
+;
+ANSWSM:
+;
+	 ENDIF
+;
+	 IF	(SMODEM OR SM1200 OR SM2400) AND USRLOG
+	LXI	H,OLDUSR	;count this as "attempted log on"
+	CALL	BOPLOG
+	 ENDIF
+;
+	 IF	SMODEM OR SM1200 OR SM2400 OR ANCHOR OR USR
+ANSWS2:
+	CALL	MDINST		;check for data available
+	JZ	ANSWS2		;nope, keep waiting
+	CALL	MDINP		;yep, get data (CR)
+ANSWS3:
+	LXI	H,SMAMSG	;send "ATA",<cr>
+	CALL	MDMPRT
+	JMP	RINGWT		;wait for response code
+	 ENDIF
+;
+;************************************************************************
+; Here is a safe spot to stick our subroutine				*
+; This RCP/M runs on a Heath H89, so I used the clear screen codes	*
+;to accomplish the erasing of the message every other second		*
+;									*
+; If you don't know your computer's clear screen codes (see below)	*
+;then change the CLRSMSG to MSGWT1, and we will do it another way	*
+;									*
+WAITMSG:			;					*
+	LXI	H,CLRSMSG	;clear local screen only		*
+	CALL	LCLPRT							*
+	LXI	B,MHZ*400	;delay the print msg			*
+	JMP	THERE							*
+;									*
+; the following is for your orientation 				*
+;************************************************************************
+;
+	 IF	NOT NORING
+;
+RINGW2:
+	CALL	MDRING		;call ring-check routine
+	JZ	RINGWT		;not ringing...
+;
+;
+; Next, I did not want the cursor flashing on the screen and cluttering
+;up my pretty flashing 'Waiting ....'msg, so I added a cursor on/off routine.
+;Here is off at the label in MBYE35 called CLRSCRN.  This way each call
+;by BYE to the clear screen routine, will also turn off the cursor.
+;
+CLRSCRN:
+	LXI	H,CLRSMSG	;Clear screen
+	CALL	LCLPRT
+;************************************************************************
+; CURSOFFMSG is the address of the cursor off routine (see below)	*
+;									*
+	LXI	H,CURSOFFMSG	;CURSOR OFF				*
+	CALL	LCLPRT		;					*
+;									*
+; Again, only send the cursor off routine to the local console not the	*
+;modem.  The RET instruction following was part of the original CLRSCRN *
+;code, so don't forget it						*
+;************************************************************************
+	RET
+;
+;
+; When we exit to CP/M, relieving BYE of its duties, we of course want the
+;cursor back on again.	For your orientation, find the following label,
+;and work down from there.
+;
+; Here to exit to CP/M, first reset the modem to default status
+;
+EXCPM:
+;
+	 IF	COMFILE
+	LDA	OPTION
+	CPI	'E'		;If not "E" option
+	JNZ	EXEX		;exit direct to CP/M
+	CALL	LODCOM		;else, make sure .COM file loaded
+	 ENDIF
+;
+	 IF	MBBS AND RTC
+	CALL	PATCH		;If MBBS, run with BYE patched
+	XRA	A		;in so RTC will work...
+	STA	MDMFLG		;(but with MDMFLG cleared)
+	 ENDIF
+;
+	 IF	COMFILE
+	CALL	TPA		;execute .COM file locally
+	 ENDIF
+;
+EXEX:
+;
+	 IF	SMODEM OR SM1200 OR SM2400 OR ANCHOR OR USR
+	LXI	H,SMQMSG	;send "ATZ<cr>"
+	CALL	MDMPRT
+	CALL	SMDLAY		;wait a bit...
+	 ENDIF
+;
+	 IF	SM1200 OR SM2400 OR ANCHOR OR USR
+	CALL	SET1200		;if SM1200, ATZ = 1200 baud
+	 ENDIF
+;
+	 IF	SMODEM OR SM1200 OR SM2400 OR ANCHOR OR USR
+	LXI	H,SMZMSG
+	CALL	MDMPRT		;send "AT S0=0"
+	 ENDIF
+;
+	 IF	CCSDISK 
+	CALL	DSKON		;turn on the drives
+	 ENDIF			;CCSDISK
+;
+	 IF	ZCPR2 OR NZCPR
+	MVI	A,OFF
+	STA	WHEEL		;DO NOT restore wheel byte for SYSOP
+	STA	03FH		;RIG IT SO THE SYSOP HAS TO LOG IN TOO
+	MVI	A,4		;SD SCREEN WIDTH
+	STA	03EH		;SD WIDTH LOCATION
+	 ENDIF
+;
+	 IF	ZPATH
+	CALL	SPATH		;set up sysop path
+	 ENDIF	;ZPATH
+;
+	 IF	USEZCPR
+	MVI	A,SMAXUSR
+	STA	MAXUSER		;and MAXUSR
+	MVI	A,SMAXDRV
+	STA	MAXDRIV		;and MAXDRIV
+	 ENDIF
+;
+	 IF	MBBS AND RTC
+	CALL	UNPATCH
+	 ENDIF
+;
+	MVI	A,' '		;clear
+	STA	YESITS		;'B' in 'BYE' to force reload
+;
+;************************************************************************
+; Just in front of the warm boot, turn the cursor back on		*
+;									*
+	LXI	H,CURSONMSG	;CURSOR BACK ON 			*
+	CALL	LCLPRT		;					*
+;************************************************************************
+	JMP	VWARMBT		;warm boot to unpatched CP/M
+;
+;
+; Near the end of the BYE and MBYE programs are a number of DB statements
+;to which we will add some of our own.
+;
+; Program version number message.
+;
+VMSG:	DB	CR,LF,'>>> MBYE v3.5 - 01/26/85 - Kim Levitt'
+	DB	CR,LF,0
+;
+;************************************************************************
+; 'Waiting for ring' message, assuming that you can invoke the CLRSCRN	*
+;abilities of your machine (Richard Conn does it in dozens of machines	*
+;with his Z3TCAP and TCSELECT, so I know you can, too.	It is the	*
+;preferred method.							*
+;									*
+MSGWT2: 							;	*
+	DB	CR,'Waiting for ring ....',CR,0 		;	*
+;									*
+; IF AND ONLY IF, you cannot do a clear screen routine on your machine	*
+;then add this, here,							*
+;									*
+MSGWT1: 							;	*
+	DB	CR,'Waiting	     ....',CR,0 			*
+;									*
+; and be sure that you changed the CLRSMSG to MSGWT1 up in the WAITMSG	*
+;above									*
+;************************************************************************
+;
+; For your edification, here is the clear screen routine for the Heath
+;H89 or H19.
+;
+; Clear screen string.
+;
+CLRSMSG:			;put clear screen control code or
+	DB	27,'E'		;escape sequence here, end with 0
+	DB	0		;(escape E)
+;
+;************************************************************************
+; Cursor off/on messages for the Heath H89 or H19			*
+;									*
+CURSOFFMSG:							;	*
+	DB	27,'x','5'	;CURSOR OFF CONTROL CODE HERE		*
+	DB	0		;END WITH ZERO (escape x5)		*
+;									*
+CURSONMSG:							;	*
+	DB	27,'y','5'	;CURSOR ON CONTROL CODE HERE		*
+	DB	0		;END WITH ZERO (escape y5)		*
+;									*
+; And the following is for your orientation				*
+;									*
+; What is ZBBS, anyway? 						*
+;************************************************************************
+;
+	 IF	LGONMSG
+LOGMSG: DB	CR,LF,LF,LF,'World Peace (ZBBS) RCP/M'
+	DB	CR,LF,'The World Peace Movement'
+	DB	CR,LF,0
+	 ENDIF			;LGOMSG
+V

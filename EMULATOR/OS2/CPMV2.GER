@@ -1,0 +1,335 @@
+Dokumentation zur Version 2.0 des Z80-Emulators
+===============================================
+
+1. CCP (Console Command Processor)
+----------------------------------
+
+Der CCP befindet sich nicht im 64k-Byte Bereich des Z80. Er ist komplett
+im 80286-Code geschrieben (lÑuft auch auf V20/V30 *NICHT* auf 8088/86)
+und beeinflu·t den TPA-Bereich des Z80 nur bei der COPY-Operation.
+(Nicht in der OS/2-Version!)
+
+Daher hat der Emulator einen gro·en TPA-Bereich von FD00H Byte
+(jeweils 100H Byte fÅr BDOS, BIOS und Page 0).
+
+Es folgt eine Aufstellung aller CCP-Befehle, die in der OS/2-Version
+implementiert sind. Sind diese in der MS-DOS-Version nicht verfÅgbar, ist
+dies vermerkt. Obwohl der Emulator ein CP/M-System emulieren soll, wurde
+die Syntax der Instruktionen vollstÑndig an MS-DOS bzw. OS/2 angelehnt,
+damit sich der Benutzer eines Rechners nicht an zwei Schreibweisen gewîhnen
+mu·.
+In den folgenden Syntaxdarstellungen stehen als Trennzeichen immer Leerzeichen.
+Entsprechend der MS-DOS-Konvention sind an dieser Stelle jedoch auch
+Tabulatorzeichen, Komma, Semikolon und Zeilenvorschub (LF = Ctrl+Return)
+zugelassen.
+
+Als AbkÅrzungen wurden eingefÅhrt:
+lw:   =>  Laufwerksbuchstabe (z.B. A:)
+path  =>  vollstÑndiger Pfad wie unter MS-DOS bzw. OS/2 (max. 63 Zeichen ab
+	  Hauptverzeichnis)
+fname =>  Dateiname (8+3 Zeichen)
+Namen in eckigen Klammern [] sind optional.
+
+
+1.1 TYPE
+--------
+Syntax:  TYPE [lw:][path]fname
+
+Gibt eine Datei auf der Konsole aus. Wildcards im Dateinamen sind nicht
+zugelassen.
+
+
+1.2 COPY
+--------
+Syntax:  COPY [lw:][path]fname [lw:][path]fname
+
+Kopiert eine oder mehrere Dateien. Als Wildcard-Zeichen im Dateinamen
+sind wie unter CP/M und MS-DOS '?' bzw. '*' zugelassen. Sie haben
+dieselbe Bedeutung.
+
+Der Zieldateiname mu· jedoch (im Gegensatz zu MS-DOS) immer angegeben
+werden. Au·erdem ist '.' hier als Dateiname nicht erlaubt.
+
+Das Kopieren von Zeicheneinheiten (z.B. COPY CON: datei) ist nur in der
+OS/2-Version verfÅgbar.
+
+1.3 REN
+-------
+Syntax:  REN [lw:][path]fname [path]fname
+
+Dieser Befehl hat 2 Funktionen. Zum einen kann damit eine Datei umbenannt
+werden. Au·erdem ist er dafÅr geeignet, einen Verzeichniseintrag einer
+Datei in ein anderes Verzeichnis zu Åbertragen (MOVE).
+
+Die Funktion hÑngt von der Angabe eines Pfades im Zieldateinamen ab:
+Wird dort ebenfalls ein Pfad angegeben, so wird der Verzeichniseintrag
+Åbertragen.
+
+Oft mu· eine Datei in ein anderes Verzeichnis kopiert und anschlie·end
+gelîscht werden. DafÅr ist diese Funktion MOVE vorgesehen.
+
+Beispiele:
+REN *.ASM *.OLD 	    (umbenennen von Dateien)
+REN \WORK\*.TXT *.BAK	    (umbenennen in einem anderen Verzeichnis)
+REN *.ASM \WORK\*.ASM	    (Dateien nach WORK verschieben (MOVE-Operation))
+REN \A.DAT \VERZ\B.DAT	    (Datei nach VERZ verschieben und umbenennen)
+
+
+1.4 CLS
+-------
+Syntax:  CLS
+
+Bildschirm lîschen. Dies geschieht Åber eine ANSI-Sequenz; dazu mu·
+natÅrlich der ANSI-Treiber installiert sein (DOS und Comp.-Box) oder
+ANSI mu· eingeschaltet sein (bei OS/2).
+
+
+1.5 DIR
+-------
+Syntax:  DIR [lw:][path]fname
+
+Verzeichnis ausgeben. In fname kînnen ebenfalls die Wildcards '?' und
+'*' verwendet werden. Als AbkÅrzung fÅr '*.*' ist '.' erlaubt.
+Steuerparameter '/w' bwz. '/p' werden noch nicht unterstÅtzt.
+
+
+1.6 CHDIR / MKDIR / RMDIR
+-------------------------
+
+Syntax:  CHDIR [lw:][path]
+	 MKDIR [lw:]path
+	 RMDIR [lw:]path
+
+éndern des Standardverzeichnisses, anlegen bzw. Lîschen eines Verzeichnisses.
+Es kînnen auch die Kurzformen CD/MD/RD verwendet werden.
+
+CD bzw. CHDIR ohne Argument zeigt das Standardverzeichnis an.
+Nach CD mu· ein Trennzeichen stehen (im Gegensatz zu MSDOS)!
+
+
+1.7 ERA/DEL
+-----------
+Syntax:  ERA [lw:][path]fname
+	 DEL [lw:][path]fname
+
+Lîschen einer/mehrerer Dateien. Wildcards '?' und '*' sind zugelassen.
+Die MS-DOS Abfrage 'Sind Sie sicher (J/N)?' bei DEL *.* erfolgt NICHT!!!
+
+1.8 EXIT
+--------
+Syntax:  EXIT
+
+ZurÅck in den Parent-Proze·. Unter MS-DOS ist dies der COMMAND.COM,
+unter OS/2 ist dies je nach Installation der CMD.EXE, Session Manager
+oder Presentation Manager.
+Errorlevel ist 0. Erfolgt ein RÅcksprung ins MS-DOS
+bzw. OS/2 aus einem anderen Grund (Probleme bei Speicherallokierung durch
+Systemfehler), ist der Errorlevel ungleich 0.
+
+1.9 SAVE
+--------
+Syntax:  SAVE block [lw:][path]fname
+
+Legt den Speicherbereich ab 100H in der Datei 'fname' ab. Die LÑnge ist
+256Byte * block. Wird 'block' zu gro· angegeben, wird eine Fehlermeldung
+ausgegeben. Da Nicht-CP/M-Programme unterstÅtzt werden, darf 256 * block
+die TPA-Grî·e Åberschreiten. Der Offset von 100H kann jedoch (noch) nicht
+verÑndert werden.
+
+Achtung: 'block' ist eine Dezimalzahl.
+
+1.10 RUN
+--------
+Syntax:  RUN [lw:][path]fname [loffset [roffset]]
+
+Startet ein Nicht-CP/M-Programm im Z80-Modus. Das Programm wird nach
+'loffset' geladen und bei 'roffset' gestartet.
+Der Default-Wert fÅr 'loffset' ist 100H, fÅr 'roffset' ist er 'loffset'.
+Siehe auch Kap. 2 fÅr die Benutzung von Betriebssystem-Aufrufen.
+
+1.11 SET
+--------
+Syntax:  SET [variable=[string]]
+
+Die Behandlung einer Environment ist sowohl in der OS/2 als auch in der
+MS-DOS-Version verfÅgbar. In der MS-DOS-Version ist die Maximalgrî·e jedoch
+durch die Grî·e der Environment beim Aufruf des Programmes festgelegt.
+
+EnthÑlt die Umgebung z.B. 20 Zeichen, so wird beim Start auf die nÑchste
+Paragraphengrî·e (2*16=32 Byte) aufgerundet; dies ist eine Eigenschaft des
+DOS. Um Platzprobleme zu umgehen, sollte man vor dem Aufruf des Emulators
+genÅgend Platz anlegen durch Eingabe von z.B.:
+
+SET a=00000000000000000000000000000000000000000000000000000000000000000000
+
+Diese Variable a kann dann im Emulator wieder gelîscht werden und steht als
+freier Platz zur VerfÅgung.
+
+
+Strings, die im System eine besondere Bedeutung haben sind folgende:
+
+DEBUG=on|off - Ist Debug on, geht der Emulator nach dem Start eines Programmes
+	       sofort in den integrierten Debugger. Default ist 'off'
+
+BREAK=on|off - Ist Break off, wird die ^Break bzw. ^C Tastenkombination nur
+	       in den unter CP/M-vorgesehenen BDOS-Aufrufen untersucht und
+	       bearbeitet. Ist Break on, kann diese Tastenkombination auch
+	       eine Endlosschleife unterbrechen. Dies kann jedoch bei
+	       Programmen wie MBASIC zu Problemen fÅhren, da ein RÅcksprung
+	       zum CCP erfolgt. Soll im BREAK=on Zustand dort ein Break
+	       eingegeben werden, der nur das BASIC-Programm abbricht, wird
+	       als Alternative die Kombination Alt+PgDn vorgeschlagen.
+	       Default ist 'off'.
+
+ASCII_SIZE=8_bit|7_bit
+	     - Bei allen Konsolausgaben Åber BIOS oder BDOS werden ASCII-
+	       zeichen auf die angegebene LÑnge angepa·t (d.h. bei der
+	       Angabe '7_bit' wird Bit 7 maskiert).
+
+CCP-PROMPT   - Prompt des CCP. Darstellung durch eine ANSI-Zeichenkette wie
+	       unter OS/2. $I ist ebenfalls verfÅgbar.
+
+DEB-PROMPT   - Prompt des Z80-Debuggers. Darstellung wie unter OS/2. Als
+	       Info-Zeile wird hier $J angeboten.
+
+1.12 SHELL
+----------
+Syntax:  SHELL [command]
+
+Dieser Befehl startet einen neuen Befehlsinterpreter CMD.EXE bzw. COMMAND.COM.
+Wird command angegeben, wird dieser Befehl ausgefÅhrt. Der RÅcksprung erfolgt
+mit EXIT.
+
+
+
+2. Weitere Einzelheiten zum CCP
+-------------------------------
+
+Der Emulator wird gestartet mit
+
+CPMZ80 [/C|/K [string]]
+
+Wird kein Argument angegeben, gibt der Emulator den Prompt aus und geht in
+den Eingabemodus. Dies bewirkt auch die '/K'-Option, die nur angegeben werden
+mu·, falls dahinter ein 'string' folgt. '/C' bewirkt, da· der Emulator nach
+Abarbeitung eines Befehles die Kontrolle sofort wieder dem 'Parent-Proze·'
+Åbergibt (siehe ErlÑuterungen zu EXIT). Diese Option ist daher nur sinnvoll
+in Zusammenhang mit einem Befehlsstring dahinter, zum Beispiel einer
+Submitdatei. Beispiele:
+CPMZ80 /C MAKE.SUB   - Start einer Stapeldatei, die zum Beispiel den Aufruf
+		       eines C-Compilers, eines Makroassemblers und Linkers
+		       enthÑlt. Anschlie·end RÅcksprung ins DOS.
+CPMZ80 /K CPMINIT    - Start einer 'CP/M-Autoexec'. Dies ist vor allem
+		       deshalb sinnvoll, da damit die Umgebungsvariablen
+		       auf die gewÅnschten Werte eingestellt werden kînnen.
+		       Eine CPMINIT.SUB-Datei kînnte beispielsweise so
+		       aussehen:
+    SET CCP-PROMPT=($I$P)
+    SET DEB-PROMPT=$J->
+    SET BREAK=ON
+    SET DEBUG=OFF
+    CLS
+
+
+3. Z80-Emulation
+----------------
+
+Das Programm emuliert alle dokumentierten Z80-Befehl mit einem Unterschied:
+Alle Interrupt-Anweisungen werden wie NOPs behandelt. Die RÅcksprÅnge von
+Interruptroutinen RETN u. RETI werden wie RET behandelt.
+
+OUT und IN-Anweisungen enden vorlÑufig in einer Ausnahmebehandlung und
+kînnen nicht ausgefÅhrt werden.
+
+Die Anweisung HLT lÑuft in eine TRAP-Behandlung und kann fÅr Diagnose-
+Zwecke benutzt werden. Au·erdem laufen alle nichtdokumentierten
+Z80-Befehle dorthin.
+
+FÅr CP/M-Programme gelten alle Konventionen, die fÅr normale Z80-Rechner
+auch gelten:
+BDOS-Einsprung ist	CALL 5
+WARMBOOT-Einsprung ist	CALL 0
+
+Vom BIOS kînnen direkt nur die Routinen fÅr Konsol-Ein-/Ausgabe verwendet
+werden. Die Routinen fÅr Disk-I/O sind nicht implementiert, da sie fÅr
+OS/2 nur mit EinschrÑnkungen verwendbar wÑren.
+
+FÅr CP/M-Programme steht die TPA von 100H ... FDFFH (64768 Byte) zur
+VerfÅgung.
+
+Nicht-CP/M-Programme:
+
+Als Nicht-CP/M-Programme werden solche bezeichnet, die Speicher au·er-
+halb des TPA-Bereiches benutzen.
+Diese Programme kînnen grundsÑtzlich den gesamten Speicher von 64kByte
+verwenden. Au·erdem kînnen sie ebenfalls das BDOS bzw. das BIOS nutzen.
+Falls sie jedoch den Bereich unter 100h oder Åber FE00h benutzen, geschieht
+dies jedoch auf eine andere Art und Weise, als dies unter CP/M der Fall ist.
+
+Als Schnittstelle zum Betriebssystem dient ein beim Z80 nicht vorhandener
+Befehl mit dem Opcode EDEDnn. nn ist ein Byte, das die Art des Aufrufes
+festlegt. Die zur VerfÅgung stehenden Funktionen sind nachfolgend
+aufgefÅhrt:
+
+nn = 0: BDOS
+nn = 1: BOSI (spezielle OS/2-Services wie Timer, Bildschirmzugriff; nur OS/2)
+nn = 2: BOOT
+nn = 3: WARMBOOT    (identisch mit BOOT)
+nn = 4: CONSTATUS
+nn = 5: CONIN
+nn = 6: CONOUT
+nn = 7: LIST   (fÅhrt auf Dummy-Operation)
+nn = 8: AUXOUT (fÅhrt auf Dummy-Operation)
+nn = 9: AUXIN  (fÅhrt auf Dummy-Operation)
+
+Beispiele fÅr Nicht-CP/M-Programme
+
+BDOS-Aufrufe:
+Die Register sind wie unter CP/M belegt. Der Aufruf erfolgt jedoch nicht
+mit einem CALL 5, sondern mit EDED00.
+
+	.Z80
+START:	LD	E,char		;Zeichen laden
+	LD	C,2		;BDOS-Funktion: CONSOLE OUTPUT
+	DB	0EDH,0EDH,0
+	LD	C,0		;BDOS-Funktion: SYSTEM RESET
+	DB	0EDH,0EDH,0	;(zurÅck zur CCP-Emulation)
+	end	START
+
+
+
+BIOS-Aufrufe:
+Die Register sind wie im CP/M-Bios belegt.
+Das folgende Programm macht dasselbe wie das Vorhergehende, mit dem Unterschied,
+da· BIOS-Aufrufe benÅtzt werden.
+
+	.Z80
+START:	LD	A,char		;Zeichen laden
+	DB	0EDH,0EDH,6	;BIOS-Funktion CONOUT
+	DB	0EDH,0EDH,2	;BIOS-Funktion BOOT
+	end	START
+
+
+
+4. In Vorbereitung nÑchste Version
+----------------------------------
+
+- Behandlung von OUT/IN-Instruktionen
+- Assembler im Debugger
+
+Keine Software ist fehlerfrei. Falls Sie Fehler finden, sind wir dankbar, wenn
+Sie uns diese mitteilen. Auch VerbesserungsvorschlÑge sind willkommen.
+
+Die Autoren
+	Klaus Breining; Markus Noller
+
+	Erreichbar unter
+
+	"Markus Noller"
+	in der CCWN-Box
+	Brett:	"OS/2-Pin"
+      Telefon:	07151/68434
+
+oder Åber den deutschen OS/2-Fido Pin "OS2.GER"
+
+

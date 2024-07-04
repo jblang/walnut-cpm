@@ -1,0 +1,100 @@
+..@comment[from Eugene KUG Newsletter, Sept., Nov., & Dec. 1985 issues]
+
+	     HINTS ON NSWEEP FROM THE HORSE'S MOUTH
+			  by Doug Sears
+
+I have written about Micro Cornucopia's SOG (Semi-Official
+Gettogether) before in this publication.  During some strenuous
+excavations in the dark corner of my computer room, I
+rediscovered my SOG notes in a pile of ancient manuscripts, and
+now I can tell you about one of the highlights of the SOG, Dave
+Rand talking about his program NSWEEP.  Dave is working on the
+Definicon 32-bit board for a living (see Micro C #25 and August
+and September BYTE), but continues to improve NSWEEP in his spare
+time.  You should all have v 2.07; there is a v 2.08 out, an
+unauthorized update by an unknown person, which should be avoided
+because it sometimes destroys files.  Dave is working on v 2.09,
+using a smaller, faster SQueeze algorithm, and since that will
+save about 4K of space, he may add some features, possibly a
+bidirectional View or a left margin for the Print file command.
+
+Dave had some useful comments on how to use NSWEEP.  I won't say
+anything about whether features are "undocumented" or not,
+because people (me included, of course) sometimes miss perfectly
+well documented things.
+
+1. To move a file to a different user number, just rename it, and
+include the user number in the file spec.  For example,
+
+B0:NSWEEP.COM  R  B14:NSWEEP.COM .
+
+You can also do this with the wildcard rename.  I guess you can
+throw MOVE.COM away now (I dumped SQ and USQ long ago, and use
+NSWEEP instead).
+
+2.  The little-known "Y" command.  To understand this command,
+you need first to know about the mysterious "eighth bit," also
+known as "bit 7" (counting from 0 to 7), the "high bit," or the
+"parity bit."  Up to now, standard ASCII has been a seven-bit
+code, leaving the eighth bit of a byte free for other uses (there
+is a new eight-bit ASCII, but that's the subject of a different
+article and irrelevant here).  In particular, the inner workings
+of CP/M ignore the eighth bit of each letter you give it in a
+file name, and then proceed to use some of those eighth bits for
+marking special files.  
+
+You will usually not see these high bits, even on '84 model
+Kaypros which show letters with the high bit set as graphics
+characters, because directory listing programs also ignore the
+high bit.  If you do "STAT *.*" you'll be shown if there are any
+Read-Only (R/O) or System (SYS) files.  A file which has the
+eighth bit set on the first letter of its extension is a R/O
+file.   The second letter marks a SYS file, and the third letter
+marks a file for programs that make backup copies of all files
+that have been changed (this is the Archive bit).  So there you
+have the "RSA" you see when you try to use NSWEEP's Y command:  R
+for read-only, S for system, A for Archive.
+
+Y also lets you change the high bit of the first four characters
+of the file name, called 1, 2, 3, and 4 in NSWEEP's terminology. 
+High bits in characters 5, 6, 7, and 8 have very special meanings
+in TurboDos, so they aren't used, in the name of compatibility. 
+Here's a summary for that famous hypothetical file FILENAME.EXT.
+
+FILENAME.EXT
+------------
+1234____.RSA
+
+NSWEEP can display the marked characters in inverse video,
+underlined, or whatever your screen can display, and NEWSWEEP.COM
+included in ONKUG vol. 1 no. 9 is already set up for newer
+Kaypros, the ones with graphics.  Unfortunately, '83-model
+Kaypros show extra "0" characters instead of highlighting with
+that setup.  To simulate highlighting on '83-model Kaypros, you
+can make the lead-in and lead-out strings be appropriate
+printable characters, such as "<" and ">".  This disturbs the
+alignment of columns, but it's better than nothing. The lead-in
+string is at location 104H (length of 0 to 6 at 104H, string
+starts at 104H).  The lead-out string is at 10BH (same format:
+length plus up to six characters).  I recommend SUPERZAP as the
+easiest program to use for making simple patches like that.
+
+Now that you know something about high bits, we can finally get
+to NSWEEP's Y command.  The only trick you need to know is that
+it only works on tagged files (just like the Q command).  So all
+you do is tag the appropriate file, type "Y", and specify which
+positions you want to change (any or all of 1, 2, 3, 4, R, S, or
+A, separated by commas or not).  Any bits not specified will be
+reset back to zero, so if you specify something other than 1-4 or
+RSA, say some random letter like "k", then all bits will be
+reset.  Some obvious applications come to mind.  Sometimes I get
+Read-Only files from other people, and this saves me from having
+to hunt up a disk with STAT on it.  Conversely, you can set your
+precious files to R/O to keep yourself from accidentally erasing
+them.  People with hard disks especially might want to look into
+the programs that use the Archive bit for selective back-ups. 
+You could use one of the other bits just to mark a group of
+files.
+for making simple patches like that.
+
+Now that you know something about hi

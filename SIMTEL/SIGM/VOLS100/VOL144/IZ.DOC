@@ -1,0 +1,289 @@
+.®                                                                        - 
+L---------!-------------------!-------------------!-----------------------R
+                                  IZ.COM
+
+               A program to translate 8080 assembly-language
+                             to Z80 mnemonics
+
+
+IZ.COÍ  ió á prograí whicè readó aî assembly-languagå sourcå filå codeä  iî 
+808°  mnemonicó  anä createó á similaò filå codeä iî  Z8°  mnemonics®   Thå 
+translateä  filå  caî bå assembleä (afteò minoò changes© usinç  Microsoft'ó 
+macrï assembler¬ M80.
+
+Whù translate¿   Perhapó sincå yoõ havå purchaseä thió diskettå thaô ió  aî 
+unnecessarù  questioî buô É can'ô resisô thå temptatioî tï telì yoõ whaô  É 
+think anyway.
+
+Wheî  writinç  programó  iî assemblù languagå É mucè prefeò  tï  uså  Ziloç 
+ratheò thaî Inteì mnemonicó anä thå reasoî haó nothinç tï dï witè thå extrá 
+instructionó  thaô arå availablå tï thå Z8° buô becauså oæ thå elegancå  oæ 
+thå  languagå  itself®    Consideò  thå  followinç  808°  assembly languagå 
+instructions:
+
+          LDA                 LDAX                LHLD
+          LXI                 MOV                 MVI
+          SPHL                STA                 STAX
+
+Alì oæ theså instructionó arå similaò iî thaô theù perforí thå samå logicaì 
+function¬  namelù copyinç á valuå froí somewherå tï somewherå  else®   Ninå 
+instructionó  whicè  alì dï mucè thå samå thing¡  Iî Z8°  assemblylanguagå 
+theså  instructionó  alì sharå thå samå mnemonic¬  LD¬  witè  thå  operandó 
+specifyinç thå sourcå anä destination®   Iî mù vie÷ havinç tï remembeò  onå 
+mnemonic instead of ninå is much more reasonable.
+
+Iô  ió  noô harä tï guesó whù Inteì choså tï havå ninå instructionó  ratheò 
+thaî  one»  iô makeó thå tasë oæ writinç aî assembleò sï verù mucè  easier®  
+Oncå aî opcodå mnemoniã haó beeî identifieä á greaô deaì ió knowî abouô thå 
+instructioî aó á whole¬  e.g®  itó length¬  thå skeletoî machinå codå tï bå 
+generateä  anä  thå typeó oæ operanä whicè arå acceptable®   Oî  thå  otheò 
+hand¬  thå writeò oæ aî assembleò whicè acceptó Ziloç mnemonicó haó á  mucè 
+morå  difficulô task»  hå ofteî doesn'ô eveî kno÷ ho÷ manù byteó oæ machinå 
+codå aî instructioî wilì occupù untiì thå operandó havå beeî identifieä anä 
+checked®   Oæ courså thaô ió hió probleí anä shoulä noô concerî uó aó useró 
+oæ aî assembler®   Thå Intel-mnemoniã assembleò writeò forceó uó tï dï  hió 
+joâ foò hií everù timå wå writå aî 808° program¬ iî fact¬ almosô everù timå 
+wå  codå aî instruction¡   Aó á professionaì computerisô É aí dismayeä  anä 
+angrù  aô thå numbeò oæ computeò systemó whicè makå thå useró worë foò theí 
+insteaä oæ thå systemó workinç foò thå users®   Aî 808° assembleò ió surelù 
+an example of such a system.
+
+Anotheò  reasoî  whù  É prefeò Z8° mnemonicó ió thaô wheneveò  É  writå  aî 
+instructioî  whicè operateó oî á 16-biô register-paiò É actuallù  codå  thå 
+operanä aó á register-paiò mnemoniã (e.g® PUSÈ BÃ insteaä oæ PUSÈ B¬ DEÃ HÌ 
+instead of DCX H).  I think that makes a program somewhat easier to read.
+
+Enough of the why, now for the how...Š
+OPERATION
+
+     Tï ruî thå 8080-Z8° translatoò makå surå thaô IZ.COÍ anä IZ.DAÔ arå oî 
+     thå logged-iî disë anä simplù typå IZ®  Yoõ wilì bå askeä foò thå namå 
+     oæ  thå  .ASÍ filå thaô yoõ wanô translated®   Iî youò replù  yoõ  maù 
+     includå  á  disë drivå prefiø and/oò á filå namå extension®   IÚ  wilì 
+     supplù  á  defaulô extensioî oæ .ASÍ foò thå inpuô filå iæ  yoõ  don'ô 
+     providå  one»  thå outpuô filå wilì bå giveî á namå extensioî oæ  .MAÃ 
+     buô otherwiså wilì havå thå samå namå aó thå inpuô file®   Iæ yoõ havå 
+     specifieä  á disë drivå foò thå inpuô filå theî thå outpuô  filå  wilì 
+     also be written to that disk.
+
+     IÚ  theî askó yoõ iæ yoõ wanô alì labeló declareä  external®   Iæ  yoõ 
+     replù yeó tï thió questioî theî alì labeló iî thå translateä filå wilì 
+     bå followeä bù twï colonó (e.g®  XYZ::)¬  á featurå whicè ió usefuì iæ 
+     yoõ  wanô tï generatå á .SYÍ filå durinç linkinç foò lateò uså witè  á 
+     symboliã debuggeò sucè aó ZSID» iæ yoõ replù nï tï thå questioî theî á 
+     labeì iî thå translateä filå wilì bå followeä bù á singlå coloî unlesó 
+     iô waó followeä bù twï oò morå colonó iî thå originaì file.
+
+     Durinç translation  IÚ displayó thå  untranslateä anä translateä  linå 
+     imageó  oî  thå  console®   Control-Ó (DC3© anä  control-Ã  (ETX©  arå 
+     recognised by the program and have their usual CP/M meanings.
+
+MECHANISM
+
+     IZ.COÍ  readó á filå calleä IZ.DAÔ whicè containó mosô oæ  thå  infor
+     matioî needeä tï translatå 808° programó intï Z8° programs®  Iæ IZ.DAÔ 
+     ió noô presenô theî nï opcodå oò operanä translatioî wilì occur®   Yoõ 
+     coulä  ruî IZ.COÍ withouô IZ.DAÔ tï puô colonó afteò alì labeló iæ yoõ 
+     wanô  tï assemblå usinç M8° iî 808° modå buô yoõ woulä firsô  havå  tï 
+     deletå  thå  firsô linå oæ thå translateä prograí whicè setó Z8°  modå 
+     anä  fiø  uğ  anù SEÔ pseudo-opó becauså M8° doesn'ô  likå  colonó  oî 
+     labeló  preceedinç  pseudo-opó whicè don'ô generatå  codå  oò  reservå 
+     space.
+
+     Withiî  certaiî  limitó yoõ caî modifù IZ.DAÔ tï  translatå  differenô 
+     mnemonicó oò tï producå differenô output®  Aó distributed¬ IZ.DAÔ wilì 
+     translatå alì oæ thå Z8° instructionó defineä iî Z80.LIB¬  onå oæ  thå 
+     macrï librarù fileó thaô comå witè Digitaì Research'ó macrï assembler¬ 
+     MAC.
+
+     Eacè linå oæ IZ.DAÔ holdó translatioî informatioî foò onå instruction®  
+     Thå  linå  containó severaì fields¬  somå oæ fixeä lengtè anä somå  oæ 
+     variablå  length®   Alì oæ thå fixeä lengtè fieldó  appeaò  first®   Á 
+     descriptioî oæ eacè fielä follows:
+
+     1.   808° instructioî mnemonic. Fixeä lengtè, 8 characters.
+
+     2.   Z8°  instructioî mnemonic. Fixeä lengtè, 8 characters.
+
+     3.   Prefiø  tï  bå inserteä  beforå  firsô  operand®  Fixeä 
+          length, 4 characters.
+Š     4.   Suffiø tï bå appendeä tï firsô operand®   Fixeä length¬ 
+          4 characters.
+
+     5.   Prefix to second operand.  Fixed length, 4 characters.
+
+     6.   Suffix to second operand.  Fixed length, 4 characters.
+
+     7.   Translatå  actioî foò firsô operand®   Variablå length®  
+          Allowable values for this field are:
+
+          ASIS - leave operand unchanged.
+
+          R8   - leavå operanä unchangeä unlesó iô ió thå pseudo-
+                 register M which is translated to (HL).
+
+          P    - enclose operand in parentheses.
+
+          R16  - iæ  operanä ió á registeò theî translatå iô tï á 
+                 register-pair mnemonic.
+
+          R16P - as for R16 but enclose operand in parentheses.
+
+          M    - accept multiple operands (no translation).
+
+     8.   Translatå actioî foò seconä operand®   Variablå length®  
+          Allowable values as for field 7.
+
+     9.   Operand-reversal®   Variablå  length®   Valuå  TRUÅ  iæ 
+          ordeò oæ operandó ió tï bå reversed®   Reversaì ió donå 
+          before prefixes and suffixes are added.
+
+     10.  Maximuí  numbeò oæ colonó whicè maù follo÷ á  labeì  iæ 
+          onå  appearó witè thió instruction®   Variablå  length®  
+          Allowed values are 0, 1 and 2.
+
+LIMITATIONS
+
+     Althougè  IÚ takeó thå hack-worë ouô oæ translation¬  iô won'ô  alwayó 
+     producå  á  prograí whicè wilì assemblå correctlù witè  M80»  iî  somå 
+     cases you will have to use your text editor to make a few changes.
+
+1.   Digitaì  Research'ó assembleró ASÍ anä MAÃ allo÷ 16-characteò  identi
+     fiers®   Microsoft'ó M8° allowó identifieró oæ anù lengtè buô requireó 
+     thaô identifieró bå uniquå iî thå firsô siø characters®   É translateä 
+     mù  BIOÓ tï Z8° mnemonicó anä É haä tï changå abouô halæ á dozeî lineó 
+     foò thió reason.
+
+2.   É havå haä troublå translatinç macrï libraries®   Actuallù thaô ió noô 
+     strictlù truå - thå translatioî waó OË buô thå prograí whicè useä  thå 
+     macrï  librarù woulä noô assemblå correctly®   Thå probleí seemó tï bå 
+     causeä bù limitationó tï M80'ó macro-expansioî capabilities®   Iô ió á 
+     nuiscancå  buô É can'ô seå aî easù solutioî tï thå  problem®   É  finä 
+     that keeping the macros short helps.
+
+DEPENDENCIESŠ
+     IÚ  ió  writteî  iî Pascal-Ú and¬  aó such¬  requireó CP/Í anä  á  Z8° 
+     processoò tï execute®  É uså versioî 2.² oæ CP/M»  É don'ô kno÷ iæ  IÚ 
+     wilì ruî oî versioî 1.´ buô É can'ô seå whù iô shouldn't®  Thå prograí 
+     ió  roughlù  12Ë iî sizå anä needó additionaì spacå foò thå stacë  anä 
+     heap®   Thå  amounô oæ extrá storagå requireä dependó oî thå  sizå  oæ 
+     IZ.DAT»  aó  distributeä iô wilì certainlù ruî oî á 20Ë CP/Í whicè  ió 
+     thå smallesô thaô É coulä construcô witè MOVCPM.
+
+     ®     ®     ®     ®     ®    ®    ®    ®    ®    ®    ®    ®    ®    ®
+
+Iæ yoõ havå anù querieó oò problemó don'ô hesitatå tï leô må know®  É mighô 
+bå  persuadeä  tï selì thå sourcå code¬  IZ.PAS¬  iæ yoõ wanô it®   Iî  thå 
+meantimå É hopå thaô thió prograí proveó aó usefuì tï yoõ aó iô haó donå tï 
+me.
+
+                           John Hastwell-Batten
+                              Tardis Pty Ltd
+                             38 Silvia Street
+                             Hornsby,NSW 2077
+                               (02) 477 4225
+
+
+NOTES ON VERSION 2.0 (June 1982):
+
+Someonå oncå suggesteä thaô á prograí whicè translateä TDÌ assemblù languagå 
+programó  intï  Ziloç  mnemonicó mighô bå oæ greateò valuå  thaî  onå  whicè 
+translateä Inteì mnemonics®  Whilå É don'ô fullù agree¬  É caî certainlù seå 
+hió poinô and¬  aparô froí somå cosmetiã changeó tï thå program¬ versioî 2.° 
+waó developeä tï fulfiì thaô suggestion.
+
+Aî  extrá fielä (11© haó beeî addeä tï eacè recorä iî IZ.DAÔ tï allo÷ selec
+tivå  loadinç oæ thå translatioî tablå accordinç tï whetheò aî Inteì oò  TDÌ 
+assemblù  languagå prograí ió beinç translated®  Thå valueó thaô thió  fielä 
+caî assumå arå I8080¬  TDÌ oò ANY®  Thoså recordó havinç á field-1± valuå oæ 
+ANÙ wilì bå loadeä intï thå translatioî tablå nï matteò whicè typå oæ sourcå 
+prograí ió beinç translated®  IZ.COÍ no÷ askó whetheò thå sourcå prograí  ió 
+writteî  iî  Inteì oò TDÌ mnemonicó anä useó thå firsô letteò oæ  thå  replù 
+(whicè  shoulä  bå É oò Ô iî uppeò oò loweò case© tï selecô thå  appropriatå 
+recordó froí IZ.DAT.
+
+Somå  internaì changeó tï IZ.COÍ werå needeä tï handlå TDÌ assembleò  sourcå 
+code®  Thå firsô oæ theså recogniseó aî operanä endinç iî (X© oò (Y© sucè aó 
+17(Y©  oò  -17(y© anä rearrangeó iô tï thå Ziloç form¬  (IY+17©  oò  (IY-17© 
+respectively®  Thå  seconä changå handleó mosô instanceó oæ thå uså  oæ  thå 
+perioä  iî aî operanä expressioî tï denotå thå currenô locatioî  counter®  Á 
+solitarù  perioä  oò á perioä whicè ió followeä bù á « oò á - sigî  wilì  bå 
+translateä  tï  á ¤ sign®  Anù otheò instancå oæ thå perioä iî thaô  contexô 
+wilì havå tï bå thå objecô oæ á manuaì change.
+
+Examples:
+
+     jmpr .4        will be translated to       JR $4
+and
+     lbl = .         will be translated to       LBL EQU $Šbut
+     lxi d,8000h+.    will only end up as        LD DE,8000H+.
+
+Aó faò aó É know¬  nï furtheò changeó tï thå prograí shoulä bå necessarù  tï 
+handlå  thå  idiosyncracieó oæ thå TDÌ assemblù languagå buô É admiô thaô  É 
+coulä easilù bå wrong®  É havå neveò seeî á TDÌ assemblù languagå manuaì anä 
+É  aí  basinç mù assumptioî oî whaô É coulä learî froí á couplå  oæ  prograí 
+listings®  Iæ yoõ dï finä somethinç whicè cannoô bå handleä bù changinç  thå 
+IZ.DAÔ  filå  PLEASÅ  leô må know®  Thå onlù chargå É makå  foò  updateó  ió 
+postage!
+
+Aó É mentioneä above¬  therå arå á couplå oæ cosmetiã changeó implementeä iî 
+versioî  2.0®  Yoõ  caî  no÷ suppresó thå consolå displaù oæ thå  inpuô  anä 
+outpuô  sourcå codå durinç translatioî bù answerinç NÏ tï onå oæ  thå  ques
+tionó  askeä wheî yoõ ruî IZ.COM®  Wheî thå translatioî ió finisheä yoõ  no÷ 
+geô á displaù whicè telló yoõ ho÷ manù lineó werå iî thå sourcå program¬ ho÷ 
+manù  lineó  werå  writteî tï thå outpuô filå anä ho÷  manù  sourcå  prograí 
+statementó actuallù passeä througè thå translatioî algorithm.
+
+IZ.COÍ ió hardlù thå world'ó fastesô program®  Oî mù 4MHú systeí usinç 1024-
+bytå  I/Oó tï floppù disë iô tooë må ninå anä á halæ minuteó tï translatå  á 
+2200-linå  TDÌ program®  IÚ spendó á LOÔ oæ timå doinç strinç  manipulationó 
+usinç thå "standard¢ funtionó supplieä witè PascalZ®  I'í surå thaô É coulä
+speeä  iô uğ considerablù bù writinç somå stringhandlinç routineó oæ mù owî 
+buô  theî É don'ô translatå programó everù daù anä thå speeä (oò lacë oæ it© 
+doesn'ô botheò må aô all® Onå thinç yoõ coulä trù iæ yoõ likå whicè maù havå 
+á  limiteä effecô ió tï arrangå IZ.DAÔ sï thaô thå mosô  frequentlù  encoun
+tereä instructionó arå towardó thå enä oæ thå file.
+
+NOTES ON VERSION 2.1 (July 1982)
+
+Mù thankó tï Bilì Matheò oæ S.I®  Microcomputeró foò drawinç mù attentioî tï 
+somå problemó witè versioî 2.° anä foò supplyinç må witè somå  documentatioî 
+oî  thå  PSÁ  Macrï Assembleò whicè ió á verù powerfuì versioî  oæ  thå  TDÌ 
+assembler.
+
+Versioî  2.±  handleó mosô oæ thå PASÍ pseudo-opó thaô arå capablå oæ  beinç 
+translateä tï MACRO-8° equivalents®  Iô doesn'ô yeô copå witè anythinç whicè 
+containó  squarå  brackets¬  namely¬  conditionaì pseudo-opó  anä  bracketeä 
+strings®  Furthermore¬ becauså IÚ assumeó thaô labeló starô iî columî onå oæ 
+thå sourcå image¬  opcodeó anä pseudo-opó wilì onlù bå translateä  correctlù 
+if they do NOT start in column 1.
+
+Á  partiaì solutioî tï thå probleí oæ translatinç PASÍ relocatioî baseó  haó 
+beeî provided®   Thå "standard¢ relocatioî commandó .LOÃ .PROG.¬ .LOÃ .DATA® 
+anä .LOÃ .BLNK®  arå translateä tï thå M8° equivalentó PSEG¬ DSEÇ anä COMMOÎ 
+respectively®   Anù  otheò  .LOÃ followeä bù aî identifieò ió translateä  tï 
+COMMOÎ  /identifier¯ whilå á .LOÃ followeä bù á numbeò oò aî  expressioî  ió 
+translated to an ORG statement.
+
+Unfortunately¬  thå  IÚ  prograí haó growî tï abouô 25ë witè thå extrá  codå 
+needeä  tï handlå PASÍ programó anä wilì probablù gro÷ agaiî iî versioî  2.² 
+wheî  thå remaininç languagå constructó arå addressed®   Nï stepó tï  reducå 
+thå memorù requiremenô arå planneä untiì versioî 2.³ aô thå earliest.
+ŠA FINAL WORD?
+
+Thió  ió likelù tï  bå thå finaì versioî oæ IZ®   É cannoô seå thaô É  shalì 
+eveò feeì motivateä tï makå thå remaininç fixeó needeä tï properlù translatå 
+PASÍ  sourcå files®    Thå latesô serieó oæ changeó werå madå iî á hurrù anä 
+witè lesó thaî perfecô programminç technique®   Tï modifù thå prograí no÷ ió 
+noô  aó easù aó iô was®   Tï dï iô properlù É woulä eliminatå modulå  inter-
+dependencies®   Aó  matteró no÷ stand¬  somå procedureó kno÷ toï mucè  abouô 
+whaô goeó oî insidå others®  Kernighaî anä Plaugeò woulä bå horrified®  É aí 
+not too pleased either.
+
+AND ANOTHER THING
+
+Onå  oæ thå reasonó whù IÚ runó sï slowlù ió thaô parameteró arå passeä  bù 
+value®   Changinç  thå  prograí sï thaô theù arå passeä bù referencå  woulä 
+savå á LOÔ oæ stacë activity®  É didn'ô thinë thaô thå potentiaì returî waó 
+wortè  thå efforô involved»  besides¬  É likå tï watcè thå translationó  (¦ 
+look for errors and the lack of speed suits me nicely!

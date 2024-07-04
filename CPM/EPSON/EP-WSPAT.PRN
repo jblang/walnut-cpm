@@ -1,0 +1,132 @@
+
+
+
+                     PATCHING WORDSTAR FOR THE EPSON PRINTER
+                                  Eli Freedman
+                                   ABC Br, IBD
+
+        Use CP/M's Dynamic Debugger & Tester (DDT) on an installed
+        WordStar.
+
+        Type        DDT WS.COM
+
+        DDT answers:           DDT VERS 2.2
+                               NEXT     PC
+                               3F00     0100
+
+        Then  use  the S command to change the code as  specified  below.  
+        Type S (location); DDT responds with the present contents of that 
+        location;  type in the new code to change it.  A CR keeps the old 
+        code in that location and goes on to the next location.  Entering 
+        a . (period) stops the S command.
+
+        Type        G0   to exit DDT.  Save your new WordStar by typing
+                    
+                    SAVE 62 A:WSNEW.COM
+
+        Why 62?   62 in base 10 =  (3F00 - 100)16/10016
+
+        You  can use WSNEW,  but there is a problem with  WordStar's  RUN 
+        command.   After  you  are satisfied with your  patching,  either 
+        change  the  name of WSNEW back to WS.COM,  or sign  up  for  the 
+        advanced course on patching WordStar.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                        1
+
+
+
+           PATCHES FOR THE EPSON PRINTER
+
+
+        STARTING  
+        LOCATION                             
+         (hex)        CODE                        EXPLANATION
+        -------      --------                   ----------------
+
+        0696      04  0D  0A  0D  0A     Define a "line" to be two "half 
+                                         lines" (each = 1/12 inch)
+
+        06A8      02  0D  0A             Set subscript/superscript 
+                                         rolldown/rollup to be a half 
+                                         line
+
+        06B5      03  1B  46  0F         Activate ^A: Turn OFF 
+                                         emphasized mode; then turn ON 
+                                         condensed mode.
+                  
+        06BA      03  12  1B  45         Activate ^N: Turn OFF condensed
+                                         mode; turn ON emphasized 
+                                         mode.
+
+        06C9      02  1B  34             Activate ^Q: Turn ON italics.
+
+        06CE      02  1B  35             Activate ^W: Turn OFF italics.
+
+        06D3      03  1B  57 01 [*]      Activate ^E: Turn ON 
+                                         enlarged mode.
+
+        06D8      03  1B  57 00 [*]      Activate ^R: Turn OFF enlarged 
+                                         mode.
+
+        06DD      02  1B  46             Toggle ^Y: Turn OFF Emphasized 
+                                         mode.
+
+        06E2      02  1B  45             Toggle ^Y: Turn ON Emphasized 
+                                         mode.
+
+        06E7      08  0D  1B  41  06     At start of printing: Set 
+                                         vertical spacing = 6/72 inch 
+                  32  1B  45  1B  38     (instead of normal 12/72); turn 
+                                         ON emphasized mode; turn OFF the 
+                                         *&%?#%!! "Out of Paper" alarm.
+
+        06F8      07  1B  46  1B  38     At end of printing: Turn OFF                        
+                                         emphasized mode; turn OFF the 
+                  1B  32  0D             "Out of Paper" alarm; restore 
+                                         normal vertical spacing (6 
+                                         lines/inch) vertical spacing.
+
+
+        [*] NOTE:  On older Epson MX-80 (& MX-100) without GRAFTRAX,  use 
+        02 1B 46 and 02 1B 45, respectively, for these two commands.
+
+
+
+
+                                                 4th rev (27-I-84)
+
+
+
+                                        2

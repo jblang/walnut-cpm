@@ -1,0 +1,243 @@
+
+			MODM700.INF
+			Nov. 4, 1984
+
+     The recently-added auto-linking gives the user an opportunity to
+contact any of a group of numbers and greatly simplifies calling just
+one number.  It also offers an unique choice of options as illustrated
+below.  The same program is now equally effective on either mainframes
+with logon messages or RCPM systems that expect some user-typed
+characters to start the operation.
+
+----------------------------------
+AUTO-LINKING PHONE NUMBERS
+
+     If the number you want to dial is busy, you would like to have it
+automatically redialed until it answers.  However, you might like to
+call any of a group of numbers and be happy to take whichever one first
+becomes available.  Auto-linking allows a group of numbers to be listed
+and they are then continuously dialed one after the other, until one is
+available.
+
+     MODM700 permits from 1-32 numbers to be linked together in any way.
+There are two options:
+
+	   B>>COMMAND: CAL A,D,R,3,Z	     1)
+	   B>>COMMAND: CAL F,		     2)
+	
+	   B>>COMMAND: CAL A/D/R/3/Z	     3)
+	   B>>COMMAND: CAL F/		     4)
+
+	   B>>COMMAND: CAL A,D,A,R,A,3,A,Z   5) 
+
+	   B>>COMMAND: CAL F		     6)
+
+
+	1) using a comma (,) will beep continuously when connected to
+	   the first available number - touching any key stops the beep
+	   and goes to terminal mode.
+
+	2) just the one number is linked to itself and redials until
+	   connected.  Beeps continuously until stopped with any key.
+
+	3) using a slash (/) will beep only once when connected and then
+	   automatically go directly to terminal mode - this is useful
+	   where some mainframes such as IBM and UNIX send a logon note
+	   assuming you are already able to copy as soon as connected.
+
+	4) just the one number is linked to itself and redials until
+	   connected.  Beeps only once and goes to terminal mode.
+
+	5) illustrates how one number can be given top priority.
+
+	6) system used previously - if connected on first try, beeps one
+	   time and jumps directly to terminal mode.  If no connection,
+	   asks the operator if he wants to try again or try continuous-
+	   ly until a connected is made - at which time it beeps until a
+	   key is depressed.
+
+----------------------------------
+ADDITIONAL CHANGES TO MODM700
+
+     a) If the disk filled while in the terminal mode and copying to
+	disk, the FCB file name was being closed instead of the FCB3
+	file name.  That has been fixed.  The original system was
+	developed for normal file transfer and this oversight was
+	never noticed. 
+
+     b) The command line backspace has been fixed - that dates back to
+	MODEM7 days.  If a CTL-character was accidently typed, and you
+	backspaced, the cursor would move, frequently moving "too far
+	left".	Fixed now for normal operation.
+
+     c) Several changes suggested by Ron Fowler and Bob Plouffe for
+	batch mode transfer when using BYE and checksum operation.
+
+     d) Problem with the alternate long distance dialing (Sprint, MCI,
+	etc.) fixed.  Added a short delay between the digits in a phone
+	number when sent to the modem to allow the alternate dialing
+	systems to work properly.  (Previously a problem on many modems.)
+	(PMMI modems not affected.)
+
+     e) Ringback fixed to work properly whether hand entered numbers or
+	from the main table via a single character.  Of interest mostly
+	to PMMI users, although some intelligent modems can detect rings
+	when dialing and can call ringback numbers.  (Are there are such
+	things still in existence?)
+
+     f) Those using autodial will no longer see any +++ ATH ATD etc.
+	Instead you will see messages (Busy for Anchor), No Connect, On
+	Line, etc. when connected.  An error prints Abort.  Each attempt
+	now has its own line - this seemed more appropriate when using
+	linking, plus looks better with the messages added.
+
+     g) Several other small changes in the menu.  For example, when
+	displaying the function key intercept character, etc.  (An ESC
+	showed as ^[ previously.) 
+	
+		NOTE:	ALL NORMAL OVERLAYS WILL WORK ON
+			MODM700.  SPECIAL OVERLAYS THAT ARE
+			VERSION DEPENDENT THAT WERE USED
+			WITH MDM730 WILL WORK ON MODM700.
+			THOSE SPECIAL ONES (SUCH AS FOR
+			THE MICROMODEM, NOVATION, OSBORNE
+			COMM-PAC), ETC. WILL NOT OFFER AUTO-
+			LINKING UNLESS FURTHER MODIFIED.
+
+----------------------------------
+IF ',' OR '/' ARE NOT SUITABLE:
+
+     Comma and the slash are used for delimiters on auto-linking.  If
+you to need to use the comma to get out of the local exchange, you can
+change either of the delimiters to something different:
+
+	   04FD  2F   ASCII  /  (slash)
+	   0502  2C   ASCII  ,  (comma)
+
+----------------------------------
+PATCH TO GO TO TERMINAL MODE QUICKER:
+
+     If going directly to terminal mode and it still takes too long to
+adequately receive signon messages from IBM or UNIX mainframes, try one
+of the following two changes:
+
+     MOD1  067F  06 02 CD   to   C3 9B 06
+	   069F  C2 7E 19   to   C2 18 16
+	   06A6  CA 7E 19   to   CA 18 16
+      or
+
+     MOD2  0966  CD 83 01   to   C3 18 16 
+	   
+----------------------------------
+TO EXIT 'CAL' MORE QUICKLY
+
+     If it seems to take too long to exit the table of telephone numbers
+with a simple 'return' check the following byte:
+
+	   04F4  91  to  9D
+
+----------------------------------
+PATCH TO SLOW THE FUNCTION KEYS:
+
+     Currently the function keys send a character and wait for an echo.
+Since some people use 1-2 of the keys for secret passwords for mainframe
+use (where the characters are not echoed back), there has to be a com-
+promise between the length of time you are willing to wait for the echo
+character to be returned.  Normally it is returned very shortly after it
+is sent but on some systems it may take longer.  It is currently set to
+wait a maximum of 200 milliseconds.  (A normal character takes 33 milli-
+seconds at 300 baud).  If this is too slow and takes too long to submit
+your secret password try this change:
+
+	   1E6D  CD 8C 01   to	 7C 7C 7C
+
+     If either this or the original setting is too fast, you will drop
+some characters from showing on the CRT under normal use.  If the origi-
+nal setting is still too fast, and you do not use secret passwords which
+are not echoed, you can use this change:
+
+	   1E6D  CD 8C 01   to	 47 06 01
+	   1E70  DC 8C 01   to	 CD D4 28
+
+     This will wait up to one full second for the character to be echoed
+back and should be quite satisfactory on even the slowest systems.  (We
+used this originally, before some people started using the function keys
+for secret passwords, such as signing on to Compuserve, etc.)
+
+----------------------------------
+PATCH TO NOT SHOW "SPRINT" NUMBERS:
+
+     If for some reason you do not wish to see the alternate long dis-
+tance dialing numbers, etc., make this change:
+
+	   07FB  CD 9D 2B   to   00 00 00
+	   0818  CD 9D 2B   to   00 00 00
+
+----------------------------------
+PATCH TO "UNDO-J"
+
+     In past years when copying a file, you needed a lot of characters
+on the command line when using MODEM7.	That program was explicity for
+use with the PMMI S-100 modem.	Times change and so have modems.  As
+recently as a year or so ago, even without a PMMI modem you had to say:
+
+	   B>>COMMAND: RCT
+
+to receive a file with CRC and then jump to terminal mode when finished.
+If working modem to modem, only one person could do this, the other had
+to be in echo mode and he had to wait until the file was finished and at
+that time say:
+
+	   B>>COMMAND: E
+
+to go to echo so the two of you could talk via the keyboard and discuss
+the name of the next file to be sent, etc.  What a nuisance.  That has
+been fixed so now the person receiving the file says:
+
+	   B>>COMMAND: R
+
+and this assumes CRC protocol and will automatically return to terminal
+mode upon file completion.  This allows him to select "E" or "T" or "L"
+originally.  This has never been possible prior to MDM730.  It is one
+of the finest features recently added, as no "RT" or "ST" is needed.
+
+     This gives several advantages.  Allows automatic and simple use of
+modem-to-modem between two systems.  As soon as you see the transfer is
+done, either party can start typing without saying "are you copying this
+now?"  (Standard query prior to MDM730.)  It also gives a standard for-
+mat since when using XMODEM on RCPMs you only say "R" or "S" for normal
+CRC use - now you have the same commands for MODM700.  Finally the more
+advanced RCPM systems now use the XMODEM90 series, which tell you how
+long you have been on the system as soon as the file transfer is done.
+You can see this with the older programs when using "RT" but it is now
+automatic with only the standard "R".
+
+     To accomodate those who want to return automatically to the command
+mode instead of terminal mode, there is now "RJ" or "SJ".  (Of course
+you can easily type a CTL-E if you want to go from terminal mode to
+command mode after the transfer is done.)
+
+     For those who are used to using the "RT" and "ST" and don't care
+for the "R" or "S", here is how to "UNDO-J" to return to the older
+method requiring "RT" or "ST" to go to terminal mode upon file
+completion.  This modification defeates the feature added in MDM730.
+
+		2AFB  CA   to	C2
+		4952  4A   to	54
+		495F  4A   to	54
+
+----------------------------------
+SUMMARY:
+
+	Using the linking method just one time will have you wondering
+why it was never offered "years ago".  For example to call Compuserve
+you might have two numbers, one which is usually busy but is local and
+the second which is seldom busy but is weaker.  You could use:
+
+	   B>>COMMAND: CAL D/C
+
+which calls your favorite (often busy) number first then tries the second
+one automatically.
+
+--end--
+

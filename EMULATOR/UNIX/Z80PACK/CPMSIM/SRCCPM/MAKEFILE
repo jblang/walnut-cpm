@@ -1,0 +1,30 @@
+CFLAGS= -O -s
+
+all: cpmbin format putsys send receive bios.bin boot.bin
+	@echo "done"
+
+cpmbin:	cpmbin.c
+	cc $(CFLAGS) -o cpmbin cpmbin.c
+
+format: format.c
+	cc $(CFLAGS) -o format format.c
+
+putsys: putsys.c
+	cc $(CFLAGS) -o putsys putsys.c
+
+send: send.c
+	cc $(CFLAGS) -o send send.c
+	cp send ..
+
+receive: receive.c
+	cc $(CFLAGS) -o receive receive.c
+	cp receive ..
+
+bios.bin: bios.asm
+	z80asm -vl -sn bios.asm
+
+boot.bin: boot.asm
+	z80asm -vl -sn boot.asm
+
+clean:
+	rm -f *.lis bios.bin boot.bin cpmbin format putsys receive send

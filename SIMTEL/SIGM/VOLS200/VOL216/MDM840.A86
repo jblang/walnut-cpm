@@ -1,0 +1,8066 @@
+	pagesize 51
+VERSION EQU	840			;MDM840a(10/27/84)  --	CP/M MODEM PROGRAM  *
+;
+;				MDM841.A86
+;
+;
+; 840A 10/27/84	   -   Fixed Timing Loops		   Alex Soya
+; 840  10/23/84	   -   Added stuff from MDM740		   Dennis Vallianos
+; 830		   -   Translation from MDM730		   Alex Soya
+;------------------------------------------------------------------------
+;	   Translation of MDM740.ASM for CPM86 and MPM86.
+;
+;	This translation follows the same principle of using overlays
+;	to adapt MDM8xx to different hardware environments as was so
+;	successfully done with MDM7xx.
+;
+;	The procedure to adapt MDM8xx to specific hardware has changed
+;	somewhat due to the facts that DDT86 can not be used to overlay
+;	H86 (HEX) files and no SAVE command beeing available in CPM86.
+;
+;	The Procedure is now as follows:
+;
+;		Required Files:	  MDM8xx.H86   (xx is Version Number)
+;					       The Main Program in Hex Form.
+;
+;				  M8GP.A86     (The General None Specific
+;						Overlay.
+;					     or
+;						One of the available Overlays
+;						for your hardware.)
+;
+;
+;
+;	After Editing your Overlay Source File to conform to your
+;	Hardware environment, proceed as follows:
+;
+;
+;		ASM86 M8GP			 (Assemble the Overlay File )
+;		PIP MDM.H86=MDM840.H86,M8GP.H86	 (Append the Overlay to the
+;						  main program)
+;		GENCMD MDM 8080 CODE[MFF0] ( Run GENCMD to produce MDM.CMD )
+;
+;		Now you can run MDM.CMD
+;
+;
+;
+;	The Translation was MAINLY done be hand as XLT86 ( DRs 8080 -> 8086 translator)
+;	is virtualy useless with large files.
+;	Various routines had to be changed to work properly with CPM86 and MPM86
+;	When making mods to MDM8xx keep in mind that they should work on CPM86 as
+;	well as MPM86, so dont use BIOS calls and stuff as such...
+;
+;					Alex Soya
+;					Sysop Melbourne RCPM
+;
+;					P.O. Box 121
+;					Melbourne Beach
+;					Fl. 32951
+;
+;
+;	MDM8xx	COPYRIGHTED 1984 BY ALEX K. SOYA
+;	MDM7xx	COPYRIGHTED 1984 BY IRVIN M. HOFF
+;
+; THIS TELEPHONE MODEM PROGRAM USES THE CHRISTENSEN PROTOCOL.  IT HAS
+; BOTH 'CRC' AND CHECKSUM CAPABILITY FOR ERROR-DETECTION. IT SUPPORTS
+; DIALING AND AUTO-REDIALING FOR THE ANCHOR AUTOMATION SIGNALMAN MARK
+; XII, US ROBOTICS MODEMS, THE HAYES SMARTMODEM 300 AND 1200 AND PMMI
+; S-100 MODEMS.	 IT SUPPORTS UP TO TWO ALTERNATE DIALING SYSTEMS SUCH
+; AS 'MCI', 'SPRINT', ETC.  IT IS COPYRIGHTED TO DETER COMMERCIALISM.
+;
+; OTHER EXTERNAL MODEMS MAY BE READILY USED, ALTHOUGH  MANUAL DIALING
+; MAY BE NECESARY.  OVERLAYS HAVE BEEN MADE ALLOWING RAPID ADAPTATION
+; TO VARIOUS COMPUTERS.	 THE PROGRAM CONFORMS READILY TO NUMEROUS I/O
+; DEVICES INCLUDING THE 2661, 8250, 8251, Z80-SIO, ETC.
+;
+;
+;***********************************************************************
+;
+;   GENERAL INTEREST:  When transferring files modem-to-modem, the batch
+;   mode is extremely useful.  It allows automatic transmission of nu-
+;   merous files while the operator at the receiving end does virtually
+;   nothing.  It can be used for single files or with wildcards.  With
+;   normal single program transfer, the receiving end switches from CRC
+;   to checksum in one minute and times out completely in 120 seconds.
+;   (In batch mode it times out in 3 minutes for receive.)  This offers
+;   ample opportunity to transfer programs between individuals.
+;
+;
+;	  M8LIB.CMD  can be used to very easily and very quickly change
+;	     any of the telephone overlay numbers.
+;
+;	  M8FNK.CMD can be used to quickly and easily change any of the
+;	     10 function key assignments (or the function key intercept
+;	     character itself, which is currently the '^' character.
+;
+;
+;	This program may be used freely for any non-commercial purpose,
+;	provided that the user does not remove or alter this notice or
+;	the copyright statement.  It is not covered by a warranty either
+;	express or implied.  No changes or alterations are authorized.
+;	If desirious of modifying the program for national release, it
+;	may be used for such purposes only if the name is changed and
+;	credit given where appropriate.
+;
+;	Many people have contributed in the past to make MODEM7 what it
+;	was when I renamed the program to MDM700 and began this series.
+;	Their achievements range from modest changes to significant ma-
+;	jor additions:
+;
+;	     Ward Christensen, Jim Mills, Mark Zeigler, Keith Petersen,
+;	     Paul Kelly, Bruce Ratoff, Ron Fowler, Rich Berg, Bob Clyne,
+;	     Bill Earnest, Ben Bronson, Paul Hansknecht, John Mahr, Bob
+;	     Plouffe, Sigi Kluger, Frank Gaude' and others.
+;
+;	I do not mean to slight anyone, and hope I have included those
+;	who made the most significant advancements to the program.
+;					- Irv Hoff W6FFC
+;
+;***********************************************************************
+;
+;
+PORT	EQU	0C0H			;your base port (data or status)
+;
+MODCTL1 EQU	PORT			;modem control port
+MODDATP EQU	PORT+1			;modem data port
+MODRCVB EQU	02H			;modem receive bit (DAV)
+MODRCVR EQU	02H			;modem receive ready
+MODSNDB EQU	01H			;modem send bit
+MODSNDR EQU	01H			;modem send ready bit
+;
+;
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+;		     SPECIAL EQUATES FOR PMMI
+;
+MODCTL2	 EQU	PORT+3			;modem status port
+;
+BAUDRP	 EQU	PORT+2			;modem baud rate port
+BRKMSK	 EQU	0FBH			;mask to set break
+EVPARMSK EQU	20H			;mask to set even parity
+NOPARMSK EQU	10H			;mask to reset to no parity
+ODPARMSK EQU	0CFH			;mask to set odd parity
+;
+ANSWMOD	 EQU	1EH			;answer mode
+ORIGMOD	 EQU	1DH			;originate mode
+WAITCTS	 EQU	150			;number of seconds (x5) to wait for the
+					;computer to answer after PMMI auto-dial
+					;100=20 sec, 150=30 sec, 255=51 sec.
+					;any number 0-255 acceptable
+;
+;		  (END OF SPECIAL PMMI EQUATES)
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+;
+;
+YES	EQU	0FFH
+NO	EQU	0
+;
+;
+BUFSIZ	EQU	16			;buffer size in Kbytes for ASCII capture to disk
+					;(16k is one file extent)
+XFRSIZ	EQU	4			;file transfer buffer in Kbytes.  Do not make
+					;any larger than BUFSIZ.  16k works fine on all
+					;but very slowest systems
+;
+BDNMCH	EQU	75H			;bad name match
+ERRLIM	EQU	10			;maximum allowable consecutive errors
+ERRCRC	EQU	6			;CRC tries, then switches to CHECKSUM
+LIBLEN	EQU	34			;length of each phone library entry
+SHOWHEX EQU	NO			;yes, show both decimal and hex record counts
+					;no, show just standard decimal record count
+RUB	EQU	7FH			;rub
+CRC	EQU	'C'			;requests 'CRC' instead of 'CKSUM'
+ESC	EQU	'['-40H			;^[ = escape
+SOH	EQU	'A'-40H			;^A = start of header
+EOT	EQU	'D'-40H			;^D = end of text
+EXITCHR EQU	'E'-40H			;^E = exit character
+ACK	EQU	'F'-40H			;^F = acknowledge
+OKNMCH	EQU	'F'-40H			;^F = ok name match
+BELL	EQU	'G'-40H			;^G = bell character
+BKSP	EQU	'H'-40H			;^H = backspace
+LF	EQU	'J'-40H			;^J = linefeed
+CR	EQU	'M'-40H			;^M = carriage return
+XON	EQU	'Q'-40H			;^Q = XON character
+XOFF	EQU	'S'-40H			;^S = XOFF character
+NAK	EQU	'U'-40H			;^U = not acknowledge
+CANCEL	EQU	'X'-40H			;^X = cancel send or receive
+EOFCHAR EQU	'Z'-40H			;^Z = end of file
+;
+;
+	ORG	0100H
+;
+;
+	JMP	START			;skip the data area below
+;
+;
+;
+; THESE ROUTINES AND EQUATES ARE AT THE BEGINNING OF THE PROGRAM SO
+; THEY CAN BE PATCHED BY A MONITOR OR OVERLAY FILE WITHOUT RE-ASSEMBLING
+; THE PROGRAM.
+;
+PMMIMODEM	DB	YES		;yes=PMMI modem
+AUTODIAL	DB	NO		;yes=Hayes-type autodial modem
+TOUCHPULSE	DB	'T'		;T=touch, P=pulse (autodial-only)
+;
+CLOCK		DB	40		;clock speed in MHz x 10, 25.5 MHz max.
+					;2 MHz=20, 3.68 MH=37, 4 MHz=40, etc.
+MSPEED		DB	1		;sets display time for sending a file
+					;0=110	1=300  2=450  3=600  4=710
+					;5=1200 6=2400 7=4800 8=9600 9=19200
+BYTDLY		DB	5		;0=0 delay  1=10 ms  5=50 ms - 9=90 ms
+					;defaut time to send character in ter-
+					;minal mode file transfer for slow BBS
+CRDLY		DB	5		;0=0 delay 1=100 ms 5=500 ms - 9=900 ms
+					;default time for extra wait after CRLF
+					;in terminal mode file transfer
+NOOFCOL		DB	5		;number of directory columns
+SETUPTST	DB	NO		;yes=non-PMMI setup routine
+SCRNTEST	DB	NO		;yes=if home cursor and clear screen
+					;routine at CLRSCRN
+RETRY		DB	YES		;yes=reset the error limit to try again
+					;no=abort after 10 consecutive errors
+					;(ARPANET users should select yes)
+BAKUPBYTE	DB	NO		;yes=make .BAK file
+CRCDFLT		DB	YES		;yes=default to CRC checking
+					;no=default to Checksum checking
+TOGGLECRC	DB	YES		;yes=allow toggling of Checksum to CRC
+CONVRUB		DB	YES		;yes=convert rub to backspace
+TOGGLERUB	DB	YES		;yes=allow toggling of rub to backspace
+ADDLF		DB	NO		;no=no LF after CR to send file in
+					;terminal mode (added by remote echo)
+TOGGLELF	DB	YES		;yes=allow toggling of LF after CR
+TRANLOGON	DB	NO		;yes=allow transmission of logon
+					;write logon sequence at location LOGON
+RESERVED	DB	NO		;Reserved for Future releases
+LOCNXTCHR	DB	NO		;yes=local cmd if EXTCHR precedes
+					;no=not local cmd if EXTCHR precedes
+TOGGLELOC	DB	YES		;yes=allow toggling of LOCNXTCHR
+LSTTST		DB	YES		;yes=allow toggling of printer on/off
+					;in terminal mode. Set to no if using
+					;the printer port for the modem
+XOFFTST		DB	NO		;yes=allow testing of XOFF from remote
+					;while sending a file in terminal mode
+XONWAIT		DB	NO		;yes=wait for XON after sending CR while
+					;transmitting a file in terminal mode	
+TOGXOFF		DB	YES		;yes=allow toggling of XOFF testing
+IGNORCTL	DB	YES		;yes=do not send control characters
+					;above CTL-M to CRT in terminal mode
+					;no=send any incoming CTL-char to CRT
+EXTRA1		DB	0		;for future expansion
+EXTRA2		DB	0		;for future expansion
+BRKCHR		DB	'@'-40H		;^@ = Send a 300 ms. break tone
+NOCONNCT	DB	'N'-40H		;^N = Disconnect from phone line
+LOGCHR		DB	'L'-40H		;^L = Send logon
+LSTCHR		DB	'P'-40H		;^P = Toggle printer
+UNSAVECHR	DB	'R'-40H		;^R = Close input text buffer
+TRANCHR		DB	'T'-40H		;^T = Transmit file to remote
+SAVECHR		DB	'Y'-40H		;^Y = Open input text buffer
+EXTCHR		DB	'^'-40H		;^^ = Send next character
+;
+;
+; Equates used only by PMMI routines grouped together here.
+;
+PULSERATE	DB	250		;125=20pps dialing, 250=10pps
+CHGBAUD		DB	'B'-40H		;^B = Used with PMMIMODEM in terminal
+					;mode to change baud rate on fly
+PMMIPORT	DB	MODCTL1		; Pmmi Port location
+;
+; Handles in/out ports for data and status
+;
+IN_MODCTL1:	IN   AL,MODCTL1 ! RET
+		DB	0,0,0,0,0,0,0		;spares if needed for non-PMMI
+OUT_MODDATP:	OUT MODDATP,AL	! RET		;out modem data port
+		DB	0,0,0,0,0,0,0		;spares if needed for non=PMMI
+IN_MODDATP:	IN   AL,MODDATP ! RET		;in modem data port
+		DB	0,0,0,0,0,0,0		;spares if needed for non-PMMI
+ANI_MODRCVB:	AND AL,MODRCVB	! RET		;bit to test for receive ready
+CPI_MODRCVR:	CMP AL,MODRCVR	! RET		;value of receive bit when ready
+ANI_MODSNDB:	AND AL,MODSNDB	! RET		;bit to test for send ready
+CPI_MODSNDR:	CMP AL,MODSNDR	! RET		;value of send bit when ready
+;
+;
+;====================== SPECIAL PMMI PORTS =============================
+;
+IN_BAUDRP:	IN	AL,BAUDRP ! RET		;in baudrate port
+OUT_BAUDRP:	OUT	BAUDRP,AL ! RET		;out baudrate port
+OUT_MODCTL1:	OUT	MODCTL1,AL! RET		;out modem control port #1
+OUT_MODCTL2:	OUT	MODCTL2,AL! RET		;out modem control port #2
+;
+;================== END OF SPECIAL PMMI PORTS ==========================
+;
+;
+LOGONPTR	DW	(Offset LOGON)
+JMP_DIAL:	JMP	DIAL
+JMP_DISCONNT:	JMP	DISCONNT
+JMP_GOODBYE:	JMP	GOODBYE
+JMP_INITMOD:	JMP	INITMOD
+JMP_NEWBAUD:	JMP	NEWBAUD
+JMP_NOPARITY:	JMP	NOPARITY
+JMP_PARITY:	JMP	PARITY
+JMP_SETUPR:	JMP	SETUPR
+JMP_SPCLMENU:	JMP	SPCLMENU
+JMP_SYSVER:	JMPS	SYSVER
+JMP_BREAK:	JMP	SENDBRK
+;
+;
+; NEXT EIGHT LINES SHOULD NOT BE CHANGED BY USER OVERLAY AS THESE GO TO
+; SPECIFIC LOCATIONS IN THE MAIN PROGRAM, NOT IN THE OVERLAY.
+;
+JMP_ILPRT:	JMP	ILPRT
+JMP_INBUF:	JMP	INBUF
+JMP_INLNCOMP:	JMP	INLNCOMP
+JMP_INMODEM:	JMP	INMODEM
+JMP_NXTSCRN:	JMP	NXTSCRN
+JMP_TIMER:	JMP	TIMER
+JMP_CTYPE:	JMP	CTYPE
+JMP_KEYIN:	JMP	KEYIN
+;
+;
+; Clear sequences are for Televideo, Lear Siegler, etc.	 Change to match
+; your terminal.  (Heath uses ESC 4AH for clear to end of screen, ESC 45H
+; to clear screen.  Lear Siegler and others use ESC 79H for clear to end
+; of screen and ESC 3AH to clear screen.)  Room allowed for four bytes.
+; (Last zero needed for stopping the string display.  Any extra 0's just
+; act as NOP's.)
+;
+CLREOS:		CALL	ILPRT
+		DB	ESC,79H,0,0,0
+		RET
+;.....
+;
+;
+CLRSCRN:	CALL	ILPRT
+		DB	ESC,3AH,0,0,0
+		RET
+;.....
+;
+;
+;======================= SIGN-ON MESSAGE ============================== 
+;
+; Send version number and date
+;
+SYSVER: MOV	AL,Byte Ptr PMMIMODEM	;using the PMMI S-100 modem?
+	OR	AL,AL
+	JZ	SYSVER1			;go if not
+	CALL	ILPRT
+	DB	'Version for PMMI S-100 modem starting at port: ',0
+	MOV	AL,Byte Ptr PMMIPORT
+	CALL	HEXO			; put in PMMI control port number
+	CALL	ILPRT
+	DB	'H',CR,LF,0
+	RET
+;.....
+;
+;
+SYSVER1:CALL	ILPRT			;if not using the PMMI S-100 board
+	DB	'Version for Non-PMMI modem',CR,LF,0
+	RET
+;.....
+;
+;
+;==================== LOGON MESSAGE (IF ANY) ===========================
+;
+; Insert your logon message here.  End with a 0 (for"CALL ILPRT").
+; PMMIusers have 59 bytes available, non-PMMI users have approximately
+; 2K bytes available as they can overwrite all the following PMMI rou-
+; tines if they wish.  This method allows the external overlays to have
+; plenty of room.  It keeps the phone number library at a fixed location.
+;
+LOGON	RB	59			;up to 59 characters allowed
+	DB	0			;to terminate the logon message
+;.....
+;
+;
+;=============== NON-PMMI INITIALIZATION (IF ANY) ======================
+;
+; Insert your initialization routine here if needed.  Can replace the
+; following special PMMI area to set speed and auto-dial.  Over 950
+; bytes are available for this purpose.	 (End your routine with a RET.)
+;
+;
+INITMOD:	RET
+;
+;========== NON-PMMI SETUP (SPEED CHANGE, ETC.) IF ANY ==============
+;
+; Insert your speed change and/or auto-dialing routines here.
+; Over 950 bytes are available (INCLUDING INITMOD, above).
+; End your routine with a RET.
+;
+SETUPR:		RET
+;
+;
+; Not needed if using the PMMI board, as it has its own break routine
+;
+SENDBRK:	RET
+;
+;
+;**************** START OF SPECIAL PMMI ROUTINES **********************
+;
+;
+;=======================================================================
+;
+;			SETS THE BAUD RATE
+;
+;=======================================================================
+;
+;
+SETBAUD:MOV	AL,Byte Ptr ANSWFLG    ;if 'O' or 'A' not requested and
+	OR	AL,AL			;   baudrate not specified, returns
+	JZ	FIXBAUD			;   with current mode and rate
+	MOV	AL,Byte Ptr ORIGFLG    ;if option requested, a blank returns
+	OR	AL,AL			;   with current mode and rate
+	JZ	FIXBAUD
+	RET				;no change if neither 'O' or 'A' shown
+;
+FIXBAUD:CALL	GETBAUD			;calculate PMMI baud rate divisor
+	CALL	SETMSPD			;set the file time transfer value
+	CALL	OUT_BAUDRP		;set the PMMI board to that baudrate
+	CMP	AL,52
+	MOV	AL,5FH			;DTR (filter for over 300 baud)
+	JB	GT300			;yes, greater than
+	MOV	AL,7FH			;DTR (filter for 300 and less baud)
+;
+GT300:	CALL	OUT_MODCTL2
+	MOV	Byte Ptr MODCTLB,AL    ;save modem control byte
+;
+OFFHOOK:MOV	BX,7500			;throw in some delay
+;
+OFFDLY: DEC	BL
+	JNZ	OFFDLY
+	DEC	BH
+	JNZ	OFFDLY
+	MOV	AL,Byte Ptr UARTCTLB   ;UART control byte for 'A' or 'O'
+	CALL	OUT_MODCTL1		;now set to answer or originate
+	MOV	AL,CL
+	MOV	Byte Ptr MSPEED,AL	;set the file transfer time value
+	XOR	AL,AL			;clear the flags
+	RET
+;.....
+;
+;
+;=======================================================================
+;		 CALCULATES THE BAUD RATE DIVISOR
+;
+; Returns with current baud rate intact if a blank or null in the speed
+; field (extent area).
+;
+GETBAUD:MOV	AL,Byte Ptr FCB+9      ;get 1st digit of requested baudrate
+	CMP	AL,' '			;if a space, return with current speed
+	MOV	AL,Byte Ptr CURRENT
+	JNZ	LA14
+	RET
+LA14:
+	MOV	AL,Byte Ptr FCB+9
+	OR	AL,AL			;if a null, return with current speed
+	MOV	AL,Byte Ptr CURRENT
+	JNZ	LA15
+	RET
+LA15:
+;
+	MOV	DX, FCB+9      ;get the requested speed
+	MOV	BX,0
+;
+DECLP:	MOV	SI,DX			;get the ASCII digit
+	MOV	AL,[SI]
+	INC	DX
+	CMP	AL,' '
+	JZ	DECLP
+	CMP	AL,'0'			;numerals are 0-9
+	JB	BADRATE
+	CMP	AL,'9'+1
+	JNB	BADRATE
+	SUB	AL,'0'
+	MOV	CH,BH
+	MOV	CL,BL
+	SHL	BX,1
+	SHL	BX,1
+	ADD	BX,CX
+	SHL	BX,1
+	ADD	AL,BL
+	MOV	BL,AL
+	JNZ	DIGNC
+	INC	BH
+;
+DIGNC:	MOV	AL,DL
+	CMP	AL,FCB+12
+	JNZ	DECLP
+	MOV	AL,BH
+	NOT	AL
+	MOV	DH,AL
+	MOV	AL,BL
+	NOT	AL
+	MOV	DL,AL
+	INC	DX
+	MOV	BX,15625		;250000/16
+	MOV	CX,-1
+;
+DIVLP:	INC	CX
+	ADD	BX,DX
+	JB	DIVLP
+	MOV	AL,CH
+	OR	AL,AL
+	MOV	AL,CL
+	MOV	Byte Ptr CURRENT,AL    ;can use this the next time by default
+	JNZ	BADRATE
+	RET
+;
+BADRATE:CALL	ERXIT
+	DB	'++ INVALID BAUDRATE ++$'
+;.....
+;
+;
+;=======================================================================
+;		    SETS 'MSPEED' TO BAUD RATE
+;
+;
+SETMSPD:MOV	CL,0			;changes PMMI mspeed for 110-710 baud
+	CMP	AL,100			;<300 baud
+	JNAE	LA17
+	RET
+LA17:
+	INC	CL			;c=1 for 300 baud
+	CMP	AL,40			;<450 baud
+	JNAE	LA18
+	RET
+LA18:
+	INC	CL			;c=2 for 450 baud
+	CMP	AL,30			;<600 baud
+	JNAE	LA19
+	RET
+LA19:
+	INC	CL			;c=3 for 600 baud
+	CMP	AL,24			;<710 baud
+	JNAE	LA20
+	RET
+LA20:
+	INC	CL			;c=4 for 710 baud
+	RET
+;.....
+;
+;	
+; Change baudrate on-the-fly with CTL-B (while in terminal mode)
+;
+NEWBAUD:MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JNZ	LA21
+	RET
+LA21:
+	CALL	ILPRT
+	DB	CR,LF,'Enter new Baudrate: ',0
+	MOV	BX, FCB+9
+	MOV	Byte ptr [BX],' '	;keep current baud if none included
+;
+NEWBAUD1:
+	CALL	KEYIN			;get the baud rate
+	CMP	AL,CR			;carriage ret finishes baud rate entry
+	JNZ	LA22
+	CALL	CRLF			;if a 'CR', baud rate has been entered
+LA22:
+	JNZ	LA23
+	JMP	FIXBAUD			;go change the baud rate
+LA23:
+;.....
+;
+;
+NEWBAUD2:
+	CMP	AL,'0'			;numerals are 0-9
+	JB	NEWBAUD1
+	CMP	AL,'9'+1
+	JNB	NEWBAUD1		;if not a numeral, ignore, ask again
+	MOV	Byte Ptr [BX],AL	;store answer starting at FCB+9
+	CALL	STYPE			 ;show the numeral on the CRT
+	INC	BX			;next storage location in FCB
+	JMPS	NEWBAUD1		;get the next numeral
+;.....
+;
+;
+;======================= PARITY ROUTINES ===============================
+;
+;--->PARITY: Routine to setup PMMI for odd/even parity.
+;
+PARITY: MOV	AL,Byte Ptr PMMIMODEM	;is modem a PMMI?
+	OR	AL,AL			;set flags
+	JNZ	LA24
+	RET				;no, return
+LA24:
+	MOV	AL,Byte Ptr OPARITY    ;get odd parity request byte
+	OR	AL,AL			;set flags
+	JNZ	EVENPAR			;if not odd see if it is even
+	MOV	AL,Byte Ptr UARTCTLB   ;get uart/modem control byte
+	AND	AL,ODPARMSK
+	JMPS	PARITY1
+;...
+;
+;
+EVENPAR:MOV	AL,Byte Ptr EPARITY    ;get even parity request byte
+	OR	AL,AL			;set flags
+	JZ	LA25
+	RET				;if even parity not specified return
+LA25:
+	MOV	AL,Byte Ptr UARTCTLB   ;get uart/modem control byte
+	AND	AL,ODPARMSK		;set for parity
+	OR	AL,EVPARMSK		;now set for even parity
+;
+PARITY1:MOV	Byte Ptr UARTCTLB,AL
+	JMP	OUT_MODCTL1		;send to PMMI -
+;				;when OUT$MODCTL1 does return, it
+;.....				;will go back to calling routine
+;
+;
+NOPARITY:
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JNZ	LA26
+	RET
+LA26:
+	MOV	AL,Byte Ptr UARTCTLB   ;get UART/modem control byte
+	OR	AL,NOPARMSK		;reset parity bit on PMMI
+	JMP	OUT_MODCTL1
+;.....
+;
+;
+;==================== END OF PARITY ROUTINES ===========================
+;
+;
+;=======================================================================
+;
+;		   HAYES/PMMI DIALING ROUTINES
+;
+;=======================================================================
+;
+;
+	RB	640			;FOR EXPANSION
+;	
+; Modem control command words
+;
+BRKMASK EQU	0			;tele line on hook (break while dialing)
+CLEAR	EQU	3FH			;idle mode
+DTMSK	EQU	1			;dial tone mask
+MAKEM	EQU	1			;tele line make (off hook)
+RBLMT	EQU	35			;7 seconds to wait til no-ring-heard msg
+RBWAIT	EQU	50			;5 second delay before redialing PMMI
+SMRWAIT EQU	15			;1.5 sec delay before redialing HAYES
+TMPUL	EQU	80H			;timer pulses mask bit
+TRATE	EQU	250			;value for 0.1 second
+;.....
+;
+;
+; Dialing routine
+;
+DIAL:	MOV	AL,Byte Ptr PMMIMODEM	;using a PMMI modem?
+	OR	AL,AL
+	JNZ	DIAL1
+	MOV	AL,Byte Ptr AUTODIAL
+	OR	AL,AL
+	JNZ	LA29
+	RET				;return if neither modem
+LA29:
+	CALL	SMNOISEY		;make sure autodial modem speaker is on
+;
+DIAL1:	XOR	AL,AL
+	MOV	BYTE PTR AUTODIR,AL	;zero the direct to terminal mode flag
+	MOV	BYTE PTR AUTOFL,AL	;zero the auto-linking flag
+	MOV	Byte Ptr CRFLAG,AL     ;zero the continuous dial flag
+	MOV	BX,0
+	MOV	Word Ptr DIALCT,BX	;zero the dial count
+	MOV	BX, Offset CMDBUF+1	;point to the number of characters in..
+	MOV	AL, Byte Ptr [BX]	;..the buffer, then get the number
+	CMP	AL,3+1			;anything typed after 'CAL'?
+	JB	DIAL2			;if not, go through library routine
+;
+;
+; If there were only 3 characters, then "CAL<RET>" was typed -- the user
+; obviously expecting to get a phone number (or letter) from the library
+; file.	 If 4 or more, a number (or letter) was typed in from the menu
+; command line, so move the characters down 4 to compensate.  Needed for
+; auto-redialing of menu command line entries.
+;
+	MOV	CL,AL			;put into the 'C' reg.
+	MOV	CH,0			;will move original number down 4
+	SUB	AL,4			;eliminate the 'CAL' portion
+	MOV	Byte Ptr [BX],AL	;store new count at cmdbuf+1
+	INC	BX			;CMDBUF+2 (first character of string)
+	XCHG	BX,DX			;'DE' now has CMDBUF+2
+	MOV	BX, Offset CMDBUF+6	;point to number (or letter) to dial
+	CALL	MOVER			;move the group down 4 places
+	JMP	DIAL4			;check if library number, then dial
+;...
+;
+;
+; Comes here if no phone number was manually entered after 'CAL' and if
+; no phone library code was entered.  Displays the phone number library
+; then asks for an entry.
+;
+DIAL2:	MOV	CL,18			;number of lines to move
+	MOV	BX, Offset NUMBLIB	;start of phone number library
+	MOV	DX, Offset BUFFER	;buffer add. to store them temporarily
+	CALL	NEWLINE			;start with CR/LF
+	MOV	SI,DX			;+LF
+	MOV	[SI],AL
+	INC	DX			;and bump it
+;
+DIAL3:	MOV	CH,LIBLEN		;number of bytes to move
+	CALL	MOVE			;move to buffer
+	CALL	SPACES			;2 entries + 3 spaces = 71 characters
+	PUSH	BX			;save source address
+	PUSH	DX			;save destination address
+	MOV	DX,(17*LIBLEN)		;get offset of 17 times entry length
+	ADD	BX,DX			;add it to source address
+	POP	DX			;restore destination address
+	MOV	CH,LIBLEN		;get length of library entry
+	CALL	MOVE			;move another entry
+	POP	BX			;restore source address
+	CALL	NEWLINE
+	DEC	CL			;one less line to print
+	JNZ	DIAL3			;if not zero, print another
+	MOV	AL,'$'			;BDOS print routine terminate character
+	MOV	SI,DX			;store in buffer
+	MOV	[SI],AL
+	CALL	CLRTST
+	MOV	CL,PRINT
+	MOV	DX, Offset BUFFER	;print the library on the CRT
+	INT	224
+	CALL	JMP_ILPRT		;ask which one is wanted
+	DB	CR,LF,'Enter library code or phone number,',CR,LF
+	DB	'Hit RET to abort this function now or',CR,LF
+	DB	'CTL-X quits while dialing or ringing: ',0
+	MOV	DX, Offset CMDBUF
+	CALL	INBUF			;get the answer from the keyboard
+;
+;
+; You now have either a library code or a manually entered phone num-
+; ber.	These either came from the menu command line or from the library
+; command line.	 Next we see if a code, if so, get the corresponding
+; line with phone number from the library.  If a number greater than
+; one digit, we ignore the library look-up.  (Ringback numbers must end
+; with letter 'R'.)
+;
+DIAL4:	MOV	BX,Offset CMDBUF+1	;number of characters in buffer
+	MOV	AL,Byte ptr [BX]
+	OR	AL,AL			;null means CR was typed
+	JNZ	LA30
+	JMP	DIALEXIT2		;abort dialing, return to menu
+LA30:
+	MOV	Byte Ptr NUMBER,AL
+	MOV	BX,OFFSET CMDBUF+3
+	MOV	AL,BYTE PTR [BX]	;see if at least two chars. entered
+	CMP	AL,'/'			;slash for linking, direct to terminal.
+	JNZ	LA30A
+	CALL	AUTO			;..mode on answer
+LA30A:	CMP	AL,','			;comma used for linking
+	JNZ	DIAL5
+	CALL	AUTO1			;if so, set it up for auto-linking
+;
+;
+; Check to see how many characters were typed.	If more than one, then
+; was a hand-entered phone number, so exit.
+;
+DIAL5:	CALL	DIALBGN			;disconnect, reconnect, wait for tone
+	MOV	AL,BYTE PTR AUTOFL	;auto-link flag set?
+	OR	AL,AL
+	JZ	LA30B
+	JMP	AUTO2			;if yes, exit
+
+LA30B:	MOV	AL,BYTE PTR NUMBER	;number of chars. in buffer
+	MOV	BX,OFFSET CMDBUF+1
+	MOV	BYTE PTR [BX],AL	;reset the character count, if needed
+	CMP	AL,1			;more than 1 character
+	JNA	LA32
+	JMP	DIAL14			;if more than one, hand-entered number
+LA32:
+	MOV	BX, Offset CMDBUF+2	;first character in phone number line
+;
+;
+; If just one character entered, see if a (A-Z) letter
+;
+DIAL6:	MOV	AL,Byte ptr [BX]
+	MOV	CH,'A'			;first letter of alphabet
+	MOV	DL,0			;counts number of letters to match
+	MOV	CL,26			;number of letters in alphabet
+;
+DIAL7:	CMP	AL,CH			;letter from table?
+	JNZ	LA33
+	JMP	DIAL9			;if yes, get phone number, else
+LA33:
+	INC	CH			;make next letter (A-Z)
+	INC	DL			;count up
+	DEC	CL			;count down
+	JNZ	DIAL7			;try next one in (A-Z) table
+;
+;
+; If not (A-Z) then should be (0-9)
+;
+	MOV	CH,'0'			;first digit to check
+	MOV	DL,26			;point past alpha codes
+	MOV	CL,10			;number of digits in table
+;
+DIAL8:	CMP	AL,CH			;number from table?
+	JZ	DIAL9			;if yes, go dial, else
+	INC	DL			;make next table line number
+	INC	CH			;make next digit to compare
+	DEC	CL			;count down - loop counter
+	JNZ	DIAL8			;loop
+	JMP	DIALBAD			;error if not a number or a letter
+;
+;
+; Now have a match between the requested code and one in the library.
+; E-reg. holds the library line number (1-36) that matches the requested
+; code (A-Z or 0-9).
+;
+DIAL9:	MOV	BX,(Offset NUMBLIB)	;phone number library
+	MOV	CX,LIBLEN		;length of library entry
+	MOV	AL,DL			;number of times to library length to BX
+	OR	AL,AL			;set flags
+	JZ	DIAL11
+;
+DIAL10: MOV	AL,Byte Ptr [BX]	;get first char of selected lib entry
+	OR	AL,AL			;set flags
+	JNZ	LA2
+	JMP	DIALBAD			;send bad library msg and abort
+LA2:
+	ADD	BX,CX			;increment 'BX' by library length
+	DEC	DL			;countdown
+	JNZ	DIAL10			;not there yet, loop
+;
+;
+; Now have the line in the phone number library matching the requested
+; letter so store that line starting at 'CMDBUF+1'
+;
+DIAL11: MOV	CH,LIBLEN		;number of characters to get from table
+	MOV	DX, Offset CMDBUF+1	;point to buffer
+	XCHG	BX,DX			;'BX' points to CMDBUF+1
+	MOV	Byte Ptr [BX],CH	;length of each table entry
+	XCHG	BX,DX			;restore the registers
+	INC	DX			;point to first char position in buffer
+	CALL	MOVE			;move the table entry to the buffer
+;
+;
+; Now have the full line including phone number in 'CMDBUF' area.  Scan
+; past the descriptive portion of library entry - terminate scan at the
+; first '.'  This allows commas and numbers to be part of the text, such
+; as:
+;	     'A=DataTech, Node 7..1-408-238-9621'
+;
+DIAL12: MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	DIAL12A
+	CALL	SMINIT			;if yes, initialize
+;
+DIAL12A:
+	MOV	BX, Offset CMDBUF+1
+	MOV	DL,Byte Ptr [BX]	;number of chars in buffer
+	INC	BX			;point to 1st character in buffer
+;
+DIAL13: MOV	AL,Byte ptr [BX]	;get next character
+	CALL	STYPE			;show it
+	INC	BX			;bump pointer
+	DEC	DL			;decrement count
+	JNZ	L2A4
+	JMP	DIALEXIT		;exit if no '.' (bad lib entry)
+L2A4:
+	CMP	AL,'.'			;dot?
+	JZ	DIAL15			;yes, go dial the phone
+	JMPS	DIAL13			;no, loop for next character
+;.....
+;
+;
+; There is a user entered phone number in 'CMDBUF' area
+;
+DIAL14: MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	L2A5
+	CALL	SMINIT			;if yes, initialize
+L2A5:
+	MOV	BX, Offset CMDBUF+1
+	MOV	DL,Byte Ptr [BX]	;get number of chars in buffer
+	INC	BX			;point to 1st character to dial
+;.....
+;
+;
+; Loop to dial the phone number pointed to by 'BX', character count in
+; the 'DL' register.
+;
+DIAL15: MOV	AL,Byte Ptr [BX]	;get first number from the buffer
+	OR	AL,AL			;set flags
+	JNZ	L2A6
+	JMP	DIALBAD			;bad number if a null
+L2A6:
+;
+;
+; Dial a digit, check keyboard for abort
+;
+	CALL	DIALA			;dial a digit, show on CRT
+	CALL	STAT			;keypress?
+	JZ	DIAL17			;if not, exit
+	CALL	KEYIN			;yes, go get it
+	CMP	AL,CANCEL		;CTL-X?
+	JNZ	DIAL17			;if not, exit
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	L2A7
+	JMP	DIALEXIT		;if not, exit now, otherwise clear line
+L2A7:
+;
+;
+; If using an autodial modem, backspace 30 times to make sure the entire
+; number plus "DT" part of "ATDT" is erased.
+;
+	MOV	CL,30
+;
+DIAL16: MOV	CH,BKSP
+	CALL	SENDCHR			;send to the modem to cancel call
+	DEC	CL
+	JNZ	DIAL16			;if not zero, do another
+	MOV	CH,CR
+	CALL	SENDCHR
+	MOV	AL,' '
+	CALL	STYPE			 ;show on CRT
+	JMP	DIALEXIT		;now go abort
+;
+DIAL17: INC	BX			;bump pointer
+	DEC	DL			;one less character to go
+	JNZ	DIAL15			;if not done, send the next digit
+;
+;
+; Show the number of dial attempts
+;
+	CALL	JMP_ILPRT
+	DB	' - try #',0
+	MOV	BX,Word Ptr DIALCT     ;increment the dial count
+	INC	BX
+	MOV	Word Ptr DIALCT,BX
+	CALL	DECOUT			;show number of attempts so far
+	MOV	AL,' '			;extra space to position cursor
+	CALL	STYPE
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	DIAL19			;if not, exit
+	MOV	CH,CR			;tells the modem the number is done
+	CALL	SENDCHR			;just have one character to send
+;
+DIAL18: CALL	JMP_INMODEM		;catch any output from the modem
+	JNB	DIAL18
+	JMP	SMRESULT		;number sent to modem, now get results
+;
+;
+; Dialing is all done, this section is PMMI-only
+;
+DIAL19: MOV	AL,07FH			;turn on PMMI 'DTR'
+	CALL	OUT_MODCTL2		;timer rate?
+	MOV	CH,1			;0.1 second per interval
+	CALL	JMP_TIMER		;wait for modem to turn on 'DTR'
+	MOV	AL,5DH			;2 stop bits, no parity, 8 data bits
+	CALL	OUT_MODCTL1
+	MOV	DH,4			;clear to send mask
+	MOV	CL,WAITCTS		;wait time for CTS
+	CALL	WAIT			;..(30 seconds, can set 'WAITCTS' for
+					;..up to 51 seconds for European use)
+;
+; If PMMI connection made, go get options for starting communications
+;
+	JNAE	L2A8
+	JMP	CONMADE			;connection made
+;
+;
+; Connection not made, see if a redial is desired
+;
+L2A8:
+;	CALL	DISCONNT		;hang-up so we can redial if desired
+;
+DIALAGN:MOV	SP,OFFSET STACK		;reset the stack to normal, just in case
+	MOV	AL,Byte Ptr CRFLAG     ;continuous redial flag
+	OR	AL,AL
+	JZ	L2A9
+	JMP	DIALAGN2		;if already set, go dial again
+L2A9:
+L2A10:
+	CALL	JMP_ILPRT		;see if we should keep trying
+	DB	CR,LF,CR,LF,'     Redial? (C/Y/N/Q): ',BELL,0
+	CALL	KBDCHR
+	PUSH	AX
+	CALL	CRLF			;turn up a line
+	POP	AX
+	CMP	AL,'Y'			;redial?
+	JZ	DIALAGN2		;yes, redial
+	CMP	AL,'C'			;continuous redial?
+	JZ	DIALAGN1		;if yes, set continuous redial flag
+	CMP	AL,'Q'			;kill the Hayes-type modem speaker?
+	JZ	L2A11
+	JMP	DIALEXIT1		;none of these, quit
+L2A11:
+	CALL	SMQUIET			;strangle speaker
+;
+DIALAGN1:
+	MOV	AL,1
+	MOV	Byte Ptr CRFLAG,AL     ;continuous redial flag
+;
+DIALAGN2:
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	DIALAGN3		;if yes, exit
+	MOV	CH,RBWAIT		;wait for PMMI reset (or busy)
+	CALL	JMP_TIMER		;or busy tone may be sensed as dialtone
+	JMPS	DIALAGN4
+;
+DIALAGN3:
+	MOV	CH,SMRWAIT
+	CALL	JMP_TIMER
+;
+DIALAGN4:
+	CALL	CRLF			;start a new line
+	JMP	DIAL5			;redial entry point
+
+
+;.....
+;
+;
+; Connection has been made
+;
+CONMADE:
+	MOV	AL,BYTE PTR PMMIMODEM
+	OR	AL,AL
+	JZ	CONMADE1	
+	MOV	AL,Byte Ptr CURRENT    ;get current baud rate
+	CALL	OUT_BAUDRP		;set baudrate
+;
+CONMADE1:
+	MOV	CH,2
+	CALL	JMP_TIMER
+	CALL	JMP_ILPRT
+	DB	BELL,CR,LF,CR,LF,'     CONNECTED',0
+	MOV	AL,BYTE PTR AUTODIR	;going direct to terminal mode?
+	OR	AL,AL
+	JZ	CONMADE1A
+	JMP	RETURN
+;
+CONMADE1A:
+	MOV	AL,BYTE PTR CRFLAG	;in continuous redial or first time try?
+	OR	AL,AL
+	JNZ	CONMADE1B
+	JMP	RETURN			;go to terminal mode if first time
+;
+CONMADE1B:
+	CALL	JMP_ILPRT
+	DB	' - any key for terminal mode ',0
+;
+CONMADE2:
+	MOV	DL,10
+CONMADE3:
+	CALL	STAT			;keypress?
+	JZ	CONMADE4		;exit if no keys pressed
+	CALL	KEYIN
+	XOR	AL,AL
+	JMP	RETURN			;key pressed, go to terminal mode
+;
+CONMADE4:
+	MOV	CH,1			;wait 0.1 second
+	CALL	JMP_TIMER
+	DEC	DL			;one less loop to make
+	JNZ	CONMADE3		;see if a keyboard character yet
+	MOV	AL,BELL			;sound a bell
+	CALL	STYPE
+	JMPS	CONMADE2
+;.....
+;
+;
+; Automatic dialing routine, prints the number being dialed.  If we find
+; 'R', it either has to be the final character for ringback or toss it.
+;
+DIALA:	CALL	STYPE			 ;print whatever character, dashes, etc.
+	CMP	AL,'R'			;could it be a ringback character?
+	JNZ	DIALA1			;if not, probably a number so exit
+	MOV	AL,DL			;get the character count.  Is this "r"..
+	CMP	AL,1			;..the last character in the string?
+	JNZ	L2A13
+	JMP	RINGBK			;yes, must be ringback char, do ringback
+L2A13:
+	RET				;if not, ignore the 'r'
+;
+DIALA1: MOV	CH,AL			;store the character for now
+	CALL	DIALAD			;check for alternate dialing like 'MCI'
+	MOV	AL,CH			;get the original character back
+DIALA2: CMP	AL,'*'			;* is a valid dial digit
+	JZ	DIALA3
+	CMP	AL,'#'			;# is a valid dial digit
+	JZ	DIALA3
+	CMP	AL,','			;comma indicates a short delay-time
+	JZ	DIALA3
+	CMP	AL,'0'			;digits are (0-9)
+	JNB	L2A14
+	RET				;exit less than ASCII '0'
+L2A14:
+	CMP	AL,'9'+1
+	JNAE	L2A15
+	RET				;exit if more than ASCII '9'
+L2A15:
+	SUB	AL,'0'			;strip ASCII - could also do 'ANI 0FH'
+	JNZ	DIALA3
+	MOV	AL,10			;convert zero to 10 pulses
+;
+;
+; Sends the digit to the modem.	 Waits 100 ms. after each digit to in-
+; sure it gets to the modem ok.
+;
+DIALA3: MOV	CL,AL
+	MOV	AL,Byte Ptr PMMIMODEM	;using a PMMI?
+	OR	AL,AL
+	JNZ	DIALA4			;if yes, exit
+	CALL	SENDCHR			;character is already in the 'B' reg.
+	MOV	CH,1			;slight delay to let modem settle down
+	JMP	JMP_TIMER
+;
+DIALA4:
+	MOV	AL,Byte Ptr PULSERATE
+	CALL	OUT_BAUDRP
+;
+DIALA5: CALL	IN_BAUDRP
+	AND	AL,TMPUL
+	JNZ	DIALA5
+;
+DIALA6: CALL	IN_BAUDRP
+	AND	AL,TMPUL
+	JZ	DIALA6
+;
+DIALA7: MOV	AL,MAKEM
+	CALL	OUT_MODCTL1
+;
+DIALA8: CALL	IN_BAUDRP
+	AND	AL,TMPUL
+	JNZ	DIALA8
+	MOV	AL,BRKMASK
+	CALL	OUT_MODCTL1
+;
+DIALA9: CALL	IN_BAUDRP
+	AND	AL,TMPUL
+	JZ	DIALA9
+	DEC	CL
+	JNZ	DIALA7
+	MOV	AL,MAKEM
+	CALL	OUT_MODCTL1
+	MOV	CH,2
+	JMP	JMP_TIMER
+;.....
+;
+; Print bad library number message and abort if a null is encountered.
+;
+DIALBAD:
+	CALL	JMP_ILPRT
+	DB	CR,LF,CR,LF,'++ Bad library number called ++',CR,LF,0
+;
+DIALEXIT:
+	CALL	CRLF			;turn up a new line
+;
+DIALEXIT1:
+	MOV	SP,OFFSET STACK		;make sure the stack is normal again
+	CALL	JMP_GOODBYE		;user routine to disable DTR, if any
+	CALL	DISCONNT		;hang up the phone and reset the modem
+;
+DIALEXIT2:
+	MOV	BYTE PTR CRFLAG,0	;reset the continuous redial flag
+	JMP	MENU
+;.....
+;
+;
+; Disconnect from the line, reconnect and wait for the dialtone.
+;
+DIALBGN:MOV	AL,Byte Ptr AUTODIAL   ;Hayes-type modem?
+	OR	AL,AL
+	JZ	DIALBG1
+	RET				;if yes, finished
+;
+DIALBG1:MOV	AL,MAKEM		;go off-hook
+	CALL	OUT_MODCTL1
+	MOV	DH,DTMSK		;dial tone mask
+	MOV	CL,50			;waits up to 10 sec. for dial tone
+	CALL	WAIT			;wait for dial tone
+;
+;
+; Wait subroutine will return with carry set if unable to get dialtone.
+; If carry is not set, the dialtone was received.
+;
+	JNAE	L2A18
+	RET				;if dial tone within 10 seconds
+L2A18:
+	CALL	JMP_ILPRT		;otherwise print error message
+	DB	CR,LF,CR,LF,'++ NO DIAL TONE ++',BELL,0
+	POP	BX			;restore the stack to normal
+	JMP	DIALEXIT		;forget it.
+;.....
+;
+;
+; Do any alternate dialing such as 'MCI' or 'SPRINT'
+;
+DIALAD: MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	L2A19
+	RET				;if not, exit
+L2A19:
+	MOV	AL,Byte Ptr TOUCHPULSE ;using touch tone dialing?
+	CMP	AL,'T'
+	JZ	L2A20
+	RET				;if not, ignore
+L2A20:
+	MOV	AL,CH			;get the character back
+	CMP	AL,'<'			;alternate dialing system #1 (MCI?)
+	JNZ	DIALAD1			;if not, exit
+	PUSH	BX			;save the current values
+	MOV	BX,(Offset ALTDIAL1)	;alternate dialing area
+	JMPS	DIALAD2
+;
+DIALAD1:CMP	AL,'>'			;alternate dialing system #2 (Sprint?)
+	JZ	L2A21
+	RET				;if neither, exit
+L2A21:
+	PUSH	BX			;save the current values
+	MOV	BX,(Offset ALTDIAL2)
+;
+DIALAD2:MOV	AL,Byte Ptr [BX]
+	CMP	AL,'$'			;ready to terminate?
+	JZ	DIALAD3			;if yes, exit
+;
+;
+; Move the semicolons up one line if you do not want to see the SPRINT
+; number dialed.
+;
+	CALL	STYPE			;display the character
+	MOV	CH,AL			;need the char. in 'CH' to send to modem
+	CALL	DIALA2			;send proper characters to the modem
+	INC	BX			;next location
+	CALL	STAT			;keypress?
+	JZ	DIALAD2			;if not, do the next character
+	CALL	KEYIN			;yes, go get it
+	CMP	AL,CANCEL		;ctl-x?
+	JNZ	DIALAD2			;if not, handle the next character
+	POP	BX			;if yes, reset the stack
+	JMP	DIALEXIT		;if yes, exit
+;
+DIALAD3:MOV	AL,' '
+	MOV	CH,AL			;clears 'CH' from last digit sent
+	CALL	STYPE			 ;separate from the main number	 
+	POP	BX			;restore the stack
+	RET
+;.....
+;
+;
+; Disconnect the autodial modem from the phone line.  Sends 'I, CR' to
+; the Racal-Vadic to return to idle mode.
+;
+GOODBYE:
+DISCONNT:
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type autodial modem?
+	OR	AL,AL
+	JNZ	DISCONN1		;if yes, skip PMMI section
+	XOR	AL,AL
+	CALL	OUT_MODCTL1		;hang up
+	CALL	OUT_MODCTL2		;clear DAV, ESD, etc.
+	PUSH	CX
+	MOV	CH,10			;1 second for PMMI to disconnect
+	CALL	JMP_TIMER
+	POP	CX
+	RET	
+;...
+;	
+;
+; Disconnect the autodial modem from the phone line
+;
+DISCONN1:
+	MOV	CH,12			;wait 1.2 seconds pause
+	CALL	JMP_TIMER
+	MOV	BX,(Offset SM_DISC)	;get into command mode
+	CALL	SENDOUT
+	MOV	CH,12			;another 1.2 seconds pause
+	CALL	JMP_TIMER
+	MOV	AL,' '			;space character
+;
+; If printing +++ and ATH, ATD, etc. move the three semicolons up one
+; line to include a space on the crt to look better.
+;
+	DB	90H,90H,90H
+;;;	CALL	STYPE			;show on local crt only
+	MOV	BX,(Offset SM_DISC1)	;now disconnect the modem
+	CALL	SENDOUT
+;
+DISCONN2:
+	CALL	JMP_INMODEM		;wait 0.1 seconds after last char.
+	JNB	DISCONN2
+	RET
+;...
+;
+;
+; Hayes Stuff
+;
+SMQUIET:
+	MOV	AL,Byte Ptr SPKRFLG	;speaker flag set to quiet?
+	OR	AL,AL
+	JZ	L2A23
+	RET				;if yes, forget it
+L2A23:
+	MOV	AL,YES
+	MOV	BYTE PTR SPKRFLG,AL	;flip the flag to quiet, now
+	MOV	BX,(Offset SM_SPKOFF)
+	CALL	SENDOUT
+	MOV	CH,6
+	JMP	JMP_TIMER		;time for an 'ok' from modem and return
+;.....
+;
+;
+SMNOISEY:
+	MOV	AL,Byte Ptr SPKRFLG	;speaker already turned on?
+	OR	AL,AL
+	JNZ	L2A24
+	RET				;if yes, forget it
+L2A24:
+	MOV	AL,NO			;set for noisey, now
+	MOV	BYTE PTR SPKRFLG,AL
+	MOV	BX,(Offset SM_SPKON)
+	CALL	SENDOUT
+	MOV	CH,6
+	JMP	JMP_TIMER
+;.....
+;
+;
+; Hayes-like autodial modem control codes
+;
+SM_DIAL		DB	'ATDT $'	;set for touch (or pulse) dialing
+SM_DISC		DB	'+++$'		;puts the modem in local command mode
+SM_DISC1	DB	'ATH0',CR,'$'	 ;disconnects the modem
+SM_SPKOFF	DB	'ATM0',CR,'$'	;turns the speaker off
+SM_SPKON	DB	'ATM1',CR,'$'	;turns the speaker on
+SPKRFLG		DB	0		;0 = speaker has not been silenced
+;.....
+;
+;
+; Set the autodial modem for pulse dialing
+;
+SMINIT: MOV	AL,Byte Ptr TOUCHPULSE ;touch or pulse dialing for autodial?
+	MOV	Byte Ptr SM_DIAL+3,AL	;store
+	MOV	BX,(Offset SM_DIAL)
+	CALL	SENDOUT
+;
+SMINIT1:CALL	JMP_INMODEM		;wait for modem to finish, if needed
+	JNB	SMINIT1
+	RET
+;.....
+;
+;
+; Send the string pointed to by 'BX' to both the CRT and the modem.
+;
+SENDOUT:CALL	SENDNOW			;wait until modem is ready
+	MOV	AL,Byte Ptr [BX]	;get the character
+	CMP	AL,'$'
+	JNZ	L2A29
+	RET				;if yes, finished
+L2A29:
+	MOV	AL,Byte Ptr [BX]
+	CALL	OUT_MODDATP		;send to modem
+;
+;
+; If you want to print the +++ ATD, etc. from Hayes-type units, move the
+; three semicolons down one line.
+;
+;;;	CALL	STYPE			 ;show on CRT
+	DB	90H,90H,90H
+	INC	BX
+	JMPS	SENDOUT
+;.....	
+;
+;
+; Checks for answer from Hayes-type autodial modem
+;
+SMRESULT:
+	CALL	RCVREADY		;see if any incoming character yet
+	JZ	SMRESUL1		;if yes, exit and look at it
+	CALL	STAT			;else see if want to abort ringing
+	JZ	SMRESULT		;if neither, wait for one of them
+	CALL	KEYIN			;get character from keyboard
+	CMP	AL,CANCEL		;CTL-X to terminate dialing?
+	JNZ	SMRESULT		;if not, keep going
+	MOV	CH,CR
+	CALL	SENDCHR			;tells the modem to hang up right away
+	JMP	DIALEXIT		;abort dialing routine
+;
+SMRESUL1:
+	CALL	IN_MODDATP	       ;get the character, then
+	AND	AL,7FH			;remove any parity
+	MOV	CH,AL			;store for 'GIVLF' area if needed
+	CMP	AL,'B'			;'BUSY' (for Anchor modems, etc.)
+	JZ	BUSY			;if busy, flush string and retry
+	CMP	AL,'0'			;'OK' single digit result code
+	JZ	SMRESUL1		;ok, loop for next response
+	CMP	AL,'O'			;'ok' verbose digit result code
+	JZ	SMRESUL1		;ok loop for next response
+	CMP	AL,'1'			;'CONNECT', single digit result code
+	JNZ	L2A30
+	JMP	ON_LINE			;connected, reset redial flags
+L2A30:
+	CMP	AL,'C'			;'CONNECT', verbose result code
+	JNZ	L2A31
+	JMP	ON_LINE			;connected, reset redial flags
+L2A31:
+	CMP	AL,'3'			;'NO CARRIER', single digit result code
+	JZ	NO_CARRIER		;no carrier, flush string and retry
+	CMP	AL,'N'			;'NO CARRIER', verbose result code
+	JZ	NO_CARRIER		;no carrier, flush string and retry
+	CMP	AL,'4'			;'ERROR', single digit result code
+	JNZ	L2A32
+	JMP	FAILED			;error, go display
+L2A32:
+	CMP	AL,'E'			;'ERROR', verbose result code
+	JNZ	L2A33
+	JMP	FAILED			;error, go display
+L2A33:
+	CMP	AL,'5'			;'CONNECT 1200' single digit result code
+	JNZ	SMDM1
+	JMP	ON_1200			;connected, reset redial flags
+;
+SMDM1:	CMP	AL,LF			;<LF> is end-of-line for verbose mode
+	JZ	SMRESULT		;yes, go get the next response
+	CMP	AL,CR			;<CR> may precede digit in digit mode
+	JZ	SMRESULT		;yes, go get the next response
+;
+	CALL	STAT			;else, see if want to abort ringing
+	JZ	SMDM1A			;if not, get next character
+	CALL	KEYIN			;else, get character from keyboard
+	CMP	AL,CANCEL		;CTL-X to terminate dialing?
+	JNZ	SMDM1A			;if not, keep going
+	MOV	CH,CR
+	CALL	SENDCHR			;tells the modem to hang up right away
+	JMP	DIALEXIT		;abort dialing routine
+;
+SMDM1A: CALL	JMP_INMODEM		;get next character
+	JMPS	SMDM1			;loop until end of response encountered
+;
+;
+; The Anchor modem gives a busy result code, although still waits the
+; normal time-out period to do it.
+;
+BUSY:	CALL	JMP_ILPRT
+	DB	'busy! ',0
+	JMP	DIALAGN
+;.....
+;
+;
+; Failed call is usually caused by continuous ringing with no answer.
+; The modem times out (can be set to either 30 seconds or 60 seconds.
+;
+FAILED: CALL	JMP_ILPRT
+	DB	'abort ',0
+	JMP	DIALAGN
+;.....
+;
+;
+NO_CARRIER:
+	CALL	JMP_ILPRT
+	DB	'no carrier ',0
+	JMP	DIALAGN
+;.....
+;
+;
+ON_LINE:
+	CALL	JMP_ILPRT
+	DB	'on line',0
+	JMP	CONMADE
+;.....
+;
+;
+ON_1200:
+	CALL	JMP_ILPRT
+	DB	'on at 1200',0
+	JMP	CONMADE
+;.....
+;
+;		END OF SPECIAL HAYES-LIKE HANDLING
+;------------------------------------------------------------------------
+;
+; Handles the special ringback numbers.	 Dials, lets it ring only once,
+; hangs up and then redials.
+;
+RINGBK: MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	RINGBK2			;if yes, ringback not possible
+	MOV	AL,Byte Ptr CMDBUF+1   ;get the number of chars. in the buffer
+	DEC	AL			;subtract 1 to avoid the ringback char
+	MOV	Byte Ptr CMDBUF+1,AL   ;store the new value
+	MOV	DH,DTMSK		;load tone detect mask
+	MOV	CL,RBLMT		;waits up to 7 seconds for a ring
+	CALL	WAIT
+	JB	RINGBK0			;if no ring detected, pretend we got one
+	JMP	RINGBK1			;hangup, redial, & listen for carrier
+;
+RINGBK0:
+	MOV	CH,25			;got a ring, wait 2.5 sec
+	CALL	TIMER
+	CALL	IN_BAUDRP		;is tone still present?
+	AND	AL,DH
+	JNZ	RINGBK1
+	JMP	DIALAGN			;yes, must be busy, do a normal redial
+;.....
+;
+;
+; Hang up, redial and listen for dial tone
+;
+RINGBK1:CALL	HANGUP			;hang up the phone
+	CALL	JMP_ILPRT
+	DB	'ringback set, first ring ',0
+	MOV	CH,RBWAIT		;wait 5 seconds before redialing..
+	CALL	JMP_TIMER		;..for line to clear, etc.
+	CALL	DIALBGN			;disconnect, reconnect, wait for tone
+	JNB	L2A38
+	JMP	DIALEXIT		;go redial number
+L2A38:
+	MOV	AL,BYTE PTR NUMBER	;number of characters in buffer
+	CMP	AL,1+1			;more than one character?
+	JNB	L2A38A
+	JMP	DIAL12			;go redial for the table ringback number
+;
+L2A38A: JMP	DIAL14			;if more than one, hand-entered number
+;.....
+;
+;
+RINGBK2:CALL	JMP_ILPRT
+	DB	CR,LF,'++ No ringback for autodial modem ++',0
+	POP	BX			;reset the stack
+	JMP	DIALEXIT
+;.....
+;
+;
+HANGUP: MOV	AL,CLEAR
+	CALL	OUT_MODCTL2
+	XOR	AL,AL
+	JMP	OUT_MODCTL1		;turn off DTR, originate/answer tones
+;.....
+;
+;
+; This is the auto-linking area.  Up to 32 numbers may be linked, each
+; should have a comma for a separator, such as:
+;
+;	B>>COMMAND: CAL A,F,3,A,G,A,H
+;
+AUTO:	MOV	BYTE PTR AUTODIR,AL	;direct to terminal mode on answer
+;
+AUTO1:	MOV	BYTE PTR AUTOFL,0FFH	;set the auto-linking flag
+	MOV	BYTE PTR CRFLAG,0FFH	;set the continuous redial flag
+	MOV	CH,64			;maximum number of characters to move
+	MOV	BX,OFFSET CMDBUF+1	;start with number in the string
+	MOV	DX,OFFSET CMDBUF+65	;move to aft part of buffer
+	JMP	MOVE	
+;.....
+;
+;
+; Linking routine
+;
+AUTO2:	MOV	AL,BYTE PTR AUTOFL	;increment the flag for each new try
+	INC	AL
+	INC	AL
+	MOV	BYTE PTR AUTOFL,AL
+	MOV	CL,AL			;hold momentarily
+	MOV	CH,0
+	MOV	AL,BYTE PTR CMDBUF+65	;see how many characters typed
+	CMP	AL,CL
+	JNB	AUTO3
+	MOV	AL,1			;reset the flag to start over
+	MOV	CL,AL
+	MOV	BYTE PTR AUTOFL,AL
+;
+AUTO3:	MOV	BX,OFFSET CMDBUF+65
+	ADD	BX,CX
+	JMP	DIAL6			;go to work
+;.....
+;
+;
+AUTODIR DB	0			;direct to terminal mode on answer
+AUTOFL	DB	0			;auto-linking flag
+NUMBER	DB	0			;number of characters in CMDBUF
+
+;.....
+;
+;
+; Time-out routine.  Must be called with mask in 'D' reg. for input at
+; relative port 2 and number of seconds (times 10) in 'C' reg.
+;
+WAIT:	MOV	CH,2
+	CALL	TIMER			;wait for timer to go high then low
+	CALL	IN_BAUDRP		;PMMIADDR+2 (modem status port)
+	AND	AL,DH			;(CTS or dialtone mask)
+	JNZ	L2A39
+	RET				;active low, so return on 0
+L2A39:
+	PUSH	CX			;save..
+	PUSH	DX			;..active registers
+	CALL	STAT			;keypress?
+	JZ	WAIT1			;if not, exit
+	CALL	KEYIN			;yes, get char
+	CMP	AL,CANCEL		;CTL-X to intentionally abort?
+	JZ	WAIT2			;yes, disconnect, jmp to menu
+;
+WAIT1:	POP	DX			;restore..
+	POP	CX			;..registers
+	DEC	CL			;count-down
+	JNZ	WAIT
+	STC				;set carry to indicate mask not set
+	RET
+;.....
+;
+;
+WAIT2:	POP	DX			;reset..
+	POP	CX			;..stack
+	JMP	DONETCD			;disconnect
+;.....
+;
+;	       (END OF HAYES/PMMI DIALING ROUTINE)
+;=======================================================================
+;			SPECIAL PMMI MENU
+;
+SPCLMENU:
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JNZ	L2A40
+	RET
+L2A40:
+	CALL	JMP_NXTSCRN
+	CALL	ILPRT
+	DB	'        Additional Subcommands for PMMI Modems'
+	DB	CR,LF,LF
+	DB	'  Modem control:',CR,LF
+	DB	'    A - Answer tone for send or receive',CR,LF
+	DB	'    O - Originate tone for send or receive',CR,LF,LF
+	DB	'  Parity option:',CR,LF
+	DB	'    1 - Set and check for odd parity',CR,LF
+	DB	'    0 - Set and check for even parity',CR,LF
+	DB	'           Both ends must be capable of these options'
+	DB	CR,LF
+	DB	'           which are available only in R and S modes.'
+	DB	CR,LF
+	DB	'           The parity checking will be part of the'
+	DB	CR,LF
+	DB	'           file transfer protocol.',CR,LF,LF
+	DB	'  Speed Options:',CR,LF
+	DB	'        After entering your primary and secondary '
+	DB	'options,',CR,LF
+	DB	'        you can set the modem speed by placing a '
+	DB	' "." after',CR,LF
+	DB	'        the options followed by the speed e.g., '
+	DB	'300, 600.',CR,LF,LF
+	DB	'        EXAMPLE:  SBO.600 will set the modem for '
+	DB	'600 baud',CR,LF,0
+		RET			;all done
+;.....
+;			(END OF PMMI MENU)
+;=======================================================================
+;
+;
+; Timer routine.  Waits 0.1 seconds for each unit in 'B' reg.
+;
+TIMER:	PUSH	BX
+;
+TIMER1: PUSH	CX
+;
+TIMER2: CALL	JMP_INMODEM		;100 ms. delay per loop
+	JNB	TIMER2
+	POP	CX
+	DEC	CH
+	JNZ	TIMER1
+	POP	BX
+	RET
+;.....
+;
+;
+;
+;************** END OF SPECIAL HAYES/PMMI ROUTINES *********************
+;
+;
+;=======================================================================
+;
+	ORG	((offset $+255+50)/256*256)-50 ;even page for 'NUMLIB'
+;
+;
+;
+CRITE:	CALL	JMP_ILPRT
+	DB	'for Menu)',CR,LF,'Copyright (c) '
+	DB	'1984 - Irvin M. Hoff',CR,LF
+	DB	'Translation to CPM-86 - Alex K. Soya',CR,LF,0
+	RET
+;.....
+;
+;			END OF SPECIAL PATCH AREA
+;=======================================================================
+;
+; Long distance alternate dialing such as MCI, SPRINT, etc.  Must end
+; with a '$', use as many commas (2 seconds delay, each) as needed to
+; let the alternate dialing code return with a new dial tone.  Fill in
+; any character (periods are fine) after the $ to keep number of columns
+; to 24, i.e.,	'1234567,,,,12345,,$.....'   --	  the first group is the
+; MCI or SPRINT access number, the second group is the user number.  A
+; small delay is usually required after the billing number also.
+;
+ALTDIAL1 DB	'xxxxxxx,,,,,,xxxxxxxx,,$'	;accessed by a < character
+;
+ALTDIAL2 DB	'xxxxxxx,,,,,,xxxxxxxx,,$'	;accessed by a > character
+;
+;=======================================================================
+;
+HEXSHOW DB	SHOWHEX			;can easily change SHOWHEX via DDT
+;
+SAVSIZ	DB	XFRSIZ*8		;can easily change buffer size for file
+					;transfers with DDT for "NUMBLIB-1" ad-
+					;dress.	 Normally 4k (32 records or 4k).
+;
+;=======================================================================
+;
+; Phone number library table for auto-dialing.	Each number must be as
+; long as"LIBLEN" (EQU at start of program).  Some areas require extra
+; characters such as:	1-313-846-7127.	 Room is left for those.  Use
+; a (<) for alternate dialing system #1, and a (>) for alternate dialing
+; System #2.  Either would preceed the actual number, for example:
+;
+;	DB    'A=Alan Alda..........<123-456-7890'    ;'A'
+;
+; -	-     -	    -	  -	-     -	    -	  -	-     -	    -
+;
+; NOTE: At least one dot (.) MUST precede the actual phone number
+;
+;		'----5---10---15---20---25---30--34'
+NUMBLIB DB	'A=Bob Robesky.......1-209-227-2083'	;'A'
+	DB	'B=Byron McKay.......1-415-965-4097'	;'B'
+	DB	'C=Bruce Jorgens.....1-509-255-6324'	;'C'
+	DB	'D=Phil Cary.........1-505-522-8856'	;'D'
+	DB	'E=Bill Earnest......1-215-398-3937'	;'E'
+	DB	'F=Chuck Forsberg....1-503-621-3193'	;'F'
+	DB	'G=Ron Fowler........1-414-563-9932'	;'G'
+	DB	'H=Charlie Hoffman...1-813-831-7276'	;'H'
+	DB	'I=Jack Kinn.........1-817-547-8890'	;'I'
+	DB	'J=Walt Jung.........1-301-661-2175'	;'J'
+	DB	'K=Sigi Kluger.......1-915-598-1668'	;'K'
+	DB	'L=Keith Petersen....1-313-759-6569'	;'L'
+	DB	'M=Wayne Masters.....1-408-378-7474'	;'M'
+	DB	'N=Dick Mead.........1-213-799-1632'	;'N'
+	DB	'O=Al Mehr...........1-408-238-9621'	;'O'
+	DB	'P=Pasadena RBBS.....1-213-577-9947'	;'P'
+	DB	'Q=Mark Pulver.......1-312-789-0499'	;'Q'
+	DB	'R=Bruce Ratoff......1-201-272-1874'	;'R'
+	DB	'S=Ken Stritzel......1-201-584-9227'	;'S'
+	DB	'T=TCBBS, Dearborn...1-313-846-6127'	;'T'
+	DB	'U=AnaHUG RCPM.......1-714-774-7860'	;'U'
+	DB	'V=Dave Austin.......1-707-257-6502'	;'V'
+	DB	'W=Paul Bagdonovitch.1-201-747-7301'	;'W'
+	DB	'X=Kirk De Haan......1-408-296-5078'	;'X'
+	DB	'Y=Byron Kantor......1-619-273-4354'	;'Y'
+	DB	'Z=Chuck Metz........1-408-354-5934'	;'Z'
+	DB	'0=Bill Parrott......1-913-682-3328'	;'0'
+	DB	'1=Larry Snyder......1-305-671-2330'	;'1'
+	DB	'2=Alex Soya.........1-305-259-7955'	;'2'
+	DB	'3=Tony Stanley......1-912-929-8728'	;'3'
+	DB	'4=Ed Svoboda........1-408-732-9190'	;'4'
+	DB	'5=Tampa Bay Bandit..1-813-937-3608'	;'5'
+	DB	'6=Thousand Oaks.....1-805-492-5472'	;'6'
+	DB	'7=Bill Wood.........1-619-256-3914'	;'7'
+	DB	'8=Spare.............1-xxx-xxx-xxxx'	;'8'
+	DB	'9=Spare.............1-xxx-xxx-xxxx'	;'9'
+	DB	0					;end
+;		'----5---10---15---20---25---30--34'
+;
+;-----------------------------------------------------------------------
+;
+; This is the storage area for the ten function keys.  The M7FNK.COM
+; program dynamically allocates the storage for the keys.  Thus, no
+; function key is limited to so-and-so many characters.	 Rather, the
+; total number of bytes in the function key library (including flags)
+; is 256.
+;
+INTCPT	DB	'^'			;intercept character (prefix)
+;
+FNCTBL	DB	0,'DIR ',CR,0
+	DB	1,'DIR *.* $U0AD ',CR,0
+	DB	2,'XMODEM S ',0
+	DB	3,'XMODEM R ',0
+	DB	4,'BYE ',CR,0
+	DB	5,'RBBS ',CR,0
+	DB	6,'(vacant)',0
+	DB	7,'(vacant)',0
+	DB	8,'(vacant)',0
+	DB	9,'Nice chatting, see you again soon... ',CR,0
+	RS	256-((Offset $)-(Offset FNCTBL))
+;
+;
+;
+;***********************************************************************
+;
+;
+; P - R - O - G - R - A - M	S - T - A - R - T - S	  H - E - R - E
+;
+;
+;***********************************************************************
+;
+;
+START:	MOV	AX,CS			; stack resides in the Code Segment
+	MOV	SS,AX
+	MOV	SP, Offset STACK	;start local stack
+;
+;
+; The 'FIXCNT' calculations are done here and the values stored so the
+; overhead of doing the calculation is not incurred in the RECV routine
+; where it is desired to pick up a character from the modem data port as
+; quickly as possible.
+;
+	MOV	BX,590			;adjust to get 1 second time intervals
+	CALL	FIXCNT
+	MOV	Word Ptr TIMVAL,BX
+	MOV	BX,36			;should be 1/16 of above value
+	CALL	FIXCNT
+	MOV	Word Ptr QUIKTIM,BX
+;
+;
+; Now display the program name and version number and we are under way
+;
+	CALL	ILPRT
+	DB	CR,LF,'MDM',VERSION/100+'0',VERSION MOD 100/10+'0'
+	DB	VERSION MOD 10+'0',' modem pgm (type M ',0
+	CALL	CRITE
+	CALL	JMP_SYSVER		;give configuration message
+	CALL	CRCGEN			;generate tables for fast 'CRC' check
+	CALL	INITADR			;initialize addresses
+	CALL	INTERCEPT		;establish the function key intercept
+	CALL	PROCOPT			;process any options
+	MOV	AL,Byte Ptr OPTION     ;any options on the command line?
+	CMP	AL,' '+1
+	JNB	RESTART
+	JMP	MENU			;if not, show the menu
+;
+;
+; Comes here from menu once the options have been set
+;
+RESTART:MOV	SP, Offset STACK	;make sure we have a clean stack
+	CALL	CKCHAR			;catch any garbage characters left over
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JNZ	RESTART1		;if yes, accept 'C' or 'D'
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	RESTART2		;exit if neither modem-type
+;
+RESTART1:
+	MOV	AL,Byte Ptr OPTION     ;get the option
+	CMP	AL,'C'			;call (dial) function?
+	JNZ	L3A2
+	JMP	JMP_DIAL		;yes, go to it
+L3A2:
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JZ	RESTART2
+	CALL	SETBAUD			;just the PMMI has to check each time
+;
+RESTART2:
+	CALL	MOVEFCB
+	MOV	AL,Byte Ptr OPTION     ;get main option
+	CMP	AL,'D'			;disconnect?
+	JNZ	L3A4
+	JMP	DONETCD			;yes, disconnect then back to the menu
+L3A4:
+	CMP	AL,'M'			;menu asked for?
+	JNZ	L3A5
+	JMP	MENU2			;go display the menu
+L3A5:
+	CMP	AL,'R'			;want to receive a file?
+	JNZ	L3A6
+	JMP	RCVFIL			;exit if yes
+L3A6:
+	CMP	AL,'S'			;want to send a file?
+	JNZ	L3A7
+	JMP	SENDFIL			;exit if yes
+L3A7:
+	CMP	AL,'T'			;want terminal mode?
+	JNZ	RESTART3		;if not, exit
+	XOR	AL,AL
+	MOV	Byte Ptr ECHOFLG,AL    ;reset echo flag
+	MOV	Byte Ptr LOCFLG,AL     ;reset local flag
+	JMP	DSKSAVE			;exit if yes
+;
+RESTART3:
+	CMP	AL,'E'			;want echo mode?
+	JNZ	NOECHO			;if not, exit
+	MOV	Byte Ptr ECHOFLG,AL    ;set the echo flag
+	XOR	AL,AL
+	MOV	Byte Ptr LOCFLG,AL     ;reset local flag
+	JMP	DSKSAVE
+;
+NOECHO: CMP	AL,'L'			;want local echo mode?
+	JNZ	NOLOCAL			;if not, exit
+	MOV	Byte Ptr LOCFLG,AL     ;set the local flag
+	XOR	AL,AL
+	MOV	Byte Ptr ECHOFLG,AL    ;reset echo flag
+	JMP	DSKSAVE
+;	
+NOLOCAL:CALL	NTVLDMSG		;say not a valid option
+	JMP	MENU			;then go back to the command mode
+;....
+;
+;
+INITADR:CALL	GETUSER			;get current user number
+	MOV	Byte Ptr OLDUSER,AL    ;save to restore upon exit
+	CALL	GETMAX			;find maximum ram for printer use
+	JMP	JMP_INITMOD		;initialize non-PMMI systems if needed
+;.....
+;
+;
+; Get the function key intercept character and put in appropriate places
+;
+INTERCEPT:
+	MOV	AL,Byte Ptr INTCPT	;get the function key intercept char.
+	AND	AL,07FH			;strip off any parity
+	MOV	Byte Ptr FNCKY,AL	;store 
+	CMP	AL,' '			;printing character?
+
+	JNB	INTER2			;if yes, exit
+	ADD	AL,40H			;change to printing character
+	JMP	FIXFNK			;fix-patch area of extra bytes
+;
+INTER1: MOV	AL,'^'
+	MOV	BYTE PTR MENU3,AL	;store the "control-" character
+	RET
+;
+INTER2: MOV	Byte Ptr MENU3+1,AL
+	RET
+;.....
+;
+;
+; Process any options - put 0 in appropriate place in option table if
+; option is selected
+;
+PROCOPT:MOV	DX,Offset FCB+1
+	MOV	SI,DX
+	MOV	AL,[SI]
+	MOV	Byte Ptr OPTION,AL
+	CMP	AL,' '			;exit if no options
+	JNZ	OPTLP
+	RET
+;
+OPTLP:	INC	DX
+	MOV	SI,DX
+	MOV	AL,[SI]
+	CMP	AL,' '
+	JZ	ENDOPT
+	MOV	BX, Offset OPTBL
+	MOV	CH, (Offset OPTBE)-(Offset OPTBL)
+;
+OPTCK:	CMP	AL,Byte Ptr [BX]
+	JNZ	OPTNO
+	CMP	AL,'O'			;want originate tones?
+	MOV	CH,AL			;store momentarily
+	MOV	AL,ORIGMOD
+	JZ	OPTCK1
+	MOV	AL,CH			;get the option back
+	CMP	AL,'A'			;want answer tones?
+	JNZ	OPTCK2			;if not, exit
+	MOV	AL,ANSWMOD
+;
+OPTCK1: MOV	Byte Ptr UARTCTLB,AL
+;
+OPTCK2: MOV	Byte Ptr [BX],0
+	JMPS	OPTLP
+;
+OPTNO:	INC	BX
+	DEC	CH
+	JNZ	OPTCK
+	CALL	NTVLDMSG
+	POP	BX			;preserve stack
+	JMP	MENU
+;
+ENDOPT: MOV	AL,Byte Ptr VSEEFLG
+	OR	AL,AL
+	JNZ	CKOPTN
+	MOV	Byte Ptr QFLG,AL       ;quiet mode for watching data items
+;
+CKOPTN: MOV	AL,Byte Ptr OPTION     ;check on the primary option
+	CMP	AL,'D'			;going to disconnect?
+	JNZ	L3A9
+	RET
+L3A9:
+	CMP	AL,'E'			;return if echo option
+	JNZ	L3A10
+	RET
+L3A10:
+	CMP	AL,'M'			;return if help option
+	JNZ	L3A11
+	RET
+L3A11:
+	CMP	AL,'L'			;return if local echo option
+	JNZ	L3A12
+	RET
+L3A12:
+	CMP	AL,'T'			;return if terminal mode
+	JNZ	L3A13
+	RET
+L3A13:
+	MOV	CH,AL			;save the primary option for a moment
+	MOV	AL,Byte Ptr PMMIMODEM  ;PMMI modem?
+	OR	AL,AL
+	JNZ	CKOPTN0			;if yes, accept 'C'
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	CKOPTN1			;exit if neither
+;
+CKOPTN0:MOV	AL,CH			;get the character back 
+	CMP	AL,'C'			;going to call a number now?
+	JNZ	L3A14
+	RET
+L3A14:
+;
+CKOPTN1:MOV	AL,Byte Ptr NFILFLG    ;saving memory for disk file?
+	OR	AL,AL
+	JZ	CKOPTN2			;if not, continue
+	POP	BX			;reset the stack from 'CALL PROCOPT'
+	JMP	MENU0			;go show the 'FILE OPEN' message
+;
+CKOPTN2:MOV	AL,CH			;get the option back	
+	CMP	AL,'S'
+	JZ	CKFILE
+	CMP	AL,'R'
+	JNZ	BDOPT			;none of these, bad option
+	MOV	AL,Byte Ptr BATCHFLG   ;see if the batch mode flag is set
+	OR	AL,AL
+	JNZ	CKFILE
+	RET				;if yes, exit
+;
+CKFILE: MOV	AL,Byte Ptr FCB+17     ;'S' and 'R' need a file name
+	CMP	AL,' '
+	JZ	REENT
+	RET				;exit if a file name is present
+;
+REENT:	CALL	ILPRT
+	DB	'++ Enter primary option plus file name ++'
+	DB	CR,LF,BELL,0
+	POP	BX			;reset stack from 'CALL SETFCB
+	JMP	MENU			;abort to command line
+;.....
+;
+;
+BDOPT:	CALL	ILPRT
+	DB	CR,LF,'++ Bad option ++',CR,LF,LF,0
+;.....
+;
+;
+; Check for any garbage characters on line - catch and ignore
+;
+CKCHAR: CALL	RCVREADY		;any characters ready to receive?
+	JZ	L3A17
+	RET				;if not, return
+L3A17:
+	CALL	IN_MODDATP		;otherwise get the character and ignore
+	JMPS	CKCHAR			;check for any additional characters
+;.....
+;
+;
+; Revised terminal routine allowing memory save.  First checks for bad
+; options, to prevent wiping out the disk with accidental memory save.
+;
+DSKSAVE:MOV	AL,Byte Ptr BATCHFLG   ;batch flag set?
+	OR	AL,AL
+	JNZ	DSKSAVE1		;if not set, everything is normal
+	MOV	AL,'B'			;if set, shouldn't be, so reset it
+	MOV	Byte Ptr BATCHFLG,AL
+	JMP	NOTVLD			;if set, error for 'E', 'L' or 'T'
+;
+DSKSAVE1:
+	MOV	Byte Ptr XFLG,AL       ;will use the ASCII capture buffer size
+	MOV	AL,Byte Ptr NFILFLG    ;already saving for a file?
+	OR	AL,AL
+	JZ	DSKSAVE2		;exit if not, and open a file
+	CALL	BUFMSG			;tell if buffer if on or off
+	JMPS	TERM
+;
+DSKSAVE2:
+	MOV	AL,Byte Ptr .FCB+1	;first character of filename (if any)
+	CMP	AL,' '			;file specified?
+	JNZ	GOODNM			;yes, good name
+	XOR	AL,AL
+	MOV	Byte Ptr NFILFLG,AL    ;show no file being saved
+	MOV	Byte Ptr SAVEFLG,AL    ;reset the flag to zero
+	JMPS	TERM
+;...
+;
+;
+GOODNM: CALL	ERASFIL
+	MOV	BX, Offset FCB3
+	CALL	INITFCB
+	MOV	BX, Offset FCB		;move the disk name into FCB3 area
+	MOV	DX, Offset FCB3
+	MOV	CH,12
+	CALL	MOVE
+	MOV	DX, Offset FCB3		;now make a file from that name
+	MOV	CL,MAKE
+	INT	224
+	MOV	DX, Offset FCB3		;now open the file from FCB3
+	MOV	CL,OPEN
+	INT	224
+	MOV	BX, offset BUFFER	;reset pointers to start of buffer
+	MOV	Word Ptr HLSAVE,BX
+	MOV	AL,1
+	MOV	Byte Ptr NFILFLG,AL    ;show now saving to memory for disk file
+	CALL	BUFMSG2			;show buffer is available
+;
+TERM:	MOV	AL,Byte Ptr LSTTST     ;allowing the printer to be used?
+	OR	AL,AL
+	JZ	L3A18
+	CALL	GOLIST			;if yes, see if anything to print
+L3A18:
+	CALL	STAT			;keyboard have a character?
+	JNZ	L3A19
+	JMP	TERML			;if not, see if any incoming
+L3A19:
+	CALL	KEYIN			;get character from keyboard
+	MOV	CH,AL			;save for now to protect 'A' reg.
+	CMP	AL,RUB			;test for rub
+	JNZ	NOTRUB			;exit if not
+	MOV	AL,Byte Ptr CONVRUB    ;convert rub to backspace?
+	OR	AL,AL
+	JZ	NOTRUB			;exit if no conversion
+	MOV	CH,BKSP			;call it a backspace
+	JMP	NOTOG			;go send a backspace
+;
+NOTRUB: MOV	AL,Byte Ptr FNKFLG     ;get function key active flag
+	OR	AL,AL
+	JZ	NOF			;if not set yet, exit
+	MOV	AL,CH			;get character
+	CMP	AL,'0'
+	JB	NOFNK1			;ignore invalid key codes
+	CMP	AL,'9'+1
+	JNB	NOFNK1
+	AND	AL,0FH			;make 0..9
+	JMP	SENDFK
+;
+NOF:	MOV	AL,Byte Ptr INTCPT	;check intercept character
+	CMP	AL,CH
+	JNZ	NOFNK1			;skip if no function key
+	MOV	Byte Ptr FNKFLG,AL     ;set the function flag
+	JMP	TERML			;do not send the intercept character
+;
+NOFNK1: XOR	AL,AL			;reset the flag
+	MOV	Byte Ptr FNKFLG,AL
+	MOV	AL,Byte Ptr EXACFLG
+	OR	AL,AL			;exact?
+	MOV	AL,0			;(cannot use 'XRA A' here)
+	MOV	Byte Ptr EXACFLG,AL    ;clear for next time
+	JZ	NTEXAFLG		;go if EXACFLG not set 'YES'
+	MOV	AL,Byte Ptr LOCNXTCHR
+	OR	AL,AL			;should we send on exacflg?
+	JNZ	L3A20
+	JMP	NOTOG			;jump if LOCONEXTCHR 'NO'
+L3A20:
+	MOV	AL,Byte Ptr EXTCHR     ;we want to send EXTCHR in any case
+	CMP	AL,CH
+	JNZ	L3A21
+	JMP	NOTOG			;send if EXTCHR
+L3A21:
+	JMPS	LOCCHK			;otherwise do local stuff
+;...
+;
+;
+NTEXAFLG:
+	MOV	AL,Byte Ptr EXTCHR     ;treat next character in special way?
+	CMP	AL,CH			;check against this control character
+	JNZ	NTEXA1			;yes, set exacflg for next character
+	MOV	AL,1
+	MOV	Byte Ptr EXACFLG,AL    ;set the flag
+	JMP	TERM			;do not send, get next character
+;
+NTEXA1: MOV	AL,Byte Ptr LOCNXTCHR
+	OR	AL,AL			;should we send if not EXACFLG?
+	JZ	LOCCHK
+	JMP	NOTOG			;jump if loconextchr 'YES'
+;
+LOCCHK: CALL	EXITTST1		;want to exit to menu?
+	MOV	AL,Byte Ptr NOCONNCT   ;want to disconnect from line?
+	CMP	AL,CH
+	JNZ	L3A23
+	JMP	DONETCD			;if yes go disconnect
+L3A23:
+	MOV	AL,Byte Ptr TRANCHR    ;output text file to remote?
+	CMP	AL,CH
+	JNZ	L3A24
+	JMP	TRANSFER
+L3A24:
+	MOV	AL,Byte Ptr TRANLOGON
+	OR	AL,AL
+	JZ	SKPLOGON
+	MOV	AL,Byte Ptr LOGCHR     ;send logon?
+	CMP	AL,CH
+	JNZ	L3A25
+	JMP	SENDLOG
+L3A25:
+;
+SKPLOGON:
+	MOV	AL,Byte Ptr LSTTST     ;going to use the external printer?
+	OR	AL,AL
+	JZ	NOLST			;if not, skip this area
+	MOV	AL,Byte Ptr LSTCHR     ;get the printer control-character
+	CMP	AL,CH			;did we just ask for printer control?
+	JNZ	NOLST			;if not, exit
+	MOV	AL,Byte Ptr LISTFLG    ;otherwise reset the printer toggle
+	NOT	AL
+	MOV	Byte Ptr LISTFLG,AL    ;and store
+	CALL	CRLF
+	CALL	CRLF
+	CALL	LSTMSG			;tell if printer is on or off now
+	CALL	CRLF
+	JMP	TERML			;back to the terminal mode again
+;.....
+;
+;
+NOLST:	MOV	AL,Byte Ptr BRKCHR     ;PMMI break?
+	CMP	AL,CH
+	JNZ	L3A26
+	JMP	BREAK
+L3A26:
+	MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI board?
+	OR	AL,AL
+	JZ	NOLST1			;if not, skip the next few lines
+	MOV	AL,Byte Ptr CHGBAUD    ;PMMI change baud?
+	CMP	AL,CH
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	PUSH	BX
+	JNZ	L3A27
+	CALL	JMP_NEWBAUD
+L3A27:
+	POP	BX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JNZ	NOLST1
+	JMP	TERML
+;...
+;
+;
+NOLST1: MOV	AL,Byte Ptr UNSAVECHR  ;close input buffer?
+	CMP	AL,CH
+	JZ	NOLST2			;if yes, disable copy
+	MOV	AL,Byte Ptr SAVECHR    ;open input buffer?
+	CMP	AL,CH
+	JZ	L3A29
+	JMP	NOTOG
+L3A29:
+	MOV	AL,Byte Ptr NFILFLG    ;do not allow save if..
+	OR	AL,AL
+	JNZ	L3A30
+	JMP	TERML			;..this flag is set.
+L3A30:
+	JMPS	NOLST3
+;
+NOLST2: XOR	AL,AL			;stop copy into file
+;
+NOLST3: MOV	Byte Ptr SAVEFLG,AL
+	CALL	BUFMSG
+	JMP	TERM			;get next character
+;.....
+;
+;	
+;***********************************************************************
+;
+;			 SEND A CP/M FILE
+;
+
+;***********************************************************************
+;
+;
+SENDFIL:XOR	AL,AL			;set to checksum initially on send
+	MOV	Byte Ptr CRCFLAG,AL    ;..initially on send
+	CALL	CKCHAR			;catch any garbage characters
+;
+SENDFIL1:
+	MOV	AL,Byte Ptr BATCHFLG   ;check if multiple file..
+	OR	AL,AL			;..mode is set.
+	JNZ	SENDC1
+	CALL	ILPRT
+	DB	'Ready to send in batch mode',CR,LF,0
+;
+SENDFIL2:
+	CALL	JMP_PARITY
+	MOV	AL,YES			;indicate send for batch mode
+	MOV	Byte Ptr SENDFLG,AL
+	MOV	AL,Byte Ptr FSTFLG     ;if first time through..
+	OR	AL,AL			;..scan the command line..
+	JNZ	L3A31
+	CALL	TNMBUF			;..for multiple names.
+L3A31:
+	CALL	SENDFN			;sends file name to receive
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	CRLF
+	CALL	SHOWFIL
+	MOV	AL,' '
+	CALL	STYPE
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JNB	SENDC2			;carry set means no more files
+	MOV	AL,'B'			;stop batch
+	MOV	Byte Ptr BATCHFLG,AL   ;mode option
+	MOV	AL,EOT			;final transfer end
+	CALL	SEND
+	JMP	DONE
+;
+SENDC1: MOV	AL,Byte Ptr FCB+1
+	CMP	AL,' '
+	JNZ	SENDC2
+	JMP	BLKFILE
+;
+SENDC2: CALL	CNREC			;get number of records
+	CALL	OPENFIL
+	MOV	DL,120			;wait 2 minutes maximum
+	CALL	WAITNAK
+;
+SENDLP: CALL	CKABORT			;want to terminate while sending file?
+	CALL	RDRECD
+	JB	SENDEOF
+	CALL	INCRRNO
+	MOV	AL,1
+	MOV	Byte Ptr ERRCT,AL
+;
+SENDRPT:CALL	CKABORT			;want to terminate while sending file?
+	CALL	SENDHDR
+	CALL	SENDREC
+	MOV	AL,Byte Ptr CRCFLAG
+	OR	AL,AL
+	JNZ	SNDCRC
+	CALL	SENDCKS
+	JMPS	SNDCONT
+;
+SNDCRC: CALL	SENDCRC
+;
+SNDCONT:CALL	GETACK
+	JB	SENDRPT
+	JMPS	SENDLP
+;.....
+;
+;
+SENDEOF:MOV	AL,EOT
+	CALL	SEND
+	CALL	GETACK
+	JB	SENDEOF
+	JMP	DONE
+;.....
+;
+;
+;***********************************************************************
+;
+;		       RECEIVE A CP/M FILE
+;
+;***********************************************************************
+;
+;
+RCVFIL: MOV	AL,Byte Ptr CRCDFLT    ;get mode requested by operator
+	MOV	Byte Ptr CRCFLAG,AL    ;store it
+;
+RCVFIL1:CALL	JMP_PARITY
+	MOV	AL,Byte Ptr BATCHFLG   ;check if multiple file mode
+	OR	AL,AL
+	JNZ	RCVC1			;if not, exit
+	MOV	AL,NO			;flag where to return..
+	MOV	Byte Ptr SENDFLG,AL    ;..for next file transfer
+	CALL	GETFN			;get the file name
+	JNB	RCVC2			;carry set means no more files
+	MOV	AL,'B'			;stop batch
+	MOV	Byte Ptr BATCHFLG,AL   ;mode option
+	JMP	DONE
+;
+RCVC1:	MOV	AL,Byte Ptr FCB+1      ;make sure file is named
+	CMP	AL,' '
+	JNZ	L3A35
+	JMP	BLKFILE
+L3A35:
+	JMPS	RCVC3
+;
+RCVC2:	CALL	SHOWFIL			;show the file name
+	MOV	AL,' '
+	CALL	STYPE
+	CALL	SNDPRG			;get progress and wait for quiet line
+	CALL	CKCPM2
+	CALL	CRLF
+	CALL	CKBAKUP
+;
+RCVC3:	CALL	ERASFIL
+	CALL	MAKEFIL
+	CALL	WAITQ1
+	MOV	AL,Byte Ptr BATCHFLG   ;do not print message if in batch mode
+	OR	AL,AL
+	JZ	RCVFST
+	CALL	ILPRTQ
+	DB	'File open, ready to receive',CR,LF,0
+;
+RCVFST: MOV	AL,Byte Ptr CRCFLAG
+	OR	AL,AL
+	JZ	RCVNAKM			;if in 'CRC' mode
+	CALL	ILPRTQ			;then say so
+	DB	'CRC in effect',CR,LF,0
+	MOV	AL,CRC
+	JMPS	RCVLP0
+;
+RCVNAKM:CALL	ILPRTQ			;else say 'CHECKSUM' mode
+	DB	'Checksum in effect',CR,LF,0
+	MOV	AL,NAK
+;
+RCVLP0: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	ILPRT
+	DB	'Waiting.....',0
+;
+NOPRG:	POP	AX
+	XCHG	AL,AH
+	SAHF
+	CALL	SEND
+;
+RCVLP:	CALL	RCVRECD
+	JB	RCVEOT
+	CALL	REPORT			;show record received if not in quiet 
+	CALL	WRRECD
+	CALL	INCRRNO
+	CALL	SENDACK
+	JMPS	RCVLP
+;
+RCVEOT:
+	CALL	WRBLOCK
+	CALL	SENDACK
+	CALL	CLOSFIL
+	JMP	DONE
+;
+SENDACK:MOV	AL,ACK
+	CALL	SEND
+	RET
+;
+;.....
+;
+;
+;=================== FILE TRANSFER IN T-MODE ===========================
+;
+;
+; File transfer routine - called with CTL-T from terminal mode.	 Trans-
+; fer may be cancelled while sending, by using CTL-X.
+;
+TRANSFER:
+	MOV	BX, Offset FCB4
+	CALL	INITFCB			;initializes FCBs pointed..
+	MOV	BX, offset FCB+16	;..to by 'BX' reg.
+	CALL	INITFCB
+;
+;
+; Get name of file to send in "T" (terminal) mode
+;
+GET:	CALL	ILPRT
+	DB	CR,LF,'File name to send? (CR to abort): ',0
+	MOV	DX, offset CMDBUF
+	CALL	INBUF
+	MOV	AL,Byte Ptr CMDBUF+2   ;was file entered?
+	CMP	AL,' '
+	JNZ	L3A36
+	JMP	RETURN			;if not probably wanted to quit
+L3A36:
+	MOV	DX, Offset CMDBUF
+	MOV	BX, Offset FCB4
+	CALL	CMDLINE
+	MOV	DX, Offset FCB4
+	MOV	CL,OPEN
+	INT	224
+	CMP	AL,0FFH			;return with 0FFH means 'NO SUCH FILE'
+	JNZ	L3A37
+	JMP	TRANSL
+L3A37:
+	MOV	AL,Byte Ptr XONWAIT    ;waiting for X-on to send next line?
+	OR	AL,AL
+	JNZ	DLYSAV			;if yes, skip additional delays
+;
+;
+; Choice of normal speed or delays between characters / lines
+;
+	CALL	ILPRT
+	DB	'Want to include time delays? (Y/N): ',0
+	CALL	KBDCHR
+	CMP	AL,'N'			;if 'N' send normal speed
+	JZ	DLYSAV
+	XOR	AL,AL			;otherwise use character/line delays
+;
+DLYSAV: MOV	Byte Ptr DLYFLG,AL	;store the decision
+	CALL	CRLF
+	MOV	DX, Offset CMDBUF+2		;make sure cmdbuf has been selected
+	MOV	CL,SETDMA
+	INT	224
+;
+;
+; Get 128-byte record
+;
+READMR: MOV	DX, Offset FCB4
+	MOV	CL,READ
+	INT	224
+	OR	AL,AL			;check for a good read
+	JZ	READMR1
+	DEC	AL			;check for end of file to send
+	JZ	RETURNS
+	CALL	ERXIT			;neither of those, was a read error
+	DB	'++ DISK READ ERROR ++','$'
+;
+;
+; Successful read, so send the record
+;
+READMR1:CALL	SEND80C			;send one 128-char record
+	CMP	AL,EOFCHAR		;end of file - omit if object..
+	JZ	RETURNS			;..code is to be sent.
+	CMP	AL,CANCEL		;cancellation?
+	JNZ	READMR
+;
+RETURN: CALL	ILPRT
+	DB	CR,LF,LF,'(in Terminal-mode now)',CR,LF,LF,0
+	CALL	SENDNOW			;insures last character is finished
+	CALL	CKCHAR			;catch any echo character on line
+	JMP	TERM			;finished, back to t-mode
+;.....
+;
+;
+RETURNS:CALL	ILPRT
+	DB	CR,LF,'[Transfer completed]',0
+	JMPS	RETURN
+;.....
+;
+;
+TRANSL: CALL	ILPRT
+	DB	CR,LF,BELL,'++ FILE NAME ERROR ++ ',CR,LF,0
+	JMP	GET
+;.....
+;
+;
+; Send one 128-byes record
+;
+SEND80C:MOV	CH,128			;will send a maximum of 128 character
+	MOV	BX, Offset CMDBUF+2	;they are in the cmdbuf area
+;
+SENDCH1:PUSH	DX
+	CALL	SPEED			;0-90 ms. delay between characters
+	POP	DX
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,EOFCHAR
+	JNZ	L3A38
+	RET
+L3A38:
+	CALL	MODOUT			;send the character to modem
+	CALL	STAT			;test to see if
+	OR	AL,AL			;cancellation requested
+	JZ	SKIP1
+	CALL	KEYIN 
+	CMP	AL,CANCEL
+	JNZ	L3A39
+	RET
+L3A39:
+;
+SKIP1:	INC	BX
+	DEC	CH
+	JNZ	SENDCH1
+	RET
+;.....
+;
+;
+; Send the character to the output
+;
+MODOUT: PUSH	AX			; save character so we can use AX
+	CMP	AL,LF
+	JNZ	MODOUTL
+	MOV	AL,Byte Ptr ADDLF      ;going to send the line feed to modem?
+	OR	AL,AL
+	JNZ	MODOUTL			;if yes, exit
+	POP	AX			;get the char. back (a line feed)
+	CALL	STYPE			 ;show on CRT, do not send to modem
+	RET
+;
+MODOUTL:MOV	AL,Byte Ptr XOFFTST    ;waiting for X-off, X-on ?
+	OR	AL,AL
+	JZ	L3A40
+	CALL	TXOFF			;if yes, go check
+L3A40:
+	CALL	SENDRDY			;wait until modem is ready to send
+	JNZ	MODOUTL
+	POP	AX			;get the character back
+	CALL	STYPE			 ;send character to CRT
+	CALL	OUT_MODDATP		;send character to modem
+	CMP	AL,CR			;was it an end of line?
+	JZ	MODOUTN
+	RET				;if yes, see if any delay is needed
+;
+;
+; Delay to allow slow BBS systems (most use BASIC) to enter the line.
+; Choice of 0-9 for about 100 ms. each, maximum of 900 ms.
+;
+MODOUTN:MOV	AL,Byte Ptr XONWAIT    ;wait for X-on after CR?
+	OR	AL,AL
+	JZ	L3A42
+	JMP	WAITXON			;if yes, handle separately
+L3A42:
+	MOV	DH,10
+;
+MODOUTT:PUSH	DX
+	CALL	SPEED1			;10 ms delay
+	POP	DX
+	DEC	DH
+	JNZ	MODOUTT			;10 loops for 100 ms.
+	RET
+;.....
+;
+;
+; Add from 0 to 90 ms. delay between characters for slow (most use
+; BASIC) bulletin board systems.  Also used to add 0-900 ms. delay
+; between lines.
+;
+SPEED:	MOV	AL,Byte Ptr BYTDLY     ;get delay between characters (0-9)
+	JMPS	L3A43			;1=10 ms, 5=50 ms, 9=90 ms, etc.
+;
+SPEED1: MOV	AL,Byte Ptr CRDLY      ;get delay after crlf (0-9)
+L3A43:
+	OR	AL,AL			;100 ms, 5=500 ms, 9=900 ms, etc.
+	JNZ	L3A44
+	RET				;if no delay needed, return
+L3A44:
+	MOV	CL,AL			;store number requested in c-reg.
+	MOV	AL,Byte Ptr DLYFLG     ;want any delays this file?
+	OR	AL,AL
+	JZ	SPEED2
+	RET				;if not, skip this section
+;
+SPEED2: CALL	SPEED3			;outer loop
+	DEC	CL
+	JNZ	SPEED2
+	RET				;done whenever the c-reg. is zero
+;...
+;
+;
+SPEED3: PUSH	BX			;save current 'BX' value
+	MOV	BX,20
+	MOV	AL,Byte Ptr XOFFTST
+	OR	AL,AL
+	JZ	SPEED4
+	MOV	BX,20			;adjust for 'X-OFF' testing
+	MOV	AL,Byte Ptr ECHOFLG
+	OR	AL,AL
+	JZ	SPEED4
+	MOV	AL,Byte Ptr LOCFLG
+	OR	AL,AL
+	JZ	SPEED4
+	MOV	BX,25			;adjust for remote echo
+;
+SPEED4: CALL	FIXCNT			;multiply delay by clock speed
+	XCHG	BX,DX			;transfer delay to 'DE'
+	POP	BX			;restore current 'BX' from"speed3"
+;
+SPEED5: DEC	DX			;inner loop
+	MOV	AL,Byte Ptr XOFFTST
+	OR	AL,AL
+	JZ	L3A46
+	CALL	TXOFF
+L3A46:
+	MOV	AL,DL
+	OR	AL,DH
+	JNZ	SPEED5
+	RET
+;...
+;
+;
+TXOFF:	CALL	RCVREADY
+	JZ	L3A47
+	RET
+L3A47:
+	CALL	IN_MODDATP
+	AND	AL,7FH
+	CMP	AL,XOFF
+	JNZ	L3A48
+	CALL	WAITXON
+L3A48:
+	RET
+;.....
+;
+;
+WAITXON:CALL	RCVREADY		;have a character? (like x-on)
+	JNZ	WTXON1			;if no char. see if want to abort
+	CALL	IN_MODDATP
+	AND	AL,7FH			;strip off any parity
+	CMP	AL,XON			;see if char. was x-on
+	JNZ	WTXON1
+	RET				;if yes, keep going
+;
+WTXON1: CALL	STAT			;test to see if requesting cancellation
+	JZ	WAITXON
+	CALL	KEYIN			;can abort if the x-on never comes
+	CMP	AL,CANCEL		;ctl-x to abort?
+	JNZ	WAITXON			;if not, keep going
+	RET
+
+;.....
+;
+;================ END OF FILE TRANSFER IN T-MODE =======================
+;
+;
+;***********************************************************************
+;
+;			   SUBROUTINES	
+;
+;***********************************************************************
+;
+; Returns with the zero flag set if retry requested.  If using multi-
+; file (batch) modem, then no questions asked, just quit.
+;
+CKQUIT: MOV	AL,Byte Ptr BATCHFLG   ;using batch mode now?
+	OR	AL,AL
+	JNZ	CKQUIT1
+	JMP	ABORT			;quit if using batch mode
+;
+CKQUIT1:MOV	AL,1
+	MOV	Byte Ptr ERRCT,AL
+	CALL	ILPRT
+	DB	CR,LF,'Multiple errors encountered.',CR,LF
+	DB	'Type Q to quit, R to retry:  ',BELL,0
+	CALL	KEYIN
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	CRLF
+	POP	AX
+	XCHG	AL,AH
+	CALL	UCASE			;instead of 'ANI 5FH'
+	CMP	AL,'R'
+	JNZ	L3A52
+	JMP	RCVRECD			;if 'R' keep trying
+L3A52:
+	CMP	AL,'Q'
+	JNZ	CKQUIT1
+	JMP	ABORT
+;.....
+;
+;
+; Show the file name as stored in the FCB but in CP/M format
+;
+SHOWFIL:MOV	AL, Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	L4A1
+	RET
+L4A1:
+	MOV	BX, Offset FCB+1
+;
+SHOWNM: XOR	AL,AL
+	MOV	Byte Ptr FTYCNT,AL
+	MOV	CL,11
+;
+PRNAM:	CALL	FTYTST
+	INC	BX
+	DEC	CL
+	JNZ	PRNAM
+	RET
+;.....
+;
+;
+; Give report of received records as they occur
+;
+REPORT: MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	L4A2
+	RET
+L4A2:
+	MOV	BX,Word Ptr RECDNO     ;get record number
+	INC	BX
+	CALL	ILPRT
+	DB	CR,'Received # ',0
+	CALL	DECOUT			;print record number in decimal
+	CALL	ILPRT
+	DB	' ',0
+;
+	MOV	AL,Byte Ptr HEXSHOW
+	OR	AL,AL
+	JNZ	L4A3
+	RET
+L4A3:
+	CALL	ILPRT
+	DB	'(',0
+	CALL	DHXOUT			;16 bit hex conversion and output
+	CALL	ILPRT
+	DB	'H) ',0
+	RET
+;.....
+;
+;
+FTYTST: MOV	AL,Byte Ptr FTYCNT
+	INC	AL
+	MOV	Byte Ptr FTYCNT,AL
+	CMP	AL,9			;are we at the file type?
+	JZ	SPCTST			;go if so
+;
+ENDSPT: MOV	AL,Byte PTr [BX]
+	CMP	AL,' '			;test for space
+	JZ	L4A4
+	CALL	STYPE			 ;type if not
+L4A4:	RET
+;.....
+;
+;
+SPCTST: MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '			;test for space in 1st file type byte
+	JNZ	L4A5
+	RET				;do not output period if space
+L4A5:	MOV	AL,'.'
+	CALL	STYPE
+	JMPS	ENDSPT			;output 1st file type byte
+;.....
+;
+;
+; Get sender's progress report if it is present and wait for line to get
+; quiet
+;
+SNDPRG: MOV	CH,5			;wait up to 5 seconds
+	CALL	RECV
+	CALL	STYPE			 ;show the progress report from sender
+	JNB	SNDPRG
+	RET
+;.....
+;
+;
+SENDFN: CALL	ILPRTQ
+	DB	'Awaiting name NAK',CR,LF,0
+	CALL	GETACK
+	JNB	SENDFN1
+	CALL	SENDACK
+SENDFN1:
+	MOV	BX, Offset FILECT
+	DEC	Byte Ptr [BX]
+	JS	NOMRNM 
+	MOV	BX,Word Ptr NBSAVE     ;get file name..
+	MOV	DX, Offset FCB		;..in FCB
+	MOV	CH,12
+	CALL	MOVE
+	MOV	Word Ptr NBSAVE,BX
+	CALL	SENDNM			;send it
+	OR	AL,AL			;clear carry
+	RET
+;.....
+;
+;
+NOMRNM: MOV	AL,EOT
+	CALL	SEND
+	STC
+	RET
+;.....
+;
+;
+; Wait for line to get quiet and gobble characters
+;
+WAITQ1: MOV	CH,1
+	CALL	RECV
+	JNB	WAITQ1
+	RET
+;.....
+;
+;
+SENDNM: PUSH	BX
+;
+SENDNM1:MOV	DH,11			;count characters in name
+	MOV	CL,0			;initialize checksum
+	MOV	BX, Offset FCB+1	;address name
+;
+NAMLPS: MOV	AL,Byte Ptr [BX]	;send name
+	AND	AL,7FH			;strip high order bit so CP/M2..
+	CALL	SEND			;..will not send R/O file designation.
+;
+ACKLP:	PUSH	CX			;save checksum
+	MOV	CH,5			;wait for receiver to acknowledge..
+	CALL	RECV			;..getting the letter.
+	POP	CX
+	JB	SCKSER
+	CMP	AL,ACK
+	JNZ	ACKLP
+	INC	BX			;next character
+	DEC	DH
+	JNZ	NAMLPS
+	MOV	AL,EOFCHAR		;tell receiver the end of name
+	CALL	SEND
+	MOV	DH,CL			;save checksum
+;
+CKSMLP: MOV	CH,5			;wait up to 5 seconds
+	CALL	RECV			;get checksum
+	CMP	AL,DH
+	JNZ	SCKSER			;exit if bad name
+	MOV	AL,OKNMCH		;good name-tell receiver
+	CALL	SEND
+	POP	BX
+	RET
+;.....
+;
+;
+SCKSER: MOV	AL,BDNMCH		;bad name-tell receiver
+	CALL	SEND
+	CALL	ILPRT
+	DB	CR,LF,'++ ERROR sending name  ++',CR,LF,0
+	MOV	DL,120			;do handshaking over (2 minutes maximum)
+	CALL	WAITNLP			;don't print "WAITING READY SIGNAL" msg
+	CALL	SENDACK
+	JMP	SENDNM1
+;.....
+;
+;
+; This patch fixes a trivial problem with the display of the function
+; key group on the menu.  It uses some of the extra bytes available in
+; this area from the CKSMLP fix.
+;
+FIXFNK: MOV	BYTE PTR MENU3+1,AL	;store the character in the menu display
+	CMP	AL,'['			;'ESC' character, printed
+	JNB	FIXFNK1			;if 'ESC' or more, exit
+	JMP	INTER1			;otherwise include a '^'
+;
+FIXFNK1:
+	JMP	INTER2
+;
+; Patch to close FCB3 instead of FCB when in disk-capture mode.
+;
+WRERRSP:CALL	WRTFIL2			;close FCB3 file
+	JMP	WRERR1			;go write 'DISK FULL' message and quit
+EXTRA	DB	'123456789 '		;10 extras from CKSMLP (there were 27)
+;
+;
+GETFN:	MOV	BX, FCB
+	CALL	L4A6			;does not initialize drive
+	CALL	ILPRTQ
+	DB	'Awaiting file name',CR,LF,0
+	CALL	HSNAK
+	CALL	GETNM			;get the name
+	CMP	AL,EOT			;if EOT, then no more files
+	JZ	NOMRNMG
+	OR	AL,AL			;clear carry
+	RET
+;
+NOMRNMG:STC
+	RET
+;
+;
+GETNM:	PUSH	BX
+;
+GETNM1: MOV	AL,0FFH
+	MOV	Byte Ptr FLTRFLG,AL
+	MOV	CL,0			;initialize checksum
+	MOV	BX, FCB+1
+;
+NAMELPG:MOV	CH,5
+	CALL	RECV			;get the character
+	PUSH	CX
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,0FFH
+	MOV	Byte Ptr TIMFLG,AL
+	MOV	CH,1
+	CALL	RECV
+	XOR	AL,AL
+	MOV	Byte Ptr TIMFLG,AL
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	POP	CX
+	JNB	GETNM3
+	CALL	ILPRTQ
+	DB	'Time out receiving filename',CR,LF,0
+	JMP	GCKSER
+;
+GETNM3: CMP	AL,EOT			;if EOT, then no more files
+	JNZ	L4A7
+	JMP	GNRET
+L4A7:
+	CMP	AL,EOFCHAR		;got end of name
+	JZ	ENDNAME
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	PUSH	CX
+	CALL	SENDACK
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	MOV	Byte Ptr [BX],AL	;put name in FCB
+	INC	BX			;get next character
+	MOV	AL,BL			;don not let noise cause overflow..
+	CMP	AL,7FH			;..into the program area.
+	JZ	GCKSER
+	JMP	NAMELPG
+;
+ENDNAME:XOR	AL,AL
+	MOV	Byte Ptr FLTRFLG,AL
+	MOV	AL,CL			;send checksum
+	MOV	DH,CL
+	CALL	SEND
+;
+NMLP1:	MOV	CH,5			;wait up to 5 second to see if..
+	CALL	RECV			;..the checksum is good
+	CMP	AL,OKNMCH		;yes if 'OKNMCH' sent
+	JZ	GNRET
+	CMP	AL,DH
+	JZ	NMLP1			;in case it is echo of send
+	CMP	AL,CR
+	JZ	NMLP1
+	CMP	AL,LF
+	JZ	NMLP1
+;
+GCKSER: MOV	BX, FCB			 ;clear FCB (except drive) since it..
+	CALL	L4A6			 ;..might be damaged.
+	CALL	ILPRTQ
+	DB	CR,LF,'**  Checksum error  **',CR,LF,0
+	XOR	AL,AL
+	MOV	Byte Ptr FLTRFLG,AL
+	CALL	HSNAK			;do handshaking over
+	JMP	GETNM1
+;
+GNRET:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	XOR	AL,AL
+	MOV	Byte Ptr FLTRFLG,AL
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	POP	BX
+	RET
+;
+HSNAK:	MOV	DL,180			;3 minute wait for file name
+	XOR	AL,AL
+	MOV	Byte Ptr FLTRFLG,AL
+;
+HSNAK1: CALL	CKABORT			;want to abort?
+	MOV	AL,NAK			;send 'NAK' until receiving 'ACK'
+	CALL	SEND
+	MOV	CH,1			;wait up to 1 second for a character
+	CALL	RECV
+	CMP	AL,ACK			;'ACK' is what we were waiting for
+	JNZ	L4A8
+	RET
+L4A8:
+	DEC	DL
+	JNZ	HSNAK1
+	JMP	ABORT			;back to command line
+;
+;.....
+;
+;
+TNMBUF: MOV	AL,1			;call from 'SENDFIL' only once.
+	MOV	Byte Ptr FSTFLG,AL
+	XOR	AL,AL
+	MOV	Byte Ptr FILECT,AL
+	CALL	SCAN
+	MOV	BX, Offset NAMEBUF
+	MOV	Word Ptr NBSAVE,BX     ;save address of 1st name
+;
+TNLP1:	CALL	TRTOBUF
+	MOV	BX, Offset FCB
+	MOV	DX, Offset FCBBUF
+	CALL	CMDLINE			;parse name to CP/M format
+;
+TNLP2:	CALL	MFNAME			;search for names (wildcard format)
+	JB	NEXTNM
+	MOV	AL,Byte Ptr FCB+10     ;if CP/M 2 $sys file..
+	AND	AL,80H			;..do not send
+	JNZ	TNLP2
+	MOV	BX,Word Ptr NBSAVE     ;get name
+	MOV	DX, FCB			;move it to FCB
+	XCHG	BX,DX
+	MOV	CH,12
+	CALL	MOVE
+	XCHG	BX,DX
+	MOV	Word Ptr NBSAVE,BX     ;addressof next name
+	MOV	BX, Offset FILECT	;count files found
+	INC	Byte Ptr [BX]
+	JMPS	TNLP2
+;.....
+;
+;
+NEXTNM: MOV	BX, Offset NAMECT	;count names found
+	DEC	Byte Ptr [BX]
+	JNZ	TNLP1
+	MOV	BX, Offset NAMEBUF	;save start of buffer
+	MOV	Word Ptr NBSAVE,BX
+	MOV	AL,Byte Ptr FILECT
+	CMP	AL,64+1			;no more than 64 transfers
+	JNB	L4A9
+	RET
+L4A9:
+	MOV	AL,64			;only transfer first 64
+	MOV	Byte Ptr FILECT,AL
+	RET
+;.....
+;
+;
+; Tells when buffer is opened/closed for memory save to write on disk
+;
+BUFMSG: CALL	ILPRT
+	DB	CR,LF,'** Memory buffer ',0
+	MOV	AL,Byte Ptr SAVEFLG
+	OR	AL,AL
+	JZ	BUFMSG1
+	CALL	ILPRT
+	DB	'open **',CR,LF,LF,';',0
+	RET
+;
+BUFMSG1:CALL	ILPRT
+	DB	'closed **',CR,LF,LF,0
+	RET
+;
+BUFMSG2:CALL	ILPRT
+	DB	CR,LF,'** Memory buffer available **',CR,LF,0
+	RET
+;.....
+;
+;
+; Clear the screen and return to the menu command
+;
+EXITMENU:
+	CALL	CRLF
+	CALL	CLREOS			;clear line to clean up any mess
+	JMP	MENU0
+;.....
+;
+;
+; Checks to see if the modem has a character ready
+;
+RCVREADY:
+	CALL	IN_MODCTL1
+	CALL	ANI_MODRCVB
+	JMP	CPI_MODRCVR
+;.....
+;
+;
+; Checks to see if the modem is ready to receive a character
+;
+SENDRDY:CALL	IN_MODCTL1
+	CALL	ANI_MODSNDB
+	JMP	CPI_MODSNDR
+;.....
+;
+;
+SENDNOW:CALL	EXITTEST		;see if want to quit now
+	CALL	SENDRDY			;ready to send a character?
+	JNZ	SENDNOW			;if not ready wait some more
+	RET				;exit if ready
+;.....
+;
+;
+; Send the log-on message when requested
+;
+SENDLOG:MOV	BX,Word Ptr LOGONPTR   ;'BX' points to start of logon message
+	CALL	LOGLP
+	JMP	TERML
+;...
+;
+;
+LOGLP:	CALL	SENDNOW			;wait until modem is ready
+	MOV	AL,Byte Ptr [BX]	;get logon byte
+	OR	AL,AL			;last character in string is '0'
+	JNZ	L4A10
+	RET				;return if finished
+L4A10:
+	CALL	OUT_MODDATP		;otherwise send the character
+	CALL	LOGLP1			;check for echo character and display it
+	LAHF				;next location in message
+	INC	BX
+	SAHF
+	JMPS	LOGLP			;get next character
+;.....
+;
+;
+LOGLP1: CALL	JMP_INMODEM		;get the echo character
+	JNB	L4A11
+	CALL	JMP_INMODEM		;if none, try once more
+L4A11:
+	JNB	L4A12
+	RET				;if no character don't try to print
+L4A12:
+	AND	AL,7FH			;strip off any parity
+	JMP	STYPE			 ;display the character, then return	 
+;.....
+;
+;
+; Check for exit character
+;
+EXITTEST:
+	CALL	STAT			;anything on keyboard?
+	JNZ	L4A13
+	RET
+L4A13:
+	CALL	KEYIN			;get it, then
+	MOV	CH,AL			;save to protect the 'A' reg.
+;
+EXITTST1:
+	MOV	AL,EXITCHR		;exit character
+	CMP	AL,CH			;asking to exit to menu?
+	JZ	L4A14
+	RET				;if not, back to work
+L4A14:
+	POP	BX			;clear the stack from 'CALL'
+	JMPS	EXITMENU		;exit to the menu
+;.....
+;
+;
+LSTMSG: CALL	ILPRT
+	DB	'Printer buffer is ',0
+	MOV	AL,Byte Ptr LISTFLG    ;see if printer should be on or off
+	OR	AL,AL
+	JZ	LSTMSG1
+	CALL	ILPRT
+	DB	'ON',CR,LF,0
+	RET
+;...
+;
+;
+LSTMSG1:CALL	ILPRT
+	DB	'OFF',CR,LF,0
+	RET
+;.....
+;
+;
+; Special function key handler.	 This routine is entered with the
+; function key number (0..9) in A.  The corresponding function key is
+; then transmitted.
+;
+SENDFK: PUSH	BX			;save register
+	MOV	BX, Offset FNCTBL		;point to function key codes
+;
+SFK1:	CMP	AL,Byte Ptr [BX]	;this the one?
+	LAHF				;point to next byte
+	INC	BX
+	SAHF
+	JNZ	SFK1			;loop until found
+	CALL	LOGLP			;send the char
+	POP	BX
+	XOR	AL,AL			;reset the function flag
+	MOV	Byte Ptr FNKFLG,AL
+	JMPS	TERML
+;.....
+;
+;
+; Send keyboard character to modem, also to console if "E" or "L".  If
+; "E", include a LF after a CR, if either, include a LF if toggle is set.
+;
+NOTOG:	CALL	SENDCHR			;send char. in 'B' to modem
+	MOV	AL,Byte Ptr LOCFLG     ;using the local mode?
+	OR	AL,AL
+	JNZ	LTYPE			;if yes, show the character
+	MOV	AL,Byte Ptr ECHOFLG    ;in echo mode?
+	OR	AL,AL
+	JZ	TERML			;if not, see if it was a 'CR'
+;
+LTYPE:	MOV	AL,CH			;get the char. back
+	CALL	STYPE			 ;show on the local CRT
+	CALL	CHKSAVE			;to store local if buffer open
+	CALL	CHKPRNT			;put on printer if running
+;
+CHKCR:	MOV	AL,CR
+	CMP	AL,CH
+	JNZ	TERML			;if not cr, all done
+	MOV	AL,Byte Ptr ECHOFLG    ;in echo mode now?
+	OR	AL,AL
+	JNZ	CHKLF			;if yes add a line feed
+	MOV	AL,Byte Ptr ADDLF      ;going to add a line feed in 'L' mode?
+	OR	AL,AL
+	JNZ	CHKLF
+	JMP	TERM			;if not, exit
+;
+CHKLF:	MOV	CH,LF
+	JMPS	NOTOG			;send locally and to remote
+;.....
+;
+;
+TERML:	CALL	RCVREADY		;character on the receive-ready line?
+	JZ	L4A16
+	JMP	TERM			;if not, exit
+L4A16:
+	CALL	IN_MODDATP		;get the character
+	AND	AL,7FH			;strip parity
+	JNZ	L4A17
+	JMP	TERM			;don't bother with nulls
+L4A17:
+	CMP	AL,RUB
+	JNZ	L4A18
+	JMP	TERM			;don't bother with rubouts for fill
+L4A18:
+	MOV	CH,AL			;store temporarily
+	MOV	AL,Byte Ptr IGNORCTL   ;ignoring all but necessary ctl-chars?
+	OR	AL,AL
+	JZ	GIVLF			;if zero, display them all
+	MOV	AL,CH
+	CMP	AL,' '
+	JNB	GIVLF			;display all printing characters
+	CMP	AL,'G'-40H		;^g for bell
+	JNB	L4A19
+	JMP	TERM			;ignore ctl-characters less than ^g
+L4A19:
+	CMP	AL,CR+1
+	JNAE	GIVLF
+	JMP	TERM			;ignore ctl-charsacters more than ^m
+;
+GIVLF:	MOV	AL,CH			;get the character back
+	CALL	STYPE			 ;show it on the CRT
+	CALL	CHKSAVE			;saving for disk file?
+	CALL	CHKPRNT			;printer running?
+	MOV	AL,Byte Ptr ECHOFLG    ;going to echo the character?
+	OR	AL,AL
+	JZ	NOECH			;if not, do not resend
+;
+GIVLF1: CALL	SENDCHR			;send char. in 'B' to modem
+;
+NOECH:	MOV	AL,CR
+	CMP	AL,CH			;was it a 'CR' just now?
+	JZ	L4A21
+	JMP	TERM			;if not, all done so exit
+L4A21:
+	MOV	AL,Byte Ptr ECHOFLG    ;in the echo mode?
+	OR	AL,AL
+	JNZ	L4A22
+	JMP	TERM
+L4A22:
+	CALL	SENDNOW			;modem ready for a character?
+	MOV	CH,LF
+	JMPS	GIVLF			;send lf
+;.....
+;
+;
+; See if putting character into memory for a disk file
+;
+CHKSAVE:MOV	AL,Byte Ptr SAVEFLG    ;saving to disk?
+	OR	AL,AL
+	JNZ	L4A23
+	RET				;if not, exit
+L4A23:
+	MOV	BX,Word Ptr HLSAVE	;get last address
+	MOV	Byte Ptr [BX],CH	;store this character
+	INC	BX			;increment for next character
+	MOV	Word Ptr HLSAVE,BX	;remember that location
+	MOV	AL,LF
+	CMP	AL,CH			;this character a line feed?
+	JNZ	CHKSAVE1		;..type ";" after each line feed..
+	MOV	AL,CR			;insure at left column with a lf
+	CALL	STYPE
+	CALL	TYPESCLN		;show a ';' on CRT
+;
+CHKSAVE1:
+	MOV	AL,BH
+	MOV	BX, Offset BUFTOP	;get the address at top of buffer
+	CMP	AL,BH
+	JNZ	L4A24
+	CALL	D_CTL_S			;if different, buffer is not full
+L4A24:
+	RET
+;.....
+;
+;
+; Memory buffer is full, send a X-OFF (CTL-S, DC3), save any extra in-
+; coming characters, then dump to disk, reset buffer to include those
+; characters.
+;
+D_CTL_S:CALL	SENDNOW			;modem ready for a character?
+	MOV	AL,XOFF			;send a ctl-s to stop remote computer
+	CALL	OUT_MODDATP
+	CALL	CHKPRNT			;insure character gets to the printer
+	MOV	BX, offset BUFFDSK	;address of aux. buffer
+	CALL	GETDSK			;put any extra chars. into aux. buffer
+	PUSH	DX			;save the number of aux. chars.
+	MOV	AL,1			;show we put something in the buffer..
+	MOV	Byte Ptr WRFLG,AL      ;..to protect erasing an empty file
+	MOV	BX,Word Ptr HLSAVE     ;find current end of buffer
+	CALL	WRTDSK1			;write the records
+	POP	DX			;get aux. char. count back
+	MOV	BX, offset BUFFER	;start again at bottom of buffer
+	XOR	AL,AL			;set 'A' to zero
+	CMP	AL,DH			;see if any count in 'D'
+	JZ	D_CTL_Q			;if nothing, exit and continue
+	MOV	CX, offset BUFFDSK		;address of aux. buffer
+;
+;
+; Move the characters from the auxiliary buffer to the main buffer and
+; display
+;
+D_CTL_S1:
+	MOV	SI,CX			;get the character there
+	MOV	AL,[SI]
+	MOV	BYTE PTR [BX],AL	;store in main buffer
+	CALL	STYPE			 ;show on CRT
+	PUSH	BX
+	PUSH	DX
+	PUSH	CX
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	MOV	CH,AL
+	CALL	CHKPRNT
+	POP	AX			;get the character again
+	XCHG	AL,AH
+	POP	CX
+	POP	DX
+	POP	BX
+	CMP	AL,LF
+	JNZ	L4A25
+	CALL	TYPESCLN
+L4A25:
+	LAHF				;next buffer position
+	INC	BX
+	SAHF
+	LAHF				;next aux. buffer position
+	INC	CX
+	SAHF
+	DEC	DH			;one less to go
+	JNZ	D_CTL_S1		;if not zero, keep going
+	MOV	CH,0			;falls through to 'CHKPRNT' next
+;
+D_CTL_Q:MOV	Word Ptr HLSAVE,BX     ;next position to store in buffer       
+	CALL	SENDNOW
+	MOV	AL,XON			;allow remote input to continue
+	JMP	OUT_MODDATP
+;.....
+;
+;
+; Gets any incoming characters after sending an XOFF and stores at BX.
+; Returns with number of characters stored in D-reg.
+;
+GETDSK: MOV	DH,0			;character count in buffer
+	MOV	DL,128			;maximum for buffer length
+;
+GETDSK1:CALL	JMP_INMODEM		;get any character
+	JNB	L4A26
+	RET				;if none, finished
+L4A26:
+	CMP	AL,' '
+	JNB	GETDSK2			;if greater, handle normally
+	CMP	AL,CR+1			;ignore ctl-chars. > cr
+	JNB	GETDSK1
+;
+GETDSK2:MOV	Byte Ptr [BX],AL	;store
+	LAHF				;next buffer location to use
+	INC	BX
+	SAHF
+	INC	DH			;increment character count
+	DEC	DL			;room for one less
+	JNZ	GETDSK1			;if room in buffer, keep going
+	RET				;if buffer is filled, exit
+;.....	
+;
+;
+; See if printing the character, if yes, put into buffer
+;
+CHKPRNT:MOV	AL,Byte Ptr LISTFLG    ;printer in use?
+	OR	AL,AL
+	JNZ	L4A27
+	RET				;return if not
+L4A27:
+	MOV	BX,Word Ptr HLSAVE1    ;get input address
+	MOV	Byte Ptr [BX],CH	;save this character there
+	INC	BX			;increment the buffer location
+	MOV	Word Ptr HLSAVE1,BX    ;store for next character	       
+	MOV	AL,Byte Ptr MAXRAM     ;see if at top of buffer yet
+	CMP	AL,BH
+	JNZ	L4A28
+	CALL	P_CTL_S			;if different, buffer is not full
+L4A28:
+	RET
+;.....
+;
+;
+; Memory buffer is full, send a X-OFF (CTL-S, DC3), save any extra in-
+; coming characters, then dump to disk, reset buffer to include those
+; characters.
+;
+P_CTL_S:CALL	SENDNOW			;wait until modem is ready
+	MOV	AL,XOFF			;send a ctl-s to stop remote computer
+	CALL	OUT_MODDATP
+	MOV	BX, Offset BUFFPNT	;address of aux. buffer
+	CALL	GETDSK			;put any extra chars. into aux. buffer
+	MOV	AL,DH			;get the aux. buffer char. count
+	MOV	Byte Ptr DSTORE,AL	;save for later
+	RET
+;.....	
+;
+;
+; Output has now caught up to the input and both are at top of buffer
+;
+P_CTL_S1:
+	MOV	AL,Byte Ptr DSTORE     ;get the aux. buffer char. count
+	MOV	DH,AL			;put into 'D' reg.
+	XOR	AL,AL			;set 'A' to zero
+	CMP	AL,DH			;see if any count in 'D'
+	MOV	BX, Offset PBUFF	;address at start of printer buffer
+	JZ	P_CTL_Q			;if nothing, exit and continue
+	MOV	CX, Offset BUFFPNT	;address of aux. buffer
+;
+;
+; Move the characters from the aux. buffer to the main buffer and display
+;
+P_CTL_S2:
+	MOV	SI,CX			;get the character there
+	MOV	AL,[SI]
+	MOV	Byte Ptr [BX],AL	;store in main buffer
+	CALL	STYPE			 ;show on CRT
+	PUSH	BX
+	PUSH	DX
+	PUSH	CX
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	MOV	CH,AL
+	CALL	CHKSAVE
+	POP	AX
+	XCHG	AL,AH
+	POP	CX
+	POP	DX
+	POP	BX
+	CMP	AL,LF
+	JNZ	L4A29
+	CALL	TYPESCLN
+L4A29:
+	LAHF				;next buffer position
+	INC	BX
+	SAHF
+	LAHF				;next aux. buffer position
+	INC	CX
+	SAHF
+	DEC	DH			;one less to go
+	JNZ	P_CTL_S2		;if not zero, keep going
+;
+P_CTL_Q:MOV	Word Ptr HLSAVE1,BX    ;next position to store in buffer
+	MOV	BX, Offset PBUFF	;start of buffer location
+	MOV	Word Ptr HLSAVE2,BX    ;output to start of buffer
+	CALL	SENDNOW			;wait until modem is ready
+	MOV	AL,XON			;send start character..
+	JMP	OUT_MODDATP		;..to remote computer, back to work
+;.....
+;
+;
+; Obtain Printer Status using Direct Bios Call
+
+LISTST: PUSH	DX
+	MOV	DX, OFFSET REGLIST
+	MOV	Byte Ptr REGLIST,15	; BIOS function 15
+	MOV	Word Ptr REGLIST+1,0	; Clear them anyway
+	MOV	Word Ptr REGLIST+3,0	; As MPM get upset
+	MOV	CX,50			; Direct Bios Call
+	INT	224
+	POP	DX
+	RET
+
+REGLIST DB	0	;  Function Code
+	DW	0	;  value (CX)
+	DW	0	;  value (DX)
+;
+;
+;.....
+;
+;
+; List the character on the printer if it is ready, then see if at the
+; top of the buffer.
+;
+GOLIST: CALL	LISTST			;get the printer status
+	OR	AL,AL
+	JNZ	L4A30
+	RET				;return if printer not ready
+;
+;
+; Compare input and output pointers.  If at same address, nothing to
+; print.
+;
+L4A30:	CALL	CMP_I_O			;if the same, nothing to print
+	JNZ	GOLIST1
+	RET
+;
+;
+; If not the same, print the character
+;
+GOLIST1:PUSH	BX			;save current buffer address
+	MOV	DL,Byte Ptr [BX]	;get the character to display
+	MOV	CL,BLIST		;list routine
+	INT	224
+	POP	BX			;restore current buffer address
+	INC	BX			;increment pointer for next position
+	MOV	Word Ptr HLSAVE2,BX    ;store for next time through here
+;
+;
+; See if the output is at the end of the buffer now.  If yes, go put
+; the auxiliary characters into the start of the buffer.
+;
+	MOV	AL,Byte Ptr MAXRAM     ;check for end of buffer area
+	CMP	AL,BH
+	JNZ	L4A32
+	JMP	P_CTL_S1		;if at end, restore aux. buffer
+L4A32:
+;
+;
+; See if the output has caught up with the input - if so, reset the
+; pointers to the start of the buffer
+;
+	CALL	CMP_I_O
+	JZ	L4A33
+	RET				;if not, back to work
+L4A33:
+	MOV	BX, Offset PBUFF	;if output caught input, reset both..
+	MOV	Word Ptr HLSAVE1,BX    ;..to bottom of buffer to start over
+	MOV	Word Ptr HLSAVE2,BX
+	RET
+;.....
+;
+;
+; Compare the input and output pointers to see if the same address
+;
+CMP_I_O:MOV	BX,Word Ptr HLSAVE1    ;get input pointer address
+	XCHG	BX,DX			;put in 'DE'
+	MOV	BX,Word Ptr HLSAVE2    ;get output pointer address
+	MOV	AL,BH
+	CMP	AL,DH
+	JZ	L4A34
+	RET				;return if different
+L4A34:
+	MOV	AL,BL
+	CMP	AL,DL
+	RET
+;.....
+;
+;
+GETMAX: MOV	AL,Byte Ptr BDOS+2     ;'MSP' of 'BDOS' address
+	MOV	Byte Ptr MAXRAM,AL     ;save
+	RET
+;.....
+;
+;
+; This subroutine will loop until the modem receives a character or 100
+; milliseconds.	 It returns with a character in 'A' reg. but if no char-
+; acter was recieved it returns after a timeout with carry set.
+;
+INMODEM:
+	PUSH	BX
+	MOV	BX,33			;about 100 milliseconds
+	CALL	FIXCNT
+	MOV	CH,BH			;delay is in 'BX'
+	MOV	CL,BL			;transfer to 'BC'
+	POP	BX			;get original value of 'BX' back
+;
+INMODEM1:
+	CALL	RCVREADY		;see if there is a character ready
+	JNZ	INMODEM2		;if no character, exit
+	CALL	IN_MODDATP		;get the character
+	AND	AL,7FH			;strip off any parity
+	RET				;return with character in 'A' reg.
+;
+INMODEM2:
+	DEC	CX			;otherwise keep timing
+	MOV	AL,CH
+	OR	AL,CL
+	JNZ	INMODEM1		;loop until timeout if needed
+	STC				;shows a timeout occured
+	RET
+;.....
+;
+;
+; Send a space tone to the phone line for a short time.
+;
+BREAK:	MOV	AL,Byte Ptr PMMIMODEM  ;using the PMMI modem?  
+	OR	AL,AL
+	JZ	BREAK1			;if not, exit
+	MOV	AL,Byte Ptr MODCTLB    ;get the last modem control byte
+	AND	AL,BRKMSK		;set the transmit break bit low
+	CALL	OUT_MODCTL2		;send it to the modem
+	MOV	CH,2
+	CALL	TIMER			;send a space tone for 200 ms.
+	MOV	AL,Byte Ptr MODCTLB    ;get the last modem control byte
+	CALL	OUT_MODCTL2		;restore to normal
+	JMP	TERM			;back to work
+;...
+;
+;
+BREAK1: CALL	JMP_BREAK		;get the user'S BREAK ROUTINE
+	JMP	TERM			;back to work	
+;.....
+;
+;
+;=======================================================================
+;		     WRITE BUFFER TO DISK
+;
+; Make sure this record is included in the count.
+;
+WRTDSK: MOV	BX,Word Ptr HLSAVE
+	MOV	Byte Ptr [BX],EOFCHAR	;ascii file, store end-of-file char.
+	MOV	DX,127
+	ADD	BX,DX
+;
+WRTDSK1:MOV	DX,-( Offset BUFFER)	;subtract the start of the buffer..
+	ADD	BX,DX			;by adding a minus number to buffer end
+	MOV	AL,BL			;divide hl by 128..
+	OR	AL,AL
+	RCL	AL,1			;..to get the..
+	MOV	BL,BH			;..number of records
+	MOV	BH,0
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	SHL	BX,1
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	MOV	AL,0
+	ADC	AL,BL
+	MOV	BL,AL			;number of records in 'BX'
+;
+;
+; See if buffer is empty.  If yes, see if we need to erase an empty
+; file or have already written something.
+;
+	MOV	DX, Offset BUFFER
+	MOV	SI,DX
+	MOV	AL,[SI]
+	CMP	AL,EOFCHAR		;'EOF' in first address means..
+	JNZ	WRTDSK2			;..nothing in buffer to write
+	MOV	AL,Byte Ptr WRFLG      ;first time by this way?
+	OR	AL,AL
+	JZ	NOWRITE			;if yes, show erasing file
+	RET				;otherwise go close file
+;.....
+;	
+;
+; Write to disk.  Start from BUFFER (in 'DE').	Number of records to
+; write in 'BX'.
+;
+WRTDSK2:MOV	CL,SETDMA
+	CALL	BDOSRT
+	PUSH	DX
+	MOV	CL,WRITE
+	MOV	DX, Offset FCB3		;location of filename to write to
+	CALL	BDOSRT
+	POP	DX
+	OR	AL,AL
+	JNZ	WRTDSK2A		;error if disk is full ** special patch
+	XCHG	BX,DX			;put the current address in 'BX'..
+	PUSH	DX			;..and number of records left in..
+	MOV	DX,128			;..for now
+	ADD	BX,DX			;add for next record write, now in 'BX'
+	POP	DX			;restore number of records left
+	XCHG	BX,DX			;records to 'BX' again, address to 'DE' 
+	DEC	BX			;one less record left
+	MOV	AL,BH
+	OR	AL,BL			;done writing when 'H' and 'H' both zero
+	JNZ	WRTDSK2			;otherwise do another disk write
+	RET
+;
+WRTDSK2A:
+	JMP	WRERRSP
+	
+;.....
+;
+;
+; Error while writing a record, show why it is aborting
+;
+WRERR:	MOV	CL,CANCEL		;send cancel char. to sending station
+	CALL	SEND
+	CALL	CLOSFIL			;close the current file
+WRERR1: CALL	ERXIT			;also will reset stack
+	DB	'++ DISK FULL, SAVING PARTIAL FILE ++','$'
+;.....
+;
+;
+; If no data to store on the disk, close the empty file and erase it
+;
+NOWRITE:CALL	WRTFIL2			;close the empty file
+	CALL	NOASK			;erase the empty file
+	CALL	ILPRT
+	DB	'++ Nothing to save, erasing file ++'
+	DB	CR,LF,BELL,0
+	JMP	DONETCA			;reset any flags, return to menu
+;.....
+;
+;
+; Show you are in memory-save for disk write
+;
+TYPESCLN:
+	MOV	AL,';'
+	JMP	STYPE			 ;show on CRT, return
+;.....
+;
+;
+; Save the registers, call BDOS then restore the registers
+;
+BDOSRT: PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	RET
+;.....
+;
+;
+INITFCB:MOV	Byte Ptr [BX],0		;entry at +2 will leave drive # intact
+L4A6:	INC	BX			;will initialize an FCB..
+	MOV	CH,11			;..pointed to by BX-reg. fills 1st pos.
+;
+LOOP11: MOV	Byte Ptr [BX],' '	;..with 0, next 11 with..
+	INC	BX			;..blanks, and last..
+	DEC	CH			;..21 with nulls.
+	JNZ	LOOP11
+	MOV	CH,21
+;
+LOOP21: MOV	Byte Ptr [BX],0
+	INC	BX
+	DEC	CH
+	JNZ	LOOP21
+	RET
+;.....
+;
+;
+; Scans CMDBUF coutning names and putting delimiter (space) after last
+; name
+;
+SCAN:	PUSH	BX
+	MOV	BX, Offset NAMECT
+	MOV	Byte Ptr [BX],0
+	MOV	BX, Offset CMDBUF+1	;find end of cmd line..
+	MOV	CL,Byte Ptr [BX]	;..and put space there.
+	MOV	CH,0
+	MOV	BX, Offset CMDBUF+2
+	LAHF
+	ADD	BX,CX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	MOV	Byte Ptr [BX],' '
+	MOV	BX, Offset CMDBUF+1
+	MOV	CH,Byte Ptr [BX]
+	INC	CH
+	INC	CH
+;
+SCANLP1:LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JZ	DNSCAN
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JNZ	SCANLP1
+;
+SCANLP2:LAHF				;eat extra spaces
+	INC	BX
+	SAHF
+	DEC	CH
+	JZ	DNSCAN
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JZ	SCANLP2
+	MOV	Word Ptr BGNMS,BX      ;save start of names in cmdbuf
+	INC	CH
+	LAHF
+	DEC	BX
+	SAHF
+;
+SCANLP3:LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JZ	DNSCAN
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JNZ	SCANLP3
+	MOV	AL,Byte Ptr NAMECT     ;counts names
+	INC	AL
+	MOV	Byte Ptr NAMECT,AL
+;
+SCANLP4:LAHF				;eat spaces
+	INC	BX
+	SAHF
+	DEC	CH
+	JZ	DNSCAN
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JZ	SCANLP4
+	JMPS	SCANLP3
+;.....
+;
+;
+DNSCAN: MOV	Byte Ptr [BX],' '	;space after last char
+	POP	BX
+	RET
+;.....
+;
+;
+; Places next name in buffer so 'CMDLINE' may parse it
+;
+TRTOBUF:MOV	BX,Word Ptr BGNMS
+	MOV	CH,0
+	MOV	DX, Offset FCBBUF+2
+;
+TBLP:	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JZ	TRBFEND
+	MOV	SI,DX
+	MOV	[SI],AL
+	INC	BX
+	INC	DX
+	INC	CH			;count chars in name
+	JMPS	TBLP
+;.....
+;
+;
+TRBFEND:INC	BX
+	MOV	AL,Byte Ptr [BX]	;eat extra spaces
+	CMP	AL,' '
+	JZ	TRBFEND
+	MOV	Word Ptr BGNMS,BX
+	MOV	BX, Offset FCBBUF+1	;put # chars before name
+	MOV	Byte Ptr [BX],CH
+	RET
+;.....
+;
+;
+CKCPM2: MOV	CL,CPMVER		;bdos 12 -- version number -- cp/m 2.2?
+	INT	224
+	OR	AL,AL
+	JNZ	L5A2
+	RET
+L5A2:
+	MOV	CL,SETDMA
+	MOV	DX, Offset TBUF
+	INT	224
+	MOV	CL,SRCHF
+	MOV	DX, Offset FCB
+	INT	224
+	CMP	AL,0FFH
+	JNZ	L5A3
+	RET
+L5A3:
+;
+	CALL	GETADD
+	MOV	DX,9
+	ADD	BX,DX			;point to R/O attribute byte
+	MOV	AL,Byte Ptr [BX]
+	AND	AL,80H			;test most significant byte
+	JNZ	MKCHG			;if set, make change
+	INC	BX			;check system attribute byte
+	MOV	AL,Byte Ptr [BX]
+	AND	AL,80H
+	JNZ	L5A4
+	RET				;not $SYS or $R/O attribute
+L5A4:
+	DEC	BX
+;
+MKCHG:	MOV	DX,-8
+	ADD	BX,DX			;point BX to filename + 1
+	MOV	DX, Offset FCB+1	;move directory name to FCB..
+	MOV	CH,11			;..without changing drive.
+	CALL	MOVE
+	MOV	BX, Offset FCB+9	;R/O attribute
+	MOV	AL,Byte Ptr [BX]
+	AND	AL,7FH			;strip R/O attribute
+	MOV	Byte Ptr [BX],AL
+	INC	BX			;system attribute
+	MOV	AL,Byte Ptr [BX]
+	AND	AL,7FH
+	MOV	Byte Ptr [BX],AL
+	MOV	DX, FCB
+	MOV	CL,30			;set new attributes in directory
+	INT	224
+
+;
+; Called by 'CKBAKUP' below, return done here .
+;
+PLANCHG:MOV	BX, FCB			;change name to type "BAK"
+	MOV	DX, FCB2
+	MOV	CH,9			;move drive and name (not type)
+	CALL	MOVE
+	MOV	BX,75H			;start of type in FCB2
+	MOV	Byte Ptr [BX],'B'
+	INC	BX
+	MOV	Byte Ptr [BX],'A'
+	INC	BX
+	MOV	Byte Ptr [BX],'K'
+	MOV	DX, FCB2
+	MOV	CL,ERASE		;erase any previous backups
+	INT	224
+	MOV	BX, FCB2		;FCB2 drive field should..
+	MOV	Byte Ptr [BX],0		;..0 for rename.
+	MOV	DX, FCB
+	MOV	CL,23			;rename
+	INT	224
+	RET
+;.....
+;
+;
+CKBAKUP:MOV	AL,Byte Ptr BAKUPBYTE
+	OR	AL,AL
+	JNZ	L5A5
+	RET
+L5A5:
+	MOV	CL,SRCHF
+	MOV	DX, FCB
+	INT	224
+	INC	AL
+	JNZ	L5A6
+	RET				;file not found
+L5A6:
+	JMPS	PLANCHG			;in 'CKCPM2' - ret done there
+;.....
+;
+;
+;***********************************************************************
+;
+;	    RECEIVE A RECORD FROM SENDING STATION
+;
+;***********************************************************************
+;
+; If CRC is in effect, there is a 10-second timeout to the first SOH.  
+; It then tries six more times to let the sender know the system is
+; capable of receiving a 'CRC' check.  At the end of that time a NAK is
+; sent which tells the sender to use CHECKSUM checking instead of CRC.
+; This allows automatic compatability with systems implementing CRC -
+; (Cyclic Redundancy Checking).	 The search for SOH will cycle through
+; one record interval and ignore noise or characters sent by the remote
+; for any purpose (such as progress reporting).	 So extraneous characters
+; that are sometimes sent by remote-end protocol will be gobbled up until
+; the first SOH.  EOT is tested only as the first returned character af-
+; ter each sector.
+;
+SRCHSOH EQU	160			;number of times to loop search for SOH
+;
+RCVRECD:MOV	AL,1
+	MOV	Byte Ptr ERRCT,AL      ;initialize the error count
+;
+RCVSQ:	MOV	CH,10			;10 seconds allowed to receive 1st char.
+	MOV	DX,SRCHSOH		;initialize loof for up to 160 secs.	
+	CALL	RECV			;get the 1st character
+	JNB	L5A7
+	JMP	RCVSTOT			;timeout error if not rcvd in 10 seconds
+L5A7:
+	MOV	CL,AL			;save the character for now
+	CMP	AL,EOT			;see if end of transmission
+	STC				;set carry
+	JNZ	L5A8
+	RET				;return with carry set
+L5A8:
+;
+SOHLUP: MOV	AL,0FFH
+	MOV	Byte Ptr CHRFLG,AL
+	MOV	Byte Ptr TIMFLG,AL
+	MOV	AL,DL			;get search count-down value
+	CMP	AL,SRCHSOH		;see if it is the 1st returned character
+	MOV	AL,CL			;get the first character now
+	JZ	NORECV			;skip RECV routine if 1st character
+	MOV	CH,1
+	CALL	RECV
+	MOV	CH,AL
+	JNB	TSTSOH
+;
+NORECV: MOV	CH,AL
+	XOR	AL,AL			;else set the value that forces timeoutw
+	MOV	Byte Ptr CHRFLG,AL
+;
+TSTSOH: MOV	AL,CH			;get the character
+	CMP	AL,SOH			;see if it is SOH
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	XOR	AL,AL
+	MOV	Byte Ptr TIMFLG,AL     ;restore this flag
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JNZ	L5A9
+	JMP	RCVSOH			;got SOH, get rcd # and its complement
+L5A9:
+	MOV	AL,DH
+	OR	AL,DL			;see if counted-down to zero		
+	LAHF
+	DEC	DX
+	SAHF
+	JNZ	SOHLUP			;go around again if not
+	MOV	AL,Byte Ptr CHRFLG     ;see if timeout needs to be forced
+	OR	AL,AL
+	JNZ	L5A10
+	JMP	RCVSTOT			;go do timeout and countthem
+L5A10:
+	MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JZ	RCVSERR
+;
+RCVSEH: CALL	CRLF
+	MOV	AL,CH
+	CALL	HEXO
+	CALL	ILPRT
+	DB	'H received not SOH - ',0
+;
+RCVPRN: CALL	SHOWERR			;display error count
+;
+RCVSERR:CALL	WAITQ1			;wait for 1 second with no characters
+	CALL	CKABORT			;want to stop receiving now?
+	MOV	AL,Byte Ptr CRCFLAG    ;get 'CRC' flag
+	OR	AL,AL			;'CRC' in effect?
+	MOV	AL,NAK			;put 'NAK' in 'A' reg.
+	JZ	RCVSER1			;no, send the 'NAK'
+	MOV	AL,Byte Ptr FIRSTME    ;get first time switch
+	OR	AL,AL			;has first 'SOH' been received?
+	MOV	AL,NAK			;put 'NAK' in 'A' reg.
+	JNZ	RCVSER1			;yes, then send 'NAK'
+	MOV	AL,CRC			;tell sender 'CRC' is in effect
+;
+RCVSER1:CALL	SEND			;..the 'NAK' or 'CRC' request
+	MOV	AL,Byte Ptr ERRCT      ;abort if we have reached error limit
+	INC	AL
+	MOV	Byte Ptr ERRCT,AL      ;store for next time
+	CMP	AL,ERRLIM		;see if at limit yet
+	JNB	L5A11
+	JMP	RCVSQ			;if not, keep going
+L5A11:
+	MOV	AL,Byte Ptr RETRY      ;see if retry after 10 errors is set
+	OR	AL,AL
+	JNZ	L5A12
+	JMP	ABORT			;if 'YES', abort
+L5A12:
+	JMP	CKQUIT			;if 'NO' check for continued use
+
+RCVSABT:MOV	SP,STACK		;reset the stack just in case
+	CALL	CLOSFIL			;close the partial file
+	CALL	NOASK			;delete partial file
+	CALL	ILPRT
+	DB	CR,LF,LF
+	DB	'++ RECEIVED FILE CANCELLED ++',CR,LF,BELL
+	DB	'++ UNFINISHED FILE DELETED ++',CR,LF,0
+	JMP	DONETCA
+
+RCVSTOT:MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JZ	RCVSCRC
+;
+RCVSPT: CALL	ILPRT
+	DB	CR,LF,'++ Timeout ',0
+	CALL	SHOWERR
+;
+RCVSCRC:CALL	RCVSCRC2
+	JMP	RCVSERR
+;
+;
+; Routine will switch from 'CRC' to Checksum if 'ERCNT' reaches 'ERRCRC'
+; and 'FIRSTIME' is false
+;
+RCVSCRC2:
+	MOV	AL,Byte Ptr ERRCT
+	CMP	AL,ERRCRC
+	JZ	L5A13
+	RET
+L5A13:
+	MOV	AL,Byte Ptr FIRSTME
+	OR	AL,AL
+	JZ	L5A14
+	RET
+L5A14:
+	MOV	AL,Byte Ptr CRCFLAG
+	OR	AL,AL
+	JNZ	L5A15
+	RET
+L5A15:
+	NOT	AL
+	MOV	Byte Ptr CRCFLAG,AL
+	MOV	Byte Ptr CRCDFLT,AL
+	CALL	ILPRTQ
+	DB	'** Switching to Checksum mode **',CR,BELL,LF,0
+	RET
+;.....
+;
+;
+; Got SOH - get block #, block # complemented
+;
+RCVSOH: MOV	AL,0FFH
+	MOV	Byte Ptr FIRSTME,AL    ;indicate 1st soh was received
+	MOV	CH,5			;timeout = 5 seconds
+	CALL	RECV			;get record
+	JB	RCVSTOT			;got timeout
+	MOV	DH,AL
+	MOV	CH,5			;timeout = 5 seconds
+	CALL	RECV
+	JNB	L5A16
+	JMP	RCVSTOT
+L5A16:
+	NOT	AL
+	CMP	AL,DH
+	JZ	RCVDATA
+	MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	RCVBSE
+	JMP	RCVSERR
+;
+RCVBSE: CALL	ILPRT
+	DB	CR,LF,'++ Bad record # in header ',0
+	JMP	RCVPRN
+;
+RCVDATA:MOV	AL,DH
+	MOV	Byte Ptr RCVRNO,AL
+	MOV	AL,1
+	MOV	Byte Ptr DATAFLG,AL
+	MOV	CL,0
+	MOV	BX,0
+	MOV	Word Ptr CRCVAL,BX
+	MOV	BX,80H
+;
+RCVCHR: MOV	CH,5			;Wait up to 5 seconds for a character
+	CALL	RECV
+	JNB	L5A18
+	JMP	RCVSTOT
+L5A18:
+	MOV	Byte Ptr [BX],AL
+	INC	BL
+	JNZ	RCVCHR
+	XOR	AL,AL
+	MOV	Byte Ptr DATAFLG,AL
+	MOV	AL,Byte Ptr CRCFLAG
+	OR	AL,AL
+	JNZ	RCVCRC
+	MOV	DH,CL
+	MOV	CH,5			;wait up to 5 seconds for an answer
+	CALL	RECV
+	JNB	L5A19
+	JMP	RCVSTOT
+L5A19:
+	CMP	AL,DH
+	JNZ	RCVCERR
+;
+CHKSNUM:MOV	AL,Byte Ptr RCVRNO
+	MOV	CH,AL
+	MOV	AL,Byte Ptr RECDNO
+	CMP	AL,CH
+	JZ	RECVACK
+	INC	AL
+	CMP	AL,CH
+	JZ	L5A20
+	JMP	ABORT
+L5A20:
+	RET
+;.....
+;
+;
+RCVCRC: MOV	DL,2			;number of 'CRC' bytes
+;
+RCVCRC2:MOV	CH,5			;wait up to 5 seconds for a character
+	CALL	RECV
+	JNB	L5A21
+	JMP	RCVSTOT
+L5A21:
+	DEC	DL
+	JNZ	RCVCRC2
+	CALL	CRCCHK
+	OR	AL,AL
+	JZ	CHKSNUM
+	MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	L5A22
+	JMP	RCVSERR
+L5A22:
+;
+RCVCRER:CALL	ILPRT
+	DB	'++ CRC error ',0
+	JMP	RCVPRN
+;
+RCVCERR:MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	RCVCPR
+	JMP	RCVSERR
+;
+RCVCPR: CALL	ILPRT
+	DB	'++ CHECKSUM error ',0
+	JMP	RCVPRN
+;
+RECVACK:CALL	SENDACK
+	JMP	RCVRECD
+;
+;
+; Get the error count and display on CRT
+;
+SHOWERR:PUSH	BX
+	MOV	BX,Word Ptr ERRCT
+	MOV	BH,0
+	CALL	DECOUT
+	POP	BX
+	CALL	ILPRT
+	DB	' ++',CR,LF,0
+	MOV	AL,Byte Ptr ERRCT
+	CMP	AL,ERRLIM
+	JNAE	L5A24
+	JMP	ABORT
+L5A24:
+	RET
+;.....	
+;
+;
+SENDHDR:MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JZ	SENDHNM
+	CALL	ILPRT
+	DB	CR,'Sending # ',0
+	PUSH	BX			;store current address
+	MOV	BX,Word Ptr RECDNO     ;get record number
+	CALL	DECOUT			;print it in decimal
+	CALL	ILPRT
+	DB	' ',0
+;
+	MOV	AL,Byte Ptr HEXSHOW
+	OR	AL,AL
+	JZ	L5A25
+	CALL	ILPRT
+	DB	'(',0
+	CALL	DHXOUT			;16 bit hex conversion & output
+	CALL	ILPRT
+	DB	'H) ',0
+L5A25:
+;
+	POP	BX			;restore current address
+;
+SENDHNM:MOV	AL,SOH			;send 'SOH' character to the output
+	CALL	SEND
+	MOV	AL,Byte Ptr RECDNO     ;send record number to the output
+	CALL	SEND
+	MOV	AL,Byte Ptr RECDNO
+	NOT	AL			;complement the record number
+	JMP	SEND			;send this value to the output
+;.....
+;
+;
+SENDREC:MOV	AL,1
+	MOV	Byte Ptr DATAFLG,AL
+	MOV	CL,0
+	MOV	BX,0			;new record, clear 'CHECKSUM' value
+	MOV	Word Ptr CRCVAL,BX	;new record, clear 'CRC' value
+	MOV	BX, Offset TBUF		;store at 0080H
+;
+SENDC:	MOV	AL,Byte Ptr [BX]
+	CALL	SEND
+	INC	BL
+	JNZ	SENDC
+	XOR	AL,AL
+	MOV	Byte Ptr DATAFLG,AL
+	RET
+;.....
+;
+;
+SENDCKS:MOV	AL,CL
+	JMP	SEND
+;.....
+;
+;
+SENDCRC:PUSH	BX
+	MOV	BX,Word Ptr CRCVAL
+	MOV	AL,BH
+	CALL	SEND
+	MOV	AL,BL
+	CALL	SEND
+	POP	BX
+	XOR	AL,AL			;reset the carry bit
+	RET
+;.....
+;
+;
+; After a record is sent, a character is returned telling if it was re-
+; ceived properly or not.  An ACK allows the next record to be sent.  A
+; NAK causes the current record to be resent.  If no character (or any
+; character other than ACK or NAK) is received after a short wait (10
+; to 12 seconds), a timeout error message is shown and the record will
+; be resent.  The GETACK routine can gobble up a string of up to 191
+; characters while searching for an 'ACK' or a 'NAK'.
+;
+GETACK: MOV	DL,192			;number of characters to gobble
+;
+ACKLUP: MOV	AL,0FFH
+	MOV	Byte Ptr CHRFLG,AL     ;set the character flag
+	MOV	Byte Ptr TIMFLG,AL     ;set the time flag
+	MOV	CH,1
+	CALL	RECV
+	MOV	CH,AL			;save the character
+	JNB	ACKTST
+	XOR	AL,AL
+	MOV	Byte Ptr CHRFLG,AL     ;reset the character flag, was none
+;
+ACKTST: XOR	AL,AL
+	MOV	Byte Ptr TIMFLG,AL
+	MOV	AL,CH			;get the character back
+	CMP	AL,ACK
+	JNZ	L5A26
+	RET
+L5A26:
+	CMP	AL,NAK
+	JZ	GETACK1
+;
+NOAKNK: DEC	DL			;one less to go
+	JNZ	ACKLUP			;loop around again if not zero
+	MOV	AL,Byte Ptr CHRFLG
+	OR	AL,AL
+	JNZ	GETACK1
+	JMP	GETATOT
+;
+GETACK1:MOV	AL,Byte Ptr BENHERE
+	XOR	AL,CH
+	JZ	ACKER0			;do not say 'ACK error' if 1st 'NAK'
+	MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JZ	ACKERR
+	CALL	ILPRT
+	DB	'++ ',0
+	MOV	AL,CH
+	CMP	AL,NAK
+	JZ	GETACK3
+	CALL	HEXO
+	CALL	ILPRT
+	DB	'H',0
+	JMPS	GETACK4
+;
+GETACK3:CALL	ILPRT
+	DB	'NAK',0
+;
+GETACK4:CALL	ILPRT
+	DB	' received not ACK - ',0
+	CALL	SHOWERR
+;
+ACKER0: XOR	AL,AL
+	MOV	Byte Ptr BENHERE,AL
+;
+ACKERR: MOV	AL,Byte Ptr ERRCT
+	INC	AL
+	MOV	Byte Ptr ERRCT,AL
+	CMP	AL,ERRLIM+1		;at error limit yet?
+	JNB	ACKERR1
+	RET				;if not, return
+;
+ACKERR1:CALL	ERXIT
+	DB	CR,LF,'++ SEND-FILE CANCELLED ++','$'
+;.....
+;
+;
+; Reached error limit
+;
+GETATOT:CALL	ILPRT
+	DB	CR,'++ TIMEOUT - no ACK - ',0
+	CALL	SHOWERR			;display error count
+	JMPS	ACKERR
+;.....
+;
+;
+CKABORT:MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	L5A29
+	RET
+L5A29:
+	CALL	STAT
+	JNZ	L5A30
+	RET
+L5A30:
+	CALL	KEYIN
+	CMP	AL,CANCEL
+	JZ	ABORT
+	RET
+;
+;
+; Aborts send or receive routines and returns to command line
+;
+ABORT:	MOV	SP, Offset STACK
+;
+ABORTL: MOV	CH,1			;1-second delay to clear input
+	CALL	RECV
+	JNB	ABORTL
+	MOV	AL,CANCEL		;show you are cancelling
+	CALL	SEND
+;
+ABORTW: MOV	CH,1			;1-second delay to clear input
+	CALL	RECV
+	JNB	ABORTW
+	MOV	AL,' '
+	CALL	SEND
+	MOV	AL,'B'			;turn multi-file mode..
+	MOV	Byte Ptr BATCHFLG,AL   ;..off so routine ends.
+	MOV	Byte Ptr ABORTFLG,AL   ;shows an abort was made
+	XOR	AL,AL
+	MOV	Byte Ptr NFILFLG,AL    ;stop copy into memory for disk file
+	MOV	AL,Byte Ptr OPTION     ;receiving a file now?
+	CMP	AL,'R'
+	JNZ	L5A32
+	JMP	RCVSABT			;if yes, cancel the unfinished file
+L5A32:
+	CALL	ILPRT
+	DB	CR,LF,LF,'++ FILE CANCELLED ++',CR,LF,BELL,0
+	JMP	DONETCA
+;.....
+;
+;
+; Increment the record count
+;
+INCRRNO:PUSH	BX
+	MOV	BX,Word Ptr RECDNO     ;get record number
+	LAHF				;bump it
+	INC	BX
+	SAHF
+	MOV	Word Ptr RECDNO,BX     ;store it
+	MOV	AL,BL
+	POP	BX
+	RET
+;.....
+;
+;
+; First check for any wild cards and disallow, just to be safe.	 Do not
+; want a group of files being accidently erased.
+;
+ERASFIL:MOV	BX, FCB			;file name is stored here
+	MOV	CH,11			;maximum of 11 chars for filename.ext
+;
+ERASFIL1:
+	INC	BX			;next location in file name
+	MOV	AL,Byte Ptr [BX]	;get the char.
+	CMP	AL,'?'			;check for any wild card chars.
+	JZ	ERRORW			;error if one is found
+	DEC	CH			;number of tries left
+	JNZ	ERASFIL1		;if not zero, keep checking
+	MOV	AL,Byte Ptr BATCHFLG   ;don't ask for erase..
+	OR	AL,AL			;..in multi-file mode,..
+	JZ	NOASK			;..just do it.
+	MOV	DX, FCB
+	MOV	CL,SRCHF
+	INT	224
+	INC	AL
+	JNZ	L5A33
+	RET				;file erased ok, return
+L5A33:
+	CALL	ILPRT			;otherwise make sure it'S OK
+	DB	'File exists - erase?  (Y/N): ',BELL,0
+	CALL	KBDCHR
+	CMP	AL,'Y'
+	JZ	L5A34
+	JMP	MENU			;if not a 'Y' do not erase
+L5A34:
+	CALL	CRLF			;otherwise erase the file
+;
+NOASK:	MOV	DX, FCB
+	MOV	CL,ERASE
+	INT	224
+	RET
+;.....
+;
+;
+ERRORW: POP	BX			;restore stack from "call ERASFIL"
+	CALL	ILPRT
+	DB	'++ NO WILDCARDS ALLOWED FOR TEXT FILES ++'
+	DB	CR,LF,BELL,0
+	JMP	MENU
+;.....
+;
+;
+BLKFILE:CALL	ILPRT			;no file named for send or receive
+	DB	'++ NO FILE SPECIFIED ++',CR,LF,BELL,0
+	JMP	MENU
+;.....
+;
+;
+MAKEFIL:MOV	DX, FCB
+	MOV	CL,MAKE
+	INT	224
+	INC	AL
+	JZ	L5A35
+	RET
+L5A35:
+	CALL	ERXIT
+	DB	'++ ERROR -- Can''t open file ++',CR,LF
+	DB	'++ Directory is perhaps full ++','$'
+;
+CNREC:	MOV	CL,FILSIZ		;compute file size function in cp/m 2.x
+	MOV	DX, FCB			;point to file control block
+	INT	224
+	MOV	BX,Word Ptr .FCB+33	;get record count
+	MOV	Word Ptr RCNT,BX	;store it
+	MOV	BX,0			;zero 'BX'
+	MOV	Word Ptr .FCB+33,BX	;reset random record in FCB
+	RET
+;.....
+;
+;
+OPENFIL:XOR	AL,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	MOV	DX, FCB
+	MOV	CL,OPEN
+	INT	224
+	INC	AL
+	JZ	L5A36
+	JMP	SENDTIME		;send transfer time, # of records, etc.
+L5A36:
+	CALL	ERXIT			;file did not open
+	DB	'++ FILE NOT FOUND ++','$'
+;.....
+;
+;
+CLOSFIL:MOV	DX, FCB			 ;get the file name
+	MOV	CL,CLOSE
+	INT	224			; close the file
+	INC	AL
+	JZ	L5A37
+	RET
+L5A37:
+	JMP	ERXIT1			;no file to close, exit
+;.....
+;
+;
+; Update record read
+;
+RDRECD: MOV	AL,Byte Ptr RECINBF    ;decrement 'RECORDS IN BUFFER' count
+	DEC	AL
+	MOV	Byte Ptr RECINBF,AL
+	JS	RDBLOCK
+	MOV	BX,Word Ptr RECPTR     ;find where last move stopped
+	MOV	DX,128
+	CALL	MOVE128			;move 128 characters
+	MOV	Word Ptr RECPTR,BX     ;store new address for next move
+	RET
+;.....
+;
+;
+; Buffer empty so read in another block from the disk
+;
+RDBLOCK:MOV	AL,Byte Ptr EOFLG
+	CMP	AL,1
+	STC
+	JNZ	L5A38
+	RET
+L5A38:
+	MOV	CL,0
+	MOV	DX, Offset BUFFER
+;
+RDRECLP:PUSH	CX
+	PUSH	DX
+	MOV	CL,SETDMA
+	INT	224
+	MOV	DX, FCB
+	MOV	CL,READ
+	INT	224
+	POP	DX
+	POP	CX
+	OR	AL,AL
+	JZ	RDRECOK
+	DEC	AL
+	JZ	REOF
+	CALL	ERXIT
+	DB	'++ FILE READ ERROR ++','$'
+;
+RDRECOK:MOV	BX,128
+	LAHF
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	XCHG	BX,DX
+	INC	CL
+	CALL	DSKSIZ			;establish buffer size
+	JZ	RDBFULL
+	JMPS	RDRECLP
+;...
+;
+;
+REOF:	MOV	AL,1
+	MOV	Byte Ptr EOFLG,AL
+	MOV	AL,CL
+;
+;
+; Buffer full or received "End Of File (EOF)"
+;
+RDBFULL:MOV	Byte Ptr RECINBF,AL
+	MOV	BX, Offset BUFFER
+	MOV	Word Ptr RECPTR,BX
+	MOV	CL,SETDMA
+	MOV	DX, Offset TBUF
+	INT	224
+	JMP	RDRECD
+;.....
+;
+;
+; Write a record
+;
+WRRECD: MOV	BX,Word Ptr RECPTR
+	XCHG	BX,DX
+	MOV	BX,128
+	CALL	MOVE128
+	XCHG	BX,DX
+	MOV	Word Ptr RECPTR,BX     ;new record pointer
+	MOV	AL,Byte Ptr RECINBF    ;increment 'RECORDS IN BUFFER' count
+	INC	AL
+	MOV	Byte Ptr RECINBF,AL
+	MOV	CL,AL			;store the record count for now
+	CALL	DSKSIZ			;establish buffer size
+	JZ	WRBLOCK
+	RET				;buffer not full, return
+;
+;
+; Write a block to disk
+;
+WRBLOCK:MOV	AL,Byte Ptr RECINBF    ;get the number of records in the buffer
+	OR	AL,AL
+	JNZ	L5A40
+	RET				;if zero, don't try to move to disk
+L5A40:
+	MOV	CL,AL			;otherwise store in 'C' reg.
+	MOV	DX,Offset BUFFER	;start of buffer to move to disk
+;
+DSKWRT: PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL,SETDMA
+	INT	224
+	MOV	CL,WRITE
+	MOV	DX, FCB
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	OR	AL,AL
+	JZ	L5A41
+	JMP	WRERR			;error if disk is full
+L5A41:
+	MOV	BX,128			;add in another page
+	ADD	BX,DX
+	XCHG	BX,DX
+	DEC	CL			;one less record left to move to disk
+	JNZ	DSKWRT
+	XOR	AL,AL
+	MOV	Byte Ptr RECINBF,AL    ;zero the 'RECORDS IN BUFFER' count
+	MOV	BX, Offset BUFFER	;reset location to next buffer start
+	MOV	Word Ptr RECPTR,BX
+	RET
+;.....
+;
+;
+; Determine if the buffer size is for file transfer or for ASCII capture
+; to disk then compare with current record length
+;
+DSKSIZ: MOV	AL,Byte Ptr XFLG       ;see if transferring files now
+	OR	AL,AL
+	MOV	AL,CL			;get the current record count
+	JZ	DSKSIZ1			;if yes, exit
+	MOV	AL,CL
+	CMP	AL,BUFSIZ*8		;buffer size for ASCII capture to disk
+	RET				;return with flag set for the compare
+;...
+;
+;
+DSKSIZ1:MOV	AL,Byte Ptr SAVSIZ     ;get the file transfer buffer size..
+	CMP	AL,CL			;..from special storage area and compare
+	RET				;return with flag set for the compare
+;.....
+;
+;
+; Timeout time is in B, in seconds.  Entry via 'RECVDG' deletes garbage
+; characters on the line.  For example, having just sent a record, cal-
+; ling RECVDG will delete any line noise induced characters LONG before
+; the ACK/NAK would be received.
+;
+RECVDG: CALL	CKCHAR			;catch any garbage characters
+;
+RECV:	PUSH	DX
+;
+;
+; Get back quickly to gobble 2nd character if TIMFLG is set by the GETNM
+; routine - or just step through quickly after the first wait for 'SOH'
+; in the 'SOHLUP' routine.
+;
+MSEC:	PUSH	BX
+	MOV	BX, Offset TIMFLG
+	MOV	DL, Byte Ptr [BX]
+	INC	DL
+	MOV	BX,Word Ptr QUIKTIM
+	JZ	DOQUIK
+	MOV	BX,Word Ptr TIMVAL
+;
+DOQUIK: XCHG	BX,DX
+	POP	BX
+;
+MWTI:	CALL	RCVREADY
+	JZ	MCHAR
+	MOV	AL,DH
+	OR	AL,DL
+	LAHF
+	DEC	DX
+	SAHF
+	JNZ	MWTI
+	DEC	CH
+	JNZ	MSEC
+	POP	DX
+	CALL	CKABORT
+	STC
+	RET
+;.....
+;
+;
+; Get the character from the modem, but filter out 'ACK' and '.' chars.
+; if recieving a file name.  ('FILTRFLG' is set by the 'GETNM' routine.)
+;
+MCHAR:	CALL	IN_MODDATP		;get the character that is waiting
+	POP	DX
+	LAHF				;save the character for later use also
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	CMP	AL,ACK			;see if it is 'ACK'
+	JZ	ISACK
+	CMP	AL,'.'			;see if it is a period
+	JNZ	DOUPD			;neither, so update 'CRC'
+;
+ISACK:	PUSH	BX
+	PUSH	DX
+	MOV	BX,Offset FLTRFLG	       ;see if need to each 'ACK' or period
+	MOV	DL,Byte Ptr [BX]
+	INC	DL
+	POP	DX
+	POP	BX
+	JZ	MWTI			;yes, so do it
+;
+DOUPD:	CALL	CRCUPD			;calculate 'CRC'
+	ADD	AL,CL
+	MOV	CL,AL
+	MOV	AL,Byte Ptr RSEEFLG
+	OR	AL,AL
+	JZ	MONIN
+	MOV	AL,Byte Ptr VSEEFLG
+	OR	AL,AL
+	JNZ	NOMONIN
+	MOV	AL,Byte Ptr DATAFLG
+	OR	AL,AL
+	JZ	NOMONIN
+;
+MONIN:	POP	AX			;get the character again
+	XCHG	AL,AH
+	SAHF
+	LAHF				;resave it for later use also
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	CKABORT			;show the character on the CRT
+;
+NOMONIN:CALL	CKABORT
+	POP	AX			;get the character back once more
+	XCHG	AL,AH
+	OR	AL,AL			;reset the carry flag
+	RET				;return with the character and flag set
+;.....
+;
+;
+; Send a character to the modem
+;
+SEND:	PUSH	AX
+	MOV	AL,Byte Ptr SSEEFLG
+	OR	AL,AL
+	JZ	MONOUT
+	MOV	AL,Byte Ptr VSEEFLG
+	OR	AL,AL
+	JNZ	NOMONOT
+	MOV	AL,Byte Ptr DATAFLG
+	OR	AL,AL
+	JZ	NOMONOT
+;
+MONOUT: POP	AX
+	PUSH	AX
+	CALL	SHOW
+;
+NOMONOT:POP	AX
+	PUSH	AX
+	CALL	CRCUPD			;update the 'CRC' calcuation
+	ADD	AL,CL
+	MOV	CL,AL
+;
+SENDW:	CALL	SENDRDY
+	JNZ	SENDW
+	POP	AX
+	JMP	OUT_MODDATP		;send character to modem, done
+;.....
+;
+;
+; Waits for the first character received while waiting to send a file.
+; If a character is not received in one second, it loops again until a
+; char. is received or it times out.  The count is set for two minutes
+; before timeout.  This gives the receiving station ample time to name
+; a file, etc.
+;
+WAITNAK:CALL	ILPRT
+	DB	'Waiting ready signal',CR,LF,0
+	CALL	CRLF
+;	
+WAITNLP:CALL	CKABORT
+	MOV	CH,1			;wait up to 1 second for a character
+	CALL	RECV
+	CMP	AL,CANCEL		;want to quit?
+	JNZ	L5A42
+	JMP	ABORT
+L5A42:
+	CMP	AL,CRC			;'CRC' request?
+	JZ	WAITCRC			;yes, go set 'CRC' flag
+	CMP	AL,NAK
+	JZ	WAITCHK
+	DEC	DL
+	JNZ	WAITNLP
+	JMP	ABORT
+;...
+;
+;
+WAITCRC:CALL	ILPRTQ
+	DB	'CRC request received',CR,LF,0
+	MOV	AL,1
+	MOV	Byte Ptr CRCFLAG,AL    ;make sure in 'CRC' mode then
+	RET
+;.....
+;
+;
+WAITCHK:MOV	AL,Byte Ptr BATCHFLG   ;in batch mode?
+	OR	AL,AL
+	JNZ	L5A43
+	RET
+L5A43:
+	CALL	ILPRTQ
+	DB	'Got checksum request',CR,LF,0
+	RET
+;.....
+;
+;
+WAITCHK1:
+	CALL	ILPRTQ
+	DB	'Name NAK received',CR,LF,0
+	RET
+;.....
+;
+;
+; Finished with the file transfer
+;
+DONE:	MOV	AL,Byte Ptr BATCHFLG   ;in batch mode?
+	OR	AL,AL
+	JZ	L5A44
+	JMP	DONETC			;exit if not
+L5A44:
+	MOV	AL,Byte Ptr QFLG
+	OR	AL,AL
+	JNZ	L5A45
+	JMP	NMSTRNS
+L5A45:
+	MOV	CH,12			;zero out FTRNMSG
+	MOV	BX,(Offset FTRNMSG)
+	MOV	AL,0
+;
+ZEROLP: MOV	Byte Ptr [BX],AL
+	INC	BX
+	DEC	CH
+	JNZ	ZEROLP
+	MOV	CH,12			;put file name in FTRNMSG
+	MOV	BX, FCB+1
+	MOV	DX,(Offset FTRNMSG)
+;
+LOADMSG:MOV	AL,4			;start of file type?
+	CMP	AL,CH
+	JZ	PERIOD			;put in period if so
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '			;don't put in space
+	JZ	SKPSP
+	MOV	SI,DX			;store in FTRNMSG
+	MOV	[SI],AL
+	INC	DX
+;
+SKPSP:	INC	BX
+	DEC	CH
+	MOV	AL,CH
+	OR	AL,AL			;end of file name?
+	JZ	FTRNMSG0		;display file name
+	JMPS	LOADMSG			;loop for another character
+;.....
+;
+;
+PERIOD: MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '			;is file type empty?
+	JZ	FTRNMSG0		;go if so
+	MOV	AL,'.'			;else put period in message
+	MOV	SI,DX
+	MOV	[SI],AL
+	INC	DX
+	DEC	CH
+	JMPS	LOADMSG
+;.....
+;
+;
+FTRNMSG0:
+	CALL	ILPRT
+	DB	CR,LF
+;
+
+FTRNMSG RS	12
+	DB	0
+	CALL	ILPRT
+	DB	' Transferred',CR,LF,LF,BELL,0
+;
+NMSTRNS:MOV	AL,Byte Ptr .FCB	;save drive no.
+	MOV	Byte Ptr DISKNO,AL
+	MOV	BX, FCB			 ;blank out file control blocks
+	CALL	INITFCB
+	MOV	AL,Byte Ptr DISKNO     ;put drive number back
+	MOV	Byte Ptr .FCB,AL
+	MOV	BX,Offset RESTSN	;restore record numbers..
+	MOV	DX,Offset RECDNOB	;..for new file transfer.
+	MOV	CH,(Offset RECDNOE)-(Offset RECDNOB) ;routine also done in menu.
+	CALL	MOVE
+	CALL	SENDNOW			;insures last character is finished
+	CALL	CKCHAR			;catch any echo characters on line
+	MOV	AL,Byte Ptr SENDFLG    ;goes to either send or..
+	OR	AL,AL			;..receive file, depending..
+	JZ	L6A1
+	JMP	SENDFIL2		;..upon which routine set..
+L6A1:
+	JMP	RCVFIL1			;..the flag in multi-file mode.
+;.....
+;
+;
+DONETC: CALL	CKABORT			;slight delay for next message
+	CALL	ILPRT
+	DB	CR,LF,'[Transfer completed]',CR,LF,BELL,0
+;
+DONETCA:MOV	AL,Byte Ptr XITFLG     ;special 'X' flag set?
+	OR	AL,AL
+	JNZ	L6A2
+	JMP	BYEBYE			;if yes, disconnect and reboot
+L6A2:
+	MOV	AL,Byte Ptr DISCFLG    ;normal 'D' flag set?
+	OR	AL,AL
+	JZ	DONETCD			;if yes, disconnect, get next command
+;
+DONETCB:CALL	JMP_NOPARITY		;reset to no parity
+	XOR	AL,AL
+	MOV	Byte Ptr CRCFLAG,AL    ;reset back to checksum
+	MOV	Byte Ptr FIRSTME,AL    ;reset first-time 'SOH' flag
+	MOV	Byte Ptr FSTFLG,AL     ;reset multi-file trans
+	MOV	Byte Ptr NFILFLG,AL    ;turn off the memory save for disk file
+	MOV	Byte Ptr SAVEFLG,AL    ;stop memory save in term routine.
+	MOV	AL,Byte Ptr VSEEFLG    ;view flag set?
+	OR	AL,AL
+	JNZ	DONETCC			;if not, exit
+	NOT	AL
+	MOV	Byte Ptr QFLG,AL       ;VSEEFLG also sets the QFLG
+	MOV	Byte Ptr VSEEFLG,AL    ;reset the flag
+;
+DONETCC:MOV	BX, Offset QFLG		;in quiet mode?
+	MOV	AL,Byte Ptr [BX]
+	OR	AL,AL
+	MOV	Byte Ptr [BX],'Q'	;reset the flag to normal
+	JNZ	L6A3
+	JMP	MENU			;if yes, go back to command line
+L6A3:
+	MOV	AL,Byte Ptr ABORTFLG   ;come here from a timeout?
+	OR	AL,AL
+	JZ	L6A4
+	JMP	MENU			;if yes, go to command mode
+L6A4:
+	MOV	AL,Byte Ptr JMPCMD     ;requesting return to command mode?
+	OR	AL,AL
+	JNZ	L6A5
+	JMP	MENU			;if yes go to command mode
+L6A5:
+	CALL	CRLF			;turn up a new line
+	JMP	TERM			;otherwise return to terminal mode
+;.....
+;
+;
+DONETCD:CALL	ILPRT
+	DB	CR,LF,'<< DISCONNECTED >>',BELL,CR,LF,0
+	CALL	JMP_GOODBYE		;set 'DTR' low for 300 ms.
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JZ	L6A6
+	CALL	JMP_DISCONNT
+L6A6:
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	L6A7
+	CALL	JMP_DISCONNT		;if yes, disconnect
+L6A7:
+	JMP	MENU0			;back to command line
+;.....
+;
+;
+MOVEFCB:MOV	BX, FCB+16
+	MOV	DX, FCB
+	MOV	CH,16
+	CALL	MOVE
+	XOR	AL,AL
+	MOV	Byte Ptr .FCBSNO,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	RET
+;.....
+;
+;
+SHOW:	CMP	AL,LF
+	JZ	CTYPE
+	CMP	AL,CR
+	JZ	CTYPE
+	CMP	AL,9
+	JZ	CTYPE
+	CMP	AL,' '
+	JB	SEEHEX
+	CMP	AL,7FH
+	JB	CTYPE
+;
+SEEHEX: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,'('
+	CALL	CTYPE
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	CALL	HEXO
+	MOV	AL,')'
+	JMPS	CTYPE
+;.....
+;
+;
+CTYPE:	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	DL,AL
+	MOV	CL,WRCON
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	RET
+;.....
+;
+;
+CRLF:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,CR
+	CALL	STYPE
+	MOV	AL,LF
+	CALL	STYPE
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+STAT:	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+;
+VSTAT:	MOV	DL,0FEH		; Direct Console I/O Status function flag
+	MOV	CL,6
+	INT	224
+	POP	BX		; vois la
+	POP	DX
+	POP	CX
+	OR	AL,AL
+	RET
+;.....
+;
+;
+KEYIN:	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+;
+VKEYIN: MOV	DL,0FFH		; KEYIN FLAG FOR direct CONSOLE I?O
+	MOV	CL,6
+	INT	224
+	OR	AL,AL
+	JZ	VKEYIN
+	POP	BX			;..by 'INITADR' routine
+	POP	DX
+	POP	CX
+	RET
+;.....
+;
+;
+STYPE:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+;
+VTYPE:	MOV	DL,AL		; Direct Conout requirtes Char in DL
+	MOV	CL,6
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+; Get a character from the keyboard, convert to upper-case if needed,
+; and show on CRT
+;
+KBDCHR: CALL	KEYIN			;get a keyboard character
+	CALL	UCASE			;convert to upper case if needed
+	CALL	STYPE			 ;show on CRT
+	RET
+;.....
+;
+;
+UCASE:	CMP	AL,61H			;changes lower case character..
+	JNB	L6A8
+	RET				;..in 'A'reg. to upper case.
+L6A8:
+	CMP	AL,7AH+1		;see if more than small 'Z'
+	JNAE	L6A9
+	RET
+L6A9:
+	AND	AL,5FH
+	RET
+;.....
+;
+;
+DECOUT: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CX,-10
+	MOV	DX,-1
+;
+DECOU1: ADD	BX,CX
+	INC	DX
+	JB	DECOU1
+	MOV	CX,10
+	ADD	BX,CX
+	XCHG	BX,DX
+	MOV	AL,BH
+	OR	AL,BL
+	JZ	L6A10
+	CALL	DECOUT
+L6A10:
+	MOV	AL,DL
+	ADD	AL,'0'
+	CALL	CTYPE
+	POP	BX
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+;---->	DHXOUT: - double precision hex output routine
+;
+DHXOUT: PUSH	BX
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,BH			;get ms byte
+	CALL	HEXO			;output high order byte
+	MOV	AL,BL			;get ls byte
+	CALL	HEXO			;output low order byte
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	POP	BX
+	RET
+;.....
+;
+;
+; Prints a hex value in 'A' on the CRT
+;
+HEXO:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	RCR	AL,1
+	RCR	AL,1
+	RCR	AL,1
+	RCR	AL,1
+	CALL	NIBBL
+	POP	AX
+	XCHG	AL,AH
+;
+NIBBL:	AND	AL,0FH
+	CMP	AL,10
+	JB	ISNUM
+	ADD	AL,7
+;
+ISNUM:	ADD	AL,'0'			;add in ASCII bias
+	JMP	CTYPE
+;.....
+;
+;
+; Displays the control-characters shown in the menu
+;
+SHFTYPE:LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	ILPRT
+	DB	'CTL-',0
+	POP	AX
+	XCHG	AL,AH
+	ADD	AL,40H			;convert binary to ASCII chars.
+	CALL	STYPE			 ;show on the CRT
+	JMPS	ILPRT
+;.....
+;
+;
+; Write a string of characters to the CRT
+;
+ILPRT:	POP	SI
+;
+ILPRT1: LODS	BYTE PTR [SI]		;get the character
+	OR	AL,AL			;see if a "0" for end of string
+	JZ	ILPRT2			;if yes, all done
+	CALL	CTYPE			;show on CRT
+	JMPS	ILPRT1
+;
+ILPRT2: PUSH	SI			;restore the address
+	RET
+;.....
+;
+;
+; Write a string of characters unless in the Quiet mode
+;
+ILPRTQ: POP	SI
+;
+ILPRTQ1:LODS	Byte Ptr [SI]	     ;get the character
+	OR	AL,AL			;see if a "0" for end of string
+	JZ	ILPRTQ2			;if yes, all done
+	MOV	BL,Byte Ptr QFLG
+	OR	BL,BL
+	JZ	ILPRTQ1
+	CALL	CTYPE			;show on CRT if not in quiet mode
+	JMPS	ILPRTQ1
+;
+ILPRTQ2:PUSH	SI			;restore the address
+	RET
+;.....
+;
+;
+PRTMSG: MOV	CL,PRINT		;print the string
+	INT	224
+	RET
+;.....
+;
+;
+; Displays error statement then resturns to command mode
+;
+ERXIT:	POP	DX
+	CALL	PRTMSG
+	MOV	AL,BELL
+	CALL	STYPE
+	CALL	CRLF
+;
+ERXIT1: MOV	AL,1
+	MOV	Byte Ptr ABORTFLG,AL   ;shows an unintentional abort
+	MOV	AL,Byte Ptr BATCHFLG   ;in batch mode?
+	OR	AL,AL
+	JZ	L6A12
+	JMP	DONETCB			;if not, exit
+L6A12:
+	JMP	ABORT			;abort other computer
+;.....
+;
+;
+; Exits directly to CP/M
+;
+EXIT:	MOV	AL,Byte Ptr OLDUSER    ;get original user number back
+	MOV	DL,AL
+	CALL	SETUSER
+	MOV	CL,SETDMA
+	MOV	DX, ofFSET TBUF		;restore original buffer area
+	INT	224
+	MOV	CX,1A00H		;a little delay timer
+;
+EXIT1:	DEC	CX			;one less loop to make
+	MOV	AL,CH
+	OR	AL,CL
+	JNZ	EXIT1			;loop again till both are zero
+	CALL	CKCON			;catch any extra keyboard characters
+	MOV	AL,Byte Ptr NFILFLG    ;saving for a disk file?
+	OR	AL,AL
+	JZ	L6A13
+	CALL	WRTFIL1			;if yes, close the file
+L6A13:
+EXIT2:	MOV	CL,0			;if not,  reboot 
+	MOV	DL,0
+	INT	224
+
+;.....
+;
+;
+; Catch any extra keyboard characters coming through BDOS
+;
+CKCON:	MOV	CL,CONST		;see if any characters waiting
+	INT	224
+	OR	AL,AL
+	JNZ	L6A15
+	RET				;if not, exit
+L6A15:
+	MOV	CL,RDCON		;otherwise get the character
+	INT	224
+	XOR	AL,AL			;discard the character
+	JMPS	CKCON			;see if any others
+;.....
+;
+;	
+MOVE128:MOV	CH,128
+;
+MOVE:	MOV	AL,Byte Ptr [BX]
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF
+	INC	BX
+	SAHF
+	LAHF
+	INC	DX
+	SAHF
+	DEC	CH
+	JNZ	MOVE
+	RET
+;.....
+;
+;
+; Sends the character in 'A' to the modem
+;
+SENDCHR:CALL	SENDNOW			;wait until modem is ready for character
+	MOV	AL,CH			;get the original character back
+	JMP	OUT_MODDATP		;send the character to modem, return
+;.....
+;
+;
+; Initializes CP/M file control blocks AT 5CH and 6CH
+;
+SETFCB: MOV	DX, Offset CMDBUF
+	MOV	BX, FCB
+	JMPS	CMDLINE
+;.....
+;
+;
+; Adjusts loop counter for the selected clock speed.  Returns with delay
+; in 'BX'.
+;
+FIXCNT: MOV	AL,Byte Ptr CLOCK      ;get the user's clock speed
+	PUSH	DX			;save the current 'DE' value
+	PUSH	BX
+	POP	DX			;get same value into 'DE' as in 'BX'
+;
+CNTMUL: LAHF				;add 'DE' to 'BX'
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	DEC	AL			;one less to go
+	JNZ	CNTMUL
+	POP	DX			;restore current 'DE', delay in 'BX'
+	RET
+;.....
+;
+;
+;=======================================================================
+;
+; Loads a command line addressed by 'DE' registers (max # characters in
+; line in 'DE', number of characters in line in DE+1, line starts in
+; DE+2) into FCB addressed by 'BX' registers.  The FCB should be at least
+; 33 bytes in length.  The command line buffer must have a maximum length
+; at least one more than the greatest number of characters that will be
+; needed.
+CMDLINE:LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	CALL	INITIAL			;fills FCBs with blanks and nulls
+	XCHG	BX,DX			;get start of command line in hl.
+	INC	BX			;address # bytes in cmd line.
+	MOV	DL,Byte Ptr [BX]	;load de pair with # bytes.
+	MOV	DH,0
+	INC	BX
+	ADD	BX,DX			;point to byte after last char..
+	MOV	Byte Ptr [BX],CR	;..in cmd line and store delimiter.
+	POP	BX			;restore BX and DE.
+	POP	DX
+	PUSH	DX
+	PUSH	BX
+	INC	DX			;address start of command.
+	INC	DX
+	CALL	DRIVE
+;
+NAME1:	MOV	CL,8			;transfer first filename to FCB.
+	CALL	TRANS
+	CMP	AL,CR
+	JZ	DONEL
+	CMP	AL,' '			;if space, then start of..
+	JZ	NAME2			;..second filename.
+	POP	BX			;filetype must be after..
+	PUSH	BX			;..eighth byte of name.
+	MOV	CX,9
+	ADD	BX,CX
+	MOV	CL,3			;transfer type of first file
+	CALL	TRANS
+	CMP	AL,CR
+	JZ	DONEL
+;
+NAME2:	MOV	SI,DX			;eat multiple spaces..
+	MOV	AL,[SI]
+	CMP	AL,' '			;..between names.
+	JNZ	NAME3
+	INC	DX
+	JMPS	NAME2
+;
+NAME3:	POP	BX			;second name starts in 16th byte.
+	PUSH	BX			;point BX to this byte.
+	MOV	CX,16
+	ADD	BX,CX
+	CALL	DRIVE
+	MOV	CL,8
+	CALL	TRANS
+	CMP	AL,CR
+	JZ	DONEL
+	POP	BX			;second type starts in 25th byte.
+	PUSH	BX
+	MOV	CX,25
+	ADD	BX,CX
+	MOV	CL,3
+	CALL	TRANS
+;
+DONEL:	POP	BX
+	PUSH	BX
+	INC	BX			;point to 1st char of 1st name in FCB
+	CALL	SCANL			;check for * (ambiguous names)
+	POP	BX
+	PUSH	BX
+	MOV	CX,17			;..to 1st char of second name in FCB
+	ADD	BX,CX
+	CALL	SCANL
+	POP	BX
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+; Subroutines for CMDLINE section
+;
+INITIAL:PUSH	BX			;initializes FCB with 1 null (for first drive)..
+	PUSH	CX			;..11 blanks, 4 nulls, 1 null (for 2nd drive)..
+	MOV	Byte Ptr [BX],0		;..11 blanks, and 4 nulls.
+	LAHF
+	INC	BX
+	SAHF
+	MOV	CH,11
+	MOV	AL,' '
+	CALL	INITFILL
+	MOV	CH,5
+	XOR	AL,AL
+	CALL	INITFILL
+	MOV	CH,11
+	MOV	AL,' '
+	CALL	INITFILL
+	MOV	CH,4
+	XOR	AL,AL
+	CALL	INITFILL
+	POP	CX
+	POP	BX
+	RET
+;.....
+;
+;
+INITFILL:
+	MOV	Byte Ptr [BX],AL
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	INITFILL
+	RET
+;.....
+;
+;
+DRIVE:	INC	DX			;check 2nd byte of filename.  if it..
+	MOV	SI,DX			;..is a ":", then drive was specified..
+	MOV	AL,[SI]
+	DEC	DX
+	CMP	AL,':'
+	JNZ	DEFDR			;..else zero for default drive ..
+	MOV	SI,DX			;..('INIT' put zero)
+	MOV	AL,[SI]
+	AND	AL,5FH
+	SUB	AL,40H			;calculate drive (A=1, B=2,...)..
+	MOV	Byte Ptr [BX],AL	;..and place it in FCB.
+	LAHF				;address first byte of..
+	INC	DX
+	SAHF
+	LAHF				;..in command line,..
+	INC	DX
+	SAHF
+;
+DEFDR:	LAHF				;..and name field in FCB
+	INC	BX
+	SAHF
+	RET
+;.....
+;
+;
+TRANS:	MOV	SI,DX			;transfer from command line to FCB..
+	MOV	AL,[SI]
+	INC	DX			;..up to number of chars specified..
+	CMP	AL,CR			;..by 'C' reg. keep scanning field..
+	JNZ	L6A16
+	RET				;..without transfer until a delimiting..
+L6A16:
+	CMP	AL,'.'			;..field char such as '.', blank, or..
+	JNZ	L6A17
+	RET				;..CR (for end of commmand line).
+L6A17:
+	CMP	AL,' '
+	JNZ	L6A18
+	RET
+L6A18:
+	DEC	CL
+	JS	TRANS			;once c-reg is less than zero, keep..
+	MOV	Byte Ptr [BX],AL	;..reading cmd line but do not..
+	INC	BX			;..transfer to FCB.
+	JMPS	TRANS
+;...
+;
+;
+SCANL:	MOV	CH,8			;scan file name addressed by BX.
+;
+TSTNAM: MOV	AL,Byte Ptr [BX]
+	CMP	AL,'*'			;if '*' found, fill in rest of field..
+	JZ	FILL1			;..with '?' for ambiguous name.
+	INC	BX
+	DEC	CH
+	JNZ	TSTNAM
+	JMPS	TSTTYP
+;...
+;
+;
+FILL1:	CALL	FILL
+;
+TSTTYP: MOV	CH,3			;scan and fill type field for name..
+;
+TSTTYPL:MOV	AL,Byte Ptr [BX]	;..specified above.
+	CMP	AL,'*'
+	JZ	FILL2
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	TSTTYPL
+	RET
+;.....
+;
+;
+FILL2:	CALL	FILL
+	RET
+;.....
+;
+;
+FILL:	MOV	Byte Ptr [BX],'?'	;routine transfers '?'.
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	FILL
+	RET
+;=======================================================================
+;
+; LISTS DIRECTORY AND GIVES FREE SPACE REMAINING ON THE REQUESTED DRIVE.
+;
+;
+; Disk system reset - currently bypassed, if you wish this feature, put
+;	JMP DIRLIST2 instead of JMP DIRLIST3 in the eighth line.  The
+;	current disk (plus the A: drive) will then reset each DIR re-
+;	quest.	You can also reset the disk with the LOG command when
+;	when inserting a different one.	 This saves a reset each time
+;	DIR might be requested.
+;
+DIRLIST:CALL	GETDISK
+	ADD	AL,'A'			;change to ascii
+	MOV	Byte Ptr DRNAME,AL	;show for drive name
+	MOV	Byte Ptr ACTDRV,AL	;show for space remaining on drive
+;
+DIRLIST1:
+	JMPS	DIRLIST3
+;
+DIRLIST2:
+	MOV	CL,RESET		;13 reset disk system (resetdk)
+	INT	224
+;
+;
+; Directory list routine
+;
+DIRLIST3:
+	MOV	DX, Offset CMDBUF	;put command line in FCBb..
+	MOV	BX, FCB			;..addressed by BX-reg..
+	CALL	CMDLINE			;..and then...
+	MOV	BX, Offset FCB4
+	CALL	INITFCB
+	MOV	AL,Byte Ptr .FCB2	;get drive number
+	MOV	Byte Ptr FCB4,AL
+	MOV	AL,Byte Ptr .FCB2+1
+	CMP	AL,' '			;if a space (blank) get all names
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	JNZ	L6A19
+	CALL	QSTMARK
+L6A19:
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JZ	L6A20
+	CALL	MOVNAME			;else move name into FCB
+L6A20:
+	CALL	DRIVEL
+	MOV	CL,SETDMA
+	MOV	DX,  TBUF
+	INT	224
+	MOV	AL,Byte Ptr NOOFCOL    ;number of columns into 'A' reg.
+	MOV	Byte Ptr NAMECT,AL     ;CRLF after 'NOOFCOL' number of columns
+	MOV	DX, Offset FCB4
+	MOV	CL,SRCHF		;do first search
+	INT	224
+	INC	AL			;0FFH --> 0 if no file(s) found
+	JNZ	DIRLOOP
+	CALL	ILPRT
+	DB	'++ FILE NOT FOUND ++',0
+	JMP	STORAGE			;still show storage on default drive
+;
+DIRLOOP:CALL	GETADD
+	LAHF				;point to first letter of filename
+	INC	BX
+	SAHF
+	MOV	DX,(Offset PRTNAME)
+	MOV	CX,8
+	CALL	MOVER	
+	LAHF
+	INC	DX
+	SAHF
+	MOV	CX,3
+	CALL	MOVER
+	CALL	ILPRT
+;
+PRTNAME DB	'        ','.','   ',0	; 8 spaces, period, 3 spaces
+;
+NEXTSR: MOV	DX, oFFSET FCB4
+	MOV	CL,SRCHN		;do next search
+	INT	224
+	INC	AL			;if 0FFH --> 0 then..
+	JZ	STORAGE			;..directory-read finished.
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	PUSH	DX
+	PUSH	BX
+	MOV	AL,Byte Ptr NAMECT
+	DEC	AL
+	MOV	Byte Ptr NAMECT,AL     ;name count updated
+	OR	AL,AL
+	JNZ	L6A21
+	CALL	CRLF			;terminate line of file names
+L6A21:
+	JNZ	FENCE
+	MOV	AL,Byte Ptr NOOFCOL    ;restart columns-per-line count
+	MOV	Byte Ptr NAMECT,AL
+	JMPS	NOFENCE			;fence not needed
+;
+FENCE:	CALL	ILPRT
+	DB	' : ',0			;fence if not at end of line or..
+;				;..LAST FILENAME
+NOFENCE:POP	BX
+	POP	DX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JMPS	DIRLOOP
+;.....
+;
+;
+; Determine storage remaining on default drive
+;
+STORAGE:
+	CALL	CRLF
+	MOV	CL,DSKPAR		;current disk parameter block
+	INT	224
+	ADD	BX,2
+	MOV	AL,ES: BYTE PTR [BX]	;Get Block Shift Factor
+	MOV	BSHIFTF,AL
+	INC	BX			;bump to block mask
+	MOV	AL,ES: BYTE PTR [BX]	;get it
+	MOV	BMASK,AL
+	ADD	BX,2
+	MOV	DX,ES: WORD PTR [BX]	;get max block number
+	MOV	Word Ptr BMAX,DX	;put it away
+	MOV	CL,DSKALL		;address of CP/m Allocation vector
+	INT	224
+	XCHG	BX,DX			;get its length
+	MOV	BX, Word Ptr BMAX
+	INC	BX
+	MOV	CX,0			;initialize block count to zero
+GSPBYT:
+	PUSH	DX			;save allocation address
+	XCHG	BX,DX
+	MOV	AL,ES: BYTE PTR [BX]
+	XCHG	BX,DX
+	MOV	DL,8			;set to process 8 blocks
+GSPLUP:
+	RCL	AL,1			;test bit
+	JC	NOTFRE
+	INC	CX
+NOTFRE:
+	MOV	DH,AL			;save bits
+	DEC	BX
+	MOV	AL,BL
+	OR	AL,BH
+	JZ	ENDALC			;quit if out of blocks
+	MOV	AL,DH			;restore bits
+	DEC	DL			;count down 8 bits
+	JNZ	GSPLUP			;do another bit
+	POP	DX			;bump to next count....
+	INC	DX			;...of allocation vector
+	JMP	GSPBYT			;process it
+;
+ENDALC:
+	POP	DX			;clear allocation vector pointer from stack
+	MOV	BX,CX			;copy block to bx
+	MOV	AL,Byte Ptr BSHIFTF	;get block shift factor
+	SUB	AL,3			;convert from record to K
+	JZ	PRTFREE			;skip shifts of 1K blocks
+FREKLP:
+	ADD	BX,BX			;multiply blocks by 'K per block'
+	DEC	AL
+	JNZ	FREKLP
+;
+PRTFREE:CALL	DECOUT			;(# of free k bytes now in 'BX')
+	MOV	DX,(Offset FREEMSG)
+	JMP	PRTMSG
+;.....
+;
+;
+; Subroutines for 'DIRLIST' section
+;
+QSTMARK:MOV	AL,'?'			;if blank in FCB, put in 11 ?'S.
+	MOV	CH,11
+	MOV	BX, oFFSET FCB4+1
+;
+QSTLP:	MOV	Byte Ptr [BX],AL
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	QSTLP
+	RET
+;.....
+;
+;
+MOVNAME:MOV	BX, FCB2+1
+	MOV	DX, Offset FCB4+1
+	MOV	CX,11
+	CALL	MOVER
+	RET
+;.....
+;
+;
+GETADD: DEC	AL			;un-do the inr above
+	ADD	AL,AL			;times 32
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,TBUF			;add buffer offset
+	MOV	BL,AL
+	MOV	BH,0
+	RET
+;.....
+;
+;
+DRIVEL: MOV	AL,Byte Ptr FCB4       ;if no drive, use
+	OR	AL,AL			;default drive in drname.
+	JZ	PRNTHD
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	DEC	AL
+	MOV	DL,AL
+	MOV	CL,SELDSK
+	INT	224
+	POP	AX
+	XCHG	AL,AH
+	ADD	AL,40H			;make 1=a, 2=b, etc., and..
+	MOV	Byte Ptr DRNAME,AL	;..overwrite default stored below.
+	MOV	Byte Ptr ACTDRV,AL
+;
+PRNTHD: CALL	ILPRT
+	DB	'Drive '
+;
+DRNAME	DB	' :',CR,LF,0
+	RET
+;.....
+;
+;
+; Initialized storage
+;
+FREEMSG DB	'k bytes free on drive '
+ACTDRV	DB	' :',CR,LF,'$'
+;
+;
+; Uninitialized storage
+;
+BMAX	Rb	2			;highest block number on drive
+BMASK	Rb	1			;rec/blk - 1
+BSHIFTF Rb	1			;number of shifts to multiply by rec/blk
+;.....
+;
+;
+;=======================================================================
+;
+; Duplicates 'READ BUFFER' routine same as CP/M function 10, but does
+; not use CTL-C (reason for the routine).  Does allow controls U, R, E
+; and H (BACKSPACE).  Outputs bell if the input is greater than the
+; buffer.
+;
+INBUF:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	PUSH	BX
+	PUSH	CX
+	PUSH	DX			;'DE' registers must be pushed last
+;
+INBUFA: CALL	CLEARBUF		;clear the buffer area
+	POP	DX			;get address of buffer on retries
+	PUSH	DX			;restore stack
+	XOR	AL,AL
+	LAHF				;address count field
+	INC	DX
+	SAHF
+	MOV	SI,DX			;initialize with a zero in count byte
+	MOV	[SI],AL
+	LAHF
+	INC	DX
+	SAHF
+	XCHG	BX,DX			;address first buffer byte with 'BX'
+;
+INBUFB: CALL	KEYIN			;(waits for char)
+	CALL	UCASE			;convert to upper case if needed
+	CMP	AL,CR			;is it <return> (enter command)?
+	JNZ	L6A24
+	JMP	INBUFR			;if so, then return.
+L6A24:
+	CMP	AL,08H			;CTL-H backspaces over deleted character
+	JZ	DELETE
+	CMP	AL,7FH			;is it a delete?
+	JZ	DELETE
+	CMP	AL,'U'-40H		;is it a CTL-U?
+	JNZ	L6A25
+	JMP	INBUFO			;output #, CR, LF, and start over
+L6A25:
+	CMP	AL,'R'-40H		;CTL-R retypes line
+	JNZ	L6A26
+	JMP	RETYPE
+L6A26:
+;
+INBUFC: MOV	CH,AL			;save inputted character
+	XCHG	BX,DX			;save 'BX' in 'DE'
+	POP	BX			;get address of buffer in 'BX'
+	PUSH	BX			;restore stack
+	INC	BX			;address count byte
+	INC	Byte Ptr [BX]		;increase count byte
+	DEC	BX			;address maximum
+	MOV	AL,Byte Ptr [BX]	;put maximum in 'A'
+	INC	BX			;address count
+	CMP	AL,Byte Ptr [BX]	;compare count to maximum
+	JNB	L6A27
+	JMP	ALERTL			;if maximum, ring bell and wait for cr.
+L6A27:
+	XCHG	BX,DX			;restore buffer pointer to 'BX'
+	MOV	Byte Ptr [BX],CH	;put inputted character in buffer
+	MOV	AL,CH			;output it
+	CMP	AL,EXITCHR		;exit character?
+	JNZ	L6A28
+	JMP	INBUFR			;if yes, all done
+L6A28:
+	CMP	AL,20H			;printing character?
+	JNAE	L6A29
+	CALL	STYPE			 ;if yes, print it
+L6A29:
+	LAHF				;bump pointer
+	INC	BX
+	SAHF
+	JMPS	INBUFB			;get next character
+;...
+;
+;
+DELETE: XCHG	BX,DX			;save buffer pointer in 'DE'
+	POP	BX			;address beginning of buffer
+	PUSH	BX			;restore stack
+	INC	BX			;address count field
+	MOV	AL,Byte Ptr [BX]
+	SUB	AL,1			;decrease count
+	MOV	Byte Ptr [BX],AL
+	JB	NODEL			;don't delete past beginning of buffer
+	XCHG	BX,DX			;restore buffer pointer to 'BX'
+	DEC	BX			;point to last byte inputted
+
+
+	MOV	AL,Byte Ptr [BX]	;get character being deleted
+	MOV	Byte Ptr [BX],' '	;restore blank
+	CMP	AL,' '			;see if non-printing character
+	JB	DELETE1			;if yes, skip the CRT backup
+	MOV	AL,BKSP
+	CALL	STYPE			;true erase if 08H
+	MOV	AL,' '
+	CALL	STYPE
+	MOV	AL,BKSP
+	CALL	STYPE
+DELETE1:
+	JMP	INBUFB
+	
+
+;.....
+;
+;
+MORE	DB	'12345'			;5 bytes extra from DELETE routine fix
+;
+NODEL:	INC	Byte Ptr [BX]		;don't leave count negative
+	XCHG	BX,DX			;restore pointer to 'BX'
+	MOV	AL,BELL			;says can go no further
+	CALL	STYPE
+	JMP	INBUFB
+;.....
+;
+;
+INBUFO: MOV	AL,'#'			;announces the line has been removed
+	CALL	STYPE
+	CALL	CRLF
+	JMP	INBUFA
+;.....
+;
+;
+RETYPE: POP	DX
+	PUSH	DX
+	LAHF				;point to current number..
+	INC	DX
+	SAHF
+	MOV	SI,DX			;..of characters.
+	MOV	AL,[SI]
+	MOV	CH,AL
+	MOV	AL,'#'
+	CALL	STYPE
+	CALL	CRLF
+	MOV	AL,CH			;test if zero input
+	OR	AL,AL
+	JNZ	CTLRLP
+	JMP	INBUFB
+;...
+;
+;
+CTLRLP: LAHF
+	INC	DX
+	SAHF
+	MOV	SI,DX
+	MOV	AL,[SI]
+	CALL	STYPE
+	DEC	CH
+	JNZ	CTLRLP
+	JMP	INBUFB
+;.....
+;
+;	
+ALERTL: MOV	AL,BELL			;alarm for full buffer
+	CALL	STYPE
+	DEC	Byte Ptr [BX]
+	XCHG	BX,DX
+	JMP	INBUFB
+;.....
+;
+;
+PCRLF:	CALL	CRLF
+	JMP	INBUFB
+;.....
+;
+;
+INBUFR: CALL	CRLF			;1st new line after a command character
+	POP	DX
+	POP	CX
+	POP	BX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+CLEARBUF:
+	POP	DX			;accounts for call
+	POP	BX			;address buffer in 'BX'
+	PUSH	BX			;restore..
+	PUSH	DX			;..stack
+	MOV	CH,Byte Ptr [BX]	;save maximum in 'B'
+	LAHF				;point to first..
+	INC	BX
+	SAHF
+	LAHF				;..buffer byte.
+	INC	BX
+	SAHF
+	MOV	AL,' '
+;
+CLEARL: MOV	Byte Ptr [BX],AL
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	CLEARL
+	RET
+;.....
+;
+;
+;=======================================================================
+;
+; In-line compare.  Compares string addressed by 'DE' to string after
+; call (ends with zero).  Return with carry set means strings not the
+; same.	 All registers except 'A'-reg are unaffected.
+;
+INLNCOMP:
+	POP	BX			;point 'SI' to 1st char.
+	PUSH	DX
+;
+ILCOMPL:MOV	AL,Byte Ptr [BX]	;'BX' points to in-line string.
+	OR	AL,AL			;end of string if zero.
+	JZ	SAME
+	MOV	SI,DX
+	MOV	AL,[SI]
+	CMP	AL,Byte Ptr [BX]
+	JNZ	NOTSAME
+	INC	BX
+	INC	DX
+	JMPS	ILCOMPL
+;...
+;
+;
+NOTSAME:XOR	AL,AL			;if not same, finish thru..
+;
+NSLP:	INC	BX			;..string so return will..
+	CMP	AL,Byte Ptr [BX]	;..go to instruction after..
+	JNZ	NSLP			;..string and not remainder of string.
+	STC
+;
+SAME:	POP	DX
+	LAHF				;avoids a NOP instruction..
+	INC	BX
+	SAHF
+	PUSH	BX			;..when returning.
+	RET
+;.....
+;
+;
+;=======================================================================
+;
+; Multi-file access subroutine.	 Allows processing of multiple files
+; (i.e., *.ASM) from disk.  Builds the correct name in the FCB each time
+; it is called.	 The command is used in programs to process single or
+; multiple files.  The FCB is set up with the next name, ready to do
+; normal processing (open, read, etc.) when routine is called.	Carry is
+; set if no more names are found.
+MFNAME: PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL,SETDMA
+	MOV	DX, TBUF
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	XOR	AL,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	MOV	AL,Byte Ptr MFFLG1
+	OR	AL,AL
+	JNZ	MFNAME1
+	MOV	AL,1
+	MOV	Byte Ptr MFFLG1,AL
+	MOV	BX, FCB
+	MOV	DX, Offset MFNAME5
+	MOV	CX,12
+	CALL	MOVER
+	MOV	AL,Byte Ptr .FCB
+	MOV	Byte Ptr MFNAME6,AL    ;save disk in current FCB
+	MOV	BX, Offset MFNAME5
+	MOV	DX, FCB
+	MOV	CX,12
+	CALL	MOVER
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL, SRCHF
+	MOV	DX, FCB
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	JMPS	MFNAME2
+;...
+;
+;
+MFNAME1:MOV	BX, Offset MFNAME6
+	MOV	DX, FCB
+	MOV	CX,12
+	CALL	MOVER
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL,SRCHF
+	MOV	DX, FCB
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	MOV	BX,Offset MFNAME5
+	MOV	DX,FCB
+	MOV	CX,12
+	CALL	MOVER
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL,SRCHN
+	MOV	DX, FCB
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+;
+MFNAME2:INC	AL
+	STC
+	JNZ	MFNAME3
+	MOV	Byte Ptr MFFLG1,AL
+	RET
+;.....
+;
+;	
+MFNAME3:DEC	AL
+	AND	AL,3
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,81H
+	MOV	BL,AL
+	MOV	BH,0
+	PUSH	BX			;save name pointer
+	MOV	DX, Offset MFNAME6+1
+	MOV	CX,11
+	CALL	MOVER
+	POP	BX
+	MOV	DX, FCB+1
+	MOV	CX,11
+	CALL	MOVER
+	XOR	AL,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	MOV	Byte Ptr .FCBRNO,AL
+	RET
+;.....
+;
+;
+MFNAME4:
+MOVER:	MOV	AL,Byte Ptr [BX]	;used if an 8080 CPU is active
+	MOV	SI,DX
+	MOV	[SI],AL
+	INC	BX
+	INC	DX
+	DEC	CX
+	MOV	AL,CH
+	OR	AL,CL
+	JNZ	MFNAME4
+	RET
+;.....
+;
+;		(END OF MULTI-FILE ACCESS ROUTINE)	
+;=======================================================================
+;		 CALCULATE FILE TRANSFER TIME
+;
+;
+; Shows the time to transfer a file at various baud rates.  (110-19200)
+;
+SENDTIME:
+	CALL	ILPRT			;print following message:
+	DB	'File open: ',0
+	MOV	BX,Word Ptr RCNT       ;get record count.
+	CALL	DECOUT			;print decimal number of records
+;
+	MOV	AL,Byte Ptr HEXSHOW
+	OR	AL,AL
+	JZ	SENDTIME1
+	CALL	ILPRT
+	DB	' (',0
+	CALL	DHXOUT			;now print size in hex.
+	CALL	ILPRT
+	DB	'H)',0
+;
+SENDTIME1:
+	CALL	ILPRT
+	DB	' records'
+	DB	CR,LF,'Send time: ',0
+	MOV	AL,Byte Ptr MSPEED	;get the speed indicator
+	MOV	DH,0
+	MOV	DL,AL			;set up for table access
+	MOV	BX,(Offset BTABLE)	;point to baud factor table
+	LAHF				;index to proper factor
+	ADD	BX,DX
+	SAHF
+	LAHF				;factor in 'DE'
+	ADD	BX,DX
+	SAHF
+	MOV	DL,Byte Ptr [BX]
+	LAHF
+	INC	BX
+	SAHF
+	MOV	DH,Byte Ptr [BX]
+	MOV	BX,Word Ptr RCNT       ;get # of records
+	CALL	DVHLDE			;divide BX by value in DE (records/min)
+	PUSH	BX
+	MOV	BX,CX
+	CALL	DECOUT			;print the minutes portion
+	CALL	ILPRT
+	DB	' mins, ',0
+	MOV	BX,(Offset RECDBL)	;point to divisors for seconds
+	MOV	DX,0			;   calculation
+	MOV	AL,Byte Ptr MSPEED     ;get index for baud rate
+	MOV	DL,AL
+	LAHF				;index into table
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	MOV	AL,Byte Ptr [BX]	;get multiplier
+	POP	BX			;get remainder
+	CALL	MULHLA			;multiply the 'BX' x 'A'
+	CALL	SHFTHL
+	CALL	SHFTHL
+	CALL	SHFTHL
+	CALL	SHFTHL
+	MOV	BH,0
+	CALL	DECOUT			;print the seconds portion
+	CALL	ILPRT
+	DB	' secs at ',0
+	CALL	PRTBAUD
+	CALL	ILPRTQ
+	DB	'To cancel: use CTL-X',CR,LF,0
+	RET
+;
+BTABLE	DW	5,13,20,26,29,48,85,152,280,480,0	;records/min for..
+RECDBL	DB	192,74,48,37,33,20,11,6,3,2,0	;110-19200 baud
+;.....
+;
+;
+; Shows baud rates set for 'time to send' file transfer
+;
+PRTBAUD:MOV	BX,(Offset BAUDSPD)
+	MOV	DH,0
+	MOV	AL,Byte Ptr MSPEED     ;get baud rate code
+	MOV	DL,AL			;x1
+	ADD	AL,AL			;x2
+	ADD	AL,AL			;x4
+	ADD	AL,DL			;x5
+	ADD	AL,DL
+	MOV	DL,AL
+	LAHF				;point to correct rate
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	XCHG	BX,DX
+	MOV	CL,PRINT
+	INT	224
+	CALL	ILPRT
+	DB	' bps ',CR,LF,0
+	RET
+;.....
+;
+;
+BAUDSPD DB	'110$',0,0,'300$',0,0,'450$',0,0,'600$',0,0,'710$',0,0
+	DB	'1200$',0,'2400$',0,'4800$',0,'9600$',0,'19200$'
+;.....
+;
+;	
+;---->	DVHLDE: Divides 'BX' by value in 'DE',
+;	Upon exit: 'BC'=quotient,'BL'=remainder
+;
+DVHLDE: PUSH	DX			;save divisor
+	MOV	AL,DL
+	NOT	AL			;negate divisor
+	MOV	DL,AL
+	MOV	AL,DH
+	NOT	AL
+	MOV	DH,AL
+	LAHF				;'DE' is now two's complemented
+	INC	DX
+	SAHF
+	MOV	CX,0			;init quotient
+;
+DIVL1:	LAHF				;subtract divisor from dividend
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	LAHF				;bump quotient
+	INC	CX
+	SAHF
+	JB	DIVL1			;loop till sign changes
+	LAHF				;adjust quotient
+	DEC	CX
+	SAHF
+	POP	DX			;retrieve divisor
+	LAHF				;adjust remainder
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	RET
+;.....
+;
+;
+;---->	MULHLA:	 Multiply the value in 'BX' by the value in 'A'
+;		 Return with answer in 'BX'
+;
+MULHLA: XCHG	BX,DX			;multiplicand to 'DE'
+	MOV	BX,0			;init product
+	INC	AL			;adjust multiplier for zero test
+;
+MULLP:	DEC	AL
+	JNZ	L7A5
+	RET
+L7A5:
+	LAHF
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	JMPS	MULLP
+;.....
+;
+;
+; Shift 'BX' register pair one bit to the right
+;
+SHFTHL: RCR	BX,1
+	RET
+;.....
+;
+;		
+;	     (END OF FILE TRANSFER TIME ROUTINE)
+;=======================================================================
+;			 CRC SUBROUTINES
+;
+;
+; Check 'CRC' bytes of record just received
+;
+CRCCHK: PUSH	BX
+	MOV	BX,Word Ptr CRCVAL
+	MOV	AL,BH
+	OR	AL,BL
+	POP	BX
+	JNZ	L7A7
+	RET
+L7A7:
+	MOV	AL,0FFH
+	RET
+;.....
+;
+;
+; Generate the CRC tables for fast calculations
+;
+CRCGEN: MOV	BX, OFFSET CRCTBL	;address at start of 'CRC' lookup table
+	MOV	CL,0
+;
+CRCGEN1:XCHG	BX,DX			;store table location into 'DE'
+	MOV	BX,0			;clear 'BX' pair
+	MOV	AL,CL
+	PUSH	CX
+	MOV	CH,8
+	XOR	AL,BH
+	MOV	BH,AL
+;
+CRCGEN2:SHL	BX,1			;index into the table
+	JNB	CRCGEN3
+	MOV	AL,16			;using x^ 16 + x^12 + x^5 + 1 algorithm
+	XOR	AL,BH
+	MOV	BH,AL
+	MOV	AL,32+1
+	XOR	AL,BL
+	MOV	BL,AL
+;
+CRCGEN3:DEC	CH
+	JNZ	CRCGEN2			;make 8 loops, one for each bit
+;
+;
+; Value now in 'BX', table address still stored in 'DE'.  Exchange, and
+; store the 'CRC' value in the two tables after splitting.
+;
+	POP	CX			;finished borrowing the 'B' reg.
+	XCHG	BX,DX			;address back in 'BX', 'CRC' in 'DE'
+	MOV	Byte Ptr [BX],DH	;store 1st part of 'CRC' value
+	INC	BH			;move up 256 bytes
+	MOV	Byte Ptr [BX],DL	;store 2nd part of 'CRC' value
+	DEC	BH			;move back 256 bytes
+	LAHF				;increment to next location
+	INC	BX
+	SAHF
+	INC	CL			;done when 'C' reg. turns zero again
+	JNZ	CRCGEN1			;now go do the next location
+	RET
+;.....
+;
+;
+; Update the CRC value from a character in the 'A' register
+;
+CRCUPD: LAHF				;save all registers just in case
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	BX,Word Ptr CRCVAL     ;get current value
+	XCHG	BX,DX			;put in 'DE' for now
+	MOV	CH,0
+	XOR	AL,DH
+	MOV	CL,AL			;now have the character in 'BC' pair
+	MOV	BX, Offset CRCTBL	;start of 'CRC' lookup-table
+	ADD	BX,CX			;index into the 'CRC' table	
+	MOV	AL,Byte Ptr [BX]	;get the value from the table
+	XOR	AL,DL
+	MOV	DH,AL
+	INC	BH			;move 256 bytes for 2nd table location
+	MOV	DL,Byte Ptr [BX]	;put value there into 'E' register
+	XCHG	BX,DX			;put 'DE' into 'BX'
+	MOV	Word Ptr CRCVAL,BX     ;updated 'CRC' value with this character
+	POP	BX			;restore all registers
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;==================== END OF CRC SUBROUTINE ============================
+;
+;
+;=========================START OF MENU ================================
+;
+;
+MENU0:	MOV	AL,Byte Ptr NFILFLG
+	OR	AL,AL
+	JZ	MENU			;exit if not saving memory for disk file
+	CALL	ILPRT			;else print message
+	DB	CR,LF,'** File still open, use DEL, DIR, WRT, E, L '
+	DB	'or T ** ',CR,LF,BELL,0
+	JMPS	MENU1
+;
+MENU:	XOR	AL,AL
+	MOV	Byte Ptr ABORTFLG,AL   ;null the flag
+;
+MENU1:	MOV	BX, OFFSET RESTSN	;restore record numbers..
+	MOV	DX, OFFSET RECDNOB	;..for new file transfer.
+	MOV	CH, (OFFSET RECDNOE)-(OFFSET RECDNOB)
+	CALL	MOVE
+	MOV	BX,OFFSET RESTROPT	       ;restore option table
+	MOV	DX,OFFSET OPTBL
+	MOV	CH, (OFFSET OPTBE)-(OFFSET OPTBL)
+	CALL	MOVE
+	XOR	AL,AL
+	MOV	Byte Ptr FSTFLG,AL
+	MOV	Byte Ptr TIMFLG,AL
+	MOV	Byte Ptr FLTRFLG,AL    ;reset multi-file trans
+	MOV	Byte Ptr MFFLG1,AL     ;reset mfaccess routine..
+	JMP	XPRT
+;.....
+;
+;
+; * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;
+;		       MENU OF COMMANDS
+;
+; * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;
+MENU2:	CALL	CLRTST
+	CALL	ILPRT
+	DB	'                  Single Letter Commands',CR,LF,LF
+	DB	' ?  - Display current settings',CR,LF
+MENU3	DB	' ^  - Function key intercept character, '
+	DB	'then (0-9)',CR,LF
+	DB	' M  - Display the menu',CR,LF
+	DB	' E  - Terminal mode with echo',CR,LF
+	DB	' L  - Terminal mode with local echo',CR,LF
+	DB	' T  - Terminal mode',CR,LF
+	DB	'         For copying text to disk use T (E or L) '
+	DB	'FILENAME.TYP',CR,LF
+	DB	'         Start or Stop toggles described on subsequent'
+	DB	' screen.',CR,LF
+	DB	' R  - Receive CP/M file using Christensen Protocol'
+	DB	CR,LF
+	DB	' S  - Send CP/M file using Christensen Protocol',CR,LF
+	DB	'         COMMAND: R (or S) FILENAME.TYP',CR,LF
+	DB	'         R and S can use the following subcommands:'
+	DB	CR,LF
+	DB	'            B  - Bulk transfer using wildcards '
+	DB	'(e.g., *.*)',CR,LF
+	DB	'            D  - Disconnect when done'
+	DB	CR,LF
+	DB	'            Q  - Quiet mode (no messages to console)'
+	DB	CR,LF
+	DB	'            V  - View <R> or <S> bytes on console'
+	DB	CR,LF
+	DB	'            X  - When done, disconnect, go to CP/M'
+	DB	CR,LF,LF
+	DB	'      The single letter commands may also be used on '
+	DB	'the',CR,LF
+	DB	'      command line when the program is initially '
+	DB	'executed.',CR,LF,LF,0
+;
+THREELTR:
+	CALL	JMP_NXTSCRN
+	CALL	ILPRT
+	DB	'                Three Letter Commands',CR,LF,LF
+	DB	'CPM - Exit from this program to CP/M',CR,LF
+	DB	'DIR - List directory and space free (may specify '
+	DB	'drive)',CR,LF
+	DB	'ERA - Erase file (may specify drive)',CR,LF
+	DB	'LOG - Change default drive/user no. (specify '
+	DB	'drive/user)',CR,LF
+	DB	'      and reset disks.  e.g. LOG A0: or LOG B:  '
+	DB	'(user # unchanged)',CR,LF
+	DB	'SPD - Set file output speed in terminal mode'
+	DB	CR,LF,0
+;
+	CALL	SORPTST
+	JNZ	NOTIME
+	CALL	ILPRT
+	DB	'TIM - Select Baud rate for "time-to-send" msg.',CR,LF,0
+;
+NOTIME: MOV	AL,Byte Ptr TOGGLECRC
+	OR	AL,AL
+	JZ	NOTOCRC
+	CALL	ILPRT
+	DB	'TCC - Toggle CRC/Checksum mode on receive',CR,LF,0
+;
+NOTOCRC:MOV	AL,Byte Ptr TOGGLELOC
+	OR	AL,AL
+	JZ	NOTOGLOC
+	CALL	ILPRT
+	DB	'TLC - Toggle local command immediate or after ',0
+	MOV	AL,Byte Ptr EXTCHR
+	CALL	SHFTYPE
+	DB	CR,LF,0
+;
+NOTOGLOC:
+	MOV	AL,Byte Ptr TOGGLELF
+	OR	AL,AL
+	JZ	NOTOGRUB
+	CALL	ILPRT
+	DB	'TLF - Toggle LF after CR in "L" or "T" mode for '
+	DB	'a disk file',CR,LF,0
+;
+NOTOGRUB:
+	MOV	AL,Byte Ptr TOGGLERUB
+	OR	AL,AL
+	JZ	NOTOGLF
+	CALL	ILPRT
+	DB	'TRB - Toggle rubout to backspace conversion',CR,LF,0
+;
+NOTOGLF:MOV	AL,Byte Ptr TOGXOFF
+	OR	AL,AL
+	JZ	NOTOGXOF
+	CALL	ILPRT
+	DB	'TXO - Toggle XOFF testing in terminal mode '
+	DB	'file output',CR,LF,0
+;
+NOTOGXOF:
+	MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI modem?
+	OR	AL,AL
+	JNZ	NONUM
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	NOTOGX2
+;
+NOTOGX1:CALL	ILPRT
+	DB	'NUM - List remote systems',CR,LF,0
+;
+NOTOGX2:MOV	AL,Byte Ptr SETUPTST
+	OR	AL,AL
+	JZ	NONUM
+	CALL	ILPRT
+	DB	'SET - Set modem baud rate',CR,LF,0
+;
+NONUM:	CALL	ILPRT
+	DB	'BYE - Disconnect, then return to CP/M'
+	DB	CR,LF,0
+	MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI modem?
+	OR	AL,AL
+	JNZ	NONUM0			;if yes, display 'CAL'
+	MOV	AL,Byte Ptr AUTODIAL   ;usina a Hayes-type modem?
+	OR	AL,AL
+	JZ	NOPMMI			;exit if neither
+;
+NONUM0: CALL	ILPRT
+	DB	'CAL - Dial number',CR,LF,0
+;
+NOPMMI: CALL	ILPRT
+	DB	'DSC - Disconnect from the phone line',CR,LF,LF
+	DB	'          The following are terminal text '
+	DB	'buffer commands:',CR,LF,LF,0
+;
+SKIPLF: CALL	ILPRT
+	DB	'DEL - Delete memory buffer and file',CR,LF
+	DB	'WRT - Write memory buffer to disk file',CR,LF,LF,0
+	CALL	NXTSCRN
+	CALL	ILPRT
+	DB	'        Local Commands while in Terminal Mode'
+	DB	CR,LF,LF,0
+	MOV	AL,Byte Ptr BRKCHR
+	CALL	SHFTYPE
+	DB	'  - Send a break tone for 300 ms.',CR,LF,0
+	MOV	AL,Byte Ptr PMMIMODEM
+	OR	AL,AL
+	JZ	SKIPLF1
+	MOV	AL,Byte Ptr CHGBAUD
+	CALL	SHFTYPE
+	DB	'  - Change baud rate',CR,LF,0
+;
+SKIPLF1:MOV	AL,EXITCHR
+	CALL	SHFTYPE
+	DB	'  - Exit to command mode',CR,LF,0
+	MOV	AL,Byte Ptr TRANLOGON
+	OR	AL,AL
+	JZ	NOTRNLOG
+	MOV	AL,Byte Ptr LOGCHR
+	CALL	SHFTYPE
+	DB	'  - Send log-on message',CR,LF,0
+;
+NOTRNLOG:
+	MOV	AL,Byte Ptr NOCONNCT
+	CALL	SHFTYPE
+	DB	'  - Disconnect from the phone line',CR,LF,0
+	MOV	AL,Byte Ptr LSTTST
+	OR	AL,AL
+	JZ	NOTLIST
+	MOV	AL,Byte Ptr LSTCHR
+	CALL	SHFTYPE
+	DB	'  - Toggle printer',CR,LF,0
+;
+NOTLIST:MOV	AL,LF
+	CALL	STYPE
+	MOV	AL,Byte Ptr SAVECHR
+	CALL	SHFTYPE
+	DB	'  - Start copy into buffer',CR,LF,0
+	MOV	AL,Byte Ptr UNSAVECHR
+	CALL	SHFTYPE
+	DB	'  - Stop copy into buffer',CR,LF,LF
+	DB	'             Start & Stop may be toggled as often as '
+	DB	'desired.',CR,LF
+	DB	'             A ";" at start of line indicates buffer '
+	DB	'is copying.',CR,LF
+	DB	'             XOFF automatically used to stop input '
+	DB	'when writing',CR,LF
+	DB	'                full buffer to disk, XON sent to '
+	DB	'resume.',CR,LF,LF,0
+	MOV	AL,Byte Ptr TRANCHR
+	CALL	SHFTYPE
+	DB	'  - Transfer ASCII file to remote',CR,LF,LF,0
+	MOV	AL,Byte Ptr LOCNXTCHR
+	OR	AL,AL
+	MOV	AL,Byte Ptr EXTCHR
+	JNZ	REMDFLT
+	CALL	SHFTYPE
+	DB	'  - Send local control character to remote'
+	DB	CR,LF,LF,0
+	JMPS	CKSPCL
+;
+REMDFLT:CALL	SHFTYPE
+	DB	'  - Next character will be used for local control'
+	DB	CR,LF,0
+;
+CKSPCL: CALL	JMP_SPCLMENU		;may have a special menu in the overlay
+;				;FALLS ON THROUGH TO 'XPRT'	
+;
+;
+;			 (END OF COMMAND MENU)
+;=======================================================================
+;		    START OF COMMAND LINE HANDLING
+;
+;
+; Check first to see if a file was opened for copying incoming to disk
+;
+XPRT:	CALL	CRLF			;turn up a blank line to look nice
+L7A8:
+	MOV	AL,Byte Ptr NFILFLG    ;have a file open for text mode copy?
+	OR	AL,AL
+	JZ	XPRT1			;if not, exit
+;
+	CALL	GETSPC			;otherwise show remaining space 
+	CALL	ILPRT
+	DB	' Bytes of buffer free',CR,LF,LF,0
+;
+;
+; Show disk drive and user number, then command line
+;
+XPRT1:	MOV	CL,CURDSK		;current disk function
+	INT	224
+	ADD	AL,'A'			;make ASCII
+	CALL	STYPE
+	CALL	GETUSER			;get current user number
+	OR	AL,AL
+	JZ	XPRT2			;skip if user 0
+	MOV	BH,0
+	MOV	BL,AL
+	CALL	DECOUT			;show current user area
+;
+XPRT2:	MOV	AL,'>'
+	CALL	STYPE
+	MOV	AL,'>'
+	CALL	STYPE
+	CALL	ILPRT
+	DB	'COMMAND: ',0
+	XOR	AL,AL
+	MOV	Byte Ptr XFLG,AL       ;null the buffer-length flag
+;
+;
+; Get the command line parameters
+;
+GETCMD: MOV	DX,OFFSET CMDBUF	;enter command
+	CALL	INBUF
+	MOV	AL,Byte Ptr CMDBUF+2
+	CMP	AL,EXITCHR		;exit character
+	JZ	XPRT1
+;
+GETCMD1:CMP	AL, Byte Ptr Fncky	;function key intercept character
+	JNZ	L7A9
+	JMP	FUNCT			;   (supplied from 'INTCPT' table)
+L7A9:
+	CMP	AL,'?'
+	JNZ	L7A10
+	JMP	CURPAR
+L7A10:
+	CMP	AL,' '
+	JNZ	L7A11
+	JMP	L7A8			 ;skip the extra line feed
+L7A11:
+	MOV	AL,Byte Ptr CMDBUF+3
+	CMP	AL,':'			;see if request for new drive/user
+	JNZ	L7A12
+	JMP	SETDRV
+L7A12:
+	MOV	DX,OFFSET CMDBUF+2	;point to command
+	CALL	INLNCOMP
+	DB	'CPM',0
+	JNAE	L7A13
+	JMP	EXIT
+L7A13:
+	CALL	CRLF			;(1st CR/LF at 'INBUFR')
+	CALL	INLNCOMP
+	DB	'LOG',0
+	JNAE	L7A14
+	JMP	LOGNEW
+L7A14:
+	CALL	INLNCOMP
+	DB	'DIR',0
+	JNAE	L7A15
+	JMP	DIR
+L7A15:
+	CALL	INLNCOMP
+	DB	'ERA',0
+	JNAE	L7A_16
+	JMP	ERASEF
+L7A16:
+	CALL	INLNCOMP
+	DB	'SPD',0
+	JNAE	L7A17
+	JMP	SETSPD
+L7A17:
+	CALL	INLNCOMP
+	DB	'TIM',0
+	JNAE	L7A18
+	JMP	SETTIM
+L7A18:
+	CALL	INLNCOMP
+	DB	'TCC',0
+	JNAE	L7A19
+	JMP	TOGCRC
+L7A19:
+	CALL	INLNCOMP
+	DB	'TRB',0
+	JNAE	L7A20
+	JMP	TOGRUB
+L7A20:
+	CALL	INLNCOMP
+	DB	'TLC',0
+	JNAE	L7A21
+	JMP	TOGLOC
+L7A21:
+	CALL	INLNCOMP
+	DB	'TLF',0
+	JNAE	L7A22
+	JMP	TOGLF
+L7A22:
+	CALL	INLNCOMP
+	DB	'TXO',0
+	JNAE	L7A23
+	JMP	TOGTXOFF
+L7A23:
+	MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI  modem?
+	OR	AL,AL
+	JNZ	NONUM1			;if yes, exit
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	NONUM1			;if yes, exit
+	CALL	INLNCOMP
+	DB	'NUM',0
+	JNAE	L7A24
+	JMP	NUMPRN
+L7A24:
+;
+NONUM1: MOV	AL,Byte Ptr SETUPTST
+	OR	AL,AL
+	JZ	NXTOPT1
+	CALL	INLNCOMP
+	DB	'SET',0
+	JNAE	L7A25
+	JMP	SETUPENT
+L7A25:
+;
+NXTOPT1:CALL	INLNCOMP
+	DB	'WRT',0
+	JNAE	L7A26
+	JMP	WRTFIL
+L7A26:
+	CALL	INLNCOMP
+	DB	'DEL',0
+	JNAE	L7A27
+	JMP	NEWFILE
+L7A27:
+	CALL	INLNCOMP
+	DB	'BYE',0
+	JNAE	L7A28
+	JMP	BYEBYE
+L7A28:
+	CALL	INLNCOMP
+	DB	'DSC',0
+	JNAE	L7A29
+	JMP	DONETCD
+L7A29:
+	MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI modem?
+	OR	AL,AL
+	JNZ	NXTOPT0			;if yes, exit
+	MOV	AL,Byte Ptr AUTODIAl   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	NXOPT2			;exit if neither modem-type
+;
+NXTOPT0:CALL	INLNCOMP		;'DE' set from 1st 'INLNCOMP' call
+	DB	'CAL',0
+	JB	NXOPT2
+	MOV	AL,' '			;fool the system
+	MOV	Byte Ptr CMDBUF+3,AL   ;..'TBUF' so that it..
+	JMPS	DOOPT			;..looks at option for dial
+;
+NXOPT2: MOV	AL,Byte Ptr CMDBUF+2
+	MOV	BX, Offset COMPLIST
+	CALL	COMPARE			;compares list pointed to by BX..
+	JB	NOTVLD			;carry set = no match
+;
+DOOPT:	CALL	SETFCB			;loads command buffer into FCB
+	CALL	PROCOPT			 ;check out the options
+	JMP	RESTART			;go to work
+;.....
+;
+;
+NOTVLD: CALL	NTVLDMSG
+	JMP	XPRT
+;.....
+;
+;
+NTVLDMSG:
+	CALL	ILPRT
+	DB	'++ Invalid command ++',CR,LF,BELL,0
+	RET
+;.....
+;
+;
+FUNCT:	MOV	AL,Byte Ptr INTCPT     ;get the function key intercept char.
+	AND	AL,07FH			;strip off any parity
+	LAHF				;save the character for now
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	CLRTST
+	CALL	ILPRT
+	DB	'         SPECIAL FUNCTION KEY TABLE'
+	DB	CR,LF,LF,0
+	POP	AX			;get the character back
+	XCHG	AL,AH
+	CMP	AL,' '			;see if a printing character
+	JNB	FUNCT1			;if a printing character, show it
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	ILPRT
+	DB	'CTL-',0
+	POP	AX
+	XCHG	AL,AH
+	ADD	AL,40H			;convert binary to ASCII character
+;
+FUNCT1: CALL	STYPE			 ;show on the CRT
+	CALL	ILPRT
+	DB	' current function key intercept character',CR,LF,LF,0
+;
+;
+; Shows the functions of the (0-9) keys
+;
+	MOV	BX, Offset FNCTBL-1	;index into the function key table
+	MOV	CH,10			;has ten entries
+;
+FUNCT2: INC	BX			;next table location
+	MOV	AL,Byte Ptr [BX]	;get the binary function number
+	ADD	AL,'0'			;convert binary to ASCII digits
+	CALL	STYPE
+	MOV	AL,' '
+	CALL	STYPE
+;
+FUNCT3: INC	BX			;next table location	
+	MOV	AL,Byte Ptr [BX]
+	OR	AL,AL			;see if a binary zero
+	JZ	FUNCT5
+	CMP	AL,CR
+	JNZ	FUNCT4
+	CALL	ILPRT
+	DB	'<CR>',0
+	JMPS	FUNCT3
+;
+FUNCT4: CALL	STYPE
+	JMPS	FUNCT3
+;	
+FUNCT5: CALL	CRLF
+	DEC	CH
+	JNZ	FUNCT2
+	CALL	CRLF
+	JMP	XPRT
+;.....
+;
+;
+BYEBYE: MOV	AL,Byte Ptr PMMIMODEM  ;using a PMMI modem?
+	OR	AL,AL
+	JZ	L7A30
+	CALL	JMP_GOODBYE		;if yes, disconnect
+L7A30:
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JZ	L7A31
+	CALL	SMRESET			;if yes, disconnect
+L7A31:
+	CALL	JMP_GOODBYE		;user's custom-area goodbye routine
+	CALL	ILPRT
+	DB	CR,LF,'<< Exit to CP/M >>',CR,LF,0
+	JMP	EXIT			;return to CP/M
+;
+SMRESET:MOV	CH,20
+	CALL	TIMER
+	MOV	BX, Offset SM_DISC
+	CALL	SENDOUT
+	MOV	CH,20
+	CALL	TIMER
+	MOV	AL,' '
+;
+; If showing the +++ and ATH and ATD, etc. move the three semicolons up
+; one line.
+;
+	DB	90H,90H,90H
+;;;	CALL	STYPE
+	MOV	BX,(Offset SM_ATZ)
+	CALL	SENDOUT
+;
+SMRESET1:
+	MOV	CH,2
+	CALL	RECV
+	JNB	SMRESET1
+	RET
+;.....
+;
+;
+SM_ATZ	DB	'ATZ',CR,'$'
+;.....
+;
+;
+DIR:	MOV	CL,CURDSK
+	INT	224
+	MOV	Byte Ptr DISKSAV,AL
+	CALL	DIRLIST
+	MOV	AL,Byte Ptr DISKSAV
+	MOV	DL,AL
+	MOV	CL,SELDSK
+	INT	224
+	JMP	XPRT
+;.....
+;
+;
+ERASEF: MOV	DX, OFFSET CMDBUF		;put cmd line into FCB at 'BX'
+	MOV	BX, FCB
+	CALL	CMDLINE
+	CALL	MOVEFCB			;move FCB+16 to FCB
+	MOV	AL,Byte Ptr .FCB+1
+	CMP	AL,' '
+	JNZ	L7A34
+	JMP	NOTVLD			;go if no file specified
+L7A34:
+	MOV	DX, FCB
+	MOV	CL,SRCHF
+	INT	224
+	INC	AL			;0 if file not found
+	JNZ	ERAFILE			;ok, go erase
+	CALL	ILPRT
+	DB	'++ File not found ++',CR,LF,BELL,0
+	JMP	XPRT
+;.....
+;
+;
+ERAFILE:MOV	DX, FCB
+	MOV	CL,ERASE
+	INT	224
+	CALL	ILPRT
+	DB	'File erased',CR,LF,0
+	JMP	XPRT
+;.....
+;
+;
+LOGNEW: MOV	AL,Byte Ptr NFILFLG    ;file open for memory save to disk?
+	OR	AL,AL
+	JZ	L7A35
+	JMP	NORESET			;if yes, do not reset disk drive now
+L7A35:
+	MOV	AL,Byte Ptr CMDBUF+6   ;any disk drive specified?
+	CMP	AL,' '
+	JNZ	LOGNEW1			;if not a blank, exit
+	CALL	GETDISK			;if not, use current drive
+	ADD	AL,'A'			;to compensate for next line
+;
+LOGNEW1:SUB	AL,'A'
+	CMP	AL,15+1			;for drives 0-15
+	JNAE	L7A36
+	JMP	NOTVLD			;if more than 15, display error message
+L7A36:
+	MOV	Byte Ptr DISKSAV,AL    ;store requested drive
+	CALL	GETUSER			;pick up current user number
+	MOV	CH,AL			;save it
+	MOV	AL,Byte Ptr CMDBUF+7   ;get new user number
+	CALL	CHRCHK			;check the char.
+	CALL	FINDUSER
+	MOV	AL,Byte Ptr CMDBUF+8   ;get 2nd digit
+	CALL	CHRCHK			;check the char.
+	CALL	L7A37
+;
+LOGNEW2:CALL	SAVEUSER
+	MOV	CL,RESET
+	INT	224
+	MOV	AL,Byte Ptr DISKSAV
+	MOV	DL,AL
+	MOV	CL,SELDSK
+	INT	224
+	MOV	AL,Byte Ptr SAVUSR
+	MOV	DL,AL
+	CALL	SETUSER
+	JMP	XPRT
+;.....
+;
+;
+CHRCHK: CMP	AL,' '
+	JZ	CHRCHK1
+	CMP	AL,':'			;in case of A: or A1: or A11:  (etc.)
+	JZ	CHRCHK1
+	RET
+;
+CHRCHK1:POP	AX			;reset the 'CALL' on the stack
+	JMPS	LOGNEW2
+;.....
+;
+;
+FINDUSER:
+	MOV	CH,0			;zero the 'B' reg. for 1st time through
+L7A37:
+	CALL	NUMCHK			;if neither, see if a valid number
+	MOV	CL,AL			;save
+	MOV	AL,CH			;get save first digit
+	ADD	AL,AL			;x2
+	ADD	AL,AL			;x4
+	ADD	AL,AL			;x8
+	ADD	AL,CH			;x9
+	ADD	AL,CH			;x10
+	ADD	AL,CL
+	MOV	CH,AL			;save
+	RET
+;.....
+;
+;
+SAVEUSER:
+	MOV	AL,CH
+	CMP	AL,15+1			;user numbers are 0-15
+	JNAE	L7A39
+	JMP	NOTVLD
+L7A39:
+	MOV	Byte Ptr SAVUSR,AL
+	RET
+;.....
+;	
+;
+NUMGET: MOV	DX, Offset CMDBUF
+	CALL	INBUF
+	MOV	AL,Byte Ptr CMDBUF+2   ;get number
+	CMP	AL,' '
+	JNZ	L7A40
+	RET
+L7A40:
+;
+NUMCHK: SUB	AL,'0'			;remove ascii bias
+	CMP	AL,9+1
+	JNB	L7A41
+	RET				;ok if 9 or less
+L7A41:
+	POP	BX			;remove 1st call from the stack
+	POP	BX			;remove 2nd call from the stack 
+	JMP	NOTVLD
+;
+GETUSER:MOV	DL,0FFH			;get current user
+;
+SETUSER:MOV	CL,USER			;set up bdos call
+	INT	224
+	RET
+;.....
+;
+;
+GETDISK:MOV	CL,CURDSK		;get current drive
+	INT	224
+	RET
+;.....
+;
+;
+NORESET:CALL	ILPRT
+	DB	'++      Terminal mode file open      ++',CR,LF
+	DB	'++ Use WRT or DEL before LOG command ++',CR,LF
+	DB	CR,LF,BELL,0
+	XOR	AL,AL
+	JMP	XPRT
+;.....
+;
+;
+SETSPD: CALL	ILPRT
+	DB	'Delay between chars. (0-9): ',0
+;
+NOKEYS: CALL	STAT
+	JZ	NOKEYS
+	CALL	KEYIN
+	CALL	STYPE
+	CALL	SAVEA
+	SUB	AL,'0'
+	CMP	AL,10
+	JNAE	L7A42
+	JMP	NOTVLD
+L7A42:
+	MOV	Byte Ptr BYTDLY,AL
+;
+	CALL	ILPRT
+	DB	'Delay at end of line (0-9): ',0
+;
+NOKEYS1:CALL	STAT
+	JNZ	L8A1
+	JMP	NOKEYS1
+L8A1:
+	CALL	KEYIN
+	CALL	STYPE
+	CALL	SAVEA
+	SUB	AL,'0'
+	CMP	AL,10
+	JNAE	L8A2
+	JMP	NOTVLD
+L8A2:	
+	MOV	Byte Ptr CRDLY,AL
+;
+SPDMSG: CALL	ILPRT
+	DB	CR,LF,'Char. delay (terminal file mode) is:  ',0
+	MOV	AL,Byte Ptr BYTDLY
+	MOV	CH,AL
+	MOV	AL,CH
+	PUSH	BX
+	MOV	BL,AL
+	MOV	BH,0
+	CALL	DECOUT
+	POP	BX
+	CALL	ILPRT
+	DB	'0 ms. per character',CR,LF
+	DB	'Line  delay (terminal file mode) is: ',0
+	MOV	AL,Byte Ptr CRDLY
+	MOV	CH,AL
+	PUSH	BX
+	MOV	BL,AL
+	MOV	BH,0
+	CALL	DECOUT
+	POP	BX
+	CALL	ILPRT
+	DB	'00 ms. per character',CR,LF,0
+	JMP	XPRT
+;......
+;
+;
+SAVEA:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	ILPRT
+	DB	CR,LF,0
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;.....
+;
+;
+SETDRV: MOV	AL,Byte Ptr CMDBUF+2	;get the disk drive
+	SUB	AL,'A'			;convert to binary value
+	CMP	AL,15+1			;for drives 0-15
+	JNAE	L8A3
+	JMP	NOTVLD
+L8A3:
+	MOV	DL,AL
+	MOV	CL,SELDSK		;select requested drive
+	INT	224
+	MOV	AL,Byte Ptr CMDBUF+5	;get user number, if any
+	CMP	AL,' '			;keep current user area?
+	JNZ	L8A4
+	JMP	XPRT
+L8A4:
+	SUB	AL,'0'			;convert to binary value
+	CMP	AL,1			;if a '1', could be units or tens
+	JNZ	SETDRV1			;if not, numbers stop at 15 so exit
+	MOV	AL,Byte Ptr CMDBUF+6	;check for a 2nd digit
+	CMP	AL,'0'
+	JB	SETDRV2			;if less, not a valid number, ignore
+	SUB	AL,'0'-10		;leave the '10' in as two digits used
+;
+SETDRV1:CMP	AL,15+1			;user areas are 0-15
+	JNAE	L8A5
+	JMP	NOTVLD
+L8A5:
+	MOV	DL,AL
+	CALL	SETUSER
+	JMP	XPRT			;back to work
+;
+SETDRV2:MOV	AL,1
+	JMPS	SETDRV1
+;.....
+;
+;
+SETTIM: CALL	SORPTST
+	JZ	L8A6
+	CALL	ILPRT
+L8A6:
+	CALL	ILPRT
+	DB	'Use 0-8 to give baud rate for ''S'' mode '
+	DB	'time-to-send message,',CR,LF
+	DB	'where 0=110, 1=300, 2=450, 3=600, 4=710, 5=1200, '
+	DB	'6=2400, ',CR,LF,'7=4800 8=9600 and 9=19200 Baud.'
+	DB	CR,LF,LF,'Enter value: ',0
+	CALL	NUMGET
+	CMP	AL,9+1			;only looking for 0-9 answers
+	JNAE	L8A7
+	JMP	NOTVLD
+L8A7:
+	MOV	Byte Ptr MSPEED,AL
+	CALL	SETTIM1
+	JMP	XPRT
+;.....
+;
+;
+SETTIM1:CALL	SORPTST
+	JNZ	SETTIM2
+	CALL	ILPRT
+	DB	'Rate for the S mode time-to-send message is set to ',0
+	JMPS	SETTIM3
+;...
+;
+;
+SETTIM2:CALL	ILPRT
+	DB	'Modem speed is ',0
+;
+SETTIM3:JMP	PRTBAUD
+;.....
+;
+;		
+SORPTST:MOV	AL,Byte Ptr SETUPTST   ;if setup is 'YES' or PMMIMODEM is..
+	MOV	CH,AL			;..'YES' or autodial modem is 'YES'..
+	MOV	AL,Byte Ptr PMMIMODEM  ;..return with zero bit not set.
+	OR	AL,CH
+	JZ	L8A8
+	RET
+L8A8:
+	MOV	AL,Byte Ptr AUTODIAL
+	OR	AL,CH
+	RET
+;.....
+;
+;
+TOGCRC: MOV	AL,Byte Ptr TOGGLECRC  ;allowing CRC/CHECKSUM toggle?
+	OR	AL,AL
+	JNZ	L8A9
+	JMP	NOTVLD			;if not, exit
+L8A9:
+	MOV	AL,Byte Ptr CRCDFLT    ;get present value and switch it
+	NOT	AL
+	MOV	Byte Ptr CRCDFLT,AL
+	CALL	TOGCRC1			;show on CRT it has been changed
+	JMP	XPRT
+;.....
+;
+;
+TOGCRC1:CALL	ILPRT
+	DB	'Mode: ',0
+	MOV	AL,Byte Ptr CRCDFLT    ;see if set for 'CRC' or 'CHECKSUM'
+	OR	AL,AL
+	JZ	CHEKMSG
+	CALL	ILPRT
+	DB	'CRC',CR,LF,0
+	RET
+;.....
+;
+;
+CHEKMSG:CALL	ILPRT
+	DB	'CHECKSUM',CR,LF,0
+	RET
+;.....
+;
+;
+TOGRUB: MOV	AL,Byte Ptr TOGGLERUB
+	OR	AL,AL
+	JNZ	L8A10
+	JMP	NOTVLD
+L8A10:
+	MOV	AL,Byte Ptr CONVRUB
+	NOT	AL
+	MOV	Byte Ptr CONVRUB,AL
+	CALL	TOGRUB1
+	JMP	XPRT
+;.....
+;
+;
+TOGRUB1:MOV	AL,Byte Ptr CONVRUB
+	OR	AL,AL
+	JZ	NORUBMSG
+	CALL	ILPRT
+	DB	'Rub is backspace',CR,LF,0
+	RET
+;.....
+;
+;
+NORUBMSG:
+	CALL	ILPRT
+	DB	'Rub is rub',CR,LF,0
+	RET
+;.....
+;
+;
+TOGLOC: MOV	AL,Byte Ptr TOGGLELOC
+	OR	AL,AL
+	JNZ	L8A11
+	JMP	NOTVLD
+L8A11:
+	MOV	AL,Byte Ptr LOCNXTCHR
+	NOT	AL
+	MOV	Byte Ptr LOCNXTCHR,AL
+	CALL	TOGLOC1
+	JMP	XPRT
+;.....
+;
+;
+TOGLOC1:CALL	ILPRT
+	DB	'Use ',0
+	MOV	AL,Byte Ptr LOCNXTCHR
+	OR	AL,AL
+	MOV	AL,Byte Ptr EXTCHR
+	JZ	LOCMSG
+	CALL	SHFTYPE
+	DB	' before local command',CR,LF,0
+	RET
+;...
+;
+;
+LOCMSG: CALL	SHFTYPE
+	DB	' to send local command to remote',CR,LF,0
+	RET
+;.....
+;
+;
+TOGLF:	MOV	AL,Byte Ptr TOGGLELF
+	OR	AL,AL
+	JNZ	L8A12
+	JMP	NOTVLD
+L8A12:
+	MOV	AL,Byte Ptr ADDLF
+	NOT	AL
+	MOV	Byte Ptr ADDLF,AL
+	CALL	TOGLF1
+	JMP	XPRT
+;.....
+;
+;
+TOGLF1: CALL	ILPRT
+	DB	'LF ',0
+	MOV	AL,Byte Ptr ADDLF      ;adding lf after cr?		       
+	OR	AL,AL
+	JNZ	LFMSG			;if yes, exit
+	CALL	ILPRT
+	DB	'NOT ',0
+;
+LFMSG:	CALL	ILPRT
+	DB	'sent after CR in "L" or "T" for a disk file',CR,LF,0
+	RET
+;.....
+;
+;
+TOGTXOFF:
+	MOV	AL,Byte Ptr TOGXOFF
+	OR	AL,AL
+	JNZ	L8A13
+	JMP	NOTVLD
+L8A13:
+	CALL	ILPRT
+	DB	'Use XOFF testing? (Y/N): ',0
+	CALL	GETANS
+	JB	NOCHG3
+	MOV	Byte Ptr XOFFTST,AL
+;
+NOCHG3: CALL	XOFFMSG
+	CALL	ILPRT
+	DB	CR,LF,'Use XON waiting after <CR> (Y/N): ',0
+	CALL	GETANS
+	JB	NOCHG4
+	MOV	Byte Ptr XONWAIT,AL
+;
+NOCHG4: CALL	XONMSG
+	MOV	AL,Byte Ptr XONWAIT
+	OR	AL,AL
+	JNZ	L8A14
+	JMP	XPRT
+L8A14:
+	NOT	AL
+	MOV	Byte Ptr XOFFTST,AL    ;do not allow both
+	CALL	ILPRT
+	DB	'Therefore ',0
+	CALL	XOFFMSG
+	JMP	XPRT
+;.....
+;
+;
+GETANS: MOV	DX,(Offset CMDBUF)
+	CALL	INBUF
+	MOV	AL,Byte Ptr CMDBUF+2	;get answer
+	CMP	AL,' '
+	CMC				;set the carry flag
+	JNZ	L8A15
+	RET
+L8A15:
+	MOV	CH,AL
+	CMP	AL,'N'
+	MOV	AL,0
+	JNZ	L8A16
+	RET
+L8A16:
+	MOV	AL,CH
+	CMP	AL,'Y'
+	MOV	AL,1
+	JNZ	L8A17
+	RET
+L8A17:
+	POP	AX			;preserve stack
+	JMP	NOTVLD
+;.....
+;
+;
+XOFFMSG:CALL	ILPRT
+	DB	'XOFF testing ',0
+	MOV	AL,Byte Ptr XOFFTST
+	OR	AL,AL
+	JNZ	XOTSTON
+	CALL	ILPRT
+	DB	'NOT ',0
+;
+XOTSTON:CALL	ILPRT
+	DB	'used',0
+;
+XONMSG1:CALL	ILPRT
+	DB	' in terminal mode file output',CR,LF,0
+	RET
+;.....
+;
+;
+XONMSG: CALL	ILPRT
+	DB	'XON ',0
+	MOV	AL,Byte Ptr XONWAIT
+	OR	AL,AL
+	JNZ	XONMSG2
+	CALL	ILPRT
+	DB	'NOT ',0
+;
+XONMSG2:CALL	ILPRT
+	DB	'automatically tested after CR',0
+	JMPS	XONMSG1
+;...
+;
+;
+SETUPENT:
+	MOV	AL,Byte Ptr SETUPTST
+	OR	AL,AL
+	JNZ	L8A18
+	JMP	NOTVLD
+L8A18:
+	MOV	DX,(Offset CMDBUF)+1
+	CALL	JMP_SETUPR
+	MOV	AL,Byte Ptr AUTODIAL   ;using a Hayes-type modem?
+	OR	AL,AL
+	JNZ	L8A19
+	JMP	XPRT			;if not, exit, otherwise..
+L8A19:
+	MOV	CH,'A'			;..send 'AT',CR to autodial modem..
+	CALL	SENDCHR			;..to insure its baud rate..
+	MOV	CH,'T'			;..matches that just selected.
+	CALL	SENDCHR
+	MOV	CH,CR
+	CALL	SENDCHR
+	JMP	XPRT
+;.....
+;
+;
+NEWFILE:MOV	AL,Byte Ptr NFILFLG	;file open for disk save?
+	OR	AL,AL
+	JZ	NOFILOPN		;if not, show "no file open" message
+	MOV	AL,Byte Ptr FCB3+1	;check that file was requested
+	CMP	AL,' '
+	JZ	NOFILOPN		;if no file, do not erase
+	MOV	DX,(Offset FCB3)	;otherwise erase the old file
+	MOV	CL,ERASE
+	INT	224
+	XOR	AL,AL
+	MOV	Byte Ptr NFILFLG,AL	;no file mentioned, reset flags
+	MOV	Byte Ptr SAVEFLG,AL
+	MOV	BX,(Offset FCB3)
+	CALL	INITFCB
+	MOV	BX,(Offset BUFFER)	;reset flags to bottom of ram just..
+	MOV	Word Ptr HLSAVE,BX	;..to insure they are there
+	JMP	XPRT
+;.....
+;
+;
+WRTFIL: MOV	AL,Byte Ptr NFILFLG	;saving memory for a disk file?
+	OR	AL,AL
+	JZ	NOFILOPN		;not saving a file, don't bother writing
+	CALL	WRTFIL1			;close the file
+	MOV	Byte Ptr SAVEFLG,AL
+	MOV	Byte Ptr WRFLG,AL
+	MOV	BX,(Offset FCB3)
+	CALL	INITFCB			;blank out 'FCB' to written file
+	MOV	BX,(Offset BUFFER)	;can't be erased
+	MOV	Word Ptr HLSAVE,BX	;reset to buffer start for next time
+	JMP	XPRT
+;...
+;
+;
+WRTFIL1:MOV	AL,Byte Ptr FCB3+1	;check that file was requested
+	CMP	AL,' '
+	JNZ	L8A20
+	RET
+L8A20:
+	CALL	WRTDSK			;write buffer to disk if not empty
+WRTFIL2:
+	MOV	DX,(Offset FCB3)	;close the file
+	MOV	CL,CLOSE
+	INT	224
+	XOR	AL,AL
+	MOV	Byte Ptr NFILFLG,AL	;file written, reset flags
+	RET
+;.....
+;
+;
+NOFILOPN:
+	CALL	ILPRT
+	DB	'++ No File Open ++',CR,LF,BELL,0
+	JMP	XPRT
+;.....
+;
+;
+; THIS ROUTINE DISPLAYS THE PHONE NUMBERS IN THE LIBRARY
+;
+NUMPRN: PUSH	BX
+	CALL	CLRTST
+	CALL	ILPRT
+	DB	'           Library of Phone Numbers of Remote Systems'
+	DB	0
+	MOV	CL,18			;number of lines to move
+	MOV	BX, (OFFSET NUMBLIB)	;address of source memory
+	MOV	DX,(Offset BUFFER)	;address of target memory
+	CALL	NEWLINE			;start with CRLF
+	MOV	SI,DX			;+LF
+	MOV	[SI],AL
+	LAHF				;and bump it
+	INC	DX
+	SAHF
+;
+NUMPRN1:LAHF				;skip PMMI dialing letter
+	INC	BX
+	SAHF
+	LAHF				;and equal sign
+	INC	BX
+	SAHF
+	MOV	CH,LIBLEN-2		;number of bytes to move
+	CALL	MOVE			;move to buffer
+	CALL	SPACES			;2 entries + 3 spaces = 63 characters
+	PUSH	BX			;save source address
+	PUSH	DX			;save destination address
+	LAHF				;skip next two characters
+	INC	BX
+	SAHF
+	LAHF
+	INC	BX
+	SAHF
+	MOV	DX,(17*LIBLEN)		;get offset of 17 times entry length
+	LAHF				;add it to the source address
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	POP	DX			;restor destination address
+	MOV	CH,LIBLEN-2		;get length of library entry
+	CALL	MOVE			;move another entry
+	POP	BX			;restore source address
+	CALL	NEWLINE			;start next line
+	DEC	CL			;one less line to print
+	JNZ	NUMPRN1			;if not finished, do another
+	MOV	AL,'$'
+	MOV	SI,DX
+	MOV	[SI],AL
+	MOV	CL,PRINT
+	MOV	DX,(Offset BUFFER)	;point to table of numbers to print
+	INT	224
+	CALL	CRLF
+	CALL	CRLF
+	POP	BX
+	JMP	XPRT			;finished, back to prompt
+;.....
+;
+;
+NEWLINE:MOV	AL,CR			;puts CRLF at memory pointed by 'DE'
+	MOV	SI,DX			;store it
+	MOV	[SI],AL
+	MOV	AL,LF			;line feed
+	LAHF				;bump pointer
+	INC	DX
+	SAHF
+	MOV	SI,DX			;store lf
+	MOV	[SI],AL
+	LAHF				;bump pointer
+	INC	DX
+	SAHF
+	RET
+;.....
+;
+;
+SPACES: MOV	AL,' '			;space
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF				;1
+	INC	DX
+	SAHF
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF				;2
+	INC	DX
+	SAHF
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF				;3
+	INC	DX
+	SAHF
+	RET
+;.....
+;
+;
+;
+;
+COMPARE:MOV	CH,Byte Ptr [BX]	;compares 'A' reg. with list..
+;
+COMPLP: INC	BX			;..addressed by BX. first element..
+	CMP	AL,Byte Ptr [BX]	;..of list must be number of elements..
+	JZ	VALID			;..being compared. returns with..
+	DEC	CH			;..carry set if 'A' reg. does not..
+	JNZ	COMPLP			;.. contain an element in list.
+	STC
+;
+VALID:	RET
+;.....
+;
+;
+NXTSCRN:CALL	ILPRT
+	DB	'HIT any KEY to CONTINUE',0
+;
+NOKEY1: CALL	STAT			;get keyboard status
+	JZ	NOKEY1			;keep looping until keypress
+	CALL	KEYIN			;gobble up keypress
+	CMP	AL,'C'-40H		;control-c to abort?
+	JNZ	CLRTST
+	POP	BX			;clear stack of return address
+	CALL	CRLF			;turn up a blank line
+	JMP	XPRT
+;.....
+;
+;
+CLRTST: MOV	AL,Byte Ptr SCRNTEST
+	OR	AL,AL
+	JZ	LOTSALF
+	JMP	CLRSCRN
+;.....
+;
+;
+LOTSALF:MOV	AL,CR
+	CALL	STYPE
+	MOV	CH,12
+	MOV	AL,LF
+;
+LFLOOP: CALL	STYPE
+	DEC	CH
+	JNZ	LFLOOP
+	RET
+;.....
+;
+;
+CURPAR: CALL	CLRTST
+	CALL	ILPRT
+	DB	'                Current Settings',CR,LF,LF,0
+	CALL	TOGCRC1
+	CALL	TOGRUB1
+	MOV	AL,Byte Ptr LSTTST
+	OR	AL,AL
+	JZ	NOLIST1
+	CALL	LSTMSG
+;
+NOLIST1:CALL	SETTIM1
+	CALL	ILPRT
+	DB	'Terminal mode file buffer is ',0
+	MOV	AL,Byte Ptr NFILFLG	;saving memory for a disk file?
+	OR	AL,AL
+	JNZ	ACTIVE			;if yes, go say "active"
+	CALL	ILPRT
+	DB	'in',0			;if not, say "inactive"
+;
+ACTIVE: CALL	ILPRT
+	DB	'active',CR,LF,'Unused portion of buffer is ',0
+	CALL	GETSPC
+	CALL	ILPRT
+	DB	' bytes',CR,LF,0
+	CALL	TOGLOC1
+	CALL	TOGLF1
+	CALL	XOFFMSG
+	CALL	XONMSG
+	CALL	SPDMSG
+	CALL	CRLF
+	CALL	CRLF
+	CALL	CRLF
+	JMP	XPRT
+;.....
+;
+;
+GETSPC: MOV	BX,(Offset BUFTOP)	;top of memory buffer
+	MOV	DX,Word Ptr HLSAVE	;current buffer location
+	SUB	BX,DX
+	CALL	DECOUT			;print the space remaining
+	RET
+;.....
+;
+;
+;***********************************************************************
+;
+;	D - A - T - A	 A - R - E - A
+;
+;***********************************************************************
+;
+;
+COMPLIST DB	6,'S','R','T','E','L','M'
+;.....
+;
+;
+; OPTION TABLE
+;
+OPTBL	EQU	(Offset $)
+ANSWFLG DB	'A'
+BATCHFLG DB	'B'
+DISCFLG DB	'D'
+JMPCMD	DB	'J'
+LOCCHFLG DB	'L'
+ORIGFLG DB	'O'
+QFLG	DB	'Q'
+RSEEFLG DB	'R'
+SSEEFLG DB	'S'
+VSEEFLG DB	'V'
+XITFLG	DB	'X'
+EPARITY DB	'0'			;even parity sub-option (only in S or R mode)
+OPARITY DB	'1'			;odd parity sub-option	(only in S or R mode)
+OPTBE	EQU	(Offset $)		;..transfer when program initially called.
+;
+;
+; The following must be in the same order as the table above:
+;
+RESTROPT DB	'A','B','D','J','L','O','Q','R','S','V','X','0','1'
+;
+;
+; The next 14 bytes equal the number of bytes between RECDNOB and
+; RECDNOE.
+;
+RESTSN	DB	0,0,0,0,0,0
+	DW	(Offset BUFFER)
+	DB	0,0,0,0,0,NAK
+;
+RECDNOB EQU	(Offset $)		;start of table marker
+RCVRNO	DB	0			;\
+RECDNO	DB	0,0			; \
+ERRCT	DB	0			;  \
+ERRCDE	DB	0			;   \
+EOFLG	DB	0			;    \	14 bytes between table markers
+RECPTR	DW	(Offset BUFFER)		;    /
+RECINBF DB	0			;   /
+MAXEXT	DB	0			;  /
+RCNT	DB	0,0			; /
+DATAFLG DB	0			;/
+BENHERE DB	NAK			;
+RECDNOE EQU	(Offset $)		;end of table marker
+;
+;
+; Additional 16-bit initialized storage
+;
+CRCVAL	DW	0
+DIALCT	DW	0
+HLSAVE	DW	(Offset BUFFER)
+HLSAVE1 DW	(Offset PBUFF)
+HLSAVE2 DW	(Offset PBUFF)
+;
+;
+; Additional general purpose initialized storage
+;
+ABORTFLG DB	0
+ACKFLG	DB	0
+CRCFLAG DB	0
+CRFLAG	DB	0
+CURRENT DB	52			;PMMI 300 baud speed value (defaults to 300)
+DLYFLG	DB	0
+ECHOFLG DB	0
+EXACFLG DB	0
+FIRSTME DB	0
+FNCKY	DB	'^'			; Function Key Intercept character
+FNKFLG	DB	0			;function key activity flag
+FSTFLG	DB	0
+LISTFLG DB	0
+LOCFLG	DB	0
+MFFLG1	DB	0
+MODCTLB DB	07FH
+NFILFLG DB	0
+ONERR	DB	0
+OPTION	DB	0
+ORIGSAV DB	0
+RINGBKFL DB	0
+SAVEFLG DB	0
+UARTCTLB DB	ORIGMOD			;for originate mode
+WRFLG	DB	0
+XFLG	DB	0
+CMDBUF	DB	80H,0			;command buffer control area
+;
+;
+; General purpose unitialized storage area
+;
+	RS	128			;storage area for 'CMDBUF'
+BGNMS	RS	2
+TIMFLG	RS	1
+FLTRFLG RS	1
+CHRFLG	RS	1
+TIMVAL	RS	2
+QUIKTIM RS	2
+DISKNO	RS	1
+DISKSAV RS	1
+DSTORE	RS	1
+FILECT	RS	1
+FTYCNT	RS	1
+MAXRAM	RS	1
+NAMECT	RS	1
+NBSAVE	RS	2
+OLDUSER RS	1
+SENDFLG RS	1
+SAVUSR	RS	1
+;
+FCB3	RS	33
+FCB4	RS	33
+FCBBUF	RS	15
+MFNAME5 RS	12			;requested name
+MFNAME6 RS	12			;current name
+	RS	100			;stack depth
+;
+;
+EVENPAGE EQU	((Offset $)+255)/256*256	;sets buffers on even page
+;
+;
+	ORG	EVENPAGE
+;
+;
+STACK	EQU	(Offset EVENPAGE)-2	;store original stack pointer
+CRCTBL	RS	512			;two tables of 128 bytes each
+BUFFDSK RS	128			;buffer for disk save
+BUFFPNT RS	128			;buffer for printer
+BUFFER	RS	1024*BUFSIZ		;send/receive file buffer
+BUFTOP	RS	0			;filled in when length is found
+PBUFF	EQU	(Offset $)		;printer buffer starts here
+NAMEBUF EQU	(Offset $)		;batch-mode filenames buffer
+;.....
+;
+;   ; BDOS EQUATES
+;
+RDCON	EQU	1
+WRCON	EQU	2
+BLIST	EQU	5
+PRINT	EQU	9
+RDBUF	EQU	10
+CONST	EQU	11
+CPMVER	EQU	12
+RESET	EQU	13
+SELDSK	EQU	14
+OPEN	EQU	15
+CLOSE	EQU	16
+SRCHF	EQU	17
+SRCHN	EQU	18
+ERASE	EQU	19
+READ	EQU	20
+WRITE	EQU	21
+MAKE	EQU	22
+REN	EQU	23
+CURDSK	EQU	25
+SETDMA	EQU	26
+DSKALL	EQU	27
+DSKPAR	EQU	31
+USER	EQU	32
+FILSIZ	EQU	35
+REIPL	EQU	0
+BDOS	EQU	5
+FCB	EQU	5CH
+FCBEXT	EQU	FCB+12
+FCBSNO	EQU	FCB+32
+FCBRNO	EQU	FCB+32
+FCB2	EQU	6CH
+TBUF	EQU	80H
+;.....
+;
+;
+	END
+

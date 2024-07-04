@@ -1,0 +1,317 @@
+[ KAY*FOG RBBS | MEXREAD.ART | published 06/16/85 ]
+
+MEX READ: AUTOMATED TRANSFER OF FILES WITH MEX: THE "READ" COMMAND
+          by Rick Charnes
+
+MEX is the most exciting public domain modem program available
+for CP/M computers.  What follows is a fairly detailed discussion
+of a use of MEX's most unique and dynamic capability, its READ
+command.  Beginners might find it difficult to follow.  It
+assumes a prior working knowledge of MEX, and some familiarity
+with its very long documentation.  Novices might want to read my
+introductory article to MEX, also available with the A) command
+here on KAY*FOG.
+
+Here are the files that I've developed in order to automate the
+transfer of files with MEX.  I want to emphasize that this is not
+true "batch" transfer; it has nothing in common with the
+
+Christensen "B" (batch) command as it does not have wildcard "*"
+capability.  You can not get it, for instance, to send all files
+with the extension ".LBR" with a "*.LBR" command.  Each file must
+be listed by name.  I prefer calling it "automated" transfer
+rather than "batch," though it is batch in the sense that it can
+send or receive a group of files with a single command.  The
+difference is that these files must all be named individually.
+
+The advantage of this way of file transfer is speed and accuracy.
+No longer do you have to make sure you spell the name of the file
+correctly TWICE - once while invoking the RCP/M's XMODEM function
+and then again when receiving with your own "R" command.  And you
+are spared many extra keystrokes and time.  And of course,
+there's the most important aspect: it's FUN!  There's nothing
+like the thrill of watching the computer do what you've
+programmed it do.  As Irv Block says, "All of this unattended,
+while you file your nails or go for coffee."  Ah, the true
+purpose of computers is revealed...
+
+The way that this is done is through one of MEX's most
+fascinating and exciting capabilities, its READ command. One
+prepares a file beforehand, using a text editor or wordprocessor,
+
+a file which MEX will "read" when online.  It is very similar to
+CP/M's SUBMIT utility.  Simply be sure to name the file with the
+extension ".MEX".
+
+I have named the following file "TAKEMANY.MEX", though you can
+call it anything.  (In the voluminous MEX literature, similar
+files are often called "GET.MEX").  Then when you are online and
+ready to down- or up-load, you simply type "READ TAKEMANY" (or
+"SENDMANY") on MEX's command line.
+
+Or, even better, turn on MEX's "read command extender" by typing
+STAT EXTEND ON.  With EXTEND on, MEX interprets any command
+entered on its command line differently from how it normally
+does.  It first searches to see if it is a normal command from
+its command "table. " If not, it "passes it on" to READ and
+assumes it's a READ command.  This way, you don't have to type
+the word "READ" since it is assumed.  In other words, if you type
+simply "TAKEMANY" after the MEX prompt, it will automatically
+search for the file "TAKEMANY.MEX" on disk and "submit" the
+commands from it.
+
+Here's the file:
+
+
+STAT TRIGGER ">"
+PREFIX "XMODEM S "
+SENDOUT "{1}"
+R {1}
+SENDOUT "{2}"
+R {2}
+SENDOUT "{3}"
+R {3}
+SENDOUT "{4}"
+R {4}
+SENDOUT "{5}"
+R {5}
+
+The numbers within the brackets are considered parameters, and I
+suggest you read the printed doc file for the explanation of
+these little guys, though it's similar, again, to SUBMIT's
+parameters.
+
+This is to receive several files in an automated sequence from an
+RCP/M.  Then when you've logged onto a network ("BBS") and you're
+in the RCP/M, simply type:
+
+
+TAKEMANY FN1.FT FN2.FT FN3.FT FN4.FT
+
+etc., where FN1.FT, FN2.FT, etc. are the names of the files you
+want.  If you have fewer than 5, that's OK.  MEX will just give
+you an error message: "parameter error: line #n" and the read
+command will simply halt.
+
+What this file does is first it sets the PREFIX of any SENDOUT
+string you're going to send as 'XMODEM S '.  It'll also wait
+until it sees a ">" from the RCP/M before sending its string.
+Of course ">" is the CP/M prompt you will get from the RCP/M.
+This TRIGGER command is excellent and very important for file
+transfer.  Nothing will be SENTOUT until MEX sees this all-
+important ">".  When it does, BAM!!  There she goes.  Then - if
+transmission is incorrect, and if WTECHO is on (it should be!) it
+waits till it sees another ">" then sends it out again until it's
+received correctly!  Watching this process on your screen,
+especially when it sends a "cancel" character if the transmission
+is incorrect and it needs to be sent again, is quite beautiful to
+behold!
+
+
+So with the prefix set, it then sendsout the string that you
+enter on its command line, which in this case is the filename.
+It then enters this string into the parameters {1}, {2}, etc. in
+the READ file.
+
+In other words, you're sending out to the RCP/M the prefix
+"XMODEM S " and then the name of the file you want, so altogether
+you're sending out "XMODEM S FILENAME.TYPE".  Whatever you've
+type on the command line after the word 'TAKEMANY' become the
+parameters that it inserts into the READ file to be sent out as
+SENDOUT.  Be sure to read the explanation of this in Ron Fowler's
+long .DOC file.  Again, it's very similar to the SUBMIT command
+with its parameters.
+
+Then after MEX has inserted the parameters that you've typed on
+its command line into the SENDOUT string, then it ALSO inserts
+them into the line in the READ file where it says "R {1}" or "R
+{2}", etc.  So after MEX has invoked the RCP/M's XMODEM capacity
+and gotten it ready to send, it then dutifully goes back into
+your computer and does the "R" command to receive.  And of course
+again it sees those brackets, knows it's a parameter, and again
+uses the parameter that you've entered on the read command line.
+
+You're sending and receiving the same filename.
+
+So what you're doing is having MEX tell the RCP/M to send what
+you've entered into parameter 1, then it tells your computer to
+receive what you've entered in parameter 1, and it continues on
+its merry way until its exhausted all the parameters or until
+number 5.
+
+This concept of parameters can be very complicated.  It takes
+some concentration at first, but it eventually all clicks
+together quite nicely.
+
+Remember that a READ command can operate on two levels: it can
+SENDOUT strings to the BBS _and_ it can give commands internally
+to MEX.  When it's SENDING OUT the string within the quotes is
+sent to the remote, but other commands, such as the "R {1}" or a
+STAT command or "PREFIX" in the above file (there are of course
+many others!), are sent internally to your computer to set the
+values of MEX.  It's important to get this sense of switching
+back and forth between modes.  Anything that should be sent out
+to the BBS should be sent as a SENDOUT string; anything you want
+to tell MEX itself, internally, gets entered directly.
+
+
+A slightly different way to write this file would be without the
+use of the PREFIX command.  It would then appear as:
+
+STAT TRIGGER ">"          <--- this is sent internally (to MEX)
+SENDOUT "XMODEM S {1}"    <--- this string is sent to the BBS
+R {1}                     <--- sent internally
+SENDOUT "XMODEM S {2}"    <--- to the BBS
+R {2}                     <--- (etc.)
+SENDOUT "XMODEM S {3}"
+R {3}
+SENDOUT "XMODEM S {4}"
+R {4}
+SENDOUT "XMODEM S {5}"
+R {5}
+
+I just prefer to use the PREFIX command as it saves typing and
+again -- it's more fun.
+
+
+Now a word about WTECHO.   Be sure to turn STAT WTECHO ON.  THIS
+IS VERY IMPORTANT for error detection feedback.  This turns
+SODELAY off, which is not as good for our purposes.  What WTECHO
+does is to verify (something like CRC checking, I guess!) that
+the transmission of the SENDOUT and keystring characters are sent
+properly.  You'll notice a real delay in the SENDOUT command and
+your keystrings when you have WTECHO ON rather than OFF.  I like
+it much better.  Only thing is, its efficiency is greatly
+diminished when you're not in an RCP/M, such as sending logon
+strings, as it generally looks for that TRIGGER character as a
+cue to send out its string.  For this purpose, its use is greatly
+problematic, as it's very difficult to find a single trigger
+
+character (or one at all, for that matter!) for a complete logon
+string.  I have found SODELAY, which is dependent on the WCHAR
+and WLINE settings (normally used for time delays when sending a
+file in terminal-mode) to be much better for sending out logon
+strings.  Any feedback on this, though, would be appreciated.
+
+But for file transfer with an RCP/M be sure to turn the trigger
+character to ">" with STAT TRIGGER ">" so it knows what to look
+for to SENDOUT and also for WTECHO to retry.  Since when sending
+logon strings and also for Smartmodem commands (such as to turn
+the modem speaker off and on, which can be done through a READ
+file) there will be no trigger character to look for, I recommend
+that the STAT TRIGGER ">" command be incorporated into READ files
+for file transfers rather than CLONEd directly into MEX.
+
+An alternate way to set up READ files is if you know the names of
+the files you want before you log on.  In this case, what you do
+is to have the READ file that you prepare off-line include the
+names of the files.  This way, you save time and possible
+mistakes typing them in on MEX's command line when you're on-
+line, since you're not using parameters.
+
+
+For instance, suppose you want to download the four files named
+THIS.FIL, THAT.FIL, THIS.DOC, and THAT.DOC.  Your file should
+look like:
+
+STAT TRIGGER ">"
+PREFIX "XMODEM S "
+SENDOUT "THIS.FIL"
+R THIS.FILE
+SENDOUT "THAT.FIL"
+R THAT.FILE
+SENDOUT "THIS.DOC"
+R THIS.DOC
+SENDOUT "THAT.DOC"
+R THAT.DOC
+
+So you'll end up, assuming the prefix of "XMODEM S ", sending out
+"XMODEM S THIS.FILE" which will invoke the RCP/M to send, and
+then return to your computer and receive THIS.FIL, etc.
+
+Just understand that when READ is reading the lines with SENDOUT
+commands, it's sending them to the RCP/M, and when it's in the
+lines with the "R" or "STAT" or "PREFIX" commands, it's talking
+
+to your computer, that is, to MEX.
+
+And of course both these files can be made to _upload_ files to
+an RCP/M by simply making the PREFIX to be XMODEM R and the "R"
+in the next line an "S".
+
+Or this idea can be used to upload or download single files.  To
+download a single file, make a READ file (always with the
+extension of .MEX, remember), that looks like:
+
+STAT TRIGGER ">"
+SENDOUT "XMODEM S {1}"
+R {1}
+
+And to upload a single file, again, reverse the "R" and "S".
+That's all.
+
+An interesting idea I owe to one of the other articles I read is
+using MEX's READ command to download a file but change its name
+before it's placed on your computer's disk.  This would be
+convenient for downloading files with the extension ".OBJ" which
+you would want to change to ".COM."  You don't have to wait till
+
+you're back in CP/M; you can have MEX do it for you.  Say you've
+got a file called "TAKEC.MEX" (the C means "change" the name):
+
+STAT TRIGGER ">"
+SENDOUT "XMODEM S {1} {2}"
+R {2} {1}
+
+Then when you're in the RCP/M, you see a file you want, called
+NSWP205.OBJ.  On MEX's command line, type:
+
+          TAKEC NSWP205.OBJ NSWP205.COM
+
+This reversal of parameters on the last line is what does it.
+It will send out that full string, with both names.  But
+apparently when XMODEM sees two strings, separated by a space, it
+simply ignores the second and assumes it's dealing only with the
+first.  So it does transmit NSWP205.OBJ.  But MEX "remembers" the
+filename you've typed in for the second parameter.  Then, when
+READ comes to the last line, this time it is READ that simply
+ignores what is second on its line, here parameter number 1
+(NSWP205.OBJ), and therefore receives only what comes first on
+its line, parameter number 2, NSWP205.COM.  You can check on your
+
+disk to make sure.  Neat, huh?
+
+One caveat about READ files in general.  It's hard to understand,
+but all the while MEX is reading a READ file, it is NOT in
+terminal mode.  It _looks_ like it's in terminal mode; the
+SENDOUT strings are sent directly to the computer network in what
+looks like terminal mode, but you're NOT in terminal mode.  The
+reason I emphasize this is that if you ever have a "T" (for
+Terminal) command within a read file EXCEPT AS THE VERY LAST
+COMMAND the READ file will simply stop.  So if you've set "T" as
+your GLOBAL command, you must turn it off with the command
+"GLOBAL".  (The word "GLOBAL" by it
+put a "T" command in the middle of a file, simply escape manually
+back to MEX's command mode and the READ file will continue.  "T"
+can very properly be put as the _last_ command in a read file; it
+will, in this case, put you successfully into terminal mode since
+there are no more commands after it.  This is actually a good
+idea since you will have to return to terminal mode manually if
+you have more business on the RCP/M.
+
+I hope I've explained A LITTLE about MEX's wonderful READ command
+and some of the things it can do.  Experiment yourself - I'm sure
+there are a lot more undiscovered roads to travel with this
+incredible modem program.  As one of its many aficionadoes, Irv
+Block, comments, "there may be as many different ways of
+programming it as there are users." Let me know what experiences
+you have.
+
+Have FUN! - that's what MEX is all about!  Any questions - send
+'em to me on the MEX CONFERENCE!
+
+                                        Rick Charnes
+
+-------------------------  End of MEXREAD.ART Text  -------------------------
+
+P

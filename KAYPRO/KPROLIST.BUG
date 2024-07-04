@@ -1,0 +1,38 @@
+
+
+
+ #: 74332      Sec. 1 - General
+Sb: #Kaypro Mystery Solved
+    18-Jan-84  01:54:26
+Fm: JACK CRENSHAW 72325,1327
+To: All
+
+Some time ago I reported a problem with the MDM711/Kaypro/Epson combina-
+tion, in that the ^P print buffer dropped characters.  Periodically, the
+subject has come up again, with Irv Hoff and Pete Holsberg trying hardest
+
+to help me solve the problem.  I finally got around to looking at the
+Kaypro BIOS, and as Pete suspected, there's a bug. The offending piece
+of code is in the ROM, and goes:
+
+     LISTST:  IN     1CH    	;GET SYSTEM PORT
+              BIT    3,A   	;TEST PRINTER READY BIT
+              RZ        	;THIS IS THE BUG
+              MVI    A, 0FFH	;ELSE RETURN FF
+              RET
+
+Note that if the bit 3 is zero, the routine returns garbage in A. The
+garbage is whatever is in port 1CH, which includes output as well as
+input bits.  However, the zero FLAG is set properly, which is why BIOS
+function 4 (LIST) works OK.  Ironically, if the programmer had used the
+usual ANI insruction instead of the Z-80 fancy bit test, he would have
+saved two bytes as well as get the right response.  The bug is in the
+ROM, so can't be easily fixed. The patch is easy, though -  Change the
+jump vector in the BIOS to:   JMP PATCH   and add:
+
+     PATCH:  CALL    0FB65H	;call old bios entry
+             RNZ		;OK unless its zero
+             XRA     A		;else clear A
+             RET		;that's all, folks
+
+					- Jack Crenshaw

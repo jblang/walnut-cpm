@@ -1,0 +1,189 @@
+;
+; B3C-DD.INS - Clock routine for the Digital Dynamics card 08/22/85
+;						-- by pst
+; 
+;	This insert should read the clock from a Digital Dynamics
+;	SpeedPro5 clock card.  The SpeedPro5 uses a 5832 chip.
+;
+;	This clock routine needs:
+;		BCD2BIN	- no
+;		BIN2BCD - no
+;
+;	This routine NEEDS a Z80 processor to function properly.
+;	It will NOT work with an 8080 or 8085.
+;
+;----------------------------------------------------------------
+;
+;	Note- This is an insert--not an overlay
+;
+	 IF	RTC
+DDBASE	EQU	156		; Base port of PIO
+ADATA	EQU	DDBASE		; Data port A
+ACTRL	EQU	DDBASE+1	; Control port A
+BDATA	EQU	DDBASE+2	; Data port B
+BCTRL	EQU	DDBASE+3	; Control port B
+;
+NCS	EQU	00000001B	; Not chip select
+CLKRD	EQU	00000010B	; Clock read
+CLKWR	EQU	00000100B	; Clock write
+ADWWR	EQU	00001000B	; Address write
+CLKHD	EQU	00010000B	; Clock hold
+;
+TIME:	LXI	B,ACTRL		; Output mode - port A (reg B=0, C=port)
+	CALL	SETMODE
+;
+	LXI	B,BCTRL		; Output mode - port B (reg B=0, C=port)
+	CALL	SETMODE
+;
+	XRA	A
+	OUT	ADATA		; Zero address/data lines
+	MVI	A,NCS+CLKHD
+	OUT	BDATA		; Deselect chip
+;
+	LXI	H,RTCBUF	; Point to RTC buffer
+	MVI	D,5		; Set counter for hour tens
+	CALL	RDIGIT		; Get hour tens
+	CALL	SHFT4		; Save in buffer
+	CALL	MULT10		; Multiply by 10
+	STA	CCHOUR		; Save temporarily
+	CALL	RDIGIT		; Get hour units in A reg
+	CALL	ADDLOW		; Set BCD digit
+	MOV	B,A
+	LDA	CCHOUR
+	ADD	B		; Add ones digit from B
+	STA	CCHOUR		; Store for later use
+;
+;	Minutes
+;
+	CALL	RDIGIT		; Get minute tens in A reg
+	CALL	SHFT4		; Save in buffer
+	CALL	MULT10		; Multiply by 10
+	STA	CCMIN		; Save in CCMIN
+	CALL	RDIGIT		; Get minute units in A reg
+	CALL	ADDLOW		; Set BCD digit
+	MOV	B,A
+	LDA	CCMIN
+	ADD	B		; Add in minutes ones from B
+	STA	CCMIN		; Store for later use
+;
+;	Seconds
+;
+	CALL	RDIGIT		; Second tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Second units
+	CALL	ADDLOW
+;
+;	Year
+;
+	INX	H		; Skip over "19"
+	MVI	D,12		; Start with years tens
+	CALL	RDIGIT
+	CALL	SHFT4
+	CALL	RDIGIT		; Years units
+	CALL	ADDLOW
+;
+	CALL	RDIGIT		; Month tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Month units
+	CALL	ADDLOW
+;
+	CALL	RDIGIT		; Day tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Day units
+	CALL	ADDLOW
+;
+	MVI	A,0		; Turn off hold
+	OUT	BDATA
+	MVI	A,NCS		; Deselect chip
+	OUT	BDATA
+	RET
+;
+;	Read a digit
+;		Command in D
+;		Digit returned in A
+;		D is decremented
+;		Hold bit is set
+;		Destroys: 'BCE'
+;
+RDIGIT:	LXI	B,ACTRL		; Output mode - port A (b=0, c=port)
+	CALL	SETMODE
+;
+	MOV	A,D		; Get command byte
+	OUT	ADATA		; Set address on lines
+	MVI	A,CLKHD+ADWWR	; Hold & Write
+	OUT	BDATA
+	MVI	A,CLKHD		; Hold
+	OUT	BDATA
+;
+	LXI	B,0FF00H+ACTRL	; Input mode - port A (b=255, c=port)
+	CALL	SETMODE
+;
+	MVI	A,CLKHD+CLKRD	; Hold & Read
+	OUT	BDATA
+;
+	MOV	A,D		; Check for hour tens digit
+	DCR	D
+	CPI	5		; Was it hour tens digit?
+;
+	IN	ADATA		; Read the digit
+	PUSH	PSW
+	MVI	A,CLKHD		; Set hold mode
+	OUT	BDATA
+	POP	PSW
+	RNZ			; No, return
+	ANI	3		; Yes, so kill 24 hour bit
+	RET
+;
+;	Set for input or output mode of port A
+;	Entry: mode in B -- 255=output, 0=input
+;	       port to send to in C
+;
+SETMODE:MVI	A,207		; Mode 3, bit I/O
+	DB	0EDh,079h	; Z80 instruction = OUT (C),A
+	DB	0EDh,041h	; Z80 instruction = OUT (C),B
+	MVI	A,7		; Interrupt control
+	DB	0EDh,079h	; Z80 instruction = OUT (C),A
+	MVI	A,3
+	DB	0EDh,079h	; Z80 instruction = OUT (C),A
+	RET
+;
+;	Multiply register A by 10
+;	Destroys 'E'
+;
+MULT10:	ADD	A		; 2x
+	MOV	E,A
+	ADD	A		; 4x
+	ADD	A		; 8x
+	ADD	D		; 10x
+	RET
+;
+;	Shift A to high nibble
+;		Stores shifted value in 'M'
+;		Destroys 'E'
+;		A is left unchanged
+;
+SHFT4:	MOV	E,A
+	ANI	15		; Only handle lower 4 bits
+	RLC			; Shift A over 4 bits
+	RLC
+	RLC
+	RLC			
+	MOV	M,A		; Save it while we're at it
+	MOV	A,E
+	RET
+;
+;	Add in low BCD nibble
+;		Gets high nibble from M
+;		Stores new BCD byte in M
+;		Increments HL
+;		Destroyes 'E'
+;
+ADDLOW:	MOV	E,A
+	ANI	15		; Deal with low nibble only
+	ORA	M		; Add in high nibble from tens digit
+	MOV	M,A		; Save new BCD byte in buffer
+	INX	H		; Move on to next location
+	MOV	A,E
+	RET
+	 ENDIF			; RTC
+

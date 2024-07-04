@@ -1,0 +1,990 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Implementation Manual for
+                            YAM (Yet Another Modem)
+                               by Chuck Forsberg
+
+
+                            Distributed with YAMC86
+                       (Converted for CI C86 and CP/M-86)
+                                by Paul Homchick
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 1
+
+
+          
+          
+
+
+     1  FILE TRANSFER PROTOCOL       1. FILE TRANSFER PROTOCOL 
+
+          The  transmission  of  pathnames  in batch mode differs from
+          that used in MODEM7.  Yam  sends  the  pathname  as  a  null
+          terminated string in a standard Ward Christensen type packet 
+          with a sector number of 0.  
+          
+          The  sender  may append the following additional information
+          starting  one  byte  after  the  null  that  terminates  the
+          pathname: 
+          
+          sprintf(p, "%lu %lo %o", f.st_size, f.st_mtime, f.st_mode); 
+          
+          where  st_size  is  the  exact  length of the file in bytes,
+          st_mtime is the modification date in seconds since 1970, and 
+          st_mode is the file mode, as defined for Unix V7/Sys3.    If
+          the  mod  time  is  unavailable,  a  0  value will cause the
+          receiver to ignore it.  If the file mode is unavailable, a 0 
+          value will cause the receiver to ignore it and use a dafault 
+          file mode.  
+          
+          Disk specifiers (B:) are not sent.  Directory names of  full
+          pathnames are  not  (generally)  sent.   If this information
+          (including the trailing null provided  by  sprintf)  exceeds
+          the  128  byte standard sector length, a long sector must be
+          sent.  
+          
+          The sender waits for  an  initial  NAK  before  sending  the
+          pathname.   An  explicit  NAK  is  sent  by  the receiver at
+          intervals when  is  ready  to  receive  a  pathname.    Upon
+          receiving   and   acknowledging  the  pathname  packet,  the
+          receiver opens the file and then sends the initial  NAK  for
+          the data  in  the  file.    A null pathname terminates batch
+          transmission.  
+          
+          The remainder of the pathname sector is set to nulls.  
+          
+
+
+     2  Installing Yam       2. Installing Yam 
+
+          
+          Yam   consists   of   yam.h,   yamsys.h,    yam8.asm,    and
+          yam[1235710].c.   Yam  currently  supports the Z89 (with aux
+          board), Cromemco TUART, TRS-80 II, and Apple (currently with 
+          Z19 console).  
+          
+          Yamsys.h is  not  part  of  the  distribution;  one  of  the
+          configuration  dependent header files is copied to yamsys.h.
+          SOME of these files are: Yamz89.h is used for Z89  computers
+          (check  the port definitions to be sure they agree with your
+          usage.) Yamtuart.h is  setup  for  a  TUART  board  at  60H.
+          Yamz89xm.h  describes  an XMODEM configuration with the Z89.
+          Yamtrsii.h describes a TRS-80 Mod II.  One of these (Or  one
+
+
+     YAM/XYAM                     Version 4.24                       Page 1
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 2
+
+
+          you  write  for  your  system)  should be copied to yamsys.h
+          before compiling the files.  
+          
+          YAM also references some of  the  definitions  in  BDSCIO.H.
+          When  cross-compiling  a  version  of  yam  for  a different
+          system, be sure to reference a bdscio.h  file  suitable  for
+          the target  system.    Alternatively, one might #undef CDATA
+          and any other definitions which otherwise would  speak  with
+          forked tongue; YAMLYLE.Hwill be an example of this trick.  
+          
+          Starting  with  Version 3.08 there will be multiple versions
+          of yam5.c depending on the target system.  There  have  been
+          few  changes  to yam5.c (except for porting to new systems),
+          so you should be fairly safe  hanging  on  to  your  current
+          version.   If  you do have a special version of yam5, please
+          edit out ALL code and comments not directly relevant to your 
+          application (including the unused versions of  readline)  to
+          minimize  storage  space  and  transmission time for RCP/M's
+          archiving yam.  
+          
+          Compilation should be with -e ????  for all files and -o for 
+          yam[235] and yam10 for best runtime performance.  Note  that
+          yam[147]  are  NOT  compiles with -o; the execution speed of
+          the functions in these  files  is  unimportant,  and  it  is
+          better to save code space by not using -o.  Consult the .sub 
+          files for examples.  If the externals start below the end of 
+          code,  YAM  will  say "urk" and exit, hopefully before doing
+          anything REALLY nasty.  
+          
+          Yam should be linked with the object module with the largest 
+          set of "local globals" first.  Currently, this is in  yam10.
+          These  variables  overlay  similar  variables  in some other
+          files.  They are not required simultaneously, but the linker 
+          must  see  the  largest  common  area  first   to   allocate
+          sufficient room  for  them.   (N.B.: I do not recommend this
+          hack as a general method!) 
+          
+          Care should be taken to  ensure  that  all  .crl  files  are
+          compiled  or  assembled  with compatible versions of cc1 and
+          bds.lib.  
+          
+          Yam can be made somewhat smaller if the -o is left  out  and
+          the external  address is downsized accordingly.  To make the
+          smallest YAM possible, define CDOS and RESTRICTED  and  then
+          leave off as many optional #defines as possible.  The bdsnew 
+          library   (assembly   language  versions  of  some  standard
+          functions) may be used with slight improvments in code  size
+          and speed.    (Bdsnew  library  is  named bn.crl in the .SUB
+          files used for yam.) 
+          
+          YAM  is  handy  for  transferring  files  between   directly
+          connected  machines;  hence  all the attention to high speed
+          operation.  
+          
+          If your machine uses a different type of  UART  chip,  or  a
+          built-in modem card, then the yamsys.h and yam5.c files will 
+          need work.  
+          
+
+
+     YAM/XYAM                     Version 4.24                       Page 2
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 3
+
+
+          Compilation and proper operation of YAM cannot be guaranteed 
+          with  BDS  C versions prior to 1.50a. If you don't have that
+          version, send 8 (maybe more now!) bucks and a copy  of  your
+          software  license (a Xerox of your distribution disk showing
+          its label should do) to: 
+          		BDS C Users Group
+          		Robert Ward
+          		Dedicated Microsystems Inc
+          		409 E Kansas ST
+          		Yates Center, Kansas 66783
+          Versions before 1.46 are a no-no.  
+          
+
+
+     3  PROPAGATING YAM       3. PROPAGATING YAM 
+
+          
+          Often the question arises, "How do I get YAM  (or  whatever)
+          into this neat new machine with the *%!@$@ format disks?  
+          
+
+          3 1 Binary Serial File Transfer            3.1 Binary Serial File Transfer 
+          The b  mode was put in just for you!  First, cross-compile a
+          version of YAM with a  yamsys.h  file  appropriate  for  the
+          target machine.   Then, connect the two machines RS232 ports
+          together, and initialize those ports so they  talk  to  each
+          other.  Presumably, YAM is running on the host machine.  Now 
+          run  ddt,  sid,  zsid,  dcon,  or  whatever and write a tiny
+          program up in fairly high memory (above the highest  address
+          used by YAM, say 7000h).  
+          
+          This program will: 
+
+
+            Set HL to 100h              Set HL to 100h 
+
+            Wait for UART for data available              Wait for UART for data available 
+
+            Input  data  from  UART   Note   UART must be in 8 bit  no             Input  data  from  UART  (Note:  UART must be in 8 bit, no
+                parity mode                   parity mode) 
+
+            Store data to memory  mov m a               Store data to memory (mov m,a) 
+
+            Increment HL              Increment HL 
+
+            Jump to 2 above                Jump to 2 above.  
+          
+          When the file is all sent, interrupt the  program,  jump  to
+          location 0.   Then  you  can  save  YAM.COM.    If you can't
+          interrupt this program without blowing it away, you'll  have
+          to  change  it  to detect the end of data (perhaps count the
+          number of bytes received in the DE register)  and  make  the
+          program jump to location 0.  
+          
+
+          3 2 Hex File Transfer            3.2 Hex File Transfer 
+          Another  possibility  would  be to unload the yam-target.com
+          image into a hex file ( UNLOAD2.ASM works fine ).  Then  run
+
+
+     YAM/XYAM                     Version 4.24                       Page 3
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 4
+
+
+          pip  in  the  target machine with input from the serial port
+          and output to a file using pip's B parameter.   With  the  B
+          parameter, pip buffers incoming data in memory until an XOFF 
+          (Control-S) is  received.    To get that, send the file from
+          the host with "yam f file.hex" and from time to time hit two 
+          ^S's on the host keyboard.  The first ^S stops the transfer, 
+          the second will be passed to the  other  machine  where  pip
+          will see  it.   When pip has written out the buffer, type ^Q
+          on the host to resume.  (Be sure to  stop  often  enough  so
+          pip's buffer doesn't overflow.) (With pip, go slow -300 baud 
+          is much better then typing it in by hand!) Finally, load the 
+          file with  the  target  system's load command.  Also, if the
+          target system is echoing characters (TTY: input device)  the
+          FE file command may be easier to use.  
+          
+          If   the  target  system  echos  characters,  use  the  ``fe
+	  filename'' command  which waits for an answering echo before
+	  sending the next  character.  If that doesn't work properly,
+          try ``ft'',  slowing down the transfer with the t mode.  
+          
+          Once you have a working yam running on target machine, other 
+          files come across effortlessly with the batch file  transfer
+          option.  
+          
+          Happy propagation and may your machines trap fertile YAM's.  
+          
+
+
+     4  Important  define s       4. Important #define's 
+
+          
+
+
+            MODOUT c                                                                MODOUT(c) This outputs the character c to the modem.  This 
+                macro  need not check whether the modem is ready for a
+                character as that has already been  done.    MODOUT(c)
+                must return immeadiately regardless of what is in c.  
+                
+
+            LPOUT c                                                                LPOUT(c)  Likewise,  unadorned output of c to the printer.
+                LPOUT(c) must return immeadiately regardless  of  what
+                is in c.  
+                
+
+            POREADY                                                                POREADY  This  define returns non zero if the line printer
+                is ready to accept a character.  It must always return 
+                0 if LPOUT(c)  would  not  return  immeadiately.    If
+                POREADY  is  slow,  enabling  the printer at high baud
+                rates may cause characters to be lost.  
+                
+
+            TTYOUT c                                                                TTYOUT(c) Unadorned output of c to the local display.  YAM 
+                checks  that  the  local  display  is   ready   before
+                executing TTYOUT(c).        TTYOUT(c)    must   return
+                immeadiately regardless of what is  in  c.    Caution:
+                don't  use bdos function 6 which has special cases for
+                0xFE and 0xFF.  
+                
+
+
+     YAM/XYAM                     Version 4.24                       Page 4
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 5
+
+
+            CICHAR                                                                 CICHAR Unadorned unconditional console input.   This  must
+                not  trap  on  any  control characters needed for host
+                communications.  
+                
+
+            MYSYSTEM                                                               MYSYSTEM Defining this causes yam2 to be compiled  with  a
+                call  to yam4.c for handling the Compuserve A protocol
+                for file transfer (see 2 mode).  Unless you know  what
+                you are doing, you should use the following even if it 
+                is  a  bloody  lie  as xftran may not accept something
+                original.  If this is included, you will need  yam4.c,
+                otherwise not.  
+                
+                #define MYSYSTEM "#CPMHeath/Zenith,CC,HC,PA,PL\015" 
+                
+                
+
+            KBDBRK                                                                  KBDBRK This defines the keyboard character that translates 
+                to a  break in yam3.  It should not be a normally used
+                character.  
+                
+
+            FNXEXT                                                                 FNXEXT   This   character   unconditionally   exits   term
+                function.  Normally, this is defined only if a special 
+                function  key  is  available  as  that  code cannot be
+                transmitted.  If FNXEXT is  defined,  FNXREP  (replot)
+                must also be defined.  
+                
+
+            ANSWERBACK                                                             ANSWERBACK  This  string is transmitted from term function
+                in Q mode in response to keyboard ^F  or  ^E  received
+                from remote.    Conventionally, ANSWERBACK consists of
+                "\\r\\n<phone-number> <user  name>  <city>\\r\\n\\021"
+                where  city  is  a  three  or four letter abbreviation
+                specified  by   Western   Union   Telegraph   company.
+                Teletype  answerbacks  are limited to 20 characters, a
+                limitation which needn't concern us.  
+                
+
+            PHONES                                                                 PHONES This file (usually "A:YAMPHONE.T") contains a  list
+                of names,  phone  numbers,  and  baudrates.  The names
+                must be in lower case.  
+                
+
+            HELPFILE                                                               HELPFILE Contains a short summary of  commands  and  other
+                useful  information  about  YAM suitable for use as an
+                online cribsheet.  Currently a  helpfile  exists  only
+                for XYAM.  
+                
+
+            CDOS                                                                   CDOS  Makes  YAM work on CDOS operating system by deleting
+                CP/M 2.2 operations such  as  user  number,  calculate
+                file length,  etc.    If  you have CP/M 1.4, CDOS just
+                might do the trick for you.  Since my Cromenco  system
+                has refused to work for the batter part of a year now, 
+                there  is  an  excellent chance yam won't compile with
+                CDOS defined.  In addition, newer versions  of  BDS  C
+                require  the  CP/M  2  features, and yam won't compile
+
+
+     YAM/XYAM                     Version 4.24                       Page 5
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 6
+
+
+                with earlier versions.  So there.  
+                
+
+            KBMASK                                                                 KBMASK  This  is  normally  0177  to  strip  parity   from
+                keyboarded characters, but may be 0377 if a full 8 bit 
+                keyboard is used.  
+                
+
+            USERINIT                                                               USERINIT  Causes  init()  to call a user supplied function
+                userinit().  This may be  used  to  set  up  interrupt
+                vectors, global variables, etc.  Note that userinit is 
+                called in response to the init command.  
+                
+
+            USEREXIT                                                               USEREXIT  Defining this causes a call to userexit() before
+                any normal exit() call.  If userinit() has  ``stolen''
+                something  from  the  operating  system,  (such  as an
+                interrupt  vector)  userexit  should  ``return''   it.
+                Since  yam is often exited with control C, that should
+                be trapped also.  
+                
+
+            TERMREPLOT                                                             TERMREPLOT A string enclosed in quotes  which  clears  the
+                screen  and  sets  the terminal to the mode desireable
+                for replot.  Replot assumes that TERMREPLOT turns  off
+                line wraparound.  
+                
+
+            TERMRESET                                                              TERMRESET  A  string  enclosed  in  quotes  which sets the
+                terminal to the mode desireable for the term  function
+                and clears  the  status  line  (if  any).  This string
+                should not clear  the  screen.    It  should  set  the
+                terminal  in the mode(s) expected by  vi or other host
+                based screen editors with which YAM is to be used.  In 
+                particular, special effects  (if  any)  of  TERMREPLOT
+                should be negated.  
+                
+
+            TERMINIT                                                                TERMINIT This string should unconditionally initialize and 
+                clear the screen.  
+                
+
+            CLEARS                                                                 CLEARS  String to clear the screen and home cursor without
+                changing modes.  
+                
+
+            CLEARL                                                                 CLEARL String to return cursor to left  margin  and  clear
+                the current  line.    If the "clear line" command does
+                not return the  cursor,  a  carriage  return  must  be
+                included in this string.  
+                
+
+            INTOREV                                                INTOREV String to turn on reverse video.  
+                
+
+            OUTAREV                                                 OUTAREV String to turn off reverse video.  
+                
+
+
+
+     YAM/XYAM                     Version 4.24                       Page 6
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 7
+
+
+            RXNONO                                                                  RXNONO Define this as a string of characters, any of which 
+                would  cause  your  terminal and/or cbios grief if not
+                suppressed by term function.  
+                
+
+            STATLINE                                                               STATLINE Define this if your terminal has an extra  (viz.,
+                25th)  line  usable  for status information which does
+                not scroll up nor interfere with scrolling.   lpstat()
+                writes  to  the  entire  status line, clearing out any
+                previous contents.  pstat()  writes  starting  at  the
+                48th  position, not disturbing any information written
+                by lpstat().  
+                
+
+            T4014                                                        T4014 Special code for storage tube terminals.  
+                
+
+            NOSCROLL                                                                NOSCROLL Special considerations for terminals which do not 
+                scroll, such as storage tube terminals.  
+                
+
+            MODEMSTUFF                                                             MODEMSTUFF If you provide routines setbaud(),  readbaud(),
+                bye(),  and onhook(), define MODEMSTUFF to exclude the
+                default dummy routines.  
+                
+
+            AUTODIAL                                                               AUTODIAL If your modem supports autodial, write  your  own
+                version  of dial() and define AUTODIAL to suppress the
+                default routine.  
+                
+
+            FLIP                                                                   FLIP If you have a flip() subroutine in  your  yam5,  this
+                causes flip   to  be  included  as  a  command.    See
+                yam5pmmi.c for an example of a flip routine.  
+                
+
+            MIERROR                                                                MIERROR If your uart has a  separate  register  for  error
+                bits   (not  the  register  that  holds  receive  data
+                available), mierror  should  be  an  expression  which
+                returns non zero in case of overrun, framing, or other 
+                error, but  not  carrier  dropout.    This  version of
+                readline has not been tested.  
+                
+
+            MIREADYERROR                                                           MIREADYERROR Define this if data available and  the  error
+                bits  are  in the same register, especially if reading
+                that register clears some error bits, or if the  error
+                bits are valid only if data available.  
+                
+
+            IOTYPE                                                                 IOTYPE  This  defaults to char for i/o mapped systems with
+                256 ports.  This may be defined to  unsigned  or  long
+                for  systems  with  more  ports (8086 or memory mapped
+                i/o).  
+                
+
+            Z19                                                                    Z19 Generates output for Z19 functions, especially  status
+                (25th) line.  
+
+
+     YAM/XYAM                     Version 4.24                       Page 7
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 8
+
+
+                
+
+            USQ                                                                    USQ  Allows  the  type  command to automatically recognize
+                squeezed files and display them in ASCII form.    Adds
+                1000 hex to program size.  
+                
+
+            RXLOG                                                                  RXLOG  Log  all  files  received  from  remote  systems in
+                RXLOG.  Information stored includes user number, disk, 
+                filename, baudrate, and the name of the remote  system
+                given in the last call command (LASTCALR in xyam).  
+                
+
+            TXLOG                                                                  TXLOG  Log  all  files  transmitted  to  remote systems in
+                TXLOG.  Information same as above.  
+                
+
+            LOGFILE                                                           LOGFILE Must be defined if either of the above are.  
+                
+
+            NATHAN                                                                  NATHAN Students of American History will recall the famous 
+                patriot Nathan Hale who said "I regret that I have but 
+                one asterisk for my country."  Octal code 052.  
+          
+
+
+     5  Tuning Parameters       5. Tuning Parameters 
+
+          Yam uses a number of tuneable  parameters  for  portability.
+          The  values  used  depend strongly on the speed of functions
+          and operating system calls used to interrogate the  keyboard
+          and modem  port.   They are also affected by the clock speed
+          and code quality of the compilier used.    These  parameters
+          have  been  added  on a somewhat ad hoc basis, so one should
+          grep the source files  to  determine  the  extent  of  their
+          effects.  
+          
+
+                
+
+            CLKMHZ                                                                 CLKMHZ This   is  a  ``master''  parameter.    Use  it  to
+                calibrate  the  timeout  in  readline  (see  yam5   or
+                equivalent).  
+                
+
+            MOMCAL                                                                  MOMCAL Should give a delay (see yam3) as short as possible 
+                while   still   allowing   the   user  to  comfortably
+                double-stroke control-E or control-V.  
+                
+
+            SCREAMER n                                                              SCREAMER n Compiles a call to yterm() instead of term() if 
+                baudrate > n and no special modes have been set  which
+                would be  rendered  useless.    Without yterm, maximum
+                baudrate may be limited to much less than 9600.  Yterm 
+                is written in assmebly language and must  be  modified
+                slightly    according    to    the    local   hardware
+                configuration.  The yterm function is in yam9.csm.  
+                
+
+
+     YAM/XYAM                     Version 4.24                       Page 8
+
+
+     Yam Implementation Manual  Revised 9-10-83                      Page 9
+
+
+                
+                Note: if you miss only the first few characters  in  a
+                line,  and  if  your  system  has memory mapped video,
+                screamer won't help you much; you need to speed up the 
+                scrolling process!  Note  that  yterm  lacks  much  of
+                term's functionality.    On  a  Z89  with  direct bios
+                keyboard  input,  yterm  functions   at   19200   baud
+                (assuming 19kb crt port!).  
+                
+
+            KBDNOW             !                                                   KBDNOW  This  forces  term  function  to  interrogate  the
+                keyboard each time a character  is  displayed  to  the
+                console rather than when there are no modem characters 
+                waiting to   be   displayed.     With  computers  with
+                interrupt-buffered  modem  ports,  this  #define  will
+                allow  the  keyboard to always get a word in edgewise.
+                It is not recommended otherwise.  
+                
+
+            ESCCAL                                                                 ESCCAL Many terminals send escape  sequences  for  certain
+                keys.   In  some  configurations, these sequences will
+                fail to transmit properly because the  modem  (300  or
+                1200  baud)  cannot transmit the characters as fast as
+                the terminal generates them.  I ESCCAL is defined, yam 
+                will check for rapid escape sequences and  buffer  the
+                following characters.    ESCCAL  should  be set to the
+                lowest number (shortest delay) that will recognize the 
+                sequences.  This logic is not needed if  the  keyboard
+                is interrupt driven.  This feature may not work if the 
+                remote  is  sending  data at maximum speed the instant
+                the function key is used.  For more information, study 
+                the functions on yam3.c that  reference  abptr  and/or
+                abend.  
+                
+
+            LOWWATER                                                               LOWWATER  When  receiving  text  from  the  host  in  term
+                function, term transmits  XOFF  (DC3)  when  the  free
+                buffer  space gets down to LOWATER, unless Jovemode is
+                set.  
+                
+
+            LINKPORT                                                               LINKPORT Causes  compilation  of  code  to  implement  the
+                ``link'' command.    See ``ymlink.h'' for typical link
+                parameters.  
+
+            LHPORT                                                                 LHPORT Local Host port to use for local host  during  link
+                command.  
+
+            LIDPORT                                                 LIDPORT Modem data port for link command.  
+
+            LISPORT                                                   LISPORT Modem status port for link command.  
+
+            LIREADY                                                                LIREADY  Defines  a  function  which tests for a character
+                available from modem when in link command.  
+
+            LCDO                                                          LCDO Test for carrier drop-out in link command.  
+
+            LICHAR                                                                 LICHAR Returns next character  from  modem  when  in  link
+
+
+     YAM/XYAM                     Version 4.24                       Page 9
+
+
+     Yam Implementation Manual  Revised 9-10-83                     Page 10
+
+
+                command.  
+
+            LOREADY                                                                LOREADY  Test  for  link  modem  ready  to  accept another
+                character.  
+
+            LOUT x                                                                 LOUT(x) Macro outputs a character  to  modem  port  during
+                link command.  
+
+            LIBREAK                                                               LIBREAK Test for break from modem when in link command.  
+
+            CLRLIBREAK                                                     CLRLIBREAK Function to clear LIBREAK indication.  
+                
+          
+
+
+     6  XYAM Differences       6. XYAM Differences 
+
+          
+
+                XYAM  is  produced  by  defining  XMODEM  in  the file
+                'yamsys.h'.  Consult 'yamz89xm.h' and  'yamx.sub'  for
+                an example.      Certain   #defines   are   especially
+                applicable to XYAM: 
+                
+
+            RESTRICTED                                                             RESTRICTED Certain  commands  and  options  are  disabled.
+                Filenames  with  '.BAD' extensions and files with $SYS
+                or TAG2 bits set cannot be  opened.    They  will  not
+                appear with DIR or DIRR commands.  
+                
+                A  file with extension of '.COM' will be uploaded with
+                a '.OBJ'  extension.    Existing   files   cannot   be
+                overwritten.   If  a  file  is received (r command) in
+                error, it will be unlinked.  
+                
+
+            CDO                                                                    CDO Define a test for carrier drop out so that  XYAM  will
+                automatically exit T(erm) function when the connection 
+                is broken.  
+                
+
+            BYEPROG                                                                BYEPROG  Bye,  O  and OFF commands chain to BYEPROG.COM if
+                BYEPROG is defined (as a string).  For systems wishing 
+                to use a BYE.COM to request comments.  
+          
+
+
+     7  Recent Revisions Enhancements to YAM       7. Recent Revisions/Enhancements to YAM 
+
+ 4.26x Converted to CI C86 syntax for CP/M 86 12-19-83 (Paul Homchick).
+ 4.26
+ 4.25
+ 4.24 Added chek command to Lattice and CC86 16 bit versions 8-25-83.  
+ 4.22 Minor changes to Jovemode 7-21-83.  
+ 4.21 Added Jovemode 7-18-83.  
+ 4.20 Changed uses of certain macros to  function  calls  to  conserve
+          memory.  
+
+
+
+     YAM/XYAM                     Version 4.24                      Page 10
+
+
+     Yam Implementation Manual  Revised 9-10-83                     Page 11
+
+
+ 4.13 Changed crck command printout format.  Function init() now calls 
+          chngport rather  than  setting  port values directly.  Hp125
+          version checks for proper port number.  6-25-83 
+ 4.12 6-12-83 yam1.c default term file xmit mode name (as  printed  in
+          ``s''   command)  changed  from  ``IMAGE''  (misleading)  to
+          ``normal''.  
+ 4.11 6-9-83 chngport() in yam5.c return value now checked for  ERROR.
+          (Seiko  version checks for valid port number.) Bug in CPM-86
+          getfree() corrected.  
+ 4.08 5-30-83 Changes in yam7.c:  BDS  C  1.50a  broke  fopenaa  code.
+          Fopenaa code removed and refrences changed to fappend in BDS 
+          lib.  
+ 4.08  Changed  replot so screen is cleared whenever buffer pointer is
+          backed up.   ESC  characters  are  counted  in  replot  line
+          counting.  
+ 4.06  Corrected  yam3  and user manual re operation of w and p modes.
+          The off command now dumps and closes any open files.  The  m
+          command closes any send file before changing ports.  
+ 4.04 Fixed yam3 so Ctlview would indicate paritied characters.  Added 
+          7-bit  mode  to  enable  file  transfers with Regulus and/or
+          other brain damaged operating systems.    This  latest  frob
+          requires  changes  to readline() and sendline() to work; see
+          yam5.c (8 bit version).  Removed archive bit (Nof3) stuff to 
+          conserve space on 8 bit versions.  Fixed view option problem 
+          with 16 bit yam2.c.  Batch send now skips  over  files  that
+          can't be opened, except for the first.  
+ 4.03 Fixed yam3 so CPMEOF is not sent in normal mode.  
+ 4.02 Added dump, sum, and wc commands to 16 bit versions.  
+ 4.01 Added extended file information to 16 bit versions.  
+ 3.53 Some changes in yam3.c for better replot displays with terminals 
+          lacking STATLINE.  
+ 3.52 Added br (break) command and KBDBRK.  Yterm() now updates Lskcnt 
+          so  the  replot will pgae back the same way whether yterm is
+          in use.  This was accomplished by a change  in  the  calling
+          sequence for yterm.  
+ 3.51 Added userexit code.  
+ 3.50 Added replot buffer search commands.  
+ 3.47  KBDNOW  define  added  to  force  keyboard  interrogation after
+          displaying data (yam3).  Should only be used if  input  from
+          modem is buffered or if high baud rates are not needed.  
+ 3.46 Clear status line after type/list command.  
+ 3.45  Removed spurious dumprxbuff in yam1 that caused loss of data if
+          capture file was opened with partially full  buffer.    Also
+          clear  status  line after s and r commands if file transfers
+          successful.  VERSION now lives in yam1.  
+ 3.44 Name changes and typo corrections for portability.  
+ 3.43 Nlmode and  crmode  now  affect  file  xmsn  with  the  sendecho
+          function as well as term.  
+ 3.42  inp()  and  outp() calls in yam3.c changed to equivalent macros
+          for portability.   Disk  block  calculation  fixed  re  Paul
+          Homchick.  
+ 3.41 Keyboard  excape  sequences buffered (see ESCCAL).  LOOPBACKNONO
+          and u command removed.  
+ 3.39 Modem port selection has been moved from yam1 to yam5.    CISlen
+          is no  longer  a  settable  parameter.    Low is no longer a
+          settable parameter.   All  parameter  commands  now  take  a
+          decimal number; this avoids problems encountered in previous 
+          versions when  attempting  to set GOchar to colon.  FE sends
+
+
+     YAM/XYAM                     Version 4.24                      Page 11
+
+
+     Yam Implementation Manual  Revised 9-10-83                     Page 12
+
+
+          an  ascii  file  to  computers  with  character  echo   (pip
+          file=tty:).   A  bug  which  caused spurious XOFF to be sent
+          when sending file  in  term  mode  has  been  fixed.    Z100
+          version.  9-16-82 
+ 3.37  Increased  some  timeouts  in yam2.c for better operations with
+          sluggish remotes.  9-1-82 
+ 3.35 NULL sends break in yam3 (was ^B^B). 8-28-82 
+ 3.34 Changed starting point of replot command and also speeded it  up
+          by using externs.  8-1-82 
+ 3.33 Changed  yterm()  to assembly subroutine, p/o yam9.csm.  Changed
+          yam8 to .csm format also.  Removed y command  (selection  is
+          automatic).  7-31-82 
+ 3.31  Added  A  prefix,  LINKPORT,  and  completed Micro-Com autodial
+          routine.  7-23-82 
+ 3.30 Added k  flag  for  1024  byte  block  FTP,  as  well  as  other
+          improvements  to  yam2.c  7-11-82  Added y command, a faster
+          subset of the t command.  Capture to file  now  ignores  CR,
+          trnaslates LF   into   CR-LF   unless  image  mode.    Moved
+          time-sensitive functions from yam7 to yam10, allowing memory 
+          savings by not using -o on yam7.c.  
+ 3.29 Removed Join mode.  Added x command.   "Added"  TTYOUT,  MODOUT,
+          and  LPOUT  macros (with argument) to reduce conditionals in
+          YAM3.C and YAM7.C 6-26 
+ 3.28 Added FLIP for PMMI type modems.  The memory usage  change  made
+          in  3.26  has  been  cleaned  up by use of a union to assure
+          correct memory layout regardless of the compiler  used.    A
+          yam5pmmi.c file for the pmmi modem now exists.  6-12-82 
+ 3.27 Changed autodial() function for CAFPERS. 6-11-82 
+ 3.26  Further  changes  to  aid  maintenance of different versions of
+          yam.   Needs  BDS  C  1.46  to   compile   due   to   nested
+          conditionals.  init() moved to yam7.c.  Memory usage changed 
+          allowing larger buffer area.  
+ 3.25 NATHAN  defined.    CIS  protocol  entry  changed  to help error
+          recovery.  5-31-82 
+ 3.24 Corrected usage of CLKMHZ 
+ 3.23 Official 8-bit version.  Added -, o mode (Onetrip),  and  Cislen
+          parameter.  Jeff Martin's corrections added to manual.  
+ 3.22  Unofficial  Version. Includes CIS/MNET A file transfer protocol
+          optional  with  yam4.c   (see   MYSYSTEM).   Changed   Cis02
+          handling.   Changed  statline  in  yam2 to display number of
+          characters received  in  kilobytes.    Some  coding  changes
+          reflecting  awkward  sequences  discovered  while porting to
+          CP/M-86 on IBM PC version.  
+ 3.20 New Base Version (for dif's).  Changed error printouts in  yam2.
+          Documentation update.  
+ 3.19 J mode joins short lines when at less than column 40.  
+ 3.18  N  mode  now  prepends  \\r  to  \\n  when the term function is
+          receiving a file.  1-1-82.  
+ 3.17 Added E parameter 12-19-81.  
+ 3.16 Setting Squelch (TS ES FS or DS) automatically sets  Dumping  to
+          not  Squelch.  In  Twxmode  half duplex, transmitted file is
+          copied to receive file (if open), and is  printed  if  print
+          mode is on.  12-16-81.  
+ 3.15 Added  term  Q mode for TWX operations with ANSWERBACK.  Changed
+          wcgetsec() logic so noise hits on the line before the  first
+          sector  do  not  cause  a  speedup in the timeout parameter.
+          12-14-81.  
+
+
+
+     YAM/XYAM                     Version 4.24                      Page 12
+
+
+     Yam Implementation Manual  Revised 9-10-83                     Page 13
+
+
+ 3.14 Added append option for receiving files,  replot  K  subcommand,
+          changed  previous  K subcommand to Z. In N mode, keyboard CR
+          is transmitted as NL. 12-11-81.  
+ 3.13 For non STATLINE, changed "Awaiting Pathname  NAK"  to  "+"  and
+          "Awaiting initial NAK" "^".  
+ 3.12  Added  replot  X  and  K subcommands, changed type unsqueeze to
+          avoid array overflow problems on long pathnames.  Added term 
+          function break subcommand (requires  sendbrk()  function  in
+          yam5.c).  11-5-81.  
+ 3.11  Added  Cis02  mode for Compuserve access, fixed logfile problem
+          (first few files didn't show).  Tab expansion  fix  courtesy
+          Jeff Martin (I thought it was the Z89!) 11-28-81.  
+ 3.10 Changed yam10.c to stop printout on ^Z in file 11-22-81.  
+ 3.09 Cosmetic change to type command in xyam.  11-17-81.  
+ 3.08   Added   USERINIT   option  useful  for  some  implementations.
+          11-14-81.  
+ 3.07 Minor change to yam1.c  for  benefit  of  memory-mapped  systems
+          11-11-81.  
+ 3.06 IOTYPE added for memory mapped systems List command now distinct 
+          from type.  Cosmetic changes to opentx().  11-8-81.  
+ 3.05  Added  automatic  recognition  and  display  of squeezed files.
+          Inclusion of the unsqueeze feature (#define USQ) may require 
+          clink -r 800 11-7-81.  
+ 3.04 Added GOchar parameter, enhanced view mode 11-6-81.  
+ 3.03 Number of sectors and  xmsn  time  printed  when  opening  files
+          11-5-81.  
+ 3.02 Xyam resets user number when exec'ing BYEPROG. 11-01-81.  
+ 3.01 Added INITBAUD. Your yam?????.h may need revision.  10-31-81.  
+ 3.00  Nomenclature  changed  to  facilitate differential file updates
+          10-25-81.  
+ 2.34 Added era and NATHAN commands, O mode.  10-24-81.  
+ 2.33 Changed Unixish "FILE" to struct _buf in yam.h.  10-21-81.  
+ 2.32 Added BYEPROG define, deleted T, U, and W  commands  from  XYAM.
+          10-18-81.  
+ 2.31  Corrected  tab  expansion  and  kbd XON XOFF handling in yam3.c
+          10-17-81.  
+ 2.30 Supports CRC error  checking  option  compatible  with  XMODEM45
+          10-15-81.  Chat function now in both yam/xyam.  
+ 2.24 Added  free  disk  space  report  on  a:  etc.  command, Upchuck
+          function.  
+ 2.23 Added "crck" command.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     YAM/XYAM                     Version 4.24                      Page 13
+
+

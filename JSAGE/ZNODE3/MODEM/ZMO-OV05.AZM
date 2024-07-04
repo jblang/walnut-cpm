@@ -1,0 +1,640 @@
+; User-set variables:
+
+CLKSPD	EQU	4		; Processor clock speed in MHz
+
+;Set the following two equates to the drive and user area which will contain
+;   ZMP's .OVR files, .CFG file, .FON file and .HLP file. Set both to zero
+;   (null) to locate them on the drive from which ZMP was invoked.
+
+OVERDRIVE EQU	0		; Drive to find overlay files on ('A'-'P')
+OVERUSER EQU	0		; User area to find files
+
+;------------------------------------------------------------------------------
+;
+;
+YES	EQU	0FFH
+NO	EQU	0
+;
+PORT	EQU	30H
+MDCTRL	EQU	PORT+1
+MDDATA	EQU	PORT
+MDRCV	EQU	02H
+MDSND	EQU	01H
+MDTXE	EQU	05H
+;
+MDMODE	EQU	82H
+MDRSET	EQU	42H
+MDSET1	EQU	4EH
+MDSET2	EQU	0CEH
+MDCOM	EQU	37H
+;
+AJUMP	EQU	0C3H
+BDOS	EQU	0005H
+BIOS	EQU	0001H
+EXITCPM EQU	2C80H
+INTVEC	EQU	0EFFEH
+;
+;============================================================================
+; NOT user-set variables
+
+USERDEF EQU	0145H		; Origin of this overlay.  This address may
+				; change with subsequent revisions.
+MSPEED	EQU	05CH		; location of current baud rate. 
+OVSIZE	EQU	0400H		; max size of this overlay
+
+ESC	EQU	1BH
+CR	EQU	0DH
+LF	EQU	0AH
+
+	ORG	USERDEF
+
+CODEBGN EQU	$
+
+;Jump table for the overlay: do NOT change this
+JUMPTAB:
+	JP	SCRNPR		; screen print
+	JP	MRD		; modem read with timeout
+	JP	MCHIN		; get a character from modem
+	JP	MCHOUT		; send a character to the modem
+	JP	MORDY		; test for tx buffer empty
+	JP	MIRDY		; test for character received
+	JP	SNDBRK		; send break
+	JP	CURSADD		; cursor addressing
+	JP	CLS		; clear screen
+	JP	INVON		; inverse video on
+	JP	INVOFF		; inverse video off
+	JP	HIDE		; hide cursor
+	JP	SHOW		; show cursor
+	JP	SAVECU		; save cursor position
+	JP	RESCU		; restore cursor position
+	JP	MINT		; service modem interrupt
+	JP	INVEC		; initialise interrupt vectors
+	JP	DINVEC		; de-initialise interrupt vectors
+	JP	MDMERR		; test uart flags for error
+	JP	DTRON		; turn DTR on
+	JP	DTROFF		; turn DTR OFF
+	JP	INIT		; initialise uart
+	JP	WAIT		; wait seconds
+	JP	MSWAIT		; wait milliseconds
+	JP	USERIN		; user-defined entry routine
+	JP	USEROUT		; user-defined exit routine
+	JP	GETVARS		; get system variables
+	JP	SETPORT		; Set port (0 or 1)
+;
+; Spare jumps for compatibility with future versions
+;
+	JP	SPARE		; spare for later use
+	JP	SPARE		; spare for later use
+	JP	SPARE		; spare for later use
+	JP	SPARE		; spare for later use
+	JP	SPARE		; spare for later use
+	JP	SPARE		; spare for later use
+;====================================================================
+;
+I$MDCTRL:
+	DI
+	IN	A,(MDCTRL)
+	EI
+	RET
+;
+I$MDTXE:
+	DI
+	IN	A,(MDCTRL)
+	EI
+	RET
+;
+I$MDDATA:
+	DI
+	IN	A,(MDDATA)
+	EI
+	RET
+;
+O$MDDATA:
+	EI
+	OUT	(MDDATA),A
+	DI
+	RET
+;
+A$MDRCV:
+	AND	MDRCV
+	RET
+;
+C$MDRCV:
+	CP	MDRCV
+	RET
+;
+A$MDSND:
+	AND	MDSND
+	RET
+;
+C$MDSND:
+	CP	MDSND
+	RET
+;
+A$MDTXE:
+	AND	MDTXE
+	RET
+;
+C$MDTXE:
+	CP	MDTXE
+	RET
+;
+J$EXITVEC:
+	JP	DINVEC
+;
+;============================================================================
+; Main code starts here
+;
+;Screen print function
+SCRNPR:
+	CALL	PRINT
+	DEFB	'Zmodem v1.5 overlay for Osborne Vixen '
+	DEFB	' v0.1  dated  8 December 1989',CR,LF
+	DEFB	'Print screen function is not supported.',CR,LF,0
+SPARE:
+	RET			; This ret used by both scrnpr and spare
+
+; User-defined entry routine: 
+; Install a new function key table for the Sanyo MBC-1200/1250
+USERIN:
+	RET
+
+; User-defined exit routine: Reinstall normal function key table
+USEROUT:
+	RET
+
+
+;============================================================================
+;    Modem control area:   UART 8251  No baud rate generator
+;  -------------------------------------------------
+;  | DSR | syn |  FE |  OE |  PE | TxE | RxR | TxR |  Stauts format
+;  -------------------------------------------------
+;  | EH  | IR  | RTS |  ER | SBRK| RxE | DTR | TxE |  Command format
+;  -------------------------------------------------
+;  | S2  | S1  |  EP | PEN |  L2 |  L1 |  B2 |  B1 |  Commands
+;  -------------------------------------------------
+;   
+;  S2 S1 Bits   EP      PEN         L2 L1 Bits   B2 B1 Rate
+;   0  0  ?     0 Odd	0 Disable    0  0  5      0  0   ?
+;   0  1  1     1 Even  1 Enable     0  1  6      0  1  X1
+;   1  0  1.5                        1  0  7      1  0  X16
+;   1  1  2                          1  1  8      1  1  X64
+;
+;Get a character from the modem: return in HL
+MCHIN:				; <== Insert your own code here
+	IN	A,(MDDATA)
+				; <== End of your own code
+	LD	L,A		; put in HL
+	LD	H,0
+	OR	A		; set/clear Z
+	RET
+
+;Send a character to the modem
+MCHOUT:
+	LD	HL,2		; get the character
+	ADD	HL,SP
+	LD	A,(HL)
+				; <== Insert your own code here
+	OUT	(MDDATA),A
+				; <== End of your own code
+	RET			; done
+
+;Test for output ready: return TRUE (1) in HL if ok
+MORDY:				; <== Insert your own code here
+	LD	HL,0
+	IN	A,(MDCTRL)
+	BIT 	0,A
+	JR	Z,MORDY1
+	INC	HL
+				; <== End of your own code
+MORDY1:	LD	A,L		; set/clear Z
+	OR	A
+	RET
+
+;Test for character at modem: return TRUE (1) in HL if so
+MIRDY:				; <== Insert your own code here
+	LD	HL,0
+	IN	A,(MDCTRL)
+	BIT 	1,A
+	JR	Z,MINDY1
+	INC	HL
+				; <== End of your own code
+MINDY1:	LD	A,L		; set/clear Z
+	OR	A
+	RET
+
+;Send a break to the modem: leave empty if your system can't do it
+SNDBRK:
+	LD	A,00001000B
+	OUT	(MDCTRL),A
+	LD	HL,300		; wait 300 mS
+	CALL	WTHLMS
+	LD	A,00110111B
+	OUT	(MDCTRL),A
+	RET
+
+;Test UART flags for error: return TRUE (1) in HL if error.
+MDMERR:				; <== Insert your own code here
+	LD	HL,0
+	IN	A,(MDCTRL)
+	BIT 	4,A
+	JR	Z,MDMER1
+	LD	A,00110111B	; if error reset UART
+	OUT	(MDCTRL),A
+	INC	HL
+				; <== End of your own code
+MDMER1:	LD	A,L		; set/clear Z
+	OR	A
+	RET
+
+;Turn DTR ON
+DTRON:
+	LD	A,00110111B
+	OUT	(MDCTRL),A
+	RET
+
+;Turn DTR OFF
+DTROFF:
+	LD	A,00110101B
+	OUT	(MDCTRL),A
+	RET
+
+;Initialise the uart
+INIT:
+	LD	HL,2		; get parameters
+	ADD	HL,SP
+	EX	DE,HL
+	CALL	GETPARM		; in HL and save it in ..
+	LD	(BRATE),HL	; baud rate
+	CALL	GETPARM
+	LD	(PARITY),HL	; parity
+	CALL	GETPARM
+	LD	(DATA),HL	; data bits (BINARY 7 or 8)
+	CALL	GETPARM
+	LD	(STOP),HL	; stop bits (BINARY 1 or 2)
+				; <== Insert your own code here
+	LD	A,5		; load mspeed with the current (default)
+	LD	(MSPEED),A	; brate value if the new rate is valid
+	LD	A,01000010B	; reset 8251 and leave DTR on
+	OUT	(MDCTRL),A
+	LD	A,01001110B	; 1 stop bit, parity disabled, 8 bits, X16
+	CALL	INIT2		; change UART default settings 
+	OUT	(MDCTRL),A
+	LD	A,00110111B	; FIX, no reset, RTS on, Error reset,
+	OUT	(MDCTRL),A	; no break, RX enable, DTR on, TX enable
+	RET			; <== End of your own code
+
+; Change default UART settings to those set by ZMP escape commands
+INIT2:
+	LD	E,A		; save default settings 01001110b
+	LD	A,(BRATE)
+	CP	1		; if 300 baud; set bit 0, X64
+	JR	NZ,INIT3
+	SET	0,E
+	LD	(MSPEED),A	; change mspeed value for new baud rate
+INIT3:
+	LD	A,(DATA)
+	CP	7		; if 7 data bits; reset bit 2
+	JR	NZ,INIT4
+	RES 	2,E
+INIT4:
+	LD	A,(PARITY)
+	CP	'O'		; if Odd parity; set bit 4, reset bit 5
+	JR	NZ,INIT5
+	SET	4,E
+	RES 	5,E
+INIT5:
+	CP	'E'		; if Even parity; set bits 4 and 5
+	JR	NZ,INIT6
+	SET	4,E
+	SET	5,E
+INIT6:
+	LD	A,(STOP)
+	CP	2		; if 2 stop bits; set bit 7
+	JR	NZ,INIT7
+	SET	7,E
+INIT7:
+	LD	A,E		; load new mode back in register a
+	RET
+
+;--------------------------------------------------------------------------
+
+STOP:	DEFW	1		; stop bits:  1 or 2
+PARITY:	DEFW	'N'		; parity:     N, O or E
+DATA:	DEFW	8		; data bits:  7 or 8
+BRATE:	DEFW	6		; baud rate:  see below
+
+;--------------------------------------------------------------------------
+; Values of brate for each baud rate allowed
+;
+; brate   baud rate       brate   baud rate       brate   baud rate
+;   0        110            5       1200            9       19200
+;   1        300            6       2400           10       38400
+;   2        450            7       4800           11       57600
+;   3        600            8       9600           12       76800
+;   4        710
+;
+; Set the port. ZMP supplies either 0 or 1 as a parameter.
+;
+SETPORT:
+	LD	HL,2		; get port number
+	ADD	HL,SP
+	EX	DE,HL
+	CALL	GETPARM		; in HL (values are 0 and 1)
+
+				; <== Insert your own code here
+
+				; <== End of your own code
+	RET
+;
+;============================================================================
+;	Video terminal sequences for the Osborne VIXEN
+;Cursor addressing: 
+CURSADD:
+	LD	HL,2		; get parameters
+	ADD	HL,SP
+	EX	DE,HL
+	CALL	GETPARM		; in HL
+	LD	(ROW),HL	; row
+	CALL	GETPARM
+	LD	(COL),HL	; column
+				; <== Insert your own code here
+				; using values in row and col
+	CALL	PRINT
+	DEFB	ESC,'=',0	; Sanyo leadin characters
+	LD	A,(ROW)		; row first
+	ADD	A,' '		; add offset
+	CALL	COUT
+	LD	A,(COL)		; same for column
+	ADD	A,' '
+	CALL	COUT
+				; <== end of your own code
+	RET
+
+ROW:	DEFW	0		; row
+COL:	DEFW	0		; column
+
+;Clear screen:
+CLS:
+	CALL	PRINT
+	DEFB	1AH,0
+	RET
+
+;Inverse video on:
+INVON:
+	RET
+
+;Inverse video off:
+INVOFF:
+	RET
+
+;Turn off cursor:
+HIDE:
+	RET
+
+;Turn on cursor:
+SHOW:
+	RET
+
+;Save cursor position:
+SAVECU:
+	RET
+
+;Restore cursor position:
+RESCU:
+	RET
+
+;****************************************************************************
+
+;Service modem interrupt:
+MINT:
+	RET			; Not used by the Osborne VIXEN
+
+;Initialise interrupt vectors:
+INVEC:
+	LD	C,7		; Use BDOS to obtain current IOBYTE
+	CALL	BDOS		; 
+	LD	(OLDIOB),A	; Save old IOBYTE
+	AND	3FH		; 
+	OR	80H		; Make CEN: port new LST: device
+	LD	E,A
+	LD	C,8
+	CALL	BDOS		; Use BDOS to place new IOBYTE in first
+				;   page of memory
+;
+	DI			; DISABLE interrupts
+	LD	HL,(INTVEC)	; Get serial port interrupt processor
+				;   address
+	LD	(OLDVEC),HL	; Save serial port interrupt processor
+				;   address
+	DEC	HL
+	DEC	HL
+	DEC	HL		; HL = next interrupt processor address
+	LD	(INTVEC),HL	; Now have first interrupt processor
+				;   rather than second
+;
+;
+; Initialize the interrupt vector system
+;
+	LD	HL,(BIOS)	; Find start of BIOS
+	LD	L,3CH		; Displacement of baud rate byte from
+				;   start of BIOS
+	LD	(OLDBAUD),A	; Save original baud rate byte
+
+	LD	L,3BH		; Displacement of 8251 mode byte from
+				;   start of bios
+	LD	A,(HL)		; Old mode byte set by ROM is 2sb, no
+				;   parity, 8db, x16 clock
+	LD	(OLDMODE),A	; Save original 8251 mode byte
+;
+	LD	B,L
+	LD	A,MDSET1	; 1 sb, np, 8 db, x16 clock mode byte
+	CALL	IORESET		; Use extended bios jump to reset 8251
+	LD	A,MDCOM		; RTS, DTR, Txd, Rxd on
+	OUT	(31H),A		; Send it to 8251 control port
+	LD	A,3		; Select 8155 port C
+	OUT	(21H),A		; 
+	IN	A,(28H)		; Get miscellaneous information byte
+	LD	(OLDMSC),A	; Save miscellaneous information byte
+;
+;
+; Disable ring detect interrupt, Rxd interrupt, Txd
+;
+	OR	0FH
+	LD	E,A		; Interrupt, enable internal clock
+	LD	A,3
+	OUT	(21H),A		; Select 8155 port C
+	LD	A,E
+	OUT	(28H),A		; Send new control byte to 8155 port c
+	EI			; RESTORE interrupts
+	RET			
+
+;De-initialise interrupt vectors:
+DINVEC:
+	LD	A,(OLDIOB)	; Get original IOBYTE
+	LD	C,8
+	LD	E,A		; Use BDOS to restore original IOBYTE
+	CALL	BDOS
+;
+	DI			; DISABLE interrupts
+	LD	A,15H		; RTS, DTR off
+	LD	HL,(OLDVEC)	; Get original interrupt service address
+	LD	(INTVEC),HL	; Restore orig interrupt service address
+	LD	A,3		; Select 8155 port C
+	OUT	(21H),A
+	IN	A,(28H)		; Get miscellaneous information byte for
+				;   controlling interrupt lines
+	AND	030H		; Zero the least significant four bits
+	LD	E,A
+	LD	A,(OLDMSC)	; Get original misc. 8155 control byte
+	AND	0FH		; Zero the most significant four bits
+	OR	E		; Combine everything
+	LD	E,A		; Store temporarily
+;
+	LD	A,3
+	OUT	(21H),A		; Select 8155 port C, again
+	LD	A,E		; Store the value held in "E"
+	OUT	(28H),A		; Restore original 8155 control byte
+	EI			; RESTORE interrupts
+;
+	LD	B,3CH
+	LD	A,(OLDBAUD)	; Restore original baud rate byte
+	CALL	IORESET		; Do an 8251 reset
+;
+	LD	B,3BH
+	LD	A,(OLDMODE)	; Restore original mode byte
+	CALL	IORESET		; Do an 8251 reset
+	RET
+;.....
+;
+;
+IORESET:
+	LD	HL,(BIOS)	; Find base of BIOS
+	LD	L,B
+	LD	(HL),A
+	LD	L,36H		; Displacement in BIOS for 8251 reset
+				;   function
+	LD	(EXTFUN),HL
+	CALL	BIFUNC		; Subroutine call of BIOS 8251 reset
+				;   function
+	RET
+;.....
+;
+OLDIOB:	DEFB	0		; Orig	IOBYTE
+OLDMSC:	DEFB	0		; Orig misc. ctl byte for 8155 port C
+OLDVEC:	DEFB	0,0		; Orig interrupt service vector
+OLDMODE:DEFB	1		; Orig 8251 mode byte from BIOS
+OLDBAUD:DEFB	1		; Orig baud rate byte for 8251 from BIOS
+BIFUNC:	DEFB	AJUMP		; Absolute jump to following memory addr
+EXTFUN:	DEFB	0,0		; Bios extended function address
+
+;****************** End of user-defined code ********************************
+;		Do not change anything below here.
+
+;Modem character test for 100 ms
+MRD:
+	PUSH 	BC		; save bc
+	LD	BC,100		; set limit
+MRD1:
+	CALL	MIRDY		; char at modem?
+	JR	NZ,MRD2		; yes, exit
+	LD	HL,1		; else wait 1ms
+	CALL	WTHLMS
+	DEC	BC		; loop till done
+	LD	A,B
+	OR	C
+	JR	NZ,MRD1
+	LD	HL,0		; none there, result=0
+	XOR	A
+MRD2:
+	POP 	BC
+	RET
+
+; Inline print routine: destroys A and HL
+PRINT:
+	EX	(SP),HL		; get address of string
+PLOOP:
+	LD	A,(HL)		; get next
+	INC	HL		; bump pointer
+	OR	A		; done if zero
+	JR	Z,PDONE
+	CALL	COUT		; else print
+	JR	PLOOP		; and loop
+PDONE:
+	EX	(SP),HL		; restore return address
+	RET			; and quit
+
+;Output a character in A to the console
+COUT:
+	PUSH 	BC		; save regs
+	PUSH 	DE 
+	PUSH 	HL
+	LD	E,A		; character to E
+	LD	C,2
+	CALL	BDOS		; print it
+	POP 	HL
+	POP 	DE
+	POP 	BC
+	RET
+
+; Wait(seconds)
+WAIT:
+	LD	HL,2
+	ADD	HL,SP
+	EX	DE,HL		; get delay size
+	CALL	GETPARM
+				; fall thru to..
+; Wait seconds in HL
+WAITHLS:
+	PUSH 	BC		; save bc
+	PUSH 	DE		; de
+	PUSH 	IX		; and ix
+	LD 	IX,0		; then point ix to 0
+				; so we don't upset memory-mapped i/o
+
+; Wait milliseconds
+MSWAIT:
+	LD	HL,2
+	ADD	HL,SP
+	EX	DE,HL		; get delay size
+	CALL	GETPARM
+				; fall thru to..
+; Wait milliseconds in HL
+WTHLMS:
+	PUSH 	DE
+W1MS0:
+	LD	DE,39*CLKSPD
+W1MS1:
+	DEC	DE
+	LD	A,D
+	OR	E
+	JR	NZ,W1MS1
+	DEC	HL
+	LD	A,H
+	OR	L
+	JR	NZ,W1MS0
+	POP 	DE
+	RET
+
+; Get next parameter from (de) into hl
+GETPARM:
+	EX	DE,HL		; get address into hl
+	LD	E,(HL)		; get lo
+	INC	HL
+	LD	D,(HL)		; then hi
+	INC	HL		; bump for next
+	EX	DE,HL		; result in hl, address still in de
+	RET
+;
+;Get address of user-defined variables
+;
+GETVARS:
+	LD	HL,USERVARS
+	RET
+USERVARS:
+	DEFW	OVERDRIVE	; .OVR etc. drive/user
+	DEFW	OVERUSER
+
+	END
+
+

@@ -1,0 +1,85 @@
+; BAUD.MAC
+; This program is intended for use on remote systems
+; to enable the caller to change baud rates.
+; This program is written for a PMMI and makes use
+; of Richard L. Conn's SYSLIB calls.
+;
+; Note that this program puts the RATE FACTOR into the
+; MSPEED location. This assumes that BYE also enters the
+; rate factor there and XMODEM is capable of interpreting
+; it for transmit time estimate. Changing BYE to do that
+; is trivial; XMODEM is a different story. I am using
+; Bill Earnest's BDS C version of XMODEM, which was written
+; to recognize the rate factor at MSPEED.
+;
+pmmi	equ	0e0h		;pmmi base port
+port2	equ	pmmi+2
+port3	equ	pmmi+3
+lt300	equ	7fh		;filter switch value < 300 baud
+gt300	equ	5fh		;filter switch value >=300 baud
+wboot	equ	0
+fcb	equ	5ch
+mspeed	equ	3dh		;where to put the rate factor
+cr	equ	0dh
+lf	equ	0ah
+;
+; SYSLIB external declarations
+;
+	ext	eval10		;evaluate decimal ascii
+	ext	divhd		; hl = hl / de
+	ext	print		;print string
+	ext	pause		;delay routine
+	ext	comphd		;compare hl and de
+;
+start:	lxi	h,fcb+1
+	mov	a,m
+	cpi	' '
+	jz	error
+	push	h
+loop:	mov	a,m
+	inx	h
+	cpi	'0'
+	jc	lexit
+	cpi	'9'+1
+	jc	loop
+lexit:	dcx	h
+	mvi	m,0
+	pop	h
+	call	eval10
+	lxi	h,60
+	call	comphd
+	jnc	error
+	lxi	h,710
+	call	comphd
+	jc	error
+	lxi	h,15625
+	call	divhd
+	mov	a,l
+	sta	mspeed
+	cpi	53
+	jc	high
+	mvi	a,lt300
+	out	port3
+	jmp	setrate
+;
+high:	mvi	a,gt300
+	out	port3
+setrate:lxi	h,20		;2 seconds...
+	mvi	b,4		;.. at 4mhz
+	call	pause
+	lda	mspeed
+	out	port2
+	jmp	wboot
+;
+; come here if
+; - invalid baud rate (too high or too low)
+; - no baud rate specified
+;
+error:	call	print
+	db	'Use the BAUD command to change the '
+	db	'baud rate to any speed',cr,lf
+	db	'between 61 and 710 baud. Enter BAUD xxx, '
+	db	'where xxx is the new rate.',cr,lf,lf,0
+	jmp	wboot
+;
+	end

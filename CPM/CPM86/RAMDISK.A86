@@ -1,0 +1,599 @@
+
+	title	'RAMDISK - A Memory-Based Virtual Drive'
+
+;	THIS PROGRAM IS HEREBY PLACED IN THE PUBLIC DOMAIN,
+;	    AND MAY BE FREELY COPIED AND DISTRIBUTED.
+
+;	program:	RAMDISK
+;
+;	created by      Context Sensitive Inc.
+;	                4200 Aurora Ave. N.
+;	                Seattle, WA  98103
+;	                (206) 632-0301
+;
+;	version:	1.1		October 28, 1983
+;	author:		Ron Blanford
+;
+;	The handler code for the RAM disk takes approximately 250h bytes,
+;	or just over 1/2 kbyte.  In versions of CP/M-86 which include
+;	hard disk support, the hard disk initialization code is only
+;	executed once at cold boot, so this program can overlay it with the
+;	handler code to save on memory usage.  To enable the overlay
+;	logic, terminate the allocation size with a 'K', for example:
+;		RAMDISK 128K
+;	Otherwise the handler code will be placed at the beginning of
+;	the TPA, reducing the available memory by a small amount.
+;
+;	In the standard CP/M the default interrupt vector does nothing but
+;	an IRET and return to the program, effectively making all unplanned
+;	interrupts (such as arithmetic exceptions and pressing the keyboard
+;	reset button) invisible.  This program causes any such interrupt
+;	to perform a warm boot, returning the user to the CP/M prompt.
+
+
+BIOS_segment	equ	0040h
+BIOS_jumptable	equ	2500h
+
+	cseg
+	org	100h
+
+	mov	dx,offset T_GETSEGT	;get available memory size for messages
+	mov	cl,50
+	int	224
+	mov	ax,BIOS_segment
+	mov	es,ax
+	mov	ax,es:3[bx]
+	mov	cl,6			;convert from pages to kbytes
+	shr	ax,cl
+	push	ax
+	mov	bx,offset h1_size+2
+	call	binasc
+	pop	ax
+	push	ax
+	mov	bx,offset h4_size+2
+	call	binasc
+	pop	ax
+	mov	bx,offset nm_size+2
+	call	binasc
+
+	mov	dx,offset company_name	;print company name message
+	mov	cl,9
+	int	224
+
+	mov	bx,80h			;check command buffer
+	mov	cl,[bx]			; if no command tail was entered,
+	or	cl,cl			; display help screens
+	jnz	RD04
+	mov	dx,offset help1
+	mov	cl,9
+	int	224
+	mov	cl,1
+	int	224
+	cmp	al,ctrl_C
+	jnz	$+5
+	jmp	exit1
+	mov	dx,offset help3
+	mov	cl,9
+	int	224
+	mov	cl,1
+	int	224
+	cmp	al,ctrl_C
+	jnz	$+5
+	jmp	exit1
+	mov	dx,offset help4
+	jmp	exit
+
+RD04:	mov	dx,offset T_SELDSK	;see if drive already exists
+	mov	cl,50
+	int	224
+	or	bx,bx
+	jz	RD05
+	mov	dx,offset I_exists
+	jmp	exit
+
+RD05:	mov	bx,80h			;get allocation size from command buffer
+	mov	cl,[bx]
+	sub	ch,ch
+	sub	ax,ax
+RD10:	inc	bx			;convert ascii digits to binary
+	cmp	byte ptr [bx],' '
+	jbe	RD20
+	cmp	byte ptr [bx],'0'
+	jb	RD21
+	cmp	byte ptr [bx],'9'
+	ja	RD21
+	mul	ten
+	mov	dl,byte ptr [bx]
+	sub	dl,'0'
+	add	ax,dx
+RD20:	loop	RD10
+RD21:	or	ax,ax			;make sure size specification is in range
+	jnz	RD30
+	mov	dx,offset nosize
+	jmp	exit
+
+RD30:	mov	CBOOT_overlay,1		;if nnnK entered, then put handlers
+	or	byte ptr [bx],20h	; in space occupied by CBOOT code
+	cmp	byte ptr [bx],'k'
+	jz	RD35
+	mov	CBOOT_overlay,0
+RD35:	cmp	ax,512			;max RAMDISK size is 512K
+	jbe	RD40
+	mov	ax,512
+RD40:	push	ax			;put allocation in 'created' message
+	mov	bx,offset cr_size+2
+	call	binasc
+	pop	ax
+	mov	cl,6
+	cmp	ax,256			;if >256K, then change parameters
+	jbe	RD45			; to block at 2048
+	mov	byte ptr BSH,4		; rather than default 1024
+	mov	byte ptr BLM,15
+	mov	byte ptr EXM,1
+	mov	word ptr DRM,127
+	shr	ax,1
+	mov	cl,7
+RD45:	mov	word ptr DSM,ax
+	dec	word ptr DSM
+	shl	ax,cl
+	mov	disk_pages,ax
+RD50:	mov	dx,offset T_GETSEGT	;see if enough memory exists
+	mov	cl,50
+	int	224
+	mov	ax,BIOS_segment
+	mov	es,ax
+	mov	dx,es:3[bx]		;number of pages available
+
+	cmp	CBOOT_overlay,1
+	jz	RD55
+
+	mov	ax,offset end_Kdrive	;this code puts the RAMDISK handlers
+	sub	ax,offset init_Kdrive	; at the beginning of the TPA
+	mov	cl,4			; rather than overlaying CBOOT code.
+	shr	ax,cl
+	inc	ax
+	sub	dx,ax
+
+RD55:	sub	dx,disk_pages
+	ja	RD60
+	mov	dx,offset nomem
+	jmp	exit
+
+RD60:	mov	es:3[bx],dx		;save new TPA length
+	mov	di,es:.BIOS_jumptable+1
+	add	di,BIOS_jumptable+3
+
+	cmp	CBOOT_overlay,1
+	jz	RD65
+
+	mov	di,es:1[bx]		;this code puts the RAMDISK handlers
+	add	es:1[bx],ax		; at the beginning of the TPA
+	mov	ax,es			; rather than overlaying CBOOT code.
+	sub	di,ax
+	mov	cl,4
+	shl	di,cl
+
+RD65:	mov	init_addr,di
+	add	dx,es:1[bx]
+	mov	disk_seg,dx
+	mov	bx,BIOS_jumptable+18h	;move BIOS jumptable to local table
+	mov	di,offset BIOS_HOME	; after converting from relative
+	mov	cx,10			; to absolute addressing
+RD70:	inc	bx
+	mov	ax,es:[bx]
+	inc	bx
+	inc	bx
+	add	ax,bx
+	mov	[di],ax
+	inc	di
+	inc	di
+	loop	RD70
+
+	mov	dx,init_addr		;move my entry points to BIOS jump table
+	sub	dx,2
+	sub	dx,offset init_Kdrive
+	mov	di,BIOS_jumptable+18h
+	inc	di
+	mov	ax,offset HOME
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset SELDSK
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset SETTRK
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset SETSEC
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset SETDMA
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset READ
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset WRITE
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,6			;skip list status jump
+	mov	ax,offset SECTRAN
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+	add	di,3
+	mov	ax,offset SETDMAB
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+
+	sub	ax,ax			;set up interrupt handler
+	mov	es,ax			; by replacing normal IRET
+	mov	di,es:.0		; with JMP to my handler
+	mov	ax,es:.2
+	mov	es,ax
+	mov	al,0E9h			;JMP instruction
+	mov	es:[di],al
+	inc	di
+	mov	ax,offset inttrap
+	add	ax,dx
+	sub	ax,di
+	mov	es:[di],ax
+
+	add	dx,2			;change local addresses to new location
+	mov	adj_offset,dx
+	add	DPH_offset,dx
+	add	DIRBUF_offset,dx
+	add	DPB_offset,dx
+	add	CSV_offset,dx
+	add	ALV_offset,dx
+
+	mov	di,init_addr		;move code and data into BIOS
+	mov	si,offset init_Kdrive
+	mov	cx,offset end_Kdrive
+	sub	cx,si
+	shr	cx,1
+	inc	cx
+	cld
+	rep movs ax,ax
+	mov	dx,offset created
+	mov	cl,9
+	int	224
+	jmpf	dword ptr init_addr	;go execute disk initialization routine
+init_addr	dw	BIOS_jumptable+100h
+		dw	BIOS_segment
+
+
+;	BINASC converts an unsigned binary number to ascii representation.
+;		Input registers:	ax = number to convert
+;					bx = ptr to memory location
+;						 for least significant digit
+binasc:
+	mov	byte ptr [bx],'0'
+	mov	cx,10
+ba10:	mov	dx,0			;convert ax to ascii
+	div	cx
+	or	ax,ax
+	jnz	ba15
+	or	dx,dx
+	jz	ba20
+ba15:	or	dl,'0'
+	mov	byte ptr [bx],dl	;store ascii digit in display area
+	dec	bx
+	jmps	ba10
+ba20:	ret
+
+exit1:	mov	dx,offset abort_msg
+exit:	mov	cl,9
+	int	224
+	mov	dx,0
+	mov	cl,0
+	int	224
+
+
+	eject
+
+ctrl_C		equ	03h
+cr		equ	0Dh
+lf		equ	0Ah
+esc		equ	1Bh
+
+ten		dw	10
+CBOOT_overlay	db	1	;1=overlay CBOOT code, 0=use part of TPA
+
+T_SELDSK	db	9	;direct BIOS call for disk selection
+		dw	10
+		dw	0
+T_GETSEGT	db	18	;direct BIOS call for memory extents
+		dw	0
+		dw	0
+
+company_name	db	esc,'[1;1H',esc,'[J',cr,lf,'       ',esc,'[2;3m ',esc,'[3;23m'
+		db	'                           RAMDISK  1.1                         '
+		db	esc,'[2m ',esc,'[m',cr,lf,'       ',esc,'[2;4m ',esc,'[4;20m'
+		db	'  Context Sensitive Inc.  Seattle, Washington   (206) NEC-0301  '
+		db	esc,'[2m '
+		db	esc,'[m',cr,lf,'$'
+help1		db	cr,lf,esc,'[19m'
+		db	cr,lf,'           Thank you for choosing RAMDISK from Context Sensitive Inc.'
+		db	cr,lf,esc,'[20m'
+		db	cr,lf,'          This program creates  a pseudo disk drive  using part of the'
+		db	cr,lf,'          random access memory (RAM)  of your computer.  Your computer'
+		db	cr,lf,'          has '
+h1_size	db	'   '
+		db	' kbytes  of memory  available  for program execution.'
+		db	cr,lf,'          Most programs require less than 64 kbytes,  so any remaining'
+		db	cr,lf,'          memory would otherwise be unused.'
+		db	cr,lf
+		db	cr,lf,'          The main advantage  of using a RAM disk  is its speed.   The'
+		db	cr,lf,'          main drawback  is that it is  not permanent.   Each time the'
+		db	cr,lf,'          computer  is  turned  off  or  CP/M-86  rebooted  using  the'
+		db	cr,lf,'          CTRL-FNC-BREAK sequence,   all files stored  on the RAM disk'
+		db	cr,lf,'          are deleted and the RAM disk itself is eliminated. Therefore'
+		db	cr,lf,'          be sure  to save  all modified files  on a permanent disk at'
+		db	cr,lf,'          the end of every session with the computer.  In an emergency'
+		db	cr,lf,'          press the reset button behind the rubber stopper in the key-'
+		db	cr,lf,'          board to return to CP/M-86 without erasing the RAM disk.'
+		db	cr,lf
+		db	esc,'[25;1H',esc,'[21m          Press any key to continue...',esc,'[m$'
+help3		db	esc,'[7;1H',esc,'[J'
+		db	cr,lf,'          The  RAM disk  created  by this program  is called  drive K.'
+		db	cr,lf,'          Drive K  is used  the same way  as any other disk drive.  To'
+		db	cr,lf,'          list the directory of files, type:'
+		db	cr,lf,esc,'[23m                    DIR K:',esc,'[20m'
+		db	cr,lf,'          (Initially drive K is empty  and this command  will give the'
+		db	cr,lf,'          NO FILE  message.)   To  copy  programs  and  data  files to'
+		db	cr,lf,'          drive K, type:'
+		db	cr,lf,esc,'[23m                    PIP K:=filename.typ',esc,'[20m'
+		db	cr,lf,'          To select drive K as the default drive, just type:'
+		db	cr,lf,esc,'[23m                    K:',esc,'[20m'
+		db	cr,lf,'          in response to the CP/M-86 prompt.'
+		db	cr,lf
+		db	esc,'[25;1H',esc,'[21m          Press any key to continue...',esc,'[m$'
+help4		db	esc,'[7;1H',esc,'[J'
+		db	cr,lf,'          To create the RAM disk, type:'
+		db	cr,lf,esc,'[23m                    RAMDISK nnn',esc,'[20m'
+		db	cr,lf,'          where  nnn is the number of kbytes of memory to allocate for'
+		db	cr,lf,'          drive K.  Remember, this must be less than '
+h4_size		db	'   '
+		db	' kbytes.'
+		db	cr,lf,esc,'[m$'
+abort_msg	db	0Bh,esc,'[m',esc,'[J$'
+nosize		db	cr,lf,esc,'[19m'
+		db	cr,lf,'                  A size must be specified for RAMDISK drive K'
+		db	cr,lf,esc,'[21m'
+		db	cr,lf,'              for example:  ''RAMDISK 128'' allocates 128K of memory'
+		db	esc,'[m',cr,lf,'$'
+nomem		db	cr,lf,esc,'[19m'
+		db	cr,lf,'                 RAMDISK drive K not created - not enough memory'
+		db	cr,lf,esc,'[21m'
+		db	cr,lf,'              Your computer only has '
+nm_size		db	'   '
+		db	' kbytes of memory available'
+		db	esc,'[m',cr,lf,'$'
+I_exists	db	cr,lf,esc,'[19m'
+		db	cr,lf,'                 RAMDISK drive K not created - it already exists'
+		db	cr,lf,esc,'[21m'
+		db	cr,lf,'             CTRL-FNC-BREAK deletes all files and removes the drive'
+		db	esc,'[m',cr,lf,'$'
+created		db	cr,lf,esc,'[19m'
+		db	cr,lf,'                  RAMDISK drive K has been created ('
+cr_size		db	'   '
+		db	' kbytes)'
+		db	cr,lf,esc,'[21m'
+		db	cr,lf,'             CTRL-FNC-BREAK deletes all files and removes the drive'
+		db	esc,'[m',cr,lf,'$'
+
+
+	title	'RAMDISK initialization and handler code'
+	eject
+
+init_Kdrive:
+	call	adjust
+	mov	es,disk_seg[bx]
+	mov	ax,disk_pages[bx]
+init1:	push	ax			;format the disk area
+	mov	cx,8000h
+	cmp	ax,1000h
+	ja	init2
+	mov	cl,3
+	shl	ax,cl
+	mov	cx,ax
+init2:	mov	di,0
+	mov	ax,0E5E5h
+	cld
+	rep stos ax
+	mov	ax,es
+	add	ax,1000h
+	mov	es,ax
+	pop	ax
+	sub	ax,1000h
+	ja	init1
+	mov	dx,0
+	mov	cl,0
+	int	224
+
+HOME:	call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_HOME[bx]
+	ret
+
+SELDSK:	call	adjust
+	mov	byte ptr sek_dsk[bx],cl
+	cmp	cl,10
+	jz	$+7
+	jmp	BIOS_SELDSK[bx]
+	mov	bx,DPH_offset[bx]
+	ret
+
+SETTRK:	call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_SETTRK[bx]
+	mov	sek_trk[bx],cx
+	ret
+
+SETSEC:	call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_SETSEC[bx]
+	mov	sek_sec[bx],cl
+	ret
+
+SETDMA:	call	adjust
+	mov	DMA_offset[bx],cx
+	jmp	BIOS_SETDMA[bx]
+
+READ:	call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_READ[bx]
+	pushf
+	push	ds
+	push	es
+	mov	es,DMA_seg[bx]
+	mov	di,DMA_offset[bx]
+	mov	ax,sek_trk[bx]
+	mov	cl,6
+	shl	ax,cl
+	add	al,sek_sec[bx]
+	mul	one_twenty_eight[bx]
+	mov	cl,12
+	shl	dx,cl
+	add	dx,disk_seg[bx]
+	mov	ds,dx
+	mov	si,ax
+	mov	cx,64
+	cld
+	rep movs ax,ax
+	pop	es
+	pop	ds
+	popf
+	sub	ax,ax
+	ret
+
+WRITE:	call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_WRITE[bx]
+	pushf
+	push	ds
+	push	es
+	mov	ax,sek_trk[bx]
+	mov	cl,6
+	shl	ax,cl
+	add	al,sek_sec[bx]
+	mul	one_twenty_eight[bx]
+	mov	cl,12
+	shl	dx,cl
+	add	dx,disk_seg[bx]
+	mov	es,dx
+	mov	di,ax
+	mov	si,DMA_offset[bx]
+	mov	ds,DMA_seg[bx]
+	mov	cx,64
+	cld
+	rep movs ax,ax
+	pop	es
+	pop	ds
+	popf
+	sub	ax,ax
+	ret
+
+SECTRAN: call	adjust
+	cmp	byte ptr sek_dsk[bx],10
+	jz	$+7
+	jmp	BIOS_SECTRAN[bx]
+	mov	bx,cx
+	ret
+
+SETDMAB: call	adjust
+	mov	DMA_seg[bx],cx
+	jmp	BIOS_SETDMAB[bx]
+
+inttrap:
+	cli
+	pop	ax			;pop old IP, CS, and flags
+	pop	ax
+	pop	ax
+	or	ax,0200h		;enable interrupts on return
+	push	ax
+	mov	ax,BIOS_segment		;return to WBOOT
+	push	ax
+	mov	ax,BIOS_jumptable+3
+	push	ax
+	iret
+
+adjust:		nop			;all variables to be offset
+		db	0BBh		; by the amount the program moved
+adj_offset	dw	0		;this is a MOV BX,nnnn instruction
+		ret
+
+
+	eject
+
+BIOS_HOME	DW	0
+BIOS_SELDSK	DW	0
+BIOS_SETTRK	DW	0
+BIOS_SETSEC	DW	0
+BIOS_SETDMA	DW	0
+BIOS_READ	DW	0
+BIOS_WRITE	DW	0
+BIOS_LISTST	DW	0
+BIOS_SECTRAN	DW	0
+BIOS_SETDMAB	DW	0
+
+sek_dsk		db	0
+sek_sec		db	0
+sek_trk		dw	0
+DMA_offset	dw	0
+DMA_seg		dw	0
+disk_pages	dw	0
+disk_seg	dw	0
+
+one_twenty_eight dw	128
+
+DPH_offset	dw	offset DPH
+
+DPH		dw	0	;no sector translation
+		dw	0
+		dw	0
+		dw	0
+DIRBUF_offset	dw	offset DIRBUF
+DPB_offset	dw	offset DPB
+CSV_offset	dw	offset CSV
+ALV_offset	dw	offset ALV
+
+DIRBUF		rs	128
+CSV		rs	0
+ALV		rs	32
+
+				;disk size:   <256K        >256K
+DPB		dw	64	;SPT
+BSH		db	3	;BSH             3            4
+BLM		db	7	;BLM             7           15
+EXM		db	0	;EXM             0            1
+DSM		dw	0	;DSM           #K-1      (#K/2)-1
+DRM		dw	63	;DRM            63          127
+		db	0C0h	;AL0
+		db	0	;AL1
+		dw	0	;CKS
+		dw	0	;OFF
+
+end_Kdrive	db	0
+
+	end
+

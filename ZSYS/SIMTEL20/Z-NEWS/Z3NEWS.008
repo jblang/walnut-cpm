@@ -1,0 +1,291 @@
+                                                               29 October 1984
+
+                             ZCPR3 NEWSLETTER 008
+
+Z3  TIPS:   CLEANDIR and UNERASE go together like a hand and  custom  tailored 
+glove.   Running CLEANDIR does principally two things:  sorts the directory of 
+a  disk,  making for faster other-program usage;  and cleans out  de-allocated 
+CP/M file block data from previously valid, but now removed files.  If UNERASE 
+finds  blocks with names the same as the file to be unerased,  there is little 
+hope of a successful unerase.  CLEANDIR removes all de-allocated names as well 
+as  compacts the entire directory area,  leaving only presently  active  data.  
+The  problem  with  attempting to recover accidentally deleted files  is  with 
+potential  previous disk/edit operations;  many de-allocated disk data  blocks 
+with the same name creates the impossible task of reclaiming the desired  ones 
+of the present file.  If you have run CLEANDIR and then accidentally erase and 
+attempt to recover, odds are near 100% the attempt will be successful.
+     Floppy Disk File Access Speed Increase Tip:   Copy to a freshly formatted 
+system disk,  one with CP/M on it,  the files you most often use.  The copy to 
+be  singularly  performed,  one  file at a time in the exact  order  they  are 
+normally used.   A boot disk for ZCPR3 might be ordered:   STARTUP.COM  first, 
+then  LDR.COM,   SYS.*,  MYTERM.Z3T,  followed  by  application  MENU.COM  and 
+MENU.MNU.   Then your editor/wordprocessor, etc.  Such system-disk preparation 
+may  greatly  increase access speed--files are all grouped close  together  on 
+disk tracks, eliminating need for lengthy disk-drive read/write head seeks.
+     Change  of  pace...we are looking at an excellent example  of  aggressive 
+ZCPR3 menus,  from user John Gliedman,  New York City, containing long command 
+lines.   They appear especially useful in automating magazine-article and book 
+writing.   The  concepts  are applied to a dual-drive Osborne with  RAM  disk, 
+using two versions of WordStar,  MENU,  IF,  ELSE, GOTO, FI, REG, ECHO, ALIAS, 
+SAK,  ZEX,  etc.   We  plan to devote an entire newsletter to describing  such 
+techniques,  but  for  now just a little tickle showing the ramdisk  load  and 
+status commands, L and R, entered from the main menu.
+
+        Lif ex a:-diskname.001;b:user b:ws.com 1;b1:ramdisk c,y,df00;
+        b:mcopy b:ws*.* q;b:user b1:ws.com 0;else;a:user a:ws.com 1;
+        a1:ramdisk c,y,df00;mcopy a:ws*.* q;a:user a1:ws.com 0;fi
+
+        Rif 9 9;if 8 8;echo ramdisk active and wordstar loaded;sak /p1;
+        else;echo ramdisk active but wordstar not loaded;sak /p1;fi;fi;
+        if ~9 9;echo ram disk inactive;sak /p1;else;fi
+
+USER  is a set-to-user-area program written by  Michael  Rubenstein.   Ramdisk 
+activates  ram  storage,  starting  from DF00 and names it  C:.  MCOPY  copies 
+quietly with trailing q.   Registers are set using REG in several  conditional 
+STARTUP files, for example:
+
+        STARTUP:  ldr sys.env,sys.fcp,sys.ndr,myterm.z3t;reg s7 1;
+                  if ex a:-diskname.001;reg s7;else;fi;fi;start2
+
+        START2:   if 8 8;mcopy menu.mnu;c:;else;fi;fi;menu
+
+Drive C0: is defined as BACKUP so MCOPY default directory search works.
+     Almost any computer task you think of is automatable using menu and alias 
+generation,  and  multiple commands per line capability of ZCPR3,  and such is 
+accomplishable  so swiftly.   The tools are there--a little thought puts  them 
+into action and to work.
+
+A Note from Richard Conn -- "The BOOK:   ZCPR3:  The Manual is almost done, at 
+long  last.   To brief you on what has been going on,  three editors have been 
+working on the book.   Two are literary editors,  and their job was  completed 
+some time ago.   The third editor is a technical editor, Chris Terry, formerly 
+of  Microsystems  magazine,  has agreed to act as a technical editor  for  the 
+book,  and I think he has done a marvelous job.  He is currently reviewing Z3-
+Dot-Com  and  is  placing a section into the book on it.   He  has  helped  to 
+clarify  several  of the points stressed in the book and has really devoted  a 
+lot of time and attention to it.   I really appreciate what Chris has done and 
+feel that the book will be much better for it.
+     "Chris should complete his final review very soon.  At this time, he will 
+send  the book back to me on floppies,  and I will run Star Index over it  one 
+last  time and perform a last-minute review.   I will then send the Star Index 
+output  back to Chris,  who will print it out for the publisher [Zoetrope]  to 
+typeset.   We  are running approximately one week later than the  last  posted 
+schedule,  so the book is still set to go out around the end of October, first 
+of November."
+     Be assured, Echelon ships as soon as books come from printing presses!
+
+DISCAT  Reminders:   Things  DISCAT users may find useful:   1)  Put  all  CAT 
+programs in A8: and using MKDIR name that directory CAT.  2) Again using MKDIR 
+create a directory called BACKUP for auto Master Catalog copying (para.  3.1.3 
+of  DISCAT manual),  as a second file,  to another disk--good protection  from 
+Master  Catalog  lose.  Command  #3 from the DISCAT menu erases  the  temorary 
+backup created on A8:CAT>.  CATUPD also defaults to updating disks to selected 
+catalog from directory BACKUP (para. 4.2.8).  So please make a named directory 
+with  that  name.  If you don't,  the default drive is B:  as it is  for  disk 
+copying.   3)  If  you  wish  to change the directroy  (disk/user  area)  that 
+receives  disk names,  change "catname" menu command line to  that  directory. 
+The  DISCAT  menu  command line ncatname C31:"Name of Disk -- "  (page  60  of 
+manual)  controls these things.   You may want to change the C31:  to BACKUP:. 
+     Notice  that MCOPY has a default search for directory BACKUP,  convenient 
+to use as backup copying for any file.   That's why command lines like "bmcopy 
+master.cat m" work.   By using MKDIR to establish a directory named BACKUP,  a 
+disk/user area is defined for all your backup files.
+     If you have a hard disk occuping A:  and B:, then you may find it cleaner 
+to keep all catalogs on B8:  and the DISCAT utilities on A8:.   Then B8: would 
+be named CAT, as in the DISCAT manual.
+
+Good News:  Phase 2 is shipping.   Programs contained in this release catapult 
+the  ZCPR3  System into new domains of  elegance.  Screen-oriented  utilities, 
+easy-to-live-with computer resource control,  each makes life pleasant for the 
+console operator.  The release is in two groups and purchased from Echelon for 
+$8.00 per disk plus $3.00 shipping and handling.  (California customers please 
+add 6.5% sales tax.)
+     The first_group, and probably more popular, is a two-disk set for $19.00, 
+complete, contains:
+
+	  VFILER -- a screen-oriented file and disk housekeeping
+                    manager, with marco-command menu (CMD files)
+                    ability; a major tool to create streamlined,
+                    menu-controlled turn-key systems
+           VMENU -- enhanced MENU with cursor addressing and partial
+	            DIR display capability (VMENUCK locates menu
+		    command lines containing syntax errors)
+ 	     DU3 -- video version of famous DU, Disk Utility; full
+                    disk editor with built-in help system
+	     MU3 -- Memory Utility allowing RAM changes on-the-fly,
+	            using screen cursor pointing to addresses be
+		    changed, in either ASCII or HEX; has built-
+                    in HEX calculator, a menu of commands, etc.
+	     CMD -- places a multiple command line into the command
+		    line buffer and executes
+	   SHSET -- makes a Shell of any application program, even 
+		    WordStar or dBASE II
+        CLEANDIR -- clears out de-allocated disk data from directory
+                    area, like public domain SAP but much faster; used
+		    often, permits UNERASE to work nearly every time
+       DPROG.ASM -- device programmer, a tool file to initialize and setup 
+                    CRT terminal, printer, or other device parameters;
+                    several may be used, each for different desired
+		    environments (for each DIRectory, using CD and ST)
+    DEBUGRCP.ASM -- Resident Command Package (RCP) addition, useful during
+                    program development sessions; a cut-down version of
+                    MU3 but memory resident
+
+     Screen-oriented  features of above commands should impress.   Each  comes 
+with  an online help file consistent with ZCPR3 HELP System.   These nine  (9) 
+utility programs round out ZCPR3's capability to create the computing environ-
+ment we dream about.
+     The  second_group  of Phase 2 consists of the above two disks  plus  four 
+more  for $51.00,  including S&H.   If ordering from California,  don't forget 
+6.5% state tax.  The additional disks contain:
+
+          Source Code -- for all object files on disks #1 & 2
+                         of group one, on two disks
+                VLIB  -- library subroutine support for modern
+                         CRT screen manipulation, cursor motion,
+                         erase to end of line, clear screen, half-
+                         intensity, etc., occupies 1/2 disk
+                Z3LIB -- subroutine library provides access to
+                         ZCPR3-specific features, environment
+                         descriptors, flow control, messages, and
+                         utilities, on 1 1/2 disks
+
+     For those who ordered only the first group and now want the  second,  the 
+price is $35.00, S&H included.
+     These programs are of extreme value considering their usefulness, person-
+hours  required to write and debug,  and ease of extension using SYSLIB,  VLIB 
+and  Z3LIB--that's  quality,  another example of Lasting-Value  Software  from 
+Echelon.   They,  separately  a  series  of small  gains,  combined  create  a 
+revolutionary environment permitting modular application program development.
+     Stay tuned for description of upcoming TERM3 communications program.   If 
+you  like  DISCAT and its blending with the ZCPR3 environment,  you will  love 
+TERM3.   (We start shipping TERM3 soon, hopefully within a month or so.)  This 
+application program,  plus DISCAT,  signals menu-driven, completely harmonious 
+systems  are now within your grasp,  if ZCPR3 is used.   And you  control  the 
+menus, aliases, and macro command CMD files: you are free!
+
+Very  Bad News:  IBM pulls an Osborne-style blunder in announcing and  pricing 
+their new PC-AT (Advanced Technology) computer.  In effort to cut AT&T off-at-
+the-pass  and  dominate the PC market,  as it has so competently done  in  the 
+mainframe  business,  the  AT has been priced so low that sales  of  both  the 
+standard  PC  and the PC-XT are being dramatically  curtained.   Additionally, 
+manufacturers of PC clones,  super clones and supermicros just don't have  the 
+volume  production  or buying power to price down in the AT range--hard  times 
+ahead  for them.   But unplanned side effect is IBM being greatly impacted  in 
+short term because they can't meet demand caused by shortages (that will  last 
+for  9  months)  of Intel 80286 chip used in the machine.   Slow  delivery  of 
+product  has caused a wait-and-see attitude in perspective buyers  of  full-up 
+PC's,  IBM brand or otherwise.  Potential customers presently inert waiting to 
+see what happens with IBM-Xenix, Unix System III and System V, and wonder if a 
+PC-DOS 4.0 with windows is soon coming to obsolete popular Xenix.
+     IBM  can  weather a storm they (in error?) created,  but  many  small- to 
+medium-size  companies are going to go under because of it.   Unix  future  is 
+still quite unclear,  especially System V.   If AT&T starts losing money,  and 
+there  is chance it will,  IBM big-victory is near.   Next from IBM-ROLM  come 
+power  moves  in  integrated telephone data/voice switch (PBX)  market  toward 
+dominance.   Can AT&T effectively, efficiently counter and be competitive?  In 
+straight voice switches they aren't well, 8% of market versus ROLM's 35%.
+     In  this pending calamity,  an 8-bit Z800/ZRDOS/ZCPR3  combination  could 
+gain a small minority foothold in personal LAN computing.   Zilog could take a 
+path  away from its present position of being fourth in a field of four in the 
+16/32  bit  marketplace  and make a real mark with a  super  performing  8-bit 
+machine.   The Z800 has the architecture to be that machine.   OEM's,  are you 
+listening?
+     The difference between predicting (foretelling) versus dictating  (deter-
+mining)  the  future is interesting to ponder.   The present is determined  by 
+history (the past):   the future is determined by what is past and what we  do 
+now, the present.  To dictate the future requires changing the past (present)!
+Very interesting considerings.   Can IBM change history,  the past or present?
+The thought chills.
+
+New-Users-of-CP/M_Corner:   Lots  of  first-time computer  users  are  getting 
+acquainted  with both CP/M and ZCPR3.   The understanding to fully  appreciate 
+how computers work takes time to acquire.   And study and work and study.  But 
+nothing of value is obtained unless we have been changed by the experience and 
+work changes us.   Learning to use computers and their software is a life-time 
+adventure--one full of thrills and heart aches.  But consider that solution to 
+any  problem  we  face  is simply to relax,  observe  characteristics  of  the 
+problem, think about it lightly, study more; the solution comes when we aren't 
+thinking about it!  Relax, and  learn what learning is all about.  Getting up-
+tight  doesn't help--just wastes precious energy,  energy to which  access  is 
+limited.  Relaxation opens channels to more energy, knowing, understanding.
+
+                     A human has untapped, strange powers
+                never used in normal circumstances.  Glimpses
+                        are recognizable during times
+               of eminent adversity, tragedy or extreme danger.
+    Necessity of survival drives forth to our consciousnesses the marvels
+              lingering beneath the surface.  Break the covering
+                 (through relaxation) and be surprised at the
+   wonderments contained inside us.  Truly the Infinite is already locked,
+           vested profoundly internal and most of us sense it not.
+
+The  next  paragraph was prompted by many new users of CP/M,  and  potentially 
+ZCPR.  (Who said CP/M is dead!)
+
+What  it  takes to handle installation of ZCPR3:  Command files  required  are 
+MOVECPM,  SYSGEN,  DDT,  MAC,  ED,  SID/ZSID,  MLOAD,  RELS.UTL,  and EX.   In 
+addition,  if  alteration of utilities is desired,  M80 and L80 are necessary.
+The  public  domain  programs of the group (the last three in  the  list)  are 
+supplied,  courtesy, their authors and Echelon.  As reported previously, we're 
+trying to negotiate a bargain deal to supply,  with our documentation, MAC and 
+SID/ZSID, and M80/L80, from Digital Research and Microsoft, respectively.
+     Manual  ZCPR3  installation (using DDT and MOVCPM) is easily  handled  by 
+programmers  with  two  years  experience with  Assembly  Language  and  CP/M; 
+the task is usually completed in four (4) hours.   New computer users find the 
+chore  difficult,  but  possible if time is taken to learn what's  not  known.
+Echelon helps in this process whenever possible.  Remember we are dealing with 
+an epic,  a package of software that is equivalent to Unix.   You can't expect 
+to understand it instantly (though Z3-Dot-Com installs almost instantly)!   At 
+any point in time,  we doubt if anyone fully understands the complete system--
+it's  simply too massive for a human to remember.   The ZCPR3 online  HELP  is 
+competent  aid to fallible organic memory.   We are developing further aids to 
+assist the console operator;  the GLOSSARY and ZCPR3 COMMANDS cards are  early 
+products, already supplied to all our customers...it's a beginning.
+
+Shipping  and  Handling  (S&H) Explained:  We control overhead  in  every  way 
+possible.   Minimizing paper work is one.  We charge a nominal average for our 
+shipping and handling.   Thus a customer who orders a single disk is partially 
+paying  for the one who orders a large amount of documentation and  multi-disk 
+software.   The  large package is charged the same as the small.   We feel the 
+average  is treated fairly with the extremes getting a better or  worse  deal. 
+But our overall costs are lower with the reduced clerical and paper work.  Our 
+software,  we surely suspect, is already a bargain so we hope few get upset at 
+the  sometimes  high  postage charged for a one-disk  shipment.   It's  not  a 
+perfect world; many stumble along the path thinking it is!
+
+FLASH:  New BBS and RCP/M now operates.   This station is central, prime board 
+for ZCPR3 news.   David McCord,  Fremont,  California, is SYSOP.  Computer was 
+thoughtfully  donated by Ampro Computers of Mountain  View,  California.   The 
+METAL message system used (the best in the business, we think) was provided by 
+Tim  Gary  and  Byron McKay of Delphi Data Systems,  also  of  Mountain  View. 
+Dave's  joining the ZCPR3 team speeds both reaction to customer questions  and 
+interchange of data and information, quickening knowledge and understanding of 
+ZCPR3  and the ZCPR3 System.   We welcome his vital assistance!   Please  make 
+note of new modem number:  415/489-9005.
+
+Public message networks informally receive ZCPR3 Newsletter.  Through wizardry 
+Echelon  customers  receive the newsletter first-class  US  Mail.   Those  not 
+customers but who which to receive it (multi-color, hardcopy) may subscribe at 
+$24.00 annual rate.   We promise twenty-two issues in any twelve-month period; 
+don't forget it's a fortnighter.  We further promise no dull newsletters, only 
+newsworthy  reporting,  microcomputer-industry  insider views,  Z3 Tips &  Bug 
+Reports,  and an editorial now and then.  Send your Visa/Mastercard number and 
+expiration date,  or personal check,  to Echelon to keep abreast of ZCPR3  and 
+CP/M-80 happenings.  See you down the lines...
+
+					                         Echelon, Inc.
+					                      101 First Street
+					                   Los Altos, CA 94022
+					               Telephone: 415/948-3820
+					 (NEW) RCP/M & BBS Modem: 415/489-9005
+
+Trademarks:   CP/M,  Digital Research;  Z3-Dot-Com,  Alpha Systems; Bookshelf, 
+Ampro Computers;  Z80,  Zilog;  Unix,  AT&T Bell Laboratories; ZCPR3, Syslib3, 
+Term3,  Richard L.  Conn;  Discat, Lasting-Value Software, Disk7, Echelon; PC-
+DOS,  IBM,  Int'l Business Machines;  Xenix,  Microsoft; WY-50, Wyseword, Wyse 
+Technology; ZRDOS, Dennis L. Wright; Metal, Delphi Data Systems.
+
+Newsletter 008 is Copyright 1984 Echelon,  Inc.  All Rights Reserved.  Permis-
+sion to reprint automatically granted if source credit is given to Echelon.
+

@@ -1,0 +1,138 @@
+;;
+;;                      HD64180 MACRO LIBRARY
+;;
+;;   THE FOLLOWING MACROS ENABLE ASSEMBLING HD64180 INSTRUCTIONS
+;;                        WITH SLR Z80ASM
+;;
+;;                    INVOKE WITH "MACLIB H80"
+;;
+;;
+;;
+;;                          MACRO FORMATS
+;;                          ----- -------
+;;
+;;	HD64180 Unique instructions:
+;;
+;;	SLP			; Enter SLEEP mode
+;;	MLT	RR		; 8 bit multiply with 16 bit result
+;;	IN0	R,P (or IN0 P)	; Input from internal port
+;;	OUT0	P,R (or OUT0 P)	; Output to internal port
+;;	OTIM			; Block output, increment
+;;	OTIMR			; Block output, increment and repeat
+;;	OTDM			; Block output, decrement
+;;	OTDMR			; Block output, decrement and repeat
+;;	TSTIO	P		; Non destructive AND, I/O port and A
+;;	TSTR	R  (or TST R)	; Non destructive AND, reg and A
+;;	TSTD	D  (or TST ID)	; Non destructive AND, immediate data and A
+;;	TSTP	   (or TST M)	; Non destructive AND, (HL) and A
+;;		   (or TST (HL))
+;;
+;;
+;;
+;; HD64180 orignal command support
+
+??BC	EQU	0	; Double-register definitions
+??DE	EQU	1
+??HL	EQU	2
+??SP	EQU	3
+
+??A	EQU	7	; Single-register defintions
+??B	EQU	0
+??C	EQU	1
+??D	EQU	2
+??E	EQU	3
+??H	EQU	4
+??L	EQU	5
+
+SLP	MACRO
+	DB	0EDH,76H
+	ENDM
+
+MLT	MACRO	?R
+	DB	0EDH,4CH+(??&?R AND 3) SHL 4
+	ENDM
+
+IN0	MACRO	?R,?P
+	IF	NUL ?P
+	DB	0EDH,??A SHL 3,?R
+	ELSE
+	DB	0EDH,(??&?R AND 7) SHL 3, ?P
+	ENDIF
+	ENDM
+
+OUT0	MACRO	?P,?R
+	IF	NUL ?R
+	DB	0EDH,1+??A SHL 3,?P
+	ELSE
+	DB	0EDH,1+(??&?R AND 7) SHL 3,?P
+	ENDIF
+	ENDM
+
+OTIM	MACRO
+	DB	0EDH,83H
+	ENDM
+
+OTIMR	MACRO
+	DB	0EDH,93H
+	ENDM
+
+OTDM	MACRO
+	DB	0EDH,8BH
+	ENDM
+
+OTDMR	MACRO
+	DB	0EDH,9BH
+	ENDM
+
+TSTIO	MACRO	?P
+	DB	0EDH,74H,?P
+	ENDM
+
+TSTR	MACRO	?R
+	DB	0EDH,4+(??&?R AND 7) SHL 3
+	ENDM
+
+TSTD	MACRO	?P
+	DB	0EDH,64H,?P
+	ENDM
+
+TSTP	MACRO
+	DB	0EDH,34H
+	ENDM
+
+TST	MACRO	?R
+	  ?D: SET 0
+	  IRPC	?X,?R
+	  ?D: SET ?D+1		; Count # chars in "?R"
+	  ENDM
+	    IF ?D EQ 1		; IF # chars = 1
+	     IRPC ?X,ABCDEHL	; Look up the character
+	       IF ??&?X EQ ??&?R
+	       DB	0EDH,4+(??&?R AND 7) SHL 3
+	       EXITM
+	       ENDIF
+	     ENDM
+	     DB	    0EDh,64h,?R
+	     EXITM
+	    ENDIF
+	IF	(?R = 2) & (?D = 4)
+	   ?D: SET 0
+	   IRPC ?X,?R
+		IFIDN <?X>,<(>
+		    DB 0EDh,34h
+		    EXITM
+		ENDIF
+	   ?D: SET ?D + 1
+	   ENDM
+	ENDIF
+	IF ?D NE 0
+	   DB	0EDH,64H,?R
+	ENDIF
+	ENDM
+
+;; End of H80.LIB
+ AND 7) SHL 3, ?P
+	ENDIF
+	ENDM
+
+OUT0	MACRO

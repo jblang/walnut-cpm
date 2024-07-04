@@ -1,0 +1,2510 @@
+From unc!duke!decvax!watmath!rhbartels Fri Jun 4 16:25:48 1982
+Subject: General Machine-Machine Transfer
+Newsgroups: net.sources
+
+
+
+                                 SYSTEM OUTLINE
+                                       by
+                                J. C. Winterton
+
+                    Machine to Machine Transmission Package
+                                       at
+                     Mathematics Faculty Computing Facility
+                Copyright (c) 1982 by the University of Waterloo
+
+
+     Outline            Machine to Machine Transmission      March 15, 1982
+
+
+                               TABLE OF CONTENTS
+
+              1. General.............................................     1
+              2. Requirements........................................     1
+                   2.1 Program address space.........................     1
+                   2.2 Simplicity....................................     1
+                   2.3 Specification.................................     2
+              3. Capabilities........................................     2
+                   3.1 Shell.........................................     2
+                   3.2 Multiple Protocols............................     2
+                   3.3 Unattended Operation..........................     2
+
+
+     Draft - Subject to Change       - ii -          University of Waterloo
+
+     Outline            Machine to Machine Transmission      March 15, 1982
+
+          Current  and  projected numbers of computers and work stations in
+     the University  and  the  existence  of  local  area  network  systems
+     accessible  to  them  raises  the  need  for a straightforward program
+     designed to allow the various machines on campus to  communicate  with
+     each other.  Communication over the local networks can be either under
+     control of a terminal attached to one of the machines in  a  conversa-
+     tion  or  of  a system daemon running on at least one of the machines.
+     This document  presents  the  specification  for  such  a  program  in
+     outline.
+
+          This section discusses the requirements of the  program  as  they
+     are known and understood at this date.
+
+          Since  it  is  expected  that  the program will usually be run in
+     restricted address space in a work station or personal  micro-computer
+     running  something  like  CP/M,  the  program  address  space is quite
+     limited.  It is doubtful that most machines actually running CP/M will
+     have  more  than, say, 64K bytes.  Since 8K is taken up by the monitor
+     and I/O system, there is an upper limit of 56K Bytes on  the  program.
+     The  program  size  target should be considerably smaller than this to
+     allow for imponderables.  At this time, the target is 32K Bytes.
+
+          It is felt that this will also be a benefit it larger  multi-user
+     machines,  but  considering the size of some libraries (e.g. TSS Blib)
+     it may not be possible to meet this target in these cases.
+
+          It is not expected that a  program  will  be  supplied  for  each
+     machine  in  existence.   An  implementation will be done for UNIX[1],
+     TSS, GCOS6 and, perhaps, THOTH.  The  source  code  and  specification
+     will  be  supplied  to  anyone else wanting to implement this program.
+     Because of this stand, it is necessary that simplicity  of  algorithms
+     be   of   higher   priority   than   efficiency   so  that  relatively
+     unsophisticated users may successfully implement the  program.   Hope-
+     fully,  like  music  by  J.S.Bach,  this program will be writeable and
+     compilable in whatever reasonable language is available on the  target
+     machine. [2]
+
+     __________________
+     [1] UNIX is a Trademark of Bell Laboratories.
+     [2] Bach wrote non-specifically and most of his works can be
+     played on whatever instruments are available.
+
+     Draft - Subject to Change       - 1 -           University of Waterloo
+
+     Outline            Machine to Machine Transmission      March 15, 1982
+
+          Where  data  are to be encoded, they will be converted from 8 bit
+     representation to hexadecimal.  Data compression is provided  whenever
+     two implimentations of this program are in communication.
+
+          The  specification  of  this  program  must  be  as  complete  as
+     possible.  Pseudo code or some similar representation  shall  be  used
+     where  logic is complex.  At least one of the implementations prepared
+     by us shall be wholly from this specification.
+
+          The following are the capabilities that are foreseen an necessary
+     in the program.
+
+          The term shell is used in the UNIX sense.  The program acts as  a
+     link  between  the user and the network session.  It is able to accept
+     commands to be executed:
+
+          (a)  By the host machine;
+
+          (b)  By the network (if possible); and
+
+          (c)  By the remote host machine.
+
+          The host/remote host commands in the repertoire  of  the  program
+     include redirection commands to facilitate file transfers.
+
+          Multiple  protocols  in the style of the UNIX uucp system are not
+     envisaged.  Where two copies of the program are  able  to  co-operate,
+     8-bit  data  may  be encoded and sent.  The program should be built to
+     handle only a seven bit data path.  Where only one copy of the program
+     is  active  in  the circuit, data may very well be restricted to ascii
+     graphics.
+
+          Unattended operation of the program  is  desirable  where  it  is
+     under  the  control  of  a daemon such as the UNIX cron.  It should be
+     possible to set up a list of machines to  be  polled  for  work  on  a
+     "spooled"  basis  so  that  lengthy  transmissions may be accomplished
+     without the need for an  "operator"  at  a  terminal  controlling  the
+     program.   This  is on all fours with the present UNIX uucp capability
+     which has served as a model for much of this design.
+
+     Draft - Subject to Change       - 2 -           University of Waterloo
+
+---------------------------------------------------------------------------
+		       Brief On-Line Documentation
+---------------------------------------------------------------------------
+MMX - machine to machine transfer program.
+
+Syntax:
+     MMX [SLave] [l=linename] [s=baudrate]
+
+Description:
+     This C program transfers  files  over  a  communication
+line  in  a  secure manner.  Checksumming and other controls
+are present as well as data compression.  A 7-bit data  path
+is  assumed, so that the use of "transparent" or "raw" modes
+on communication lines is avoided.
+     The  program  operates  in two modes: MASTER and SLAVE.
+Operation in the MASTER mode implies that commands  will  be
+given  from the standard input device and that communication
+with the network will be over a separate device.  SLAVE mode
+implies  that  the  communications network is identical with
+the standard input/output device.  Unless and until the host
+system  has  the  ability  to attach separate communications
+lines to programs, the program must  be  operated  in  SLAVE
+mode.
+     Currently,  Honeywell  TSS   cannot   attach   separate
+communication  lines,  and therefore, it is necessary to use
+SLAVE mode on that machine.  The Math UNIX machine,  on  the
+other  hand,  is  perfectly  capable  of operating in either
+mode.
+
+Options:
+   SLave
+       Causes the program to issue internal !SLave and !Open
+       command on start up.
+   l=linename
+       In   machines   that  possess  the  capability,  this
+       parameter sets a  string  to  be  used  by  the  open
+       command for the separate communication line.
+   s=baudrate
+       In   machines   that  possess  the  capability,  this
+       parameter allows the program to set the baud rate  of
+       the line.
+
+Defaults:
+     Defaults are set in each machine for the  options.   In
+the  current  version  for  Honeywell  TSS,  SLave is forced
+during startup.  In the math UNIX machine the defaults  are:
+MAster, l=/dev/sytek, s=2400.
+
+Program Operation:
+     When called, the program operates as a  minor  "shell".
+The  initiating  end  of  the  conversation  operates as the
+master (in MASTER mode) and the responding end as SLAVE.  It
+accepts  commands  and  acts  upon  them as described below.
+Commands  are  prefixed  by  the  command  escape  character
+exclamation-point   (!).    When   an  exclamation-point  is
+recognized at the beginning of a line, the  line  is  parsed
+and  validated  commands  obeyed.   When  an error occurs, a
+descriptive  error  message  appears.    When   the   second
+character  of  a command line is also a command escape, then
+the line is sent to the other program stripped of the  first
+escape  (!).   There  is  no escape sequence to issue system
+commands from within this program.
+
+
+Commands:
+
+   Open
+       Condition the communication line as necessary.   This
+       command  must be issued to both copies of the program
+       before  any  transfer  can  take  place.   Note  that
+       calling  the  program  with the SLave option performs
+       this  function   automatically   for   the   standard
+       input/output device.
+
+   Send localfile remotefile
+       Transmit file localfile from the master to remotefile
+       at  the  slave.   Correct  pathnames  and formats for
+       pathnames are the responsibility of the user.
+
+   Get remotefile localfile
+       Transmit  the  file  remotefile  from  the  slave  to
+       localfile at the  master.   Pathnames  are  the  full
+       responsibility of the user.
+
+   MaxData
+       Sets the  maximum  number  of  data  bytes  from  the
+       sending  file  that  will be passed in any one packet
+       during file transmission.
+
+       It is necessary to limit this artificially due to the
+       fact  that  some  systems  are line oriented and have
+       limited  line   sizes   (Honeywell   TSS).    MaxData
+       represents  a  count of bytes that will be taken from
+       the file being  sent.   Since  a  four  bit  encoding
+       techinique   is   used,   each   eight  bit  byte  is
+       transmitted as two graphic characters.   This  expan-
+       sion  is  alleviated  somewhat by also employing data
+       compression techinques where the number of  identical
+       characters  exceeds two.  There are ten (10) overhead
+       characters on  a  data  packet  in  addition  to  the
+       encoded bytes.  Default is 60 bytes.
+
+   Quit
+       Stops  the  program.   In  the  UNIX  environment,  a
+       control-D (EOT, D) may be sent as a command to effect
+       a  wrapup  of  the  program,  but  the   command   is
+       available.
+
+   MAster
+       If the program is in slave state,  switch  to  master
+       state.
+
+   SLave
+       If the program is in master state,  switch  to  slave
+       state.
+
+   Remote
+       Inform the program of the type of system that  is  at
+       the  other end of the conversation.  This feature has
+       not been useful to date, and may be removed.
+
+   Viewsetup
+       Display the controlling parameters of the program.
+
+   Continue
+       Because many systems do not prompt, end of  transmis-
+       sion  over  the  communication  line is detected by a
+       time out heuristic.  The command is provided to cause
+       the  program  to  re-examine  the  communication line
+       buffers where it is believed that more  data  may  be
+       present.   This  is  useful  when  system are heavily
+       loaded and multiple line output may be sent with more
+       than four seconds between data bursts.
+
+   Zdebug
+       Some versions of this program (notably the UNIX  ver-
+       sion) contain debugging code activated by the command
+       "!Zdebug on" and deactivated by "!Zdebug off".   This
+       code may be removed when not required or impractical.
+
+
+(Copyright (c) 1982, University of Waterloo)
+------------------------------------------------------------
+
+                     DATA STRUCTURES FOR FILE TRANSMISSION
+                                       by
+                                J. C. Winterton
+
+                    Machine to Machine Transmission Package
+                                       at
+                     Mathematics Faculty Computing Facility
+
+                Copyright (c) 1982 by the University of Waterloo
+
+     Formats            Machine to Machine Transmission      April 29, 1982
+
+                               TABLE OF CONTENTS
+
+              1. General..................................................1
+              2. Data Packet..............................................1
+                   2.1 Data Compression Scheme............................1
+                   2.2 Processing the Data packet.........................2
+              3. Beginning of File Packet.................................2
+                   3.1 Beginning of File Packet Processing................2
+              4. End of File Packet.......................................3
+                   4.1 End of File Packet Processing......................3
+              5. Hand Shake Packet........................................3
+              6. Warm Feelings............................................4
+
+     Draft - Subject to Change       - ii -          University of Waterloo
+
+     Formats            Machine to Machine Transmission      April 29, 1982
+
+     1. General.
+
+          This document contains the data structures necessary  to  operate
+     the  Machine to Machine Transmission program.  All of these structures
+     are effectively character arrays (strings).   In  this  design  it  is
+     considered that only a 7-bit data path is available.
+
+          When  files  are being transmitted, all data is packetized in the
+     format shown below.  Two other packet structures are necessary, namely
+     a  beginning  of file packet and an end of file packet.  An additional
+     packet is defined for the activation/deactivation of data compression.
+     For  convenience  of  description,  PL/I  is  used  as the description
+     language.  Because it is believed that many of the  operating  systems
+     involved  consider  the  ASCII  control  characters  as proprietary to
+     themselves, use of these characters has been avoided.
+
+     2. Data Packet.
+
+          The data packet shown below is used to transfer
+
+           dcl 1 data_packet unaligned,
+                2 d_soh char init ('|'),
+                2 check_sum char(4),                     /* modulo 10000 */
+                2 data_length char(3),                          /* <=250 */
+                2 d_stx char init ('{'),
+                2 data_bytes(data_length) char,       /* data characters */
+                2 data_terminator char;
+                                           /* '~' if incomplete "record" */
+                                               /* '}' if end of "record" */
+     2.1 Data Compression Scheme.
+
+          Data  compression  is  a feature of this protocol.  The technique
+     employed is:
+
+          Scan the uncompressed  data  for  occurances  of  three  or  more
+          occurances  of  the  same  character.   When  such are found, the
+          packet encoding routine translates them into GS-count-hh (4 ASCII
+          characters).[1]
+          Count is  the  binary  number  of  characters  to  be  propagated
+          expressed  as  an  ASCII  graphic  character  by  adding  a space
+          ('0100000'b).  This technique limits  the  compression  range  to
+          '0000011'b  through  '0011010'b  (3 through 26) in order to avoid
+          entering control characters and key signal characters  improperly
+          in the text.
+          hh is the  hexadecimal  representation  of  the  character  being
+          compressed.
+
+     ___________________________
+     [1] GS is the ASCII character '!'.
+
+
+     Draft - Subject to Change       - 1 -           University of Waterloo
+
+     Formats            Machine to Machine Transmission      April 29, 1982
+
+          This  scheme  will  only be invoked when co-operating versions of
+     the program are in contact.  If  the  identity  handshake  fails  when
+     transmission begins, the data are transmitted uncompressed.
+
+     2.2 Processing the Data packet.
+
+          The  data  of Figure 1 are encoded in ASCII hexadecimal notation,
+     two characters per byte for transmission.  On transmission, the  final
+     byte pair is followed by either an ASCII '}' or '~' character [2] and,
+     if necessary, a new-line character (\n) as  appropriate  to  the  host
+     system.   In  most cases, the '}' will be used as a packet terminator.
+     However, when it is considered important to pass data in  "blocks"  or
+     "records",  '~' is used at the end of each packet of a block until the
+     last, when '}' is used to indicate to the receiving  program  that  an
+     output write may now  be  accomplished.   [3]  The  receiving  program
+     decodes  the packet, and if found correct an ASCII 'y' character and a
+     newline are returned.  On receipt of  the  'y',  the  sending  program
+     sends the next packet.  If an error is detected, the receiving program
+     returns a sequence consisting of an ASCII 'n' followed  by  a  newline
+     character.  On receipt of the 'n', the sending program will retransmit
+     the packet.  The sending program shall attempt to send each  packet  a
+     minimum  of  five (5) times.  If receipt of the packet is not possible
+     after the retry limit, the programs should wrap up gracefully.
+
+     3. Beginning of File Packet.
+
+          When it is desired  to  transmit  a  file  between  two  machines
+     running  this  program,  the  fact is announced by the sending machine
+     with the transmission of a Beginning of File Packet Figure 2.
+
+     3.1 Beginning of File Packet Processing.
+
+          This packet is not encoded, but sent as plain ASCII text followed
+     by  a  newline  character.   Pathnames  are  the  resonsibility of the
+     sending program.  Retry processing is the same for this packet as  for
+     a data packet with the following exceptions:
+
+          (a) The   sending   program   will  open  the  file  to  be  sent
+          (send_pathname) before sending this packet.  If the  file  cannot
+          be opened, appropriate error action shall be taken.
+
+          (b) On  receipt  of this packet, in addition to checksumming, the
+          receiving program will attempt to open/create the receiving file.
+          An 'n' shall be sent if this fails.
+
+     ___________________________
+     [2] This restricts the operation of  Hazeltine  2000  series
+     equipment  to  having  the escape character set to the ASCII
+     ESC ('0011011'b).
+     [3]  A  record is an arbitrary division of text which may be
+     considered to be sent as a unit.  In some computer  systems,
+     it may be a logical record.
+
+     Draft - Subject to Change       - 2 -           University of Waterloo
+
+     Formats            Machine to Machine Transmission      April 29, 1982
+
+	   dcl 1 beginning_of_file_packet unaligned,
+                2 bof_indicator char(5) init ('|FILE'),
+                2 bof_direction char(1),
+                                                  /* 1 = slave_to_master */
+                                                  /* 2 = master_to_slave */
+                2 bof_checksum char(4),                  /* modulo 10000 */
+                2 bof_stx char init ('{'),
+                2 send_pathname_size char(3), /* length of send-pathname */
+                2 receive_pathname_size char(3),
+                                           /* length of receive_pathname */
+                2 send_pathname(send_pathname_size) char,
+                                                        /* send_pathname */
+                2 receive_pathname(receive_pathname_size) char,
+                                                     /* receive_pathname */
+                2 bof_terminator char init ('}');
+
+                       Figure 2. Beginning of File Packet
+
+
+     4. End of File Packet.
+
+          When  all  the  data  of a file has been transferred, the sending
+     program sends an End of File Packet Figure 3.
+
+           dcl 1 end_of_file_packet unaligned,
+                2 eof_heading char(4) ('|EOF'),
+                2 eof_stx char init ('{'),
+                2 eof_length char (3),           /* length of next field */
+                2 eof_sending_name(eof_length) char,
+                                        /* send_pathname from bof packet */
+                2 eof_terminator char init ('}');
+
+
+                          Figure 3. End of File Packet
+
+     4.1 End of File Packet Processing.
+
+          This  packet  is  sent  in plain ASCII text followed by a newline
+     with the retry protocol of the data packet.  Once  the  processing  of
+     this  packet  is  completed, the files are closed at both ends and the
+     program returns to manual or shell mode to accept new commands.
+
+     5. Hand Shake Packet.
+
+          This packet is sent by the sending program before the start of  a
+     file  transfer.   If it is returned by the receiving program, the data
+     compression algorithm is activated.  If  the  packet  is  acknowledged
+     improperly, data compression is disengaged for the transfer.
+
+     Draft - Subject to Change       - 3 -           University of Waterloo
+
+     Formats            Machine to Machine Transmission      April 29, 1982
+
+           dcl 1 hand_shake_packet unaligned,
+                2 hs_soh char init ('|'),
+                2 hs_dum char(12) init ('!$Compress$!'),
+                2 hs_stx char init ('{'),
+                2 hs_etx char init ('}');
+
+                          Figure 4. Hand Shake Packet
+
+     6. Warm Feelings.
+
+          Since  this  program  is  probably  operated  under  control of a
+     terminal attached to an operator, it is sensible to send out some kind
+     of reassuring message every five or six seconds.  It is suggested that
+     this "warm feelings" message should be brief.  It has  been  suggested
+     that the output could be the number of characters or packets sent.  If
+     it is known that the operator  terminal  is  a  CRT  with  addressable
+     cursor, an update in place would be desireable.
+
+     Draft - Subject to Change       - 4 -           University of Waterloo
+---------------------------------------------------------------------------
+		 HERE      COME     DE     CODE
+---------------------------------------------------------------------------
+/* This program was developed by John C. Winterton at the University of
+   Waterloo using UNIX 4.1BSD under an educational licence.  The program
+   is made available without support or warranty of any kind implicit
+   or explicit.
+
+   The purpose of the program is to communicate over a seven bit data
+   path with a similarly working copy of itself for the purpose of securely
+   transfering files from machine to machine.  This version contains specific
+   code for the version of the UNIX operating system on which it was
+   developed.  It further contains some code aimed at communicating with
+   a Honeywell TSS machine.
+
+   The subroutine _abbrv is the work of Kevin P. Martin, and works well
+   indeed.  The other stuff is the author's, who takes the blame but
+   but no responsibility.						*/
+
+/*	manifests for the mmx package					*/
+
+#ifdef unix
+#include <stdio.h>
+#include <sgtty.h>
+#include <ascii.h>
+#define SPEEDEFAULT B2400		/* default baud rate		*/
+#define LINEDEFAULT "/dev/sytek"	/* default comm line file	*/
+#define LINETTY     "/dev/tty"		/* name of login tty		*/
+#endif
+
+#define BUFFSIZE 1024			/* length of keyboard buffers	*/
+#define MAXSTRING 1024			/* length of general strings	*/
+#define PACKSIZE 1024			/* length of packet buffers	*/
+#define DEF_LENGTH 60			/* default data length in pkts	*/
+
+#define CL 017				/* four bit mask for lower char	*/
+#define CU 0360				/* four bit mask for upper char	*/
+#define CM 0177				/* 7    bit mask for input char	*/
+
+#define HEXUPPER 0x30			/* hex encodeing upper bits	*/
+#define HEXFIRST HEXUPPER 		/* '0'				*/
+#define HEXLAST  0x3f			/* '?'				*/
+#define HEXERROR -2			/* error signal for conversion	*/
+
+#define PROGESC '!'			/* escape character for commands*/
+
+#define DISCONNECTED 0			/* state of communication line	*/
+#define CONNECTED    1
+
+#define MASTERPROMPT "\n>"		/* prompt for master state	*/
+#define SLAVEPROMPT  "?"		/* prompt for slave state	*/
+
+
+	/* manifests for ourcmd's line parsing */
+
+#define STRING		0
+#define OPENLINE	1
+#define SENDFILE	2
+#define	GETFILE		3
+#define MAXLINE		4
+#define FINISHED	5
+#define MASTER		6
+#define SLAVE		7
+#define REMOTE		8
+#define VIEWSETUP	9
+#define CONTINUE	10
+#define ZDEBUG		11
+
+	/* manifests for the promptable (system names) */
+
+#define SYTEK		1
+#define LOCALNET	2
+#define	UNIX		3
+#define	GCOS		4
+#define MOD400		5
+#define THOTH		6
+
+	/* manifests for packet transmission (special chars) */
+
+#define X_SOH		'|'	/* pseudo start of header		*/
+#define X_STX		'{'	/* pseudo start of text			*/
+#define X_ETX		'}'	/* pseudo end of text			*/
+#define X_ETB		'~'	/* pseudo end of text block		*/
+#define X_GS		'!'	/* pseudo group separator (comprssion	*/
+
+	/* manifests for character offsets into decoded packet blocks	*/
+
+/* data packet */
+
+#define D_SOH		0
+#define D_CKSUM		1
+#define D_DLENGTH	5
+#define D_STX		8
+#define D_BYTES		9
+
+/* begin file packet */
+
+#define F_SOH		0
+#define F_FILE		1
+#define F_DIRECTION	5
+#define F_CKSUM		6
+#define F_STX		10
+#define F_SENDLENGTH	11
+#define F_RECVLENGTH	14
+#define F_SENDPATH	17
+
+/* end file packet */
+
+#define E_SOH		0
+#define E_EOF		1
+#define E_STX		4
+#define E_EOFLENGTH	5
+#define E_SENDPATH	8
+
+/* values for F_DIRECTION */
+#define TO_MASTER	'1'
+#define TO_SLAVE	'2'
+
+/* for direction of motion in the data packet processor */
+#define NONE		0
+#define IN		1
+#define OUT		2
+
+#define ERR_LIMIT	5	/* transmission error limit */
+#define COM_LIMIT	26	/* maximum number of chars for compression */
+#define WARM_FEEL	10	/* number of packets to pass before output
+				   of warm feelings indicator to MASTER    */
+/*
+ * _abbrv( pat, str )
+ *
+ * Perform match against string pattern.
+ * The pattern characters which are lowercase are optional.
+ * This routine recurs to a depth of n, where n is the number of optional
+ * characters provided in the match string.
+ *
+ */
+
+int _abbrv( pat, str )
+char *str, *pat;
+{
+	char c;
+	/*
+	 * Neither reqd nor patc is used without setting after the recursion,
+	 * so they can be static to save stack space.
+	 */
+	static int reqd;
+	static char patc;
+
+	for(;;) {	/* each target character */
+		/*
+		 * Pick up the next character to be matched.
+		 * and uppercase it.
+		 */
+		c = *(str++);
+		if( c >= 'a' && c <= 'z' )
+			c &= ~040;
+
+		for(;;) {	/* each pattern character */
+			patc = *(pat++);
+
+			/*
+			 * Is it required (non-lowercase, including null) ?
+			 */
+			reqd = patc < 'a' || patc > 'z';
+
+			/*
+			 * Compare uppercased pattern char with uppercased
+			 * target char.
+			 */
+			if( (reqd ? patc : patc & ~040) == c ) {
+				/*
+				 * We have a hit. If the character was required,
+				 * continue along the target string.
+				 */
+				if( reqd )
+					break;
+
+				/*
+				 * Otherwise, recursively look down the string.
+				 * If the remainder of the string matches the
+				 * remainder of the pattern, all is matched.
+				 */
+				if( _abbrv( pat, str ) )
+					return( 1 );
+
+				/*
+				 * If the remainder of the string and the rest
+				 * of the pattern did not match, try skipping
+				 * this (optional) pattern character,
+				 * and find the next.
+				 */
+			}
+			else {
+				/*
+				 * Didn't match. If it was required, fail.
+				 * else try next pattern character.
+				 */
+				if( reqd )
+					return( 0 );
+			}
+			/*
+			 * Loop back to next pattern character (on same
+			 * target character).
+			 */
+		}
+
+		/*
+		 * We matched a required character... Was it a null?
+		 * (end of pattern)
+		 */
+		if( c == '\0' )
+			return( 1 );
+		/*
+		 * Loop back to next target string character and next pattern
+		 * character.
+		 */
+	}
+}
+/*		convert input 8-bit  character to hexadecimal	*/
+
+#include "manifs.h"
+
+char *a_to_hex(cin, cout)
+char cin, *cout;
+{
+	cout[0] = ((cin >> 4) & CL) | HEXUPPER;
+	cout[1] = (cin & CL) | HEXUPPER;
+	return (cout);
+}
+/*	output the appropriate ack	*/
+
+#include "manifs.h"
+
+int ack()
+
+{
+	sendline("y\n",2);
+	return(1);
+}
+		/* NON-PORTABLE	- UCB UNIX 4.X */
+
+/* this routine uses an ioctl to see if there are any characters in the
+	input stream.
+	It returns the number of chars if there are any.		*/
+
+#include "manifs.h"
+
+long ccount(stream)
+FILE *stream;
+{
+
+	extern char prtab[];
+	extern int prompt, data_present;
+
+	long nchars;
+	unsigned sleeptime;
+
+	ioctl(fileno(stream), FIONREAD, &nchars);
+	nchars += (long) stream->_cnt;
+
+	while (nchars == 0)
+	{
+		if (prtab[prompt] != DEL)
+			return(nchars);
+		for (sleeptime = 1; sleeptime <= 16; sleeptime *= 2)
+		{
+			ioctl(fileno(stream), FIONREAD, &nchars);
+			nchars += (long) stream->_cnt;
+			if (nchars != 0)
+				return(nchars);
+			if (sleeptime > 2 && data_present)
+				return(nchars);
+			if (sleeptime == 8)
+				message ("Wait");
+			if (sleeptime > 8)
+				message (".");
+			sleep(sleeptime);
+		}
+		break;
+	}
+
+	return(nchars);
+}
+/*	checksum from a given X_STX to either a X_ETX or X_ETB exclusive */
+
+#include "manifs.h"
+
+unsigned checksum(p)
+char *p;
+
+{		/* p->X_STX */
+
+	int c, i;
+	unsigned sum;
+
+
+	if (p[0] != X_STX)
+		return (0);	/* error */
+	sum = 0;
+	for (i = 1; ; ++i)
+	{
+		c = (p[i]) & CM;
+		switch(c)
+		{
+		default:
+			if (c < ' ' || c > '~')
+				return(0);	/* non-packet char */
+			sum += c;
+			continue;
+		case X_ETX:
+		case X_ETB:
+			return(sum);
+		}
+	}
+}
+/*	process incoming packet in indicated buffer	*/
+
+#include "manifs.h"
+
+int dopacket(ptr, len)
+char ptr[];
+int len;
+{
+	extern char handshake[];
+	extern int errcount, compress;
+
+	char c;
+	int i;
+
+	c = ptr[1];	/*	get first char of header	*/
+	switch(c)	/*	and identify packet		*/
+	{
+	case '!':
+		i = strncmp(ptr, handshake, strlen(handshake) - 1);
+		if (i == 0)
+		{
+			compress = 1;
+			return(ack());
+		}
+		message("Compression request garbled - quitting.\n");
+		nack();
+		return(2);	/* transfer request fails */
+	case 'F':
+		if (filepacket(ptr, len))
+			return(ack());
+		return(nack());
+	case 'E':
+		if(eofpacket(ptr, len))
+		{
+			ack();
+			return(2);
+		}
+		return(nack());
+	default:
+		if (c >= '0' && c <= '9')
+			if(xferpacket( ptr, len))
+			{
+				errcount = 0;
+				return(ack());
+			}
+		if ( (++errcount) > ERR_LIMIT )
+		{
+			message ("Too many errors - quitting.\n");
+			nack();
+			return(2);
+		}
+		return(nack());
+	}
+}
+/*	process incoming eof packet	*/
+
+#include "manifs.h"
+
+int eofpacket(ptr, len)
+char ptr[];
+int len;
+{
+	extern FILE *xfer_file;
+	extern int filecmd;
+
+	filecmd = NONE;
+	fclose(xfer_file);
+	return(1);
+}
+	/* NON PORTABLE - UCB UNIX 4.X */
+
+/*	externals for mmx program					*/
+
+#include "manifs.h"
+
+FILE *in_line = 0;		/*	comm line input unit		*/
+FILE *out_line = 0;		/*	comm line output unit		*/
+FILE *xfer_file;		/*	for current file transfer	*/
+int filecmd = NONE;		/*	direction indicator for xfer	*/
+struct sgttyb com_line;		/*	comm line parameters from gtty	*/
+struct sgttyb com_save;		/*	copy of com_line for wrapup	*/
+struct tchars com_1;		/*	from ioctl for signals		*/
+struct tchars com_1s;		/*	copy of com_1 for wrapup	*/
+struct ltchars com_2;		/*	from ioctl for other signals	*/
+struct ltchars com_2s;		/*	copy of com_2 for wrapup	*/
+
+unsigned zdebug = 0;		/*	debug control			*/
+int on_line = 0;		/*	flag set by setup if /dev/tty	*/
+				/*	really is a terminal		*/
+
+char syntax[] = {
+	"Use:mmx [slave] [l=linename] [s=baudrate]\n"
+};
+char fileformat[] = 		/*	constant used in inwards	*/
+	{"%03d%03d%s%s%c"};
+
+char callname[20];		/*	name for the message routine	*/
+
+char handshake[] = {
+	"|!$Compress$!{}\n"	/*	data compression handshake	*/
+};
+
+char linebuf[BUFFSIZE];		/*	keyboard input buffer		*/
+
+char packet[PACKSIZE];		/*	data packet			*/
+
+int eofsw = 0;			/*	additional control for loadline	*/
+
+char file_local[MAXSTRING];	/*	name of local transfer file	*/
+char file_remote[MAXSTRING];	/*	name of remote tranfer file	*/
+
+	/*	Table of _abbrv patterns for the main ourcmd processor	*/
+
+	/* note: The zeroth and last entry of all tables of this type
+		 are set to null strings for the benefit of the identify()
+		 routine						*/
+
+char *optab[] = {
+	"",			/*	zero'th one is always null	*/
+	"Open",			/*	open the line			*/
+	"Send",			/*	send infile outfile		*/
+	"Get",			/*	get infile outfile		*/
+	"MaxData",		/*	maxdata nnn			*/
+	"Quit",			/*	quit				*/
+	"MAster",		/*	enter master state (default)	*/
+	"SLave",		/*	enter slave state		*/
+	"Remote",		/*	request new remote set up	*/
+	"Viewsetup",		/*	display remote set up		*/
+	"Continue",		/*	read the comm_line send nothing	*/
+	"Zdebug",		/*	zdebug on|off			*/
+	""			/*	last one is always null		*/
+};
+
+	/*	This collection of variables contains the program state	*/
+
+int progstate = MASTER;		/*	current state of things		*/
+int linestate = DISCONNECTED;	/*	current state of comm line	*/
+int speed;			/*	line speed 			*/
+int errcount = 0;		/*	error count for packet xmit	*/
+int compress = 0;		/*	data compression enable switch	*/
+int maxline = DEF_LENGTH;	/*	default maximum transmission	*/
+int newline = SYTEK;		/*	settable newline for outgoing	*/
+int prompt  = SYTEK;		/*	termination style of input	*/
+int remote = SYTEK;		/*	comm line device type		*/
+int data_present = 0;		/*	for readline routine		*/
+char line_name[MAXSTRING];	/*	comm line name string		*/
+char line_save[MAXSTRING];	/*	copy of line_name (MASTER)	*/
+char in_prompt[5]		/*	prompt string at terminal	*/
+	= {MASTERPROMPT};	/*	default for starting up		*/
+
+	/*	The entries in the following three tables bear a one-to-one
+		relation to each other as follows:
+
+		prtable is the table of known system names for _abbrv
+			processing by the !remote request;
+		prtab entries indicate the prompt character for the
+			corresponding system;
+		nltab entries contain the chracter that the relevant system
+			accepts as a <newline> or <end transmission>	*/
+
+char *prtable[] = {
+
+	"",
+	"Sytek",
+	"Localnet",
+	"Unix",
+	"Gcos8",
+	"Mod400",
+	"Thoth",
+	""
+};
+
+	/* note: in prtab an entry of DEL (\0177) indicates a system with
+		no particular known prompt. Serviced by timeout		*/
+
+char prtab[] = {
+	NUL,
+	DEL,		/*	sytek				*/
+	DEL,		/*	localnet			*/
+	DEL,		/*	unix				*/
+	DEL,		/*	control-q for the bun		*/
+	DEL,		/*	Mod400 (GCOS6)			*/
+	DEL,		/*	thoth(?)			*/
+	NUL
+};
+char nltab[] = {
+	NUL,
+	CR,			/*	sytek				*/
+	CR,			/*	localnet			*/
+	CR,			/*	unix				*/
+	CR,			/*	gcos8				*/
+	CR,			/*	Mod400				*/
+	CR,			/*	thoth(?)			*/
+	NUL
+};
+/*	routine to packetize and send an input file	*/
+
+#include "manifs.h"
+
+int fileout()
+
+{
+	extern FILE *xfer_file;
+	extern char packet[], linebuf[], file_local[];
+	extern int compress, maxline, errcount, progstate;
+
+	int lx, c, pkt_cnt;
+
+	c = lx = pkt_cnt = 0;
+	while ( (c = getc(xfer_file)) != EOF)
+	{
+		linebuf[lx++] = c;
+		if (lx < maxline)
+			continue;
+		outdata(linebuf, lx);
+		if (errcount >= ERR_LIMIT)
+			return(0);
+		if ( (progstate == MASTER) &&
+			( (++pkt_cnt % WARM_FEEL) == 0) )
+				message(".");
+		lx = 0;
+	}
+	if (lx)
+	{
+		outdata(linebuf, lx);
+		if (errcount >= ERR_LIMIT)
+			return(0);
+	}
+	sprintf(packet, "|EOF{%03d%s}", strlen(file_local), file_local);
+	for (errcount = 0; errcount < ERR_LIMIT; errcount++)
+		if (sendpacket(packet))
+			break;
+
+	return(errcount < ERR_LIMIT);
+}
+/*	process an incoming file header packet		*/
+
+#include "manifs.h"
+
+int filepacket(ptr, len)
+char ptr[];
+int len;
+{
+	extern FILE *xfer_file;
+	extern char file_local[];
+	extern int progstate, filecmd;
+	extern unsigned checksum();
+
+	char filename[160];
+	int i, s_length, r_length, limit;
+	unsigned cksum, value;
+	char *pick;
+
+	value = checksum(&(ptr[F_STX]));
+	i = sscanf(ptr, "|FILE%*c%4d{%3d%3d", &cksum, &s_length, &r_length);
+	if (i < 3)
+		return(0);		/* error on packet */
+	if (value != cksum)
+		return(0);
+
+	switch(progstate)
+	{
+	case MASTER:
+		switch (ptr[F_DIRECTION])
+		{
+		case TO_MASTER:
+			pick = &(ptr[F_SENDPATH + s_length]);
+			limit = r_length;
+			break;
+		case TO_SLAVE:
+			pick = &(ptr[F_SENDPATH]);
+			limit = s_length;
+			break;
+		default:
+			return(0);
+		}
+		break;
+	case SLAVE:
+		switch (ptr[F_DIRECTION])
+		{
+		case TO_SLAVE:
+			pick = &(ptr[F_SENDPATH + s_length]);
+			limit = r_length;
+			break;
+		case TO_MASTER:
+			pick = &(ptr[F_SENDPATH]);
+			limit = s_length;
+			break;
+		default:
+			return(0);
+		}
+		break;
+	default:
+		message("Program in an impossible state in filepacket\n");
+		message("Dumping");
+		kill(getpid(), 9);
+	}
+
+	for (i = 0; i < limit; ++i)
+		filename[i] = pick[i];
+	filename[i] = NUL;
+
+	filecmd = IN;
+	if (progstate == MASTER)
+		if (ptr[F_DIRECTION] == TO_MASTER)
+		{
+			filecmd   = OUT;
+			xfer_file = fopen(filename, "w");
+		}
+		else
+			xfer_file = fopen(filename, "r");
+	else	/* state is SLAVE */
+		if (ptr[F_DIRECTION] == TO_SLAVE)
+		{
+			filecmd = OUT;
+			xfer_file = fopen(filename, "w");
+		}
+		else
+			xfer_file = fopen(filename, "r");
+
+	if (xfer_file == NULL)
+	{
+		filecmd = NONE;
+		return(0);
+	}
+
+	strcpy (file_local, filename);
+	return(1);
+}
+/* convert a pair of hexadecimal coded input chars to an 8 bit char	*/
+
+#include "manifs.h"
+
+int hex_to_a(cin)
+char *cin;
+{
+
+	register int i, cout;
+	register char c;
+
+	cout = 0;		/* insurance */
+	for (i = 0; i < 2; ++i)
+	{
+		c = cin[i];
+		if (HEXFIRST <= c && c <= HEXLAST)
+			cout = ( ( cout << 4 ) & CU ) | (c & CL);
+		else
+			return(HEXERROR);
+	}
+	return (cout);
+}
+/*		This routine identifies the presented argument
+		againts the table of acceptable commands		*/
+
+#include "manifs.h"
+
+int identify(table,string)
+char *table[];
+char string[];
+
+{
+
+	int i;
+
+	for (i = 1; table[i][0] != NUL; ++i)
+		if ((_abbrv(table[i], string) == 1))
+			return (i);
+	return (0);
+}
+/*		This routine tests stdin and returns 1 if it is a tty
+		otherwise it returns 0					*/
+
+int ifonline ()
+{
+	extern int on_line;
+
+	return (on_line);
+}
+/*	manage an inbound file transfer					/*
+
+/*	when called, localname has been opened on xfer_file and
+	compression handshaking is complete.  This routine formats and
+	sends out the file header packet with verification then turns
+	control over to the inbound packet processor			*/
+
+#include "manifs.h"
+
+int inwards(remotename, localname)
+char remotename[], localname[];
+{
+	extern char packet[], *rawfgets(), fileformat[];
+	extern int progstate;
+	extern unsigned checksum();
+
+	int err_cnt, l_length, r_length, i, q;
+	unsigned cksum;
+	char work[BUFFSIZE], *p;
+
+	strcpy (packet, "|FILE");
+	packet[F_DIRECTION] = (progstate == MASTER ? TO_MASTER : TO_SLAVE);
+	packet[F_STX] = X_STX;
+	l_length = strlen(localname);
+	r_length = strlen(remotename);
+	if (progstate == MASTER)
+		sprintf(work, fileformat,
+			r_length, l_length, remotename, localname, X_ETX);
+	else
+		sprintf(work, fileformat,
+			l_length, r_length, localname, remotename, X_ETX);
+	p = &(packet[F_SENDLENGTH]);
+	q = strlen(work);
+	for (i = 0; i < q; ++i)
+		p[i] = work[i];
+	cksum = checksum(&(packet[F_STX]));
+	if (cksum == 0)
+	{
+		message ("Error calculating checksum in inwards routine\n");
+		kill (getpid(), 9);	/* program bug if happens */
+	}
+	sprintf(work, "%04d", cksum % 10000);
+	p = &(packet[F_CKSUM]);
+	for (i = 0; i < 4; ++i)
+		p[i] = work[i];
+	for (err_cnt = 0; err_cnt < ERR_LIMIT; ++err_cnt)
+		if (sendpacket(packet))
+			break;
+	if (err_cnt >= ERR_LIMIT)
+	{
+		message ("Error limit reached on file packet\n");
+		return(0);
+	}
+	if (!procpack())
+		message("Get: File transfer failed\n");
+	else
+		message("Get: Completed\n");
+	return(1);
+}
+/*	parse the command option l=string for the comm line	*/
+
+int linearg(string)
+char *string;
+{
+	extern char line_name[], line_save[];
+
+	if (string[1] != '=')
+	{
+		message ("%s not understood\n", string);
+		return (1);
+	}
+	strcpy(line_name, &string[2]);	/*	used here	*/
+	strcpy(line_save, line_name);	/*	remember here	*/
+	return(0);
+}
+/*	list options for a verb when they consist of another table	*/
+
+#include "manifs.h"
+
+int listopt(string, table)
+char string[], *table[];
+{
+
+	int i;
+
+	message ("Options for the %s command are:\n", string);
+	for (i = 1; table[i][0] != NUL; ++i)
+		message ("%s ", table[i]);
+	message ("\n");
+	return(1);
+}
+/*	load a line into a string from the stdin file		*/
+
+#include "manifs.h"
+
+int loadline(string, limit)
+char string[];
+int limit;
+{
+	extern int progstate, eofsw, progstate, linestate;
+	extern char in_prompt[];
+	extern char *rawfgets();
+
+	char *ret;
+
+	if (eofsw > 0)
+		return (EOF);
+
+	message ("%s", in_prompt);	/* prompt */
+
+	if (progstate == SLAVE && linestate == CONNECTED)
+		ret = rawfgets(string, limit, stdin);
+	else
+		ret = fgets(string, limit, stdin);
+	if (ret == NULL)
+	{
+		eofsw = 1;
+		return (EOF);
+	}
+	return ( strlen(string) );
+}
+	/* NON PORTABLE 	UCB UNIX 4.X */
+
+/*	Set up input and output units for the comm line		*/
+
+#include "manifs.h"
+
+int lopen()
+{
+
+	extern int linestate;
+	extern int speed;
+	extern char line_name[];
+	extern FILE *in_line, *out_line;
+	extern struct sgttyb com_line;
+	extern struct sgttyb com_save;
+	extern struct tchars com_1;
+	extern struct tchars com_1s;
+	extern struct ltchars com_2;
+	extern struct ltchars com_2s;
+
+	int stat, stat_too;
+	int ldiscipline = NTTYDISC;
+	int not_the_tty;
+
+	not_the_tty = ( strcmp (line_name, LINETTY) );	/* zero if terminal */
+
+	if (linestate == CONNECTED)
+	{
+		message ("Line is already open\n");
+		return(1);
+	}
+
+	if (not_the_tty)
+	{
+		in_line = fopen (line_name, "r");	/* open for read */
+		out_line = fopen (line_name, "w");	/* open for write */
+		if (in_line == NULL || out_line == NULL	)
+		{
+			message ("Could not open line %s\n", line_name);
+			return(0);
+		}
+	}
+	else
+	{
+		in_line = stdin;
+		out_line = stdout;
+	}
+
+	/* set new tty	*/
+	stat = ioctl(fileno(in_line), TIOCSETD, &ldiscipline);
+	if (stat < 0)
+	{
+		message ("Couldn't set new tty discipline on line %s\n",
+			line_name);
+		return(0);
+	}
+
+		/* read line parameters */
+	stat = ioctl(fileno(in_line), TIOCGETP, &com_line);
+	stat_too = ioctl(fileno(in_line), TIOCGETP, &com_save);
+	if (stat < 0 || stat_too < 0)
+	{
+		message ("Open routine failed reading line parameters\n");
+		return(0);
+	}
+	ioctl (fileno(in_line), TIOCGETC, &com_1);
+	ioctl (fileno(in_line), TIOCGETC, &com_1s);
+	ioctl (fileno(in_line), TIOCGLTC, &com_2);
+	ioctl (fileno(in_line), TIOCGLTC, &com_2s);
+	com_1.t_intrc = com_1.t_quitc = com_1.t_eofc = -1;
+	ioctl(fileno(in_line), TIOCSETC, &com_1);
+	com_2.t_suspc = com_2.t_dsuspc = com_2.t_rprntc =
+		com_2.t_flushc = com_2.t_werasc = com_2.t_lnextc = -1;
+	ioctl(fileno(in_line), TIOCSLTC, &com_2);
+
+	if (not_the_tty)
+		com_line.sg_ispeed = com_line.sg_ospeed = speed;
+
+	com_line.sg_erase = '\010';	/* erase char is backspace */
+	com_line.sg_kill  = '\030';	/* kill char is ctrl-x	   */
+		/* set line controls for char by char */
+	com_line.sg_flags = CBREAK | TANDEM;
+
+	stat = ioctl(fileno(in_line), TIOCSETP, &com_line); /* set it up */
+	if (stat < 0)
+	{
+		message ("Failed to set up line properly\n");
+		return(0);
+	}
+
+	/* set exclusive use */
+	stat = ioctl(fileno(in_line), TIOCEXCL, NULL);
+	if (stat < 0)
+	{
+		message ("Failed to set exclusive use on line\n");
+		return(0);
+	}
+
+	/* set hangup on close */
+	stat = ioctl(fileno(in_line), TIOCHPCL, NULL);
+	if (stat < 0)
+	{
+		message("Failed to set hang up on close on line\n");
+		return(0);
+	}
+
+	linestate = CONNECTED;
+	message("Line connected\n");
+	return(1);
+}
+	/* general machine to machine file transfer shell program */
+
+#include "manifs.h"
+
+int main (argc, argv)
+int argc;
+char *argv[];
+{
+	extern char linebuf[], callname[];
+	extern int progstate;
+
+	int status, i;
+	char c;
+
+	status = setup (argc, argv);
+	if (status == 0)
+	{
+		message ("%s: Setup fails\n", callname);
+		exit(-1);
+	}
+	message ("%s: Setup complete\nType !v for program status\n",
+		callname);
+	for (status = 1; status != 0; )
+		switch (status) {
+			case 1:
+				status = process(loadline(linebuf, BUFFSIZE));
+				continue;
+			case 2:
+					/* note - anti-reflection code */
+
+				i = readline(linebuf, BUFFSIZE);
+				c = linebuf[0];
+				if ( ( (progstate == SLAVE) && (c == X_SOH) )
+					|| (c == PROGESC) )
+					status = process(i);
+				else
+					status = 1;
+				continue;
+			default:
+				message ("Illegal status in main %d\n",
+					status);
+				wrapup();
+				exit(-1);
+		}
+	exit(0);
+
+	/* note on anti-reflection:
+		The case 2 above must be left this way.  If process is
+		called directly (e.g. status = process(readline ...))
+		then the last line input will be sent to the other device
+		ad nauseam.  This code checks for things that CAN be
+		handled by process().  It is left to the maintainer to
+		fathom why it was done this way.
+	*/
+}
+/*	This routine is not portable, and is used to hide printf	*/
+/*	do a printf and return the value 1				*/
+
+#include "manifs.h"
+
+int message(format, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+char *format;
+int a1, a2, a3, a4, a5, a6, a7, a8, a9, a10;
+{
+	fprintf (stdout, format, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+	fflush(stdout);
+	return (1);
+}
+/*	make a data packet obeying compression rules
+	input is in in_char for length in_len chars
+	output is ready to send packet in out_pack	*/
+
+#include "manifs.h"
+
+mkdatapacket(in_char, out_pack, in_len)
+char in_char[], out_pack[];
+int in_len;
+{
+	extern int compress;
+
+	char *cp, pair[2], *a_to_hex();
+	int wx, px, ix, count;
+	unsigned cksum;
+
+	cksum = 0;
+	for (ix = 0; ix < in_len; ++ix)
+		cksum += in_char[ix];
+	cksum %= 10000;
+	sprintf(out_pack, "|%04d%03d{", cksum, in_len);
+	cp = &(out_pack[D_BYTES]);
+	px = ix = 0;
+	while (ix < in_len)
+	{
+		if (compress && ((in_len - ix) > 2))
+		{
+			wx = ix;		/* in case of backout */
+
+			while ((in_char[wx] == in_char[++ix]) && ix < in_len)
+				;
+			count = ix - wx;
+			if (count > COM_LIMIT)
+			{
+				ix -= (count - COM_LIMIT);
+				count = COM_LIMIT;
+			}
+			if (count > 2)
+			{
+				cp[px++] = X_GS;
+				cp[px++] = (count | 0x40) & CM;
+				a_to_hex(in_char[wx], pair);
+				cp[px++] = pair[0];
+				cp[px++] = pair[1];
+				continue;
+			}
+			else
+				ix = wx;	/* back off */
+		}
+
+		a_to_hex(in_char[ix++], pair);
+		cp[px++] = pair[0];
+		cp[px++] = pair[1];
+	}
+	cp[px] = X_ETX;
+}
+/*	output the appropriate nack	*/
+
+#include "manifs.h"
+
+int nack()
+
+{
+	sendline("n\n",2);
+	return(0);
+}
+/*		process a command line from the stdin device		*/
+
+#include "manifs.h"
+
+int ourcmd(linebuf, inlength)
+char linebuf[];
+int inlength;
+{
+	extern char *optab[], *prtable[];
+	extern int  linestate, progstate;
+	extern char line_name[], line_save[], in_prompt[];
+	extern char file_local[], file_remote[];
+	extern unsigned zdebug;
+
+	int cmd, argcount;
+	char arglist[20][MAXSTRING];
+
+	if (linebuf[1] == PROGESC)	/* two escapes - send it */
+	{
+		sendline (&linebuf[1], inlength - 1);
+		return(2);		/* main will read line   */
+	}
+
+	argcount = tokenize(&linebuf[1], inlength-1, arglist);
+	if (!argcount)
+	{
+		message ("%s - no valid arguments found", linebuf);
+		return(1);
+	}
+
+	cmd = identify(optab, arglist[0]);
+
+	switch (cmd)
+	{
+
+		case OPENLINE:		/* open the communications line   */
+			if (lopen() == 0) {
+				wrapup();	/* fatal error		  */
+				return(0);
+			}
+			return(1);
+
+		case SENDFILE:		/* send a file from here to there */
+			if (progstate == SLAVE)
+			{
+				message("Send: MASTER state command ");
+				message("but program is in SLAVE\n");
+			}
+			if (argcount != 3)
+			{
+				message ("Usage: Send localfile remotefile\n");
+				return (1);
+			}
+			strcpy(file_local, arglist[1]);
+			strcpy(file_remote, arglist[2]);
+			return(send(file_local, file_remote));
+
+		case GETFILE:		/* get a file from there to here  */
+			if (progstate == SLAVE)
+			{
+				message ("Get: MASTER state command ");
+				message ("but program is in SLAVE\n");
+				return(1);
+			}
+			if (argcount != 3)
+			{
+				message ("Usage: Get remotefile localfile\n");
+				return(1);
+			}
+			strcpy(file_remote, arglist[1]);
+			strcpy(file_local, arglist[2]);
+			return(receive(file_remote, file_local));
+
+		case MAXLINE:		/* set the maximum number of bytes
+					   that can be sent at one time   */
+			if (argcount != 2)
+			{
+				message ("Usage: %s nn\n", optab[cmd]);
+				return(1);
+			}
+			return(setmaxl(arglist[1]));
+
+		case FINISHED:		/* close out program		  */
+			wrapup();
+			return(0);
+
+		case MASTER:
+		case SLAVE:
+			if (progstate == cmd)
+				message ("Already in %s state\n",
+					optab[cmd]);
+			else {
+				progstate = cmd;
+				if (cmd == MASTER)
+				{
+					strcpy (in_prompt, MASTERPROMPT);
+					strcpy (line_name, line_save);
+				}
+				else
+				{
+					strcpy (in_prompt, SLAVEPROMPT);
+					strcpy (line_name, LINETTY);
+				}
+				message ("%s state set\n", optab[cmd]);
+			}
+			return (1);
+
+		case REMOTE:
+			if (argcount != 2)
+			{
+				listopt (optab[cmd], prtable);
+				return (1);
+			}
+			setremote(arglist[1]);
+			return(1);
+
+		case VIEWSETUP:
+			showsetup();
+			return(1);
+
+		case CONTINUE:
+			return(2);
+
+		case ZDEBUG:
+			zdebug = ((arglist[1][1] | ' ') == 'n');
+			return(1);
+
+		default:
+			message ("%s not recognized as a command\n",
+				arglist[0]);
+			listopt("on-line", optab);
+			return  (ifonline());
+	}
+}
+/* make and output a data packet	*/
+
+#include "manifs.h"
+
+outdata(p, l)
+char p[];
+int l;
+{
+	extern char packet[];
+	extern int errcount;
+
+	mkdatapacket(p, packet, l);
+	for (errcount = 0; errcount < ERR_LIMIT; ++errcount)
+		if (sendpacket(packet))
+			break;
+}
+/* manage an outbound file transfer					*/
+
+/* this routine is the converse of inwards and is called with similar
+   conditions (xfer_file is open, etc.).  After formatting the file
+   header and having it accepted by the other program, fileout is
+   called to transfer the data.						*/
+
+#include "manifs.h"
+
+int outwards (file_local, file_remote)
+char file_local[], file_remote[];
+{
+	extern char packet[], *rawfgets(), fileformat[];
+	extern int progstate;
+	extern unsigned checksum();
+
+	int err_cnt, l_length, r_length, i, q;
+	unsigned cksum;
+	char work[BUFFSIZE], *p;
+
+	strcpy (packet, "|FILE");
+	packet[F_DIRECTION] = (progstate == MASTER ? TO_SLAVE : TO_MASTER);
+	packet[F_STX] = X_STX;
+	l_length = strlen(file_local);
+	r_length = strlen(file_remote);
+	if (progstate == MASTER)
+		sprintf( work, fileformat,
+			l_length, r_length, file_local, file_remote, X_ETX);
+	else
+		sprintf( work, fileformat,
+			r_length, l_length, file_remote, file_local, X_ETX);
+	p = &(packet[F_SENDLENGTH]);
+	q = strlen(work);
+	for (i = 0; i < q; ++i)
+		p[i] = work[i];
+	cksum = checksum(&(packet[F_STX]));
+	if (cksum == 0)
+	{
+		message("Error calculating checksum in outwards routine\n");
+		kill (getpid(), 9);	/* program bug if happens */
+	}
+	sprintf(work, "%04d", cksum % 10000);
+	p = &(packet[F_CKSUM]);
+	for (i = 0; i < 4; ++i)
+		p[i] = work[i];
+	for (err_cnt = 0; err_cnt < ERR_LIMIT; ++err_cnt)
+		if (sendpacket(packet))
+			break;
+	if (err_cnt >= ERR_LIMIT)
+	{
+		message("Error limit reached on file packet\n");
+		return(0);
+	}
+	if (!fileout())
+		message("Send: File transfer failed\n");
+	else
+		message("Send: Completed\n");
+	return(1);
+}
+/* process the contents of linebuf and decide where to get the next line */
+
+#include "manifs.h"
+
+int process(i)
+int i;
+{
+	extern char *rawfgets(), linebuf[];
+	extern int progstate, linestate, filecmd;
+	extern FILE *in_line;
+
+	char c;
+
+	if (i == EOF) {				/* wrap up, friends	*/
+		wrapup();
+		return (0);
+	}
+	if (i == 0)
+		return(1);
+	c = linebuf[0];
+	if (progstate == SLAVE && c == X_SOH)
+		if (linestate == DISCONNECTED)
+		{
+			message("Packet input, but line is not open\n");
+			return(1);
+		}
+		else
+		{
+			while ((dopacket(linebuf, i) < 2)
+				&& (filecmd != IN))
+				i = strlen(rawfgets (linebuf, BUFFSIZE, in_line));
+			if (filecmd == IN)
+				if (!fileout())
+				{
+					message ("Too many errors - fileout\n");
+					return(0);
+				}
+			return(2);
+		}
+	if (c == PROGESC)			/* something for us	*/
+		return(ourcmd(linebuf,i));	/* returns 0, 1, 2	*/
+	sendline(linebuf, i);			/* something for remote	*/
+	return (2);				/* main should read line*/
+}
+/*	loop doing rawfgets and processing packets until an end of file
+	packet is found.  This is the main inwards file transfer routine */
+
+#include "manifs.h"
+
+int procpack()
+{
+	extern char linebuff[], *rawfgets(), packet[];
+	extern int progstate;
+	extern FILE *in_line;
+
+	int pkt_cnt = 0;
+	int err_cnt = 0;
+	char c;
+
+	while (err_cnt < ERR_LIMIT)
+	{
+		rawfgets(packet, PACKSIZE, in_line);
+		if (packet[0] != X_SOH)
+		{
+			nack();
+			++err_cnt;
+			continue;
+		}
+		switch ((c = packet[1] & CM))
+		{
+		case 'E':
+			eofpacket(packet, strlen(packet));
+			return(ack());
+		default:
+			if ( c >= '0' && c <= '9')
+				if (xferpacket (packet, strlen(packet)))
+				{
+					err_cnt = 0;
+					ack();
+					if ( (progstate == MASTER) &&
+						( (++pkt_cnt % WARM_FEEL) == 0) )
+							message(".");
+					continue;
+				}
+				else
+				{
+					++err_cnt;
+					nack();		/* bad packet */
+					continue;
+				}
+			else
+			{
+				++err_cnt;
+				nack();			/* data packet expected */
+				continue;
+			}
+
+		}
+	}
+	return(err_cnt < ERR_LIMIT);
+}
+	/* NON PORTABLE - UCB UNIX 4.x	*/
+
+/* do an fgets on a line that is set to raw or cbreak mode using the newline
+   table entry nltab[newline] as the end of input line character	*/
+
+#include "manifs.h"
+
+char *rawfgets(string, limit, unit)
+char string[];
+int  limit;
+FILE *unit;
+{
+	extern char nltab[];
+	extern int newline, progstate;
+	extern unsigned zdebug;
+
+	int i = 0;
+	char c = NUL;
+
+	while (c != nltab[newline] && i < limit)
+	{
+		c = (fgetc(unit)) & CM;	/* hangs on the read */
+
+		if (zdebug && (progstate == MASTER))
+		{
+			char dc[3];
+
+			dc[0] = ' ';
+			dc[1] = c;
+			dc[2] = NUL;
+			if (c <= US || c == DEL)
+			{
+				dc[0] = '^';
+				dc[1] = (c == DEL ? '?' : (c | '@'));
+			}
+			message ("Rawfgets: Debug: input char = %s\n", dc);
+		}
+			/* control character filter */
+
+		if (NUL <= c && c <= US)
+			if ((c = nltab[newline]) || (c = '\n'))
+				;		/* do nothing */
+			else
+				continue;	/* scrag all except newline */
+		if (c == DEL)
+			continue;
+		string[i++] = c;
+	}
+	string[i] = NUL;
+	if (zdebug && progstate == MASTER)
+		message ("Rawfgets: Debug: return string -->%s<--\n", string);
+	return(string);
+}
+/* read characters from the comm_line and put them on stdout
+   also accumulating each "line" in the string buffer until a
+   prompt sequence is seen.  In cases where the entry in prtab[prompt]
+   is a del, the end of the input is determined by absence of further input
+   and is controlled by a non-portable routine (ccount)			*/
+
+#include "manifs.h"
+
+int readline(string, limit)
+char string[];
+int limit;
+{
+	extern int data_present, linestate, prompt, newline;
+	extern FILE *in_line;
+	extern char prtab[], nltab[];
+	extern long ccount();
+
+	register int i, j;
+	int reset_line;
+	register char c;
+	long nchars;
+
+
+	if (linestate == CONNECTED)
+	{
+		data_present = i = reset_line = 0;
+		for (;;)
+		{
+			nchars = ccount(in_line);
+			if (!nchars)
+				break;
+			data_present = 1;
+			for (j = 0; j < nchars; ++j)
+			{
+				if (reset_line)
+				{
+					reset_line = 0;
+					i = 0;
+				}
+				c = (fgetc(in_line)) & CM;
+
+					/* control character filter */
+
+				if ((c == DEL) || (NUL <= c && c <= US))
+				{
+					if ( c == nltab[newline] || c == '\n')
+						reset_line = 1;
+					else if (prtab[prompt] != DEL)
+					{
+						if (c == prtab[prompt])
+							reset_line = 1;
+					}
+					else
+						continue;
+				}
+
+				if (c == nltab[newline])
+					c = NL;
+				string[i++] = c;
+				putchar(c);
+				if (i >= limit)
+					break;
+			}
+			fflush(stdout);
+			if (i >= limit)
+				break;
+		}
+		fflush(stdout);
+	}
+	else
+	{
+		message("Readline - line not connected\n");
+		return(0);
+	}
+	string[i] = NUL;
+	return(i);
+}
+/*	routine controls file transfers inwards		*/
+
+#include "manifs.h"
+
+int receive(remotename, localname)
+char remotename[], localname[];
+{
+	extern int linestate, compress, filecmd;
+	extern FILE *xfer_file;
+
+	if (linestate == DISCONNECTED)
+	{
+		message ("Get: Can't run. Line disconnected\n");
+		return(1);
+	}
+
+	xfer_file = fopen(localname, "w");
+	if (xfer_file == NULL)
+	{
+		message ("Get: Can't open %s for write\n", localname);
+		return(1);
+	}
+	filecmd = OUT;
+
+	compress = setcomp();
+
+	return(inwards(remotename, localname));
+}
+/*	routine controls outward file transfers	*/
+
+#include "manifs.h"
+
+int send (file_local, file_remote)
+char file_local[],  file_remote[];
+{
+	extern int linestate, compress, filecmd;
+	extern FILE *xfer_file;
+
+	if (linestate == DISCONNECTED)
+	{
+		message("Send: Can't run.  Line disconnected`n");
+		return(1);
+	}
+
+	xfer_file = fopen(file_local, "r");
+	if (xfer_file == NULL)
+	{
+		message ("Send: Can't open %s for read\n", file_local);
+		return(1);
+	}
+
+	filecmd = IN;
+
+	compress = setcomp();
+
+	return(outwards(file_local, file_remote));
+}
+/*	send a line out on the comm line		*/
+
+#include "manifs.h"
+
+int sendline(buffer, nchars)
+char buffer[];
+int  nchars;
+{
+	extern int linestate, newline;
+	extern FILE *out_line;
+	extern char nltab[];
+	char c;
+	register int i;
+
+	if (linestate == CONNECTED)
+	{
+		for ( i = 0; i < nchars; ++i )
+		{
+			if (buffer[i] == NL)
+				c = nltab[newline];
+			else
+				c = buffer[i];
+			fputc(c, out_line);
+		}
+		fflush(out_line);
+	}
+	else
+		message ("Communications line not opened\n");
+	return(1);
+}
+/*	send the packet found in the incoming buffer	*/
+
+#include "manifs.h"
+
+int sendpacket(p)
+char p[];
+
+{
+
+	extern FILE *in_line, *out_line;
+	extern int newline, progstate;
+	extern char nltab[], linebuf[], *rawfgets();
+	extern unsigned zdebug;
+
+	int i;
+	char c;
+
+	if (zdebug && (progstate == MASTER))
+		showpacket("sendpacket", p);
+	i = 0;
+	do
+	{
+		c = p[i++];
+		fputc(c, out_line);
+	}
+	while (c != X_ETB && c != X_ETX);
+	fputc(nltab[newline], out_line);
+	fflush(out_line);
+	rawfgets(linebuf, BUFFSIZE, in_line);
+	return (linebuf[0] == 'y' ? 1 : 0);
+}
+/*	offer to enable compression if other program is willing		*/
+
+#include "manifs.h"
+
+int setcomp()
+{
+	extern char handshake[], linebuf[];
+	extern FILE *in_line;
+	extern char *rawfgets();
+
+	sendline(handshake, strlen(handshake));
+	rawfgets(linebuf, BUFFSIZE, in_line);
+	return (linebuf[0] == 'y' ? 1 : 0);
+
+}
+/*	set maximum transmission line length			*/
+
+#include "manifs.h"
+
+int setmaxl(string)
+char *string;
+{
+	extern maxline;
+
+	int state;
+
+	state = sscanf(string, "%d", &maxline);
+	if (state != 1)
+		message ("Unable to set maxline. Current value = %d\n",
+			maxline);
+	else
+		message ("Maximum line length set to %d\n", maxline);
+	return(1);
+}
+/*		set remote system paramters				*/
+
+#include "manifs.h"
+
+int setremote(string)
+char string[];
+{
+
+	extern char *prtable[];
+	extern int newline, prompt, remote;
+
+	int i;
+
+	i = identify(prtable, string);
+	if (prtable[i][0] == NUL) {
+		message("Cannot set remote state to %s - not supported\n",
+			string);
+		return(1);
+	}
+
+	newline = prompt = remote = i;
+	return(1);
+}
+	/* NON PORTABLE - UCB UNIX 4.X	*/
+
+/*	setup - This routine performs whatever setup is necessary	*/
+
+#include "manifs.h"
+
+int setup (argc, argv)
+int argc;
+char *argv[];
+{
+
+	extern int  on_line, speed;
+	extern char line_name[], line_save[];
+	extern char syntax[], *upperc(), callname[];
+
+	int i, p;
+
+	p = 0;
+
+	if (strlen(argv[0]) < 19)
+		strcpy (callname, argv[0]);	/* copy call name for msgs */
+	else
+		strncpy (callname, argv[0], 19);
+	upperc(callname);
+
+	on_line = isatty(fileno(stdin));	/* control errors	*/
+
+	speed = SPEEDEFAULT;			/* set defaults		*/
+	strcat(line_name, LINEDEFAULT);
+	for (i = 1; i < argc; ++i)
+		switch (argv[i][0]) {
+			case 'l':
+			case 'L':
+				p += linearg(argv[i]);
+				continue;
+			case 's':
+			case 'S':
+				if (argv[i][1] == 'l' || argv[i][1] == 'L')
+				{
+					ourcmd ("!slave", 6);
+					ourcmd ("!open", 5);
+					continue;
+				}
+				p += speedarg(argv[i]);
+				continue;
+			default:
+				fprintf(stderr, "%s not understood\n%s",
+					argv[i], syntax);
+				return(0);
+		}
+	if (p != 0)
+		return(0);
+
+	return (1);
+}
+/*	debugging tool - can be dropped later		*/
+
+#include "manifs.h"
+
+void showpacket(who, packet)
+char *who, packet[];
+{
+	char work[MAXSTRING], c;
+	unsigned i;
+
+	i = 0;
+	do
+	{
+		c = work[i] = packet[i];
+		++i;
+	} while (( c != X_ETX) && (c != X_ETB));
+	work[i] = NUL;
+	message ("Debug: from %s: packet contents\n%s\n", who, work);
+}
+/*	routine to display the current state of the world		*/
+
+#include "manifs.h"
+
+int showsetup()
+{
+
+	extern int progstate, linestate, speed, compress, maxline;
+	extern char line_name[];
+	extern char *optab[], *prtable[];
+	extern char nltab[], prtab[], callname[], line_name[];
+	extern int remote, newline, prompt;
+
+	message ("%s: Program Status\n", callname);
+	message ("State is %s\n", optab[progstate]);
+	message ("Communications line %s is %s\n", line_name,
+		(linestate == CONNECTED ? "open" : "closed"));
+	message ("Remote device is %s\n", prtable[remote]);
+	showspeed(speed);
+	message ("Remote newline is 0%o\n", nltab[newline]);
+	message ("Remote prompt is 0%o\n", prtab[prompt]);
+	message ("Maximum characters to transmit per packet is %d\n", maxline);
+	message ("Compression is %s\n", compress ? "ON" : "OFF");
+	return(1);
+}
+	/*	NON PORTABLE - UCB UNIX 4.X */
+
+/*		print the interpreted value in speed		*/
+
+#include "manifs.h"
+
+int showspeed(speed)
+{
+
+
+	message("External line speed is ");
+
+	switch(speed) {
+
+		case B0:
+			message("Null\n");
+			return;
+		case B50:
+			message("50");
+			break;
+		case B75:
+			message ("75");
+			break;
+		case B110:
+			message ("110");
+			break;
+		case B134:
+			message("134.5");
+			break;
+		case B150:
+			message ("150");
+			break;
+		case B200:
+			message("200");
+			break;
+		case B300:
+			message ("300");
+			break;
+		case B600:
+			message ("600");
+			break;
+		case B1200:
+			message ("1200");
+			break;
+		case B1800:
+			message ("1800");
+			break;
+		case B2400:
+			message("2400");
+			break;
+		case B4800:
+			message("4800");
+			break;
+		case B9600:
+			message("9600");
+			break;
+		case EXTA:
+		case EXTB:
+			message("External\n");
+			return;
+		default:
+			message("Erroneous\n");
+			return;
+	}
+	message (" bits per second\n");
+	return;
+}
+	/*	NON PORTABLE - UCB UNIX 4.X	*/
+
+/*			Parse s=value					*/
+
+#include "manifs.h"
+
+int speedarg(string)
+char *string;
+{
+	extern int speed;
+
+	int i;
+
+	int val;
+
+	i = sscanf (string, "s=%4d", &val);
+	if (i != 1) {
+		message ("%s not understood\n", string);
+		return(1);
+	}
+
+	switch (val) {
+		case 110:
+			speed = B110;
+			return(0);
+		case 300:
+			speed = B300;
+			return(0);
+		case 1200:
+			speed = B1200;
+			return(0);
+		case 1800:
+			speed = B1800;
+			return(0);
+		case 2400:
+			speed = B2400;
+			return(0);
+		case 4800:
+			speed = B4800;
+			return(0);
+		case 9600:
+			speed = B9600;
+			return(0);
+		default:
+			message ("Speed %d is not supported\n", val);
+			return(1);
+	}
+}
+/*	this routine breaks the input string up into tokens in the
+	list of strings given.						*/
+
+#include "manifs.h"
+
+int tokenize(string, limit, list)
+char string[];
+int limit;
+char list[][MAXSTRING];
+{
+	int i, j, k;
+	char c;
+
+	j = k = 0;
+	for (i = 0; i < limit; ++i) {
+		c = string[i];
+		switch(c) {
+			case ' ':
+			case '\t':
+				if (k > 0) {
+					list[j][k++] = NUL;
+					++j;
+					k = 0;
+				}
+				continue;
+			case NUL:
+			case '\r':
+			case '\n':
+				if ( k > 0)
+					list[j][k++] = NUL;
+				return (++j);
+			default:
+				list[j][k++] = c;
+		}
+	}
+	list[j][k] = NUL;
+	return(++j);
+}
+/*	uppercase an input string's alphabetic characters	*/
+char *upperc(string)
+char string[];
+{
+	int i, j;
+	char c;
+
+	j = strlen(string);
+	for (i = 0; i <= j; ++i) {
+		c = string[i];
+		if ( c >= 'a' && c <= 'z')
+			string[i] ^= 040;
+	}
+	return(string);
+}
+/*	routine to perform wrapup functions at end of run		*/
+
+#include "manifs.h"
+
+int wrapup()
+{
+	extern char callname[];
+	extern int linestate;
+	extern FILE *in_line, *out_line;
+	extern struct sgttyb com_save;
+	extern struct tchars com_1s;
+	extern struct ltchars com_2s;
+	extern char line_name[];
+
+	if (linestate == CONNECTED)
+	{
+		ioctl(fileno(in_line), TIOCSETC, &com_1s);
+		ioctl(fileno(in_line), TIOCSLTC, &com_2s);
+		ioctl(fileno(in_line), TIOCSETP, &com_save);	/* restore */
+		if (strcmp (line_name, LINETTY))	/* not the tty */
+		{
+			fclose(in_line);
+			fclose(out_line);
+		}
+		else
+			in_line = out_line = NULL;
+		linestate = DISCONNECTED;
+		message("%s: Communication line closed\n", callname);
+	}
+	return(1);
+}
+/*	process incoming data packet	*/
+
+#include "manifs.h"
+
+int xferpacket(ptr, len)
+char ptr[];
+int len;
+{
+	extern FILE *xfer_file;
+	extern int compress;
+
+	int ret_char, dx, px;
+	unsigned value, nchars, cksum, count;
+	char data[MAXSTRING], *p;
+
+	sscanf(ptr, "|%4d%3d{", &value, &count);
+	dx = px = 0;
+	p = &(ptr[D_BYTES]);
+
+	while ((p[px] != X_ETX) && (p[px] != X_ETB))
+	{
+		if (compress && p[px] == X_GS)
+		{				/* de-compression */
+			nchars = p[px + 1] ^ 0x40;
+			px += 2;
+			ret_char = hex_to_a(&(p[px]));
+			if (ret_char == HEXERROR)
+				return(0);
+			while (nchars--)
+				data[dx++] = ret_char;
+			px += 2;
+		}
+		else
+		{
+			ret_char = hex_to_a(&(p[px]));
+			if (ret_char == HEXERROR)
+				return(0);
+			data[dx++] = ret_char;
+			px += 2;
+		}
+		if (dx >= count)
+			break;
+	}
+
+	for (cksum = px = 0; px < dx; px++)
+		cksum += data[px];
+	cksum %= 10000;
+	if (cksum != value)
+		return(0);
+
+	for (px = 0; px < dx; px++)
+		putc(data[px], xfer_file);
+
+	fflush(xfer_file);
+	return(1);
+}
+
+

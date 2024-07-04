@@ -1,0 +1,283 @@
+mortgage: proc options (main);
+	put edit (' ', ' ', ' ',
+	'*****************************************************',
+	'*          Mortgage Amortization Program            *',
+	'*          =============================            *',
+	'*                      -- by John W. Bishop,        *',
+	'*                         February 7, 1983.         *',
+	'*                                                   *',
+	'*  This program will compute monthly payment, total *',
+	'*  interest, etc., for any principal and rate, with *',
+	'*  standard Canadian rules (semi-annual compounding *',
+	'*  of interest,  blended payments of  principal and *',
+	'*  interest, no final "balloon payment", etc.  User *',
+	'*  can also obtain a  printout of the  amortization *',
+	'*  table for either the full amortization period or *',
+	'*  the term of the mortgage. Any licensed CP/M user *',
+	'*  may make use of this program (for non-commercial *',
+	'*  purposes) if (s)he so desires.                   *',
+	'*  Note: Portions of this program,  (c) 1982, 1980, *',
+	'*  DIGITAL RESEARCH INC.  (This program was written *',
+	'*  in PL/I-80, on an H-89 computer.)                *',
+	'*****************************************************',
+
+	'		       Press any key to begin')
+		(skip, a);
+	call keyin1;
+	dcl page_number fixed dec (3) static init (1);
+	dcl form_feed	char (1) static init ('^L');
+	dcl rdstat entry returns (bit (1)),
+		coninp entry returns (char (1));
+	dcl clear char (2) static init ('^[E');
+	dcl answer char (1);
+	dcl (syslist, sysprint) file;
+	dcl (more, print_it, yes, no, hard_copy) bit (1);
+		yes = '1'b; no = '0'b; more = '1'b; print_it = '0'b;
+	dcl (annual_rate, semi_annual_rate, monthly_rate,
+		amort_months, term_months, amortization_factor) float;
+	dcl (term_dec, amort_dec) fixed dec (5);
+	dcl (principal, monthly_payment, monthly_interest, total_paid,
+		principal_repaid, total_interest, start_principal,
+		end_principal) fixed dec (9,2);
+	dcl 	catch_convert	 fixed dec (15, 11),
+		amort_factor_dec fixed dec (9,6),
+		monthly_rate_dec fixed dec (9,9);
+	dcl ftc entry (float binary) returns (char (17) var);
+	open file (sysprint) stream output linesize (0) title ('$con');
+	put file (sysprint) edit (clear) (a);
+	put file (sysprint) edit
+		('Do you want information printed, ' || 
+			'as well as listed on the screen?')
+				(skip, a);
+	call keyin1;
+	if index ('NnYy', answer) > 2 
+		then print_it = '1'b;
+		else print_it = '0'b;
+	put edit ('Turn on printer, then press any key.')
+				(skip(2), a);
+	call keyin1;
+	open file (syslist) stream output
+				title ('$lst') linesize (0);
+do while (more);
+	put file (sysprint) edit (clear)(a);
+	put file (sysprint) edit 
+		('Mortgage Amortization Information',
+		 '=================================')
+		(skip, col (25), a);
+	put file (sysprint) edit ('Amount to be amortized? ')
+			(skip(2), col (10), a);
+	get list (principal);
+	end_principal = principal;
+	put file (sysprint) edit ('Nominal annual interest rate (%)? ')
+			(skip, col (10), a);
+	get list (annual_rate);
+	put file (sysprint) edit ('Amortized over how many months? ')
+			( col (10), a);
+	get list (amort_months);
+	amort_dec = amort_months;
+	put file (sysprint) edit ('Mortgage term (in months)? ')
+			( col (10), a);
+	get list (term_months);
+	term_dec = term_months;
+	semi_annual_rate = annual_rate / 200.0;
+	monthly_rate = (1.0 + semi_annual_rate) ** (1.0E0/6.0E0) - 1.0;
+	amortization_factor =
+		(1.0 - 1.0 / (1.0 + monthly_rate) ** amort_months)
+			/ monthly_rate;
+
+	catch_convert    = dec (ftc (amortization_factor), 15, 11);
+	amort_factor_dec = catch_convert;
+
+	catch_convert    = dec (ftc (monthly_rate), 15, 11);
+	monthly_rate_dec = catch_convert;
+
+	monthly_payment = 0.005 + principal / amort_factor_dec;
+	total_paid = monthly_payment * amort_dec;
+	total_interest = total_paid - principal;
+
+	put file (sysprint) edit 
+		('Monthly payment (principal + interest) is ',
+				monthly_payment)
+			(skip(2), col (10), a, p'$$$,$$9v.99');
+
+	put file (sysprint) edit
+		('Over full amortization period of ',amort_dec,' months,',
+			' total repayment would be ', total_paid,
+			' of which ', total_interest, ' would be interest.')
+		(skip,col (10), a, p'z,zz9', a,
+			skip, col (20), a, p'$$,$$$,$$9v.99',
+			skip, col (20), a, p'$$,$$$,$$9v.99', a);
+
+	if print_it
+		then do;
+			put file (syslist) skip (2);
+			call show_stuff (syslist);
+		end;
+
+	put file (sysprint) edit
+		('Do you want to see the amortization table?')
+		(skip, col (15), a);
+	call keyin1;
+	if index ('Yy', answer) > 0
+		then do;
+			put file (sysprint) edit 
+				('on Screen, or Printer [ S or P ] ?')
+				(skip, col (30), a);
+			call keyin1;
+			if index ('Pp', answer) > 0
+				then hard_copy = yes;
+				else hard_copy = no;
+			if hard_copy
+				then call print_the_table (syslist);
+				else call print_the_table (sysprint);
+		end;
+
+	put file (sysprint) edit 
+		('Do you wish to continue calculations? ')
+		(skip (2), col (20), a);
+	call keyin1;
+	if index ('Yy',answer) > 0 
+		then more = yes;
+		else more = no;
+end /* big do while loop */;
+
+return;
+
+keyin1: proc;
+	do while (~ rdstat ()); end;
+	answer = coninp ();
+	return;
+end keyin1;
+
+show_stuff: proc (output);
+	dcl output file variable;
+
+	put file (output) edit ('Mortgage particulars',
+				'====================')
+			(skip, col(30), a);
+	put file (output) edit ('Principal to be amortized: ',
+		principal) (skip, col (10), a, p'$$,$$$,$$9v.99');
+	put file (output) edit ('Nominal annual interest rate: ',
+		annual_rate,' %')(skip, col (10), a, p'zz9v.999',a);
+	put file (output) edit ('Amortization term (months): ',
+		amort_dec) (skip, col (10), a, p'zz,zz9');
+	put file (output) edit ('Monthly payment, P & I: ',
+		monthly_payment) (skip, col (10), a, p'$$$,$$9v.99');
+
+	put file (output) edit
+		('Over full amortization period of ',amort_dec,' months,',
+			' total repayment would be ', total_paid,
+			' of which ', total_interest, ' would be interest.')
+		(skip (2), col (10), a, p'z,zz9', a, 
+			skip, col (20), a, p'$$,$$$,$$9v.99',
+			skip, col (20), a, p'$$,$$$,$$9v.99', a);
+	put file (output) skip;
+	return;
+end show_stuff;
+
+print_the_table: proc (output);
+	dcl output file;
+	dcl (year_count, month_count, max_months, total_months,
+		check, years_on_page, max_years_on_page) fixed bin (15);
+	if hard_copy 
+		then max_years_on_page = 3;
+		else max_years_on_page = 1;
+	year_count = 1; month_count = 0; page_number = 1;
+	total_months = 0; years_on_page = 0;
+	put edit ('Listing for the full Amortization',
+		' (' , amort_dec , ' months),',
+		'or for the mortgage Term (', term_dec,
+		' months) ? [ A  or T ] :')
+		(skip(2), col (15), a, a, p'zzzz9', a,
+		 skip(1), col (15), a, p'zzzz9', a);
+	check = 0;
+
+	do while (check = 0);
+		call keyin1;
+		check = index ('TtAa',answer);
+		end;
+
+	if check < 3
+		then max_months = term_dec;
+		else max_months = amort_dec;
+	call new_page_rtn;
+
+	do while (total_months < max_months & end_principal > 0);
+		start_principal = end_principal;
+		monthly_interest = start_principal*monthly_rate_dec+0.005;
+		principal_repaid = monthly_payment - monthly_interest;
+		end_principal = start_principal - principal_repaid;
+		total_months = total_months + 1;
+		month_count = month_count + 1;
+		put file (output) edit 
+			('|', month_count, ' |', start_principal,
+			'|', monthly_interest, '|', principal_repaid,
+			'|', monthly_payment, '|', end_principal,
+			'|', total_months, ' |')
+			(skip, a, p'zz9', a, p'$$$$,$$9v.99-',
+			a, p'zzz,zz9v.99-', a, p'zzz,zz9v.99-',
+			a, p'zzz,zz9v.99-', a, p'$$$$,$$9v.99-',
+			a, p'zzz9', a);
+
+		if (month_count = 12 & total_months < max_months) then
+			do;
+				month_count = 0;
+				year_count = year_count + 1;
+				years_on_page = years_on_page + 1;
+				if years_on_page > max_years_on_page
+				  then call new_page_rtn;
+				  else put file (output) edit 
+				    ('Year Number ',year_count,
+				     '===============')
+				    (skip(2), col (30), a, p'zz9',
+				     skip, col (30), a);
+			end;
+
+		end;
+	put file (output) edit ('End of listing.')
+				(skip (2), col (40), a);
+	return;
+
+new_page_rtn: proc;
+
+	if hard_copy 
+		then put file (output) edit (form_feed)(a);
+		else do;
+			put file (output) edit
+				('Press any key to continue')
+				(skip, col (25), a);
+			call keyin1;
+			put file (output) edit (clear) (a);
+			end;
+	put file (output) edit ('Mortgage Amortization Table',
+		'Page #', page_number,'Year #', year_count)
+		(skip, col (20), a, col (55), a, p'zz9',
+		 skip, col (25), a, p'zz9');
+
+	put file (output) edit ('Principal', principal, 'Annual rate',
+		annual_rate, '%', 'Amortized over', amort_dec,
+		' months','Mortgage term', term_dec, ' months.')
+		(skip (2), col (15), a, col (30), p'$$$$$,$$9v.99',
+		 skip (1), col (15), a, col (30), p'zz9v.999b', a,
+		 skip (1), col (15), a, col (30), p'zzz9', a,
+		 skip (1), col (15), a, col (30), p'zzz9', a);
+
+	put file (output) edit 
+		('Month| Before Pmt |  Interest | Principal |'||
+		'Monthly pmt| After Paymt|Pmt #|',
+		 '=====|============|===========|===========|'||
+		'===========|============|=====|')
+		(skip, a, skip, a);
+	
+	page_number = page_number + 1;
+	years_on_page = 1;
+	month_count = 0;
+	
+	return;
+
+end new_page_rtn;
+
+end print_the_table;
+
+end mortgage;
+

@@ -1,0 +1,147 @@
+
+		     SAPP v 2.0 Documentation
+			    08/02/87
+
+	    Sort & Pack Directory for CP/M 2.2 and 3.0
+		       By George F. Reding
+
+		       Based upon SAP v 44
+		      With subroutines from
+			CPM22E and SYSLIB
+
+------------------------------------------------------------------------
+			      NOTES
+
+A bug was found in v 1.9 when used under CP/M 2.2 where the DMA pointer
+was not being advanced, so the buffer under 2.2 was being overwritten,
+thus trashing the directory.  The bug has been corrected by having moved
+1 label and added another label, eg, DIRLOP & DIRLP1.  Thanks to David
+Bowerman, the Sysop of Frog Hollow RCPM System (604-937-0906) for having
+located the cause of the problem.  David then tested it on a disk with
+250 of 256 directory entries used, under CP/M 2.2 and all is now fine.
+
+SAPP v1.8 clobbered the DE registers in the XBIOS2 routine for 2.2 which
+caused the SECTRAN function to not work under CP/M 2.2.
+
+My previous versions of this program for CP/M 3.0 only are also docu-
+mented in the source code of the program.  This new version has improve-
+ments which I shall attempt to briefly describe.
+
+The program uses Z80 code wherever I could possibly make use of it,
+therefore, it can only be used on those systems which have a Z80 CPU.
+A simple test of Bob Freed's is used at the beginning of the program.
+
+Then the CP/M version number is obtained from the system and is stored
+in the program.  This program uses BIOS functions for disk input/output
+and for such operations the version number is checked and appropriate
+routines are subsequently selected.
+
+Data areas are initially zero-filled, with an additional buffer area
+being set up if CP/M 3.0.  If CP/M 3.0, the DPB offset and DPB lengths
+are set accordingly.
+
+The desired disk is selected and the translation table address and DPB
+is copied to the program.  The program then tests the DRM value of the
+DPH, tests to see if there is enough TPA room to copy all of the direc-
+tory entries into the TPA.  If not enough room then a calculation is
+made to determine the maximum number of entries that the TPA can hold,
+which is then stored in the program's copy of the DPB for its usage and
+a warning is then given to the user.  (The warning may optionally be
+turned-off if the user providing that the user can remember to never ex-
+ceed the maximum number of entries that the program can handle.  If the
+warning flag is set for no message, then the program will continue on
+its own.)
+
+This auto-faking of the DRM may occur when either the TPA is too low or
+the DRM is too large or both.  It will work for CP/M 2.2 or 3.0 systems.
+
+------------------------------------------------------------------------
+			  CONFIGURATION
+
+Very few items are required to be set by the user in either source code
+or in the COM file in order to use this program.  In the .COM file these
+user configurable bytes "should" be at the following locations (they
+follow the signon message that ends with my initials GFR and a 01A hex
+in case the .COM file was typed):
+
+	011B	Clear screen code (6 bytes maximum)
+	0121	Null terminator for above
+	0122	CP/M 3.0 largest sector size (low/high)
+	0124	Normally E5 hex
+	0125	Normally 00 hex
+
+The byte at 011B is the clear screen code for your console.  If you do
+NOT desire to clear your screen on program start, then set this first
+byte to 00 hex.  Six bytes maximum may be used for your clear screen
+code.  The byte at 0121 is a zero terminator for the clear screen.  If
+using less than 6 bytes to clear your screen, then set any unused bytes
+to zero.
+
+At 0122 hex, is a word value for CP/M 3.0 systems.  Set this to your
+largest sector size used on your system.  The first byte of that word
+value is the low and the second byte is the high of the word, eg, for
+1024 byte sectors the byte at 0122 is 00 hex and at 0123 is 04 hex.
+CP/M 2.2 users should just ignore this.
+
+The byte at 0124 hex should be E5 hex.	The Morrow hard disk users (with
+the MD5, MD11, etc) should set it to 00 hex.  It is the value for the RC
+field of the directory entries.  On a Morrow hard disk computer, Morrow
+would set the  RC field of each potential directory entry to 00 with the
+other bytes to the normal E5, when the hard drive is formatted.  Whether
+it is checked by any of the Morrow utilities/programs or not is yet to
+be determined by me, so in order to prevent possible conflict with any
+possible Morrow program or utility, I have retained the oddity.  Leave
+the byte at 0124 set to E5 hex if you are NOT using a Morrow hard disk
+computer.
+
+The byte at 0125 hex is the warning message flag.  It should be 00 hex
+to enable the program to give its warning message when the TPA is low
+and/or the DRM is too large.  Keep this byte set to zero unless your
+human memory is good and/or you are an experienced computer user.  If
+it's set to a NON-zero the program will not give a message, and will
+continue as if everything was alright.
+
+------------------------------------------------------------------------
+			      USAGE
+
+It's not required to have this program on the drive on which its work is
+to be performed.   Some examples are as follows, where this program is
+on drive A.
+
+	A>SAPP		do drive A
+	A>SAPP B:	do drive B
+	A>SAPP C:	do drive C
+	B>SAPP		do drive B (system uses search-path)
+	B>A:SAPP B:	do drive B (no system search-path)
+	B>SAPP C:	do drive C (system uses search-path)
+	B>A:SAPP C:	do drive C (no system search-path)
+
+------------------------------------------------------------------------
+		     WARNING MESSAGE OPTION
+
+If you encounter a warning message it is either because your TPA is too
+low and/or your system has the capability to have to have too many di-
+rectory entries  (than what the available memory can hold).  If you are
+unsure of the number of entries that are occupied then you should not
+continue at this time.
+
+You then have to eliminate some files from disk with PIP and by erasing
+them and/or by using "DU" to "manually" perform a bit of what this pro-
+gram does.  Once you are sure that your number of directory entries does
+not exceed the maximum shown in the program's warning message, you may
+continue.  Be forewarned that to continue with the program when MORE en-
+tries exist than what the program states it can handle could very well
+destroy your directory!  (If in doubt, don't!)
+
+------------------------------------------------------------------------
+			     RELEASE
+
+I have tested the program on a Morrow MD11 (now with two 20 Mb hard disk
+drives) under CP/M 3.0. It has also been tested on a CP/M 2.2 system.
+
+This is a free "public domain" program, and as with most all programs,
+no warranties or guarantees are expressed or implied, although much ef-
+fort is made to ensure bug-free operation of the program.  Any user of
+the program uses  it at their own risk.
+					- George F. Reding
+

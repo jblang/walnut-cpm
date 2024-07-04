@@ -1,0 +1,202 @@
+
+;**********************************************************************
+;
+; B3C-KPRO.INS	A TIME insert for BYE335 and up
+;  07/15/85	Note:  This is an insert--not an overlay
+;
+; Adapted from:
+; MBC-KPRO.ASM -- Version 1.0 -- 03/01/84 -- by Kim Levitt
+;
+;	TIME routine for BYE3 running on Kaypro 2 with Pro-Clock
+;	(adapted from Kaypro Pro-Clock driver written by Greg Haerr)
+;
+;	This overlay is designed to work on a Kaypro II running BYE3
+;	and equipped with a Business Computer Systems Pro-Clock RTC.
+;	(Use the DATE program to initialize the clock outside of BYE.)
+;	(BCS address: 5350 South 3600 West; Salt Lake City, UT 84118)
+;
+;	When called this routine will check the RTCBUF. If a '99H'
+;	is in the first byte, the clock is initialized. Next the
+;	seconds are checked, and if changed since last update of
+;	RTC buffer, the clock is stopped, data copied to RTCBUF and
+;	the clock is restarted. (If no change in seconds, the
+;	routine returns immediately.)
+;
+;**********************************************************************
+;
+	 IF	RTC
+TIME:	LDA	RTCBUF		; Get first BCD byte
+	CPI	099H		; 99 ?
+	CZ	CLKINIT		; If so, init clock...
+	CALL	HOLDON		; Put clock on hold
+	MVI	C,0		; Check low seconds
+	CALL	RDPIO		; To see if change...
+	LXI	H,RTCBUF+2	; Compared to old secs
+	XRA	M		; Value stored in
+	ANI	0FH		; RTC buffer (low nibble)
+	JZ	CLKEXIT		; If no change, skip update
+	MVI	C,5		; Start with hi hours
+	LXI	H,RTCBUF	; And copy to RTCBUF
+	CALL	GETCLK		; (get time)
+	MVI	C,12		; Start with hi year
+	LXI	H,RTCBUF+4	; And copy to RTCBUF
+	CALL	GETCLK		; (and date)
+	LDA	RTCBUF		; Get hours
+	ANI	03FH		; Mask out PM/24 hour bits
+	STA	RTCBUF
+	LDA	RTCBUF+6	; Get day
+	ANI	03FH		; Mask out leap year bit
+	STA	RTCBUF+6
+CLKEXIT:
+	MVI	C,13		; Set clock addr. to
+	CALL	WRADDR		; Junk location so no data cleared
+	CALL	HOLDOFF		; When we take clock off hold..
+	LDA	RTCBUF		; Get BCD HH
+	CALL	BCDBIN		; Convert to binary
+	STA	CCHOUR		; For BYE3
+	LDA	RTCBUF+1	; Get BCD MM
+	CALL	BCDBIN		; Convert to binary
+	STA	CCMIN		; For BYE3
+	RET			; And return (for now..)
+;
+GETCLK:
+	MVI	B,3		; Repeat 3 times for 3 BCD bytes
+CLKLP:
+	CALL	RDPIO		; Get data at address C
+	RLC ! RLC ! RLC	! RLC	; Move to high nibble for BCD
+	MOV	M,A		; Save at location temporarily
+	DCR	C		; Decrement clock addr
+	CALL	RDPIO		; Get data at next address
+	ORA	M		; OR with previously saved data
+	MOV	M,A		; And save it
+	DCR	C		; Decrement clock addr
+	INX	H		; Increment to next BCD byte
+	DCR	B		; Decrement BCD counter
+	JNZ	CLKLP		; If 3rd BCD byte, done..
+	RET			; Return
+;
+; PIO STUFF
+;
+MODE3	EQU	0CFH		; Bit control mode
+;
+DATA	EQU	0AH		; Port B data
+CMD	EQU	0BH		; Port B cmd
+;
+; mask values for clock chip
+;
+LATCH	EQU	80H		; Set address latch (active high)
+WR	EQU	40H		; Write (active high)
+RD	EQU	20H		; Read (active high)
+HOLD	EQU	10H		; Time hold (active high)
+;
+CLKINIT:
+	MVI	A,7		; Disable interrupts
+	OUT	CMD
+;
+; fall into set output
+;
+; set output mode
+;
+SETOUT:
+	LDA	FLAG		; Get current state
+	OUT	DATA		; Preset data register
+	MVI	A,MODE3		; Set bit control mode
+	OUT	CMD
+	XRA	A		; Set all outputs mask
+	OUT	CMD
+	LDA	FLAG
+	OUT	DATA
+	RET
+;
+; set input mode
+;
+SETIN:
+	LDA	FLAG		; Get current state
+	ORI	RD		; Set read line
+	OUT	DATA
+	MVI	A,MODE3
+	OUT	CMD
+	MVI	A,0FH		; D7-d4 are still output, mask em'
+	OUT	CMD
+	LDA	FLAG
+	ORI	RD
+	OUT	DATA
+	XCHG ! XCHG		; Delay for 6 uS min.
+	RET
+;
+; send data in A to address in C
+;
+WRPIO:
+	MOV	B,A		; Save data in B
+	CALL	WRADDR		; Set address
+	MOV	A,B		; Fall into write data
+;
+; write data in A
+;
+WRDATA:
+	MOV	C,A		; Save in C
+	LDA	FLAG		; Get current flag
+	ORA	C		; Or in data
+	OUT	DATA
+	ORI	WR		; And write it
+	OUT	DATA
+	NOP			; Delay for 1 uS min
+	NOP
+	ANI	(NOT WR) AND 0FFH ; Reset write
+	OUT	DATA
+	RET
+;
+; read data into A from address in C
+;
+RDPIO:
+	PUSH	B
+	CALL	WRADDR		; Set address
+;
+; fall into read data
+;
+; read data into A
+;
+RDDATA:
+	CALL	SETIN		; Set input mode
+	IN	DATA		; Input data
+	ANI	0FH		; Just in case
+	MOV	C,A		; Save in C
+	CALL	SETOUT		; Set to output mode
+	MOV	A,C		; Get saved data
+	POP	B		; Restore BC
+	RET
+;
+; latch address in C
+;
+WRADDR:
+	LDA	FLAG		; Get current flag
+	ORA	C		; Or in address
+	OUT	DATA		; Send address
+	ORI	LATCH		; Set latch
+	OUT	DATA		; And latch it
+	ANI	(NOT LATCH) AND	0FFH
+	OUT	DATA
+	RET
+;
+HOLDON:
+	MVI	A,HOLD		; Set hold flag
+	STA	FLAG
+	CALL	WRDATA
+HOLD0:
+	MVI	B,20		; Wait 150 uS
+HOLD1:
+	XCHG ! XCHG
+	DCR	B
+	JNZ	HOLD1
+	RET
+;
+HOLDOFF:
+	XRA	A		; Reset hold flag
+	STA	FLAG
+	JMP	WRDATA
+;
+FLAG:	DB	0		; Current hold/nohold status flag
+	 ENDIF	;RTC
+;
+;**********************************************************************
+

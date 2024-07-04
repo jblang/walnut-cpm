@@ -1,0 +1,134 @@
+; B3XE-2.INS  -  Xerox 820 insert for BYE3  -  08/01/85
+;
+;	       Z80-SIO and CTC baudrate generator
+;
+;	    Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+DPORT	EQU	04H		; Data port
+SPORT	EQU	DPORT+2		; Modem control port
+BRPORT	EQU	00H		; Baud rate generator port
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00000100B	; Transmit buffer empty
+DCD	EQU	00001000B	; Data carrier detect
+;
+; Divisors for the 8116 baudrate generator
+;
+BD300	EQU	5		; 300 baud
+BD1200	EQU	7		; 1200 bps
+BD2400	EQU	10		; 2400 bps
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	SPORT
+	IN	SPORT		; Get status
+	ANI	DCD		; Check for carrier
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Setup to write register 0
+	OUT	SPORT
+	MVI	A,18H		; Reset channel
+	OUT	SPORT
+;
+	MVI	A,4		; Setup to write register 4
+	OUT	SPORT
+	MVI	A,44H		; Set 16x, 1 stop bit, no parity
+	OUT	SPORT
+;
+	MVI	A,3		; Setup to write register 3
+	OUT	SPORT
+	MVI	A,0C1H		; 8 bits, Rx enable
+	OUT	SPORT
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; DTR off
+	OUT	SPORT
+;
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0E8H		; Turn DTR back on
+	OUT	SPORT
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.  If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Got a character
+	RZ			; Return if none
+	ORI	255		; Otherwise set the proper flag
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT		; Get status
+	ANI	TBMT		; Ready for a character?
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Turn off DTR until next time
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baud rate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	A,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BD1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,BD2400
+;
+; Sets the baudrate
+;
+SETBAUD:OUT	BRPORT
+	XRA	A		; Say baudrate is ok
+	RET
+;			       end
+;------------------------------------------------------------------------
+

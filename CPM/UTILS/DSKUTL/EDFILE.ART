@@ -1,0 +1,226 @@
+                   EDITING THE CP/M OPERATING SYSTEM
+
+                            File: SYSTEM.TXT
+
+                         By Walter E. Pfiester
+                           1 Skadden Terrace
+                          Tully, N. Y.  13159
+
+INTRODUCTION
+
+     Editing, changing and operating on your CP/M operating system can
+be a real hassle using "DDT.COM" or "XMAN.COM".  These machine code
+editors work directly on the system tracks.  It is much easier to work
+on these tracks if they are saved as a file first.  This article will
+detail how to save the operating system tracks as a file and later,
+after editing or changing this file, placing this file back on the disk
+in the proper location for use as your new version of CP/M.
+
+
+SAVING THE OPERATING SYSTEM AS A FILE
+
+     You will have to have "MOVCPM.COM" and "SYSGEN.COM" on the disk you
+want to operate on.  In addition, I find it useful to have "SD.COM" (or
+the enhanced version, "S.COM", "STAT.COM", and "EDFILE.COM" on the same
+disk.  The first two files are used to measure the size of the files.
+The later file is a machine code editor, in the public domain used to
+dump and edit, full screen, any file using HEX formats OR ASCII codes.
+It is not the intent of this article to delve in to the use of
+"EDFILE.COM".  That can be best handled by downloading the "EDFILE.DOC"
+file from your RCP/M library.
+
+     The first thing that you must do is to measure the size, in
+hexadecimal pages of memory, your operating system.  The easiest way to
+do that is to type:
+
+     A>movcpm 63 *
+
+     For our purposes here we want to find out how many pages of memory
+are required for a 63K CP/M system.  If you are using a 64K system then
+type movcpm 64 *.  For this article I will use a 63K CP/M system.  As a
+result of the command above, What results is as follows:
+
+     CONSTRUCTING 63k CP/M vers 2.2
+     READY FOR "SYSGEN" OR
+     "SAVE 34 CPM63.COM"
+      |
+      +-------> This is the number we want!
+
+     The 63 above designates the operating system size.  If you are
+going to change the size of the system for later editing, recompiling or
+whatever, type the size in place of 64, ie MOVCPM 55 *.
+
+
+     The important thing here is to right down the number after the word
+SAVE.  What MOVCPM has done for us is automatically calculate the amount
+of memory required to save the CP/M image as a file.  You are done using
+"MOVCPM.COM".
+
+     Now type "SYSGEN".  In response to the question SOURCE, type a
+<CR>.  When prompted as to the destination, type another <CR>.  Your
+entire CP/M operating system is now in RAM, starting at 100h.  To save
+this image as a file type "SAVE 34 CPM63.NEW".  34 is the number of
+hexadecimal pages that you came up with above with MOVCPM.COM above.
+CPM63.NEW is the file name given to save the system image as.  It could
+just as easily be named anything!  It should also be noted at this time
+that the operating system saved has ZCPR on it (Micro Cornucopia's
+version) and it was created using instructions on their disk K22.
+
+EDITING AND USING THE NEW (SYSTEM) FILE
+
+     Now the file "CPM63.SYS" can be edited, changed, whatever.  I
+routinely use "EDFILE" to edit machine code.  It is a full screen editor
+that can be used in both the ASCII and Hex field.  Besides which, it is
+one of the best FREE, public domain pieces of software!
+
+USING EDFILE
+
+     As an example in using this powerful tool, I will change the logon
+message on cold boot to something more meaningful than:
+
+       KAYPRO II 63k CP/M vers.  2.2
+
+        to
+
+       63K ZCPR-2 9/20/84
+       882- 2.2
+
+     In addition I will show you how to edit the operating system to
+autoload a file on cold boot.
+
+
+     The file we'll be editing is CPM63.NEW created above.  To edit
+using EDFILE, type the following: "EDFILE CPM63.NEW" What will result is
+as shown below:
+
+
+A0>EDFILE B:CPM63.SYS
+
+Vers: 01-10-84; by: J.C.Kaltwasser & M.J.Mosko, K3RL
+File: B:CPM63.SYS Record: 00000 (0000H) LOF: 00068 (0044H)
+
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F    0123456789ABCDEF
+       -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --    ----------------
+0000 - C3 3E 02 43 4F 50 59 52 49 47 48 54 20 28 43 29   >C>.COPYRIGHT (C)<
+0010 - 20 31 39 37 38 2C 20 44 49 47 49 54 41 4C 20 52   > 1978, DIGITAL R<
+0020 - 45 53 45 41 52 43 48 20 50 6F 72 74 69 6F 6E 73   >ESEARCH Portions<
+0030 - 20 28 43 29 20 31 39 38 32 2C 20 4E 4C 53 6F 26   > (C) 1982, NLSo&<
+0040 - 00 29 29 29 29 29 29 29 C9 0E 01 CD 05 00 FE 61   >.)))))))I..M..~a<
+0050 - D8 FE 7B D0 E6 5F C9 5F 0E 02 CD 05 00 C9 3E 0D   >X~{Pf_I_..M..I>.<
+0060 - CD 57 01 3E 0A CD 57 01 C9 E5 CD 5E 01 E1 7E B7   >MW.>.MW.IeM^.a~7<
+0070 - C8 E5 CD 57 01 E1 23 C3 6E 01 4F 2A 01 00 11 18   >HeMW.a#Cn.O*....<
+?Search String = \KAYPRO II\
+
+     At the prompt above, type an "S".  EDFILE will ask you for the
+string to search on.  What we are doing, is searching for an ASCII
+string (EDFILE can also search for a HEX string).  Reply with a
+backslash "\" and the string itself followed by another backslash,  as
+shown above.  Edfile will then locate the string as shown below at
+address 1EE0.  This is the beginning of the log on message we are going
+to change.
+
+File: B:CPM63.SYS Record: 00061 (003DH) LOF: 00068 (0044H)
+
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F    0123456789ABCDEF
+       -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --    ----------------
+1E80 - C3 48 FA C3 99 FA C3 F3 FA C3 09 FB C3 2F FB C3   >CHzC.zCszC.{C/{C<
+1E90 - 48 FB C3 43 FB C3 3E FB C3 7C FB C3 80 FB C3 84   >H{CC{C>{C|{C.{C.<
+1EA0 - FB C3 88 FB C3 8C FB C3 90 FB C3 98 FB C3 65 FB   >{C.{C.{C.{C.{Ce{<
+1EB0 - C3 A8 FB 81 00 0B 0A 08 0C 30 31 32 33 34 35 36   >C({......0123456<
+1EC0 - 37 38 39 2D 2C 0D 2E 05 CD 78 FB AF 32 04 00 3A   >789-,...Mx{/2..:<
+1ED0 - 33 FA 32 03 00 3A 47 FA D3 00 CD CF FB 1A 0D 0A   >3z2..:GzS.MO{...<
+1EE0 - 4B 41 59 50 52 4F 20 49 49 20 36 34 6B 20 43 50   >KAYPRO II 64k CP<
+1EF0 - 2F 4D 20 76 65 72 73 20 32 2E 32 0D 0A 00 3E C3   >/M vers 2.2...>C<
+
+     Type <CTRL> E.  This will place your cursor in the HEX field.  To
+move about, use the arrow keys.  To change to the ASCII field, type
+another <CTRL> E.  Again, the arrow keys will move you about this field.
+To edit the message, type over the message already there.   Remember,
+the carriage return and line feed can not be editied in the ASCII field,
+they need to be added in the HEX field.  Now that you have a new log in
+message, lets save it to disk.  First, type a <CTRL> W.  This will write
+all your changes out to RAM and place you at EDFILE's command level.  To
+write the changes to disk and return to CP/M, type a "Q" (for QUIT).
+Your are done!
+
+     You have a new file to load in place of your old CP/M operating
+system.  Once you have completed changing this file, placing it back in
+the correct location on disk is very easy.  Type SYSGEN CPM63.SYS <cr>.
+The prompt will ask you for the drive to place the system image to.
+Type A (or B or whatever drive you want it to go to).
+
+     A>SYSGEN CPM63.NEW
+
+     KAYPRO SYSGEN VER 2.2
+     DESTINATION DRIVE NAME (OR RETURN TO REBOOT)b <------TYPE THIS
+     DESTINATION ON b, THEN TYPE RETURN <cr> <------------TYPE THIS
+
+     FUNCTION COMPLETE
+     DESTINATION DRIVE NAME (OR RETURN TO REBOOT) <cr> <--TYPE THIS
+
+     That's all there is to it.  The next time you boot off the drive
+you'll have your new system image on it with the new log in message.
+
+     Lets do this again, in addition to the new log in message, have the
+system autoload "S $AL".  "S" is a modified version of "SD-92" that I
+have modified.  The $AL command tail will lok at all user areas, and
+list the directory of all libraries.  Now lets modify the operating
+system, again.
+
+     This time, use the ASCII search again only look for the word
+"COPYRIGHT":
+
+File: B:CPM63.SYS Record: 00017 (0011H) LOF: 00068 (0044H)
+
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F    0123456789ABCDEF
+       -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --    ----------------
+0880 - C3 5C E7 C3 58 E7 7F 00 20 20 20 20 20 20 20 20   >C\gCXg.         <
+0890 - 20 20 20 20 20 20 20 20 43 4F 50 59 52 49 47 48   >        COPYRIGH<
+08A0 - 54 20 28 43 29 20 31 39 37 39 2C 20 44 49 47 49   >T (C) 1979, DIGI<
+08B0 - 54 41 4C 20 52 45 53 45 41 52 43 48 20 20 00 00   >TAL RESEARCH  ..<
+08C0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08D0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08E0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08F0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+
+     Note the pattern of HEX 20's above.  At location 0887 (now 00h)
+place the number of HEX bytes the command line will contain, in this
+case, 5.  At location 0888 start the actual command.  The result is as
+shown below:
+
+
+File: B:CPM63.SYS Record: 00017 (0011H) LOF: 00068 (0044H)
+
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F    0123456789ABCDEF
+       -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --    ----------------
+0880 - C3 5C E7 C3 58 E7 7F 05 53 20 24 41 4C 20 20 20   >C\gCXg.S $AL    <
+0890 - 20 20 20 20 20 20 20 20 43 4F 50 59 52 49 47 48   >        COPYRIGH<
+08A0 - 54 20 28 43 29 20 31 39 37 39 2C 20 44 49 47 49   >T (C) 1979, DIGI<
+08B0 - 54 41 4C 20 52 45 53 45 41 52 43 48 20 20 00 00   >TAL RESEARCH  ..<
+08C0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08D0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08E0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+08F0 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00   >................<
+
+     Save this file again, and put it in place of your system tracks.
+Now the next time you cold boot, the log in message will be meaningful
+and you will automatically run "S $AL".
+
+SUMMARY
+
+     When you obtain a copy of "EDFILE.COM" make sure to obtain a copy
+of the accompanying .DOC file, it is absolutely essential.  Another
+feature I have not heretofore mentioned, EDFILE.COM has HELP features
+built in!
+
+     I also use this method of editing my CP/M system in order to test
+my compiled Turbo Pascal files under different size operating systems
+(saved on disk as CPM64.COM, CPM63.COM, CPM62.COM, etc.).  Additionally,
+I have used this method to change my operating system (changed the
+resident CP/M command "USER" to "U", logon procedures, autoload
+functions, prompt messages, and different size operating systems with
+new logical assignments for my disk drives.  Try this system and I don't
+think you'll ever go back to using "XAMN.COM" or "DDT.COM" to modify
+your .COM files again!
+
+

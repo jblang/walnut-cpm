@@ -1,0 +1,224 @@
+MEX114KP.NOT
+
+     In the search for a communications program THAT WOULD WORK
+with a newly acquired 1200-baud modem, "The Maxwell" by Racal-
+Vadic, and the Kaypro 2X (4'84), it was suggested "Why not try
+MEX?"  The combination of MEX114.COM and MXO-KP41.ASM turned
+out to be the perfect combination. The first time I used it, it
+worked and has been working ever since.
+     It may be time consuming to read through all the MEX files
+for the first time, but it is worth all the effort. The MXO-KP41
+file also contains the dialing routine from MXO-SM13.ASM (the
+Hayes SmartModem overlay) so there is no need to have any other
+overlay file. What follows is a "how-to" assemble everything and
+get it up and running. This should work for all CP/M Kaypros with
+Hayes-compatible external modems.
+
+1.  Download MEX114.LBR, MEX-HLP.LBR, and MXO-KP41.AQM (which is
+    contained in the MEX-OVL.LBR). (De-lbr and Usq files that
+    need it).
+
+2.  Place MEX114.COM, MEX.HLP, MXO-KP41.ASM, MLOAD21.COM and
+    ASM.COM (this one came on your cpm diskette) on a diskette
+    and put this diskette into drive A.
+
+3.  At the A0> prompt type the following:
+
+    A0>ASM MXO-KP41.AAZ
+
+         This will assemble your Kaypro overlay file and give you
+         the needed .HEX file which must be bound into the system
+         by typing the following at the A0> prompt:
+
+4.  A0>MLOAD21 MEX.COM=MEX114.COM,MXO-KP41
+
+         You have just loaded a new MEX.COM file which is ready for
+         immediate use!!
+
+*******************************************************************
+
+                          HOWEVER - - - - - -
+
+     Life with your modem can be made almost instantaneously easier
+if you do a few preparatory things before running your MEX program
+for the first time.
+
+1.  Create a file with your word processor or text editor (in non-
+    document mode) and name it INI.MEX - This is the file:
+
+        stat wtecho on
+        stat search 3
+        stat split on
+        stat bakfile on
+        stat exclude off             (all these commands in this
+        stat filter on               (file should be typed at the
+        stat extend off              (left-hand edge of your screen
+        alt A0:
+        id "[inimex]"
+        load phone.phn
+        load keys.key
+        b:
+        term session.log
+        dir
+        global t
+
+2.  Save this file to disk and place it along with the other files
+    on your diskette in drive A.
+
+3.  Now, invoke MEX on the disk in drive A:
+
+        A0>MEX
+
+4.  You will now see on your screen:
+
+    [MEX] A0>>
+
+5.  At this prompt type:
+
+        [MEX] A0>>STAT INITFILE ON
+
+    This stat command will tell MEX to search for INI.MEX when
+    booting MEX.
+
+6.  Now create your phone library by typing at the prompt:
+
+        [MEX] A0>>PHONE KAYFOG=285-2687 1200
+        [MEX] A0>>PHONE FIDO=1-404-926-1876 1200
+
+    etc. After you have entered all the phone numbers you want,
+    then do the following:
+
+        [MEX] A0>>SAVE PHONE.PHN
+
+    You have just created a phone file called PHONE.PHN and the
+    next time you run MEX you can simply give the command:
+
+        [MEX] A0>>LOAD PHONE.PHN
+
+    However, since we have an INI.MEX file, loading the phone.phn
+    file is not necessary, as it will be loaded automatically
+    through the ini.mex file.
+
+7.  This process can also be used to create a KEYS.KEY file:
+
+        [MEX] A0>>KEY L=<"logon sequence"> [MEX] A0>>KEY A="HELLO!"
+
+    etc. You must enclose the keystring in quote marks. Now SAVE 
+    your KEYS file.
+
+8.      [MEX] A0>>SAVE KEYS.KEY
+
+    The INI.MEX file will load the KEYS.KEY file just like the
+    phone file, the next time you invoke MEX.
+
+9.  Now, with the KEYS and PHONE files saved, and the STAT INITFILE
+    ON command given, you must CLONE this MEX file:
+
+        [MEX] A0>>CLONE INIMEX.COM
+
+    You can call your new mex.com file anything you want, but I have
+    called it INIMEX.COM because I used ID "[INIMEX]" in the
+    ini.mex file that was created with my word processor. If you
+    want your file named something else, just use that same name (less
+    the .com extension) in your ini.mex file. However, as stated
+    above, you don't even need an ini.mex file.
+
+10. Now after "cloning" has taken place, your new working MEX commun-
+    ications program can be invoked from your A0> prompt:
+
+        A0>INIMEX
+
+    and [INIMEX] A0>> prompt will appear on your screen. It is nice
+    to use a different name than MEX because you will always know
+    you are at your own command prompt if the computer at the other
+    end is also using MEX. I only like "inimex" because it reminds
+    me that I have my ini.mex-file commands in use. This way, I
+    don't have to worry about entering all these commands every time
+    I want to run MEX.
+
+11. Now at the INIMEX prompt, I can call kayfog (or anyone else in
+    the library) with the following command:
+
+       [INIMEX] B0>>cal kayfog #5
+
+    and my modem will call KAYFOG, and if there is no answer, it will
+    try five times before giving up; you could use any number #nn you
+    want. You are at the B0 drive because of your command in ini.mex. 
+
+    After your modem makes a connect, because of your ini.mex file, you
+    will be automatically placed in terminal mode and will see a ":"
+    at the left margin if your capture file SESSIONS.LOG is on and
+    capturing everything that comes across the screen.
+
+If you can't get the other computer's attention after making a
+connection, you can press <cr> a couple of times, and that should 
+do it. Now you are ready to communicate as always.
+
+If you want to download MEX (for example), do the following after
+you are in the CP/M area:
+
+A0>(or whatever drive/user area you are in), just type:
+
+    B3>kmd s mex114.lbr
+
+(here the computer will tell you how much time it will take to send
+the file, etc.) Then when you find that things are just "sitting
+there" you do the following:
+
+    hit your CTRL-J key plus E to get back to command mode:
+
+         ^JE
+
+    then you will see your MEX prompt:
+
+         [INIMEX] B0>>
+
+    At this prompt, type the following:
+
+         [INIMEX] B0>>r mex114.lbr
+
+While transferring files (in 1k mode), MEX will print "logical" record
+numbers on the screen. (See Ron Fowler's "Progress reporting" statement
+in the -READ 114.ME file of the MEX114.lbr)
+
+Credits: This short tutorial is taken from notes and documents of the
+MEX conference files located in the CP/M area of KAY*FOG. Special thanks
+to Ron Fowler for placing MEX in public domain, to Hank Tate for writing
+the MEX-SET2.DOC for the ini.mex file (notice I have used my own 
+commands, they are not quite the same as Hank Tate's), and to Will Kacy
+for the MEX-EASY.FIX file from which the phone.phn file was taken.
+
+***********************************************************************
+
+You can get "on-line" help by typing HELP ?, or HELP <topic-name> for 
+any topic-name displayed by HELP ? You can also get help by typing
+CTRL-J+? (that is, hold down the control key while typing J and then
+press the space bar and then type the ? key - Do this control-J ? 
+AFTER going to terminal mode by pressing T at the command prompt of
+[MEX] etc.
+
+Note that in most of the documents, reference is made to ESC E, ESC N,
+etc. while in terminal mode. Well, in version 1.14 of MEX, the ESC is
+no longer ESC, it is now CONTROL-J (^J). That is:
+
+              ESC = ^J in version 1.14 of MEX
+
+Please read MEX-SET2.DOC by Hank Tate. He gives an extremely clear
+explanation of the creation of the INI.MEX file.
+
+For a full understanding of MEX, read everything that is in the MEX
+CONFERENCE. Most of the information deals with prior versions of
+MEX, but it makes for better understanding of the power that this
+program holds. It is a flexible program and "limited only by your
+own imagination". ENJOY!
+
+E. McGowan, 5-10-86
+
+
+Almost forgot! After you tell the BBS "bye", return to command mode
+by typing ^JE and at the [INIMEX]B0>> prompt, type CPM and that will
+get you back to your system prompt. Also, SESSION.LOG (where you
+captured everything that came across the screen) is on drive B. If
+you are going to make another call, be sure to rename your SESSION.
+LOG because it will be wiped out the next time you make another call.
+

@@ -1,0 +1,1604 @@
+	.sall 
+	.sfcond 
+; Program:   ZBYE 
+; Author:    Jay Denebeim 
+; Assembler: M80 Version 3.44 or greater. (SLRMAC    ETB)
+version	equ	12 
+rev	equ	'Z' 
+; 
+;                                 ZCPR Bye RCP 
+; 
+;  This program implements BYE as an RCP under ZCPR3.  It handles all modem 
+; IO by replacing the console routines.  All other functions are passed to 
+; the ZCPR CCP for execution.  Where BYE normally uses equates, I.E. password 
+; connection, carrier lost commands, etc., ZBYE passes command lines to ZCPR. 
+; This should reduce the bugs introduced by tons of conditional assemblies 
+; that has plagued the recent versions of BYE.  It has also allowed room to 
+; do more functions than BYE normally has done in the past.  Please folks, 
+; lets keep the conditional assemblies down to a minimum. 
+; 
+;  There are several new features in this program: 
+;	  Since its an RCP BYE can remain resident while the SYSOP is using 
+;	the computer locally.  ZBye will answer the phone while in this mode,  
+;	and allow the operator to accept the call while in another program. 
+;	  A chat mode has been implemented, this allows either single way, or 
+;	two way communication between the sysop and the caller. 
+;	  It will also allow changes of the Maximum drive and user area 
+;	without disabling the modem IO. 
+; 
+;  The function key descriptions: 
+;	^L - Toggle Local only IO.  This toggles the modem IO on and off. 
+;	^O - Toggle Open access.  This switches the wheel, maxdrive, and 
+;		maxuser bytes of ZCPR3.  NOTE: this is the location your 
+;		BBS, XMODEM, and whatever else should check.  Its no longer 
+;		in the BYE header.  Also, be sure to watch the user while 
+;		he's on in this mode, either disable the modem, or be ready 
+;		with the ^N. 
+;	^N - Nerdkey, Hang up on the bozo 
+;	^Q - Query the user, (CHAT mode), end with ^C.  This is a very 
+;		rudimentrary chat.  If local only, he can't type back, 
+;		but if not, its two way.  Be sure to announce yourself 
+;		'cause ZBYE doesn't anounce when its going into chat mode. 
+;		the only editing commands implimented are expansion of 
+;		<cr> to <cr><lf>. 
+; 
+;  To install this program, install your terminal dependent code following 
+; the .8080 psudo-op.  ZBYE was set up to use MBYE overlays, these are either 
+; very similar, or identical to BYE2.x or 3.x overlays.  Remember that 
+; EQUates can't have :'s in front of them for M80, so you'll probably have 
+; to do a global replace of :^IEQU with ^IEQU.  I'd really appreciate it if 
+; you would send me a copy of your overlay when you finish it. 
+;	  You will also have to change the terminal dependent cursor 
+; functions to match your own system. 
+; 
+;  This program is the first in a series of ZCPR RCPM software.  Look for 
+; ZBBS, ZXMODEM, ZDIR, and ZCHAT at a RCPM near you. 
+; 
+;  Copyright 1985, by Jay Denebeim.  This program is released to the public 
+; domain.  It can be freely given, but under no circumstances will this 
+; software be charged for, except a copying fee not to exceed the price of 
+; the media copied to. 
+; 
+;  I hope you enjoy using this program as much as I enjoyed writing it. 
+;  If you make any modifications to this program, or have any suggestions, 
+; please feel free to contact me. 
+;  Thanks a bunch, 
+;  Jay Denebeim 
+;  1800 Williamsburg Rd Apt 13-E	<- NOTE: Address and phone number new. 
+;  Durham, NC  27707 
+;  (919) 489-1785 (voice) 
+;  (919) 489-6737 (data) 
+; 
+;----------------------------------------------------------------------- 
+; 
+; Revision History: 
+;
+; 1.2Z	Extensive revisions to accomodate a dumb UART which cannot detect
+;	carrier or cause the modem to answer or hangup.  Code reorganized
+;	to place all UART code in one place where it can be handled as
+;	an overlay, all modem code in another overlay (smart or dumb)
+;	and all terminal code in another overlay (25th line for status
+;	or not).  Added conditional code generation to prevent meddling
+;	with the wheel byte if z3whl=0.
+;					Earl T. Boone 
+; 
+; 1.2A		*** Release Version ***		Fourth public release. 
+;	Implemented answer routines for a dumb modem.  Set the equate 
+;	DUMB to yes and baud rate will be set by carriage return 
+;	sence.  Also moved initializing modem message to the right place. 
+;						Jay Denebeim 09/08/85 
+; 
+; 1.1F	Added equates for most major functions of this program.  Also moved 
+;	the command lines to the top of the file so they're easier to find. 
+;	Please, when adding functions, make sure they turn all the way off 
+;	CREF is great for finding code that isn't used when functions are 
+;	turned off.				Jay Denebeim 09/14/85 
+; 
+; 1.1E  Added KILCALR equate.  This switches on routines that will kill 
+;	the caller if the byte at 0 is not equal to C3.  NOTE: this brought 
+;	the size over the limit on my system.  The dumb modem routines 
+;	are enough smaller that this will fit in dumb mode. 
+;						Jay Denebeim 09/09/85 
+; 
+; 1.1D	Added an equate to allow the printer to be enabled by the wheel. 
+;	Set the LSTDEV equate to YES if you want the printer available 
+;	while ZBye is running.  Do be careful with this, most CP/M systems 
+;	lock up if the printer is not on-line during an attempt to print. 
+;	Don't run any programs that print remotely unless you're sure the 
+;	printer is on-line.			Jay Denebeim 08/19/85 
+; 
+; 1.1C		*** Release Version ***		Third public release. 
+;	While modifing LUX4.0 to 4.1, I was reminded that time outs are 
+;	very similar to carrier losses.  So, the carrier loss interupt 
+;	also means time out.  To the program running under ZBYE, the reason 
+;	for the loss of user isn't important.	Jay Denebeim 02/15/85 
+; 
+; 1.1B	Made Wheel on status line follow what the wheel was actually 
+;	set to.  Input Timed out msg was in the wrong place, and was erased 
+;	when bye ran again.			Jay Denebeim 02/02/85 
+; 
+; 1.1A		*** Release Version ***		Second public release. 
+;	Cleaned up the comments, and stripped out the modem dependent 
+;	routines.				Jay Denebeim 01/11/85 
+; 1.0G	Changed carrier lost routine to restart # 30 so that programs 
+;	could do their own thing on CLOSS.  Added check for wheel change 
+;	so the sysop drives would follow the wheel. 
+;						Jay Denebeim 01/11/85 
+; 1.0F	Moved BYE initialization routines into low memory.  This freed 
+;	up some memory, and allowed another bit to implement another 
+;	routine.  This routine runs a set of programs before hanging 
+;	the modem up				Jay Denebeim 01/10/85 
+; 1.0E	Moved local char status, and bye mode bytes into low memory 
+;	so they will be available for other programs. 
+;						Jay Denebeim 01/09/85 
+; 1.0D	If wrong characters typed during local mode answer, the caller 
+;		would get hung up on.		Jay Denebeim 01/09/85 
+; 1.0C	Reduced the size of the program.  RCP was overflowing. 
+;						Jay Denebeim 01/08/85 
+; 1.0B	Answer phone while in local mode.	Jay Denebeim 01/07/85 
+; 1.0A	First public release.  by - Jay Denebeim  12/23/84 
+; 
+;----------------------------------------------------------------------- 
+; 
+; 
+; Equates for this program 
+; 
+	.xlist 
+	maclib	E:Z3BASE.LIB 
+	.list 
+; 
+no	equ	0 
+yes	equ	not no 
+cr	equ	0dh 	; carriage return
+lf	equ	0ah 	; line feed
+; 
+bdos	equ	5 
+bios	equ	0 
+; 
+mhz	equ	20	; CPU speed times 10 
+closs	equ	1	; Number of seconds to wait after loss of carrier 
+clrou	equ	30h	; Routine to call on loss of carrier 
+jump	equ	0c3h	; 8080/Z80 jump instruction 
+; 
+; Conditional assembly macros.  Use these to switch functions on and 
+;  off. 
+;
+etb	equ	yes	; Special functions for Earl T Boone
+; 
+obye	equ	no	; Emulate BYE3.x ? 
+dumb	equ	no	; Is this system running under a dumb modem? 
+lstdev	equ	no	; Enable printer when wheel is set? 
+kilcalr	equ	yes	; Kill the caller if memory location 0 <> C3 
+timeout	equ	yes	; yes, auto logout for sleepy callers 
+tomins	equ	2	; minutes to auto logout 
+tmins	equ	((tomins*mhz)+5)/10	;(don't change this one...) 
+statln	equ	no	; display the status on line 25
+			; (see terminal dependent section)
+chatf	equ	yes	; provide chat function 
+lclans	equ	yes	; answer modem while in local mode 
+; 
+cdrive	equ	'E'-'@'	; Callers Maximum Drive 
+cuser	equ	31	; Callers Maximum User Area 
+; 
+lclst	equ	003bh	; Local Console generated character flag 
+bymode	equ	003fh	; Bye control byte 
+;
+;   The BYE mode byte is bit mapped and has the following attributes: 
+;
+bymmio	equ	80h	; 7 = Modem IO enable 
+bymcio	equ	40h	; 6 = Console IO enable 
+bymica	equ	20h	; 5 = Ignore Carrier 
+bymncc	equ	10h	; 4 = Next Caller Commands Running 
+bymclc	equ	08h	; 3 = Carrier Lost Commands Running 
+bymnor	equ	04h	; 2 = Normal Mode Commands Running 
+bymaoc	equ	02h	; 1 = Alert Operator on Call 
+bymphu	equ	01h	; 0 = Pre-Hangup Commands Running 
+; 
+;----------------------------------------------------------------------- 
+; 
+;  Global Macros 
+; 
+cmdln	macro	cmd 
+	local	cmdst,msg,cmdend 
+cmdst:	dw	z3cl+msg-cmdst 
+	db	z3cls,0 
+msg:	db	cmd 
+	db	0 
+cmdend: 
+	endm 
+;----------------------------------------------------------------------- 
+; 
+;  Command line macros 
+; 
+byecl	macro	; Executed during initialization 
+	cmdln	'BYE' 
+	endm 
+; 
+gbcl	macro	; Executed before normal disconnection 
+	cmdln	'BYE' 
+	endm 
+; 
+nccl	macro	; Executed between calls 
+;	cmdln	'A0:;LDR RCPM.NDR;PATH A0:;BYE' ; JD's original
+	cmdln	'A0:;PATH E0: A0: A15: E0:;BYE' ; ETB's revision
+	endm 
+; 
+nmcl	macro	; Executed upon connection 
+;	cmdln	'A0:;RBBS;MENU' 		; JD's original
+	cmdln	'E0:;LDSK B:;LDSK C:' 		; ETB's revision
+	endm 
+; 
+clcl	macro	; Executed if carrier lost 
+	cmdln	'BYE' 
+	endm 
+; 
+tocl	macro	; Executed if timed out 
+	cmdln	'BYE' 
+	endm 
+; 
+kccl	macro	; Executed if call killed by higher process 
+	cmdln	'BYE' 
+	endm 
+; 
+;----------------------------------------------------------------------- 
+;							TPA starts here 
+;----------------------------------------------------------------------- 
+; 
+; Lets get this show on the road 
+; 
+	MACLIB	Z80
+	aseg 
+	org	100h 
+; 
+; Lets see if BYE is already resident. 
+; 
+	lxi	h,rcp		; Point to RCP area 
+	lxi	d,bybeg		; Point to RCP's name 
+	lxi	b,5		; Length of name 
+chbye1:	ldax	d		; Get next char 
+	cci			; Is it the same? 
+	jrnz	nbye		; Nope, re-locate the RCP 
+	jpo	ybye		; If done, its there 
+	inx	d		; Point to next char 
+	jr	chbye1		; Do it again 
+; 
+nbye:	mvi	c,9 
+	lxi	d,nbst 
+	call	5 
+	xra	a 
+	sta	lclst		; Clear out local status 
+	sta	bymode		; and Bye's operating mode 
+	lxi	h,bybeg 
+	lxi	d,rcp 
+	lxi	b,byend-bybeg 
+	ldir			; Re-Locate BYE 
+	mvi	a,jump		; load A with JUMP instruction 
+	sta	clrou		; and put in restart 
+	lxi	h,lostit	; do the same 
+	shld	clrou+1		; with original closs command line 
+	call	byeini 
+	jmp	ybye 
+nbst:	db	'ZBye version ' 
+	db	'0'+(version/10), '.', '0'+(version mod 10), rev 
+	db	' - By Jay Denebeim  Copyright (C) 1985',cr,lf 
+	db	'Making BYE',cr,lf,'$' 
+; 
+ybye:	lxi	h,bye 
+	lxi	d,z3cl 
+	lxi	b,byelen 
+	ldir			; Load 'BYE' into command line 
+; 
+	jmp	0 
+; 
+bye:	byecl 
+byelen	equ	$-bye 
+; 
+byeini:	lda	z3env+2ch	; store away, sysop's Highest drive 
+	sta	sdrive
+	lda	z3env+2dh	; and user area. 
+	sta	suser
+	lda	fstprv		; Store first letter of private 
+	sta	prvlet		; commands 
+	call	newbio 
+	call	clrbuf 
+	call	modini 
+	mvi	a,bymmio+bymcio+bymica+bymclc 
+	sta	bymode
+	ret 
+;
+; The folowing code should logically be located in the UART and MODEM
+; hardware specific overlay area of the code. It is located here
+; to save space in the RCP by doing these initialization functions
+; (only executed once) in the TPA.
+; 
+; Initialize the UART (interface to modem) 
+; 
+modini:
+	call	mdinit		; Initialize serial port 
+	mvi	b,3 
+	call	ldelay		; delay .3 sec 
+	call	mdansw		; raise dtr 
+	call	delay 
+	call	set1200		; 1200 baud 
+	call	delay 
+	mvi	a,bymmio+bymica 
+	sta	bymode		; enable modem io 
+	 if	not dumb
+	call	prinlo		; reset modem 
+	db	'ATZ',cr+80h 	; at this point we don't know
+				; whether the command will be echoed
+				; or whether the status will be
+				; numeric or verbal
+	call	l2char		; is it status
+	cnz	l2char		; if not - try again
+;
+; the next command will echo or not based strictly on the physical
+; switches on the modem itself
+;
+	call	prinlo		; set our way 
+	db	'ATS0=0'	; never answer
+	db	'V0'		; numeric status codes
+	db	'E0'		; no command echo
+	db	'X1'		; extended status
+	db	'M1',cr+80h	; speaker off at connect time 
+	call	l2char		; get echo
+	cnz	l2char		; get status
+	jnz	modini		; status ok?
+	 endif	; dumb
+	ret
+;----------------------------------------------------------------------
+;							RCP starts here 
+;----------------------------------------------------------------------
+bybeg: 
+	.phase	rcp 
+	db	'ZBYE '		; RCP's name for ZCPR 
+	db	3		; Command name length 
+fstcmd:	db	'BYE' 
+	dw	start 
+fstprv:	db	'OFF' 
+	dw	byeoff 
+	db	0 
+; 
+start: 
+	pop	h		; Get ZCPR3's return address 
+	shld	z3ret		; Save it 
+	lxi	h,bymode 
+	bit	0,m 
+	jnz	prophu		; Process pre-hangup commands 
+	bit	1,m 
+	jnz	prolcl		; Process a local exit 
+	bit	2,m 
+	jnz	pronor		; Process a normal exit 
+	bit	3,m 
+	jnz	proclc		; Carrier lost commands finished 
+	bit	4,m 
+	jnz	proncc		; Next caller commands finished 
+	call	prinpl 
+	db	'Invalid BYE mode!  BYE terminating',7,cr,lf+80h 
+	jr	byeof1 
+; 
+byeoff:
+	pop	h		; Get ZCPR3's return address 
+	shld	z3ret		; Save it 
+byeof1:	call	oldbio 
+	mvi	a,0 
+	sta	rcp		; Disable RCP recognition 
+	sta	fstcmd		; and for the CCP 
+	lxi	h,bymode 
+	res	7,m		; Turn off modem IO 
+	 if statln 
+	call	prinlc 
+	enab25	no 
+	cls	yes		; enable 25th line and clear screen 
+	 endif	; statln 
+	call	prinpl 
+	db	'Bye is gone',cr,lf+80h 
+	jmp	exit 
+; 
+; Local storage initialized by loader 
+sdrive:	db	0 		; sysop's max drive
+suser:	db	0 		; sysop's max user
+prvlet:	db	0 		; priviledged letter
+; 
+; Process pre-hangup commands 
+; 
+prophu:	mvi	a,bymcio+bymmio+bymnor	;con enab, modem enab, normal caller 
+	sta	bymode
+; 
+	lxi	h,gbcmd		; Load next command string 
+	lxi	b,gblen 
+	lxi	d,z3cl 
+	ldir 
+	jmp	exit 
+; 
+gbcmd:	gbcl 
+gblen	equ	$-gbcmd 
+; 
+; Process a local exit, actually a modified normal answer, but must check 
+;	for carrier present. 
+; 
+prolcl:	call	mdcarck 
+	jrz	prolc1		; If no carrier, just get ready for next call 
+	mvi	a,0ffh		; set flag 
+	sta	prlct1
+	jr	prolc2		; get ready for next caller 
+; 
+prlct1:	ds	1 
+; 
+; Process a normal exit.  This routine runs any programs to end the 
+;	session, says Bye, hangs up the modem, turns off the modem IO,  
+;	then runs the routines to get ready for the next caller. 
+; 
+pronor:	call	prinpl 
+	db	'Goodbye, call again soon!',cr,lf+80h 
+; 
+prolc1:
+	call	prtsta
+	db	60,,13 
+;
+; If carrier lost, no point in printing msg 
+; 
+proclc:
+	call	mdinit 
+prolc2:	mvi	a,bymcio+bymncc	;con enab, nxt calr mode 
+	sta	bymode
+; 
+	call	clrbuf 
+	call	ressec 
+; 
+	lxi	h,nccmd		; Load next command string 
+	lxi	d,z3cl 
+	lxi	b,nclen 
+	ldir 
+	jmp	exit 
+; 
+nccmd:	nccl 
+nclen	equ	$-nccmd 
+; 
+; Ready for next caller.  Set secure mode, then wait for arrival. 
+; 
+proncc:
+	call	cursoff		; turn off cursor
+	call	prtsta
+	db	40,,19
+	call	clrscr		; clear screen
+	call	setsec 
+	mvi	a,bymcio+bymphu 
+	sta	bymode
+	lda	prlct1		; ending local mode ? 
+	cpi	0ffh 
+	push	psw 
+	xra	a 
+	sta	prlct1		; zero it anyway 
+	pop	psw 
+	jrz	pronc2 
+	call	nxtcal 
+pronc1:	call	modans 
+	call	mdcarck		; No Carrier? 
+	jrz	pronc1		; Then loop 
+pronc2:
+	call	curson		; turn cursor on
+	call	prtsta
+	db	60,'Connected',0
+	lxi	h,bymode 
+	setb	7,m		; Make sure modem is on 
+	res	5,m		; and carrier significant 
+	call	prinpl 
+	db	'Welcome to ZBoard',cr,lf 
+	db	'You are now running under ZBYE version ' 
+	db	'0'+(version/10), '.', '0'+(version mod 10), rev, cr, lf+80h 
+; 
+	lxi	h,nmcmd	; Load normal entry command string 
+	lxi	d,z3cl 
+	lxi	b,nmlen 
+	ldir 
+	jmp	exit 
+; 
+nmcmd:	nmcl 
+nmlen	equ	$-nmcmd 
+; 
+; Set ZCPR into a secure mode 
+; 
+	 if	z3whl
+setsec:	call	usrdru 
+	xra	a 
+	sta	z3whl		; Clear the wheel 
+	sta	fstprv		; And private commands 
+	ret 
+; 
+; Set highest drive and user area for caller. 
+; 
+usrdru:	mvi	a,cdrive	; Set Caller's highest drive 
+	sta	z3env+2ch
+	mvi	a,cuser 
+	sta	z3env+2dh	; and user area. 
+	push	psw 
+	push	h 
+	call	prtsta
+	db	40,'Not Wheel',0
+	pop	h 
+	pop	psw 
+	ret 
+	 else
+setsec:	ret			; not a secure system
+	 endif	;z3whl
+; 
+; Set ZCPR into sysop mode 
+; 
+	 if	z3whl
+ressec:	call	sysdru 
+	xra	a 
+	cma 
+	sta	z3whl		; Set the wheel 
+	lda	prvlet		; and private commands 
+	sta	fstprv
+	ret
+; 
+; Set highest drive and user area for SysOp. 
+; 
+sysdru:	lda	sdrive		; Set Sysop's highest drive 
+	sta	z3env+2ch
+	lda	suser 
+	sta	z3env+2dh	; and user area. 
+	call	prtsta
+	dc	40,'    Wheel',0
+	ret 
+	 else
+ressec:	ret			; not a secure system
+	 endif	;z3whl 
+; 
+; Clear ZCPR's internal buffers 
+; 
+clrbuf:	xra	a 
+; 
+	 if	z3env 
+	lxi	h,z3env+80h	; Clear TCAP area 
+	lxi	d,z3env+81h 
+	lxi	b,7eh		; TCAP length-1 (always?) 
+	mov	m,a 
+	ldir 
+	 endif	;z3env 
+; 
+	 if	shstk 
+	lxi	h,shstk		; Clear Shell Stack 
+	lxi	d,shstk+1 
+	lxi	b,shstks*shsize-1 
+	mov	m,a 
+	ldir 
+	 endif	;shstk 
+; 
+	 if	z3msg 
+	lxi	h,z3msg		; Clear Message Buffers 
+	lxi	d,z3msg+1 
+	lxi	b,4eh		; Message buffer length -1 
+	mov	m,a 
+	ldir 
+	 endif	;z3msg 
+; 
+	ret 
+; 
+; Answer modem and wait for carrier.  Set baud as appropriate. 
+; 
+modans:
+	call	prtsta
+	db	30,'Awaiting Call',0
+mdans00	call	modans0
+	rz
+	cpi	'C'-'@'		; Control C from console? 
+	jnz	mdans00		; Nope 
+	lxi	h,bymode 
+	bit	1,m		; if in local bye active mode 
+	jnz	mdans00		; then forget the console 
+	res	7,m		; inhibit modem IO 
+	setb	1,m		; go into local bye active mode 
+	res	0,m		; make sure not in pre-hangup 
+	call	ressec
+	call	curson		; turn on cursor
+	call	prtsta
+	db	60,'Local',7
+	 if	lclans 
+	jmp	exit 
+	 else 
+	jmp	byeof1 
+	 endif	; lclans 
+; 
+;  Get ready for next caller 
+; 
+nxtcal:
+	 if	timeout 
+	xra	a		; Clear timeout 
+	sta	tocnt
+	sta	tocnt+1
+	mvi	a,tmins 
+	sta	toval
+	 endif	;timeout 
+; 
+	call	mdinit		; drop DTR 
+	mvi	b,3 
+	call	ldelay		; wait awhile 
+	call	mdansw		; raise it 
+	call	delay 
+	call	set1200 
+	call	delay 
+	call	sync		; synchronize modem
+; 
+	 if	lclans 
+;	Check for call coming in during local mode.  If so, answer it. 
+; 
+chkcal:	lda	chkt1 
+	ora	a 
+	rnz			; return if already doing function 
+	call	mdcarck		; check for call still in progress 
+	jrnz	chkca4		; yup 
+	xra	a 
+	sta	chkt2		; he's gone 
+chkca4:	lda	chkt2 
+	ora	a		; if this function already run 
+	rnz			; return to caller 
+	mov	a,m		; Get BYMODE 
+	sta	chkt1		; indicate function running 
+	push	psw 
+	res	6,m		; Turn off console 
+	setb	7,m		; Turn on modem 
+	setb	5,m		; Ignore Carrier 
+	call	incmcl		; check for incoming call
+	jz	chkca1
+	call	mdcarck		; Got carrier? 
+	jz	chkca1		; Nope 
+	lxi	h,bymode 
+	res	6,m 
+	push	h 
+	call	prinpl 
+	db	cr,lf,'Asking SYSOP if you can get on.',cr,lf+80h 
+	call	mdcarck		; Hung up? 
+	jz	chkca1		; Oh well 
+chkca2:	call	oconst 
+	jrz	chkca3 
+	call	conin 
+	jr	chkca2		; Eat console characters if any 
+chkca3:	 if	statln 
+	call	go25 
+	call	prinlc 
+	curpos	0,24,no
+	 else
+	call	prinlc 
+	 endif	; statln 
+	dc	'Caller, let on ? ' 
+	call	oconin 
+	sta	chkt1
+	 if	statln 
+	call	no25 
+	 endif	; statln 
+	call	mdcarck		; Still with us? 
+	pop	h 
+	jrz	chkca1		; Nope, his loss 
+	setb	7,m 
+	res	6,m		; Set for remote IO 
+	lda	chkt1 
+	ani	'Y' 
+	cpi	'Y' 
+	jrz	letliv		; If Y or y let him on 
+	call	prinpl 
+	db	'Sorry, try again later',cr,lf+80h 
+	call	nxtcal 
+	jr	chkca1 
+letliv:	call	prinpl 
+	db	'He will let you on soon, please hold',cr,lf+80h 
+	mvi	a,0ffh 
+	sta	chkt2		; indicate call in progress 
+chkca1:	xra	a 
+	sta	chkt1		; zero out storage 
+	pop	psw		; Get original BYMODE 
+	sta	bymode
+	ret 
+chkt1:	ds	1 
+chkt2:	ds	1 
+; 
+	 endif	; lclans 
+; 
+; Check for carrier available.  If not there, return with zero flag set. 
+; 
+carok:	push	h		; Do we care? 
+	lxi	h,bymode 
+	bit	5,m 
+	pop	h 
+	rnz			; Nope 
+	push	b 
+	mvi	b,closs*10 
+carok1:	call	mdcarck		; Got carrier? 
+	jrnz	carok2		; Yup, great 
+	call	delay		; nope, wait awhile 
+	djnz	carok1		; try again 
+carok2:	pop	b 
+	ret 
+; 
+; Carrier lost.  Drop Dead. 
+; 
+lostit:	lda	clgat 
+	ora	a 
+	jrnz	lstit1		; Check for no status gate 
+; 
+	call	prtsta
+	db	60,'Carrier Lost',0
+; 
+	mvi	a,bymcio+bymclc 
+	sta	bymode
+	lxi	h,clcmd		; this is what we want to do 
+	lxi	d,z3cl		; point to zcpr's command line 
+	lxi	b,cllen 
+	ldir 
+lstit1:
+	mvi	a,jump		; just to be safe
+	sta	0
+	xra	a 
+	sta	clgat		; Clear no status gate 
+	jmp	0		; Gotta exit this way 
+; 
+clcmd:	clcl 
+cllen	equ	$-clcmd 
+clgat:	db	0		; gate for carrier lost command 
+; 
+	 if	timeout 
+; 
+; Must be too late at night.  He's asleep. 
+; Input timed out. 
+; 
+timout:
+	 if	etb
+	mvi	a,0
+	sta	carion		; mark 'carrier off'
+	 endif
+	mvi	a,0ffh 
+	sta	clgat		; Flag the timeout 
+	call	prinpl 
+	db	'Input timed out',7,cr,lf+80h 
+	call	prtsta
+	db	60,'Timed Out',3
+; 
+	mvi	a,bymcio+bymclc 
+	sta	bymode
+	lxi	h,tocmd		; this is what we want to do 
+	lxi	d,z3cl		; point to zcpr's command line 
+	lxi	b,tolng 
+	ldir 
+	rst	clrou/8		; Do a CLOSS restart 
+; 
+tocmd:	tocl 
+tolng	equ	$-tocmd 
+; 
+	 endif	;timeout 
+; 
+	 if	kilcalr		; allow programs to commit suicide 
+; 
+;  Memory Location 0 not C3H program abort 
+;	If the base of memory is not a jump instruction, this routine will 
+;	be executed.  It is similar to a carrier lost, or timeout routine. 
+;	Any program which changes the byte will cause the caller to be 
+;	dropped unceremoniously. 
+; 
+kilcal:	mvi	a,0ffh 
+	sta	clgat		; Set the gate 
+	mvi	a,jump 
+	sta	0		; replace the jump instruction 
+	call	prtsta
+	db	60,'Call Killed',1
+; 
+	mvi	a,bymcio+bymclc 
+	sta	bymode
+	lxi	h,kccmd		; this is what we want to do 
+	lxi	d,z3cl		; point to zcpr's command line 
+	lxi	b,kclng 
+	ldir 
+;	rst	clrou		; Do a CLOSS restart 
+	rst	clrou/8		; assembler uses other syntax
+; 
+kccmd:	kccl 
+kclng	equ	$-kccmd 
+	 endif	; kilcalr 
+; 
+;  Routines which process local function keys. 
+; 
+;    Here are the descriptions 
+;	^L - Toggle Local IO 
+;	^O - Toggle Open access 
+;	^N - Nerdkey, Hang up on the bozo 
+;	^Q - Query the user, (CHAT mode) 
+; 
+fkeys:	lxi	h,bymode	; BYE in inactive state? 
+	bit	1,m 
+	rnz			; Yes, return 
+	cpi	'L'-'@'		; Control-L ? 
+	jrz	toglcl		; if so, toggle local mode 
+	cpi	'O'-'@'		; Control-O ? 
+	jrz	togope		; Yes? Toggle security 
+	cpi	'N'-'@'		; Control-N ? 
+	jz	twitem		; Goodbye bozo 
+; 
+	 if	chatf 
+	cpi	'Q'-'@'		; Control-Q 
+	jz	bychat		; Go into Chat Mode 
+	 endif	;chatf 
+; 
+	ret			; Not a BYE function Key 
+; 
+;  Toggle Local IO Mode 
+; 
+toglcl:	bit	7,m 
+	jrz	toglc1		; If set, reset it. 
+	res	7,m 
+	call	prtsta
+	db	51,'Local Disabled',0
+	jr	endfun 
+toglc1:	setb	7,m 
+	call	prtsta
+	db	51,'Local',8
+	jr	endfun 
+; 
+;  Toggle Security 
+; 
+togope:	lda	fstprv 
+	ora	a		; Secure? 
+	jrz	togop1		; If so, remove it 
+	call	setsec		; Turn on security 
+	jr	endfun 
+togop1:	call	ressec		; Turn it off 
+	jr	endfun 
+; 
+;  Hang up on the bum. 
+; 
+twitem:
+	call	curson
+	call	prtsta
+	db	60,'Twitted off',0
+	jmp	proclc		; Same as Carrier loss 
+; 
+;  End Function Key routines 
+; 
+endfun:	xra	a		; No character entered 
+	ret 
+; 
+	 if	chatf 
+; 
+;  Bye's Chat Mode 
+; 
+bychat:
+	call	conin		; pitch out the ^Q 
+	call	prtsta
+	db	46,'Chat',0
+	call	prinpl
+	dc	'Chat',cr,lf
+bycha2:	call	conin		; end on control c 
+	cpi	'C'-'@' 
+	jrz	bycha3 
+bycha1:	push	psw 
+	push	h 
+	push	b 
+	mov	c,a 
+	call	conout 
+	pop	b 
+	pop	h 
+	pop	psw 
+	push	psw 
+	bit	7,m 
+	cz	mconout		; print it to modem if not enabled 
+	pop	psw 
+	cpi	'M'-'@' 
+	jrnz	bycha2		; Loop if not a carriage return 
+	mvi	a,'J'-'@' 
+	jr	bycha1		; And append linefeed if there 
+bycha3:
+	call	prinpl
+	dc	'End Chat',cr,lf
+	call	prtsta
+	db	46,,4 
+	jmp	endfun 
+; 
+	 endif	; chatf 
+; 
+exit: 
+z3ret	equ	$+1		; point to code to modify 
+	jmp	$-$		; ZCPR's return address 
+; 
+prinlc:	lda	bymode		; Get current Mode 
+	sta	pritmp		; Save it 
+	res	7,a		; turn off modem IO 
+	setb	6,a		; turn on lcl IO 
+	sta	bymode
+	xtix			; print the string 
+	call	print 
+	xtix	
+	lda	pritmp		; restore mode 
+	sta	bymode
+	ret 
+pritmp:	db	0 
+; 
+prinpl:	xtix			; Get string starting address 
+	call	print		; Print it 
+	xtix			; Since we're pointing to next code location 
+	ret			; Go there! 
+; 
+prinlo:	xtix			; Get string starting address 
+	call	print		; Print it 
+;	call	delay		; My modem is too d**n slow 
+	xtix			; Since we're pointing to next code location 
+	ret			; Go there! 
+; 
+print:	ldx	a,0		; Get next char 
+	bit	7,a		; Check for Carry 
+	push	psw 
+	res	7,a		; Mask Carry Bit 
+	mov	c,a 
+	call	conout		; Print it 
+	inxix			; point to next char 
+	pop	psw 
+	rnz	
+	jr	print 
+; 
+; 
+;.1 sec delay routine 
+; 
+delay:	push	b 
+	lxi	b,4167*(mhz/10)+417*(mhz mod 10) ; constant * MHz10x 
+; 
+delay1:	dcx	b 
+	mov	a,b 
+	ora	c 
+	jrnz	delay1 
+	pop	b 
+	ret 
+; 
+;.001 sec delay routine 
+; 
+sdelay:	push	b 
+	lxi	b,42*(mhz/10)+4*(mhz mod 10) ; constant * MHz10x 
+	jr	delay1 
+; 
+; Long delay routine, B contains # of .1 sec delays 
+; 
+ldelay:	call	delay 
+	dcr	b 
+	jrnz	ldelay 
+	ret 
+; 
+newbio:	lhld	bios+1		; Point to bios start 
+	mvi	l,0 
+	lxi	d,tolst		; Point to storage table 
+	lxi	b,tolen-tolst	; table length 
+	ldir			; Save old jump table 
+	lxi	h,tnlst		; Point to new jump table 
+	lded	bios+1 
+	mvi	e,0 
+	lxi	b,tnlen-tnlst 
+	ldir			; We are now running under BYE 
+	ret 
+; 
+oldbio:	lxi	h,tolst		; Put things back the way they were 
+	lded	bios+1 
+	mvi	e,0 
+	lxi	b,tolen-tolst 
+	ldir 
+	ret 
+; 
+tolst: 
+ocboot:		jmp	0 
+owboot:		jmp	0	; This will hold the BIOS routines 
+oconst:		jmp	0	;  BYE will modify 
+oconin:		jmp	0 
+oconout:	jmp	0 
+olist:		jmp	0 
+opunch:		jmp	0 
+oreader:	jmp	0 
+tolen: 
+; 
+tnlst: 
+cboot: 
+		 if	obye	; Emulate Old BYE? 
+		jmp	fakeit 
+		 else 
+		jmp	0 
+		 endif 
+wboot:		jmp	owboot	; Here is the new jump table 
+const:		jmp	bconst 
+conin:		jmp	bconin 
+conout:		jmp	bconout 
+		 if	lstdev	; retain printer for sysop? 
+list:		jmp	whlst 
+		 else 
+list:		jmp	mconout 
+		 endif	; lstdev 
+punch:		jmp	bconout 
+reader:		jmp	bconin 
+tnlen: 
+; 
+;  Structure to look like the old byes 
+; 
+	 if obye 
+fakeit:	ds	15 
+	dw	oconout 
+	db	'BYE' 
+	 endif 
+; 
+;  Routines patched in by BYE 
+; 
+bconst:
+	 if	z3whl
+	lda	z3whl 
+	lxi	h,owheel	; check for wheel change 
+	cmp	m 
+	jrz	bcst3 
+	sta	owheel
+	ora	a		; wheel set? 
+	cz	usrdru		; then set remote dru 
+	cnz	sysdru		; else set sysop dru 
+	 endif	;z3whl
+bcst3:	lxi	h,bymode	; local console enabled? 
+	bit	6,m 
+	jrz	bcst1		; nope, don't check 
+	push	h		; used later 
+	 if	lclans 
+	bit	1,m		; In local mode ? 
+	cnz	chkcal		; check for a caller 
+	 endif	; lclans 
+	lda	lchar		; got an uneaten one? 
+	ora	a 
+	jrnz	bcst2		; Yup, still have it 
+	call	oconst		; check con status 
+	ora	a 
+	pop	h 
+	sta	lchar		; flag local char 
+	sta	lclst
+	jrz	bcst1		; no char 
+	push	h 
+	call	oconin		; get local char 
+	call	fkeys		; check and process local function keys 
+bcst2:	pop	h 
+	sta	lchar		; store away char 
+	ora	a		; make flags follow a 
+	ret 
+; 
+bcst1:	bit	7,m		; Modem enabled? 
+	rz			; Nope, don't bother 
+; 
+	 if	kilcalr		; Kill caller if loc 0 <> jump 
+	lda	0 
+	cpi	jump 
+	jnz	kilcal		; Kill him if instructed by higher program 
+	 endif	; kilcalr 
+; 
+	call	carok		; Check for carrier 
+	jz	clrou		; Fool dropped carrier on us 
+	call	mdinst		; Check for modem status 
+	rnz			; Everything's hunkey dory 
+; 
+	 if	timeout 
+	push	h 
+	lxi	h,bymode 
+	bit	5,m		; Paying attention to carrier 
+	jrnz	ndata 
+	lxi	h,tocnt		;No data, incr. timeout counter 
+	inr	m
+	jrnz	ndata		;don't timeout yet 
+	inx	h 
+	inr	m		;next byte of counter 
+	jrnz	ndata 
+	lxi	h,toval		;1 "minute", no data 
+	dcr	m
+	jrnz	ndata		;still not timed out... 
+	jmp	timout		;finally... timed out... 
+; 
+ndata: 
+	xra	a		;no character for sure 
+	pop	h 
+	 endif	; Timeout 
+; 
+	ret 
+; 
+toval:	ds	1 
+tocnt:	ds	2 
+lchar:	db	0 
+owheel:	db	0 
+; 
+bconin:	call	bconst		; Wait for char avail 
+	ora	a 
+	jrz	bconin 
+; 
+	 if	timeout 
+	xra	a		; Clear timeout 
+	sta	tocnt
+	sta	tocnt+1
+	mvi	a,tmins 
+	sta	toval
+	 endif	;timeout 
+; 
+	lxi	h,bymode	; local con enabled? 
+	bit	6,m 
+	jrz	bcin1		; Nope, skip 
+	lda	lchar		; Get local status 
+	ora	a 
+	jrz	bcin1		; it was not local 
+	push	psw 
+	xra	a		; clear local character 
+	sta	lchar		; hit. 
+	pop	psw 
+	ret 
+bcin1:	jmp	mdinp 
+; 
+bconout: 
+	lxi	h,bymode	; local con enabled? 
+	bit	7,m		; remote con enabled? 
+	jrz	bcou1		; nope, skip 
+	push	h 
+	push	b		; in case of trashed char 
+	call	carok		; Check for carrier 
+	jz	clrou		; Fool dropped carrier on us 
+	call	mconout 
+	pop	b 
+	pop	h 
+; 
+bcou1:	bit	6,m 
+	rz			; nope, done 
+	call	oconout		; print it 
+	ret 
+; 
+	 if	lstdev 
+; 
+;  Wheel check for List Device 
+; 
+whlst:	sta	wlst		; better to be safe than sorry. 
+	lda	z3whl 
+	ora	a		; is wheel set? 
+	lda	wlst 
+	jz	mconout		; nope, hope they like double characters. 
+	jmp	olist		; let's hope there's a printer out there. 
+; 
+wlst:	ds	1 
+	 endif	; lstdev 
+; 
+;  Modem Conout routine 
+; 
+mconout: 
+	call	mdoutst 
+	jrz	mconout		; wait till we can do it 
+	mov	a,c 
+	call	mdoutp		; do it 
+	ret 
+; 
+;---------------- Modem dependent routines start here ---------------------- 
+;
+; This should really be done as two entirely independent overlays -
+; one for smart (Hayes compatible) modems and one for dumb.  Then there
+; would be no need for the if-else-endif.
+;
+	 if	not dumb 	; smart "Hayes" modem
+modans0	call	conin 		; wait for a character
+	mov	b,a
+	lda	lclst 
+	ora	a		; Was it a local char? 
+	mov	a,b
+	rnz			; yes - return with nz flag
+	lxi	h,bymode	; We're probably going to set a mode soon 
+	cpi	'2'		; Is it a RING? 
+	jrz	mdans1 
+	cpi	'1'		; How 'bout connect 300? 
+	jrz	mdans3 
+	cpi	'5'		; connect 1200? 
+	jrz	mdans4 
+	cpi	'3'		; No Carrier 
+	jrnz	modans0
+	 if	etb
+	xra	a		; set z flag
+	sta	carion		; assume carrier on
+	 endif
+	ret
+; 
+mdans1:	res	6,m		; turn off local console
+	push	h 
+	call	prinlo 
+	db	'ATA',cr+80h	; answer the phone 
+	pop	h 
+	setb	6,m		; turn on local console
+	jr	modans0 
+mdans3:	call	set300 
+	jrnz	mdans7
+	jr	mdans5 
+mdans4:	call	set1200
+	jrnz	mdans7 
+mdans5:	call	delay 
+	res	5,m		; Carrier enabled 
+	 if	etb
+	mvi	a,0ffh
+	sta	carion		; mark 'carrier on'
+; If hardware carrier detect is available leave this in else remove it
+	mvi	b,10		; Check carrier for 1.0 seconds 
+mdans6:	call	carok 
+	jrz	mdans7 
+	call	delay 
+	djnz	mdans6 
+	 endif	; etb
+	ret 
+mdans7:	lxi	h,bymode 
+	call	nxtcal
+	setb	5,m 
+	xra	a
+	ret 
+;
+sync:	lxi	h,bymode 
+	setb	7,m 
+	setb	5,m		; ignore carrier 
+	setb	6,m		; turn dual io on 
+	ret
+;
+; check for incoming call
+;
+incmcl:	call	bconst		; char avail from modem? 
+	rz			; nope, continue
+incmcl1	call	bconin		; Get modem char 
+	cpi	'2'		; RING? 
+	jrz	incmcl2
+	xra	a		; set z flag
+	ret
+incmcl2	lxi	h,bymode 
+	setb	1,m 
+	call	mdans1		; Answer the phone 
+	ori	0ffh		; set nz flag
+	ret
+;.............. this is the dumb modem overlay .....................
+	 else 				; dumb modem
+modans0	call	const 
+	jrz 	mdansC		; got a character? 
+	call	conin 
+	mov	b,a
+	lda	lclst 
+	ora	a		; Was it a local char? 
+	mov	a,b
+	rnz			; yes 
+mdansC	call	mdcarck		; someone here? 
+	jrz	modans0		; if so, set baud 
+mdans8:	mvi	b,5		; five tries to get baud right 
+	lxi	h,bymode 
+	setb	6,m		; enable console IO 
+	setb	7,m		; enable modem IO 
+mdans9:	call	mdcarck		; did they drop carrier? 
+	rz	
+;
+	push	b		; save 'em 
+	call	set300 		; try 300 baud
+	call	conin 
+	pop	b
+	cpi	cr		; did we get a CR? 
+	rz
+;
+	push	b
+	call	set1200 	; try 1200 baud
+	call	conin 
+	pop	b
+	cpi	cr		; did we get a CR? 
+	rz
+;
+	djnz	mdans9 
+	call	nxtcal		; somethings confused, hang up on 'em 
+	xra	a		; set z flag
+	ret 
+;
+sync:	ret 			; just return if dumb modem
+;
+incmcl:				; check for incoming call
+	call	mdcarck		; someone on the line? 
+	rz			; nope
+	call	mdans8		; set up for dumb remote caller 
+	ori	0ffh		; set nz flag
+	ret
+	 endif	; dumb 
+;
+; If you can put the phone on-hook and off-hook via the UART then this
+; label and appropriate code should be in the UART overlay.
+;
+; The following code uses "smart" modem capabilities to compensate for
+; the fact that my UART is so dumb.   ETB
+;
+mdansw
+	lxi	h,bymode	; save bymode
+	mov	a,m
+	push	psw
+	setb	7,m		; modem on
+	res	6,m		; console off
+	setb	5,m
+	mvi	b,15
+	call	ldelay		; wait 1.5 sec before +++
+	call	prinlo
+	db	'++','+'+80h	; switch modem to command mode
+	mvi	b,15
+	call	ldelay		; wait 1.5 sec after +++
+	call	prinlo
+	db	'ATH',cr+80h	; hang up phone
+	call	l2char		; get echo (if any)
+	call	l2char		; get status
+	 if	etb
+	lxi	h,carion
+	mvi	m,0		; set 'carrier off'
+	 endif
+	lxi	h,bymode
+	pop	psw		; restore bymode
+	mov	m,a
+	ret
+;
+; .................................................................
+;
+getc:	lxi	b,80*mhz	; nr times to try
+				; to get char from modem
+; the nr of times to try is sensitive to the speed of the const function
+; if zbye won't get started try raising the 80 to 160 or more.  The only
+; adverse effect should be to slow the program down some.
+getc3	push	b
+	call	const		; check status
+	pop	b
+	ora	a
+	jrnz	getc2		; char avail?
+	dcx	b		; no - count tries
+	mov	a,b
+	ora	c
+	jrnz	getc3		; try again?
+	stc			; i'm exhausted, lets quit
+	ret
+getc2	call	conin		; get the character
+	ora	a		; clear carry
+	ret
+;
+; get characters from modem till it times out then test the last 2 chars
+; to see if they are '0' and car ret.
+;
+l2char	lxi	h,0		; get last 2 chars from modem
+l2c2	push	h
+	call	getc
+	pop	h
+	jrc	l2c1		; no chars left
+	mov	h,l
+	mov	l,a
+	jr	l2c2
+l2c1
+	mov	a,h
+	cpi	'0'
+	rnz
+	mov	a,l
+	cpi	cr
+	ret
+;
+;------------------- Start of UART dependent routines ------------------ 
+; 
+; the following code is specific for ETB's modem port and would have
+; to be extensively modified for anyone else.
+;
+dport	equ	0e3f8h		; modem data port
+sport	equ	dport+1		; modem status port
+;
+dav	equ	4		; data available bit
+tbmt	equ	8		; transmit bufr empty bit
+err	equ	13h		; overrun, framing, and parity error bits
+;
+; This routine is supposed to "turn off everyting on the modem, hang it up,
+; and get it ready to wait for a RING. (DTR off)" but most of this is
+; either impossible or undesireable on mys system. ETB
+;
+mdinit				; initialize port
+	lda	dport		; discard existing data
+	ret
+;
+set300:				; 300 baud not supported
+	ori	0ffh
+	ret
+;
+set1200				; set 1200 baud
+	ora	a	
+	ret
+;
+; The following uses software 'carrier detect' because ETB's system
+; does not provide hardware carrier detect.
+;
+mdcarck
+	lda	carion		; is carrier on?
+	ora	a
+	ret
+carion	db	0ffh		; software 'carrier on' switch
+;
+mdinst				; modem input status
+	lda	sport
+	cma			; invert bits
+	mov	b,a		; save status
+	ani	dav		; data available?
+	rz			; no
+	mov	a,b		; get stat back
+	ani	err		; check for errors
+	jrz	mdinst1		; noerror
+	lda	dport		; discard data
+	xra	a		; clear status
+	ret
+mdinst1	ori	0ffh		; data avail
+	ret
+;
+mdinp				; modem input 
+	lda	dport		; get data
+	cma			; invert bits
+	ani	7fh		; delete hi bit
+	ret
+;
+mdoutst				; modem output status
+	lda	sport		; get status
+	cma			; invert bits
+	ani	tbmt		; buffer empty?
+	ret
+;
+mdoutp				; modem output
+	cma			; invert bits
+	sta	dport		; send data
+	ret
+;
+;----------------- Start of Terminal dependent routines-------------------
+; 
+; There are essentially 3 options available for printing status info on
+; the local console;
+;
+; 1) print it on the "25th line" where it will not scroll. This is obtained
+; by setting "statln equ yes" and then seeing to it that the code below
+; corresponds to your particular terminal configuration.
+;
+; 2) print it just like any other info and let it scroll. This is obtained
+; by setting "statln equ no".  This option makes absolutely no unusual
+; demands on the terminal and should run on any system.
+;
+; 3) don't print it at all.  This is obtained by converting the subroutine
+; prtsta into a dummy (ret instruction).  If desired you may then discard
+; most if not all of this overlay.
+;
+; These macros indicate the characters sequences to cause the specified
+; action on a specific terminal. You will probably have to change the 
+; data below if you wish to use "line 25". 
+;
+	 if	statln
+curpos	macro	x,y,last	; Position Cursor to X,Y (0 offset) 
+	db	1bh,'=',' '+y,' '+x+(80h and last) 
+	endm 
+; 
+enab25	macro	last		; Enable 25th line 
+	db	1bh,'C','7'+(80h and last) 
+	endm 
+; 
+disab25	macro	last		; Disable 25th line 
+	db	1bh,'B','7'+(80h and last) 
+	endm 
+; 
+pucu	macro	last		; Push cursor 
+	db	1bh,'B','6'+(80h and last) 
+	endm 
+; 
+pocu	macro	last		; Pop cursor 
+	db	1bh,'C','6'+(80h and last) 
+	endm 
+; 
+cls	macro	last		; Clear Screen 
+	db	1ah+(80h and last) 
+	endm 
+; 
+curof	macro	last		; Cursor off 
+	db	1bh,'C','4'+(80h and last) 
+	endm 
+; 
+curon	macro	last		; Cursor on 
+	db	1bh,'B','4'+(80h and last) 
+	endm 
+	 endif	; statln
+;
+; . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+;
+;
+; Print status information on the local terminal.  The calling sequence
+; is	call	prtsta
+;	db	m,string,n
+; where m is the column number on the screen where string is to be printed
+; followed by n blanks.
+;
+prtsta:
+;	ret			; to turn off all status reports
+				; activate this ret instruction
+	xthl
+	mov	a,m		; get ptr to column
+	inx	h
+	xthl
+	 if	statln		; fancy terminal
+	adi	' '+80h
+	sta	prtstax
+	call	prinlc
+	enab25	no		; enable line 25
+	pucu	no		; push cursor
+	curpos	0,24,yes	; move cursor
+prtstax	equ	$-1
+	 else			; plain terminal
+	mov	b,a
+	ora	a		; column 0?
+	cnz	tab		; print blanks til col is reached
+	 endif	; statln
+;
+	xthl			; point to string
+prtstas	mov	a,m		; get next char in string
+	inx	h		; increment ptr
+	cpi	32		; end of string?
+	jrc	prtsta2
+	mov	c,a
+	push	h
+	call	oconout		; print char on console
+	pop	h
+	jr	prtstas
+prtsta2	xthl			; return adr
+	mov	b,a		; nr blanks to print
+	ora	a
+	cnz	tab		; print them
+;
+	 if	statln
+	call	no25
+	 else
+	call	prinlc
+	dc	cr,lf
+	 endif	;statln
+	ret
+;
+go25:
+	 if	statln
+	call	prinlc 
+	enab25	no 		; enable 25th line
+	pucu	yes 		; push cursor
+	 endif	; statln
+	ret 
+;
+no25:
+	 if	statln
+	call	prinlc 
+	pocu	no 		; pop cursor
+	disab25	yes 		; disable 25th line
+	 endif	; statln 
+	ret
+;
+cursoff:
+	 if	statln
+	call	prinlc
+	curoff	yes		; cursor off
+	 endif	; statln
+	ret
+;
+curson:
+	 if	statln
+	call	prinlc
+	curon	yes		; cursor on
+	 endif	; statln
+	ret
+;
+clrscr:
+	 if	statln
+	call	prinlc		; clear screen
+	cls	yes
+	 endif	; statln
+	ret
+; 
+; Print (on local console) number of spaces contained in B register. 
+; 
+tab:
+	push	b 
+	mvi	c,' ' 
+	call	oconout 
+	pop	b 
+	djnz	tab 
+	ret 
+;
+;-------------------- End of terminal dependent routines ---------------------
+;
+;	.z80 
+; 
+;	 if2	; this is turned off because I use a one pass assembler ETB 
+	 if	$ ge (rcp+rcps*128) 
+	.printx ->This RCP is too large, don't try to run it.<- 
+	 endif 
+;	 endif 
+; 
+	.dephase 
+byend: 
+	end 
+cp+rcps*128) 
+	.

@@ -1,0 +1,286 @@
+
+;
+;  PROGRAM:  FINDERR
+;  AUTHOR:  TED H. EMIGH
+;  VERSION:  1.1
+;  DATE:  17 SEPT 84
+;  PREVIOUS VERSIONS:  1.0 (11 Sep 84), 0.1, 7 SEPT 84
+;
+VERSION	EQU	11
+EXTENV	EQU	1	; 1 for External Environ, 0 for Internal Environ
+
+;
+;	FINDERR is a program to set the ZCPR3 message registers if various
+;	memory locations are nonzero
+;
+;  ZCPR3 Header
+;
+	MACLIB	Z3BASE.LIB
+
+;
+;  These are part of the built-in Help message.  They indicate what
+;  registers are affected by this version of FINDERR
+;
+regmsg	macro
+	db	0dh,0ah,' 0 - M80 Ver 3.44'
+	db	0dh,0ah,' 1 - F80'
+	endm
+
+;
+;  These Locations Assume the use of M80/F80, Version 3.44
+;
+m80f	equ	03cedh		;location of number of fatal errors (M80)
+m80fb	equ	2		;--16 bits (2 bytes)
+m80w	equ	03cefh		;location of number of warning errors (M80)
+m80wb	equ	2		;--16 bits (2 bytes)
+
+f80f	equ	01c1h		;location of number of fatal errors (F80)
+f80fb	equ	2		;--16 bits (2 bytes)
+f80w	equ	02adh		;location of number of warning errors (F80)
+f80wb	equ	2		;--16 bits (2 bytes)
+;
+;  System Equates
+;  Add the location of the error indicator, and the number of byte
+;  for the indicator for each indicator desired.  If the number of
+;  bytes is zero, that particular memory location is ignored.
+;
+fatal0	equ	m80f		;location of number of fatal errors
+bytesf0	equ	m80fb		;number of bytes
+warn0	equ	m80w		;location of number of warning errors
+bytesw0	equ	m80wb		;number of bytes
+fnderr0	equ	bytesf0 or bytesw0	;register 0 used for these errors
+
+fatal1	equ	f80f		;location of number of fatal errors
+bytesf1	equ	f80fb		;number of bytes
+warn1	equ	f80w		;location of number of warning errors
+bytesw1	equ	f80wb		;number of bytes
+fnderr1	equ	bytesf1 or bytesw1	;register 1 used for these errors
+
+;
+;  The rest of the registers are not used at this time
+;  (if bytes = 0, then the memory address is not checked)
+;
+fatal2	equ	0		;location of number of fatal errors
+bytesf2	equ	0		;number of bytes
+warn2	equ	0		;location of number of warning errors
+bytesw2	equ	0		;number of bytes
+fnderr2	equ	bytesf2 or bytesw2	;register 2 used for these errors
+;
+fatal3	equ	0		;location of number of fatal errors
+bytesf3	equ	0		;number of bytes
+warn3	equ	0		;location of number of warning errors
+bytesw3	equ	0		;number of bytes
+fnderr3	equ	bytesf3 or bytesw3	;register 3 used for these errors
+;
+fatal4	equ	0		;location of number of fatal errors
+bytesf4	equ	0		;number of bytes
+warn4	equ	0		;location of number of warning errors
+bytesw4	equ	0		;number of bytes
+fnderr4	equ	bytesf4 or bytesw4	;register 4 used for these errors
+;
+fatal5	equ	0		;location of number of fatal errors
+bytesf5	equ	0		;number of bytes
+warn5	equ	0		;location of number of warning errors
+bytesw5	equ	0		;number of bytes
+fnderr5	equ	bytesf5 or bytesw5	;register 5 used for these errors
+;
+fatal6	equ	0		;location of number of fatal errors
+bytesf6	equ	0		;number of bytes
+warn6	equ	0		;location of number of warning errors
+bytesw6	equ	0		;number of bytes
+fnderr6	equ	bytesf6 or bytesw6	;register 6 used for these errors
+;
+fatal7	equ	0		;location of number of fatal errors
+bytesf7	equ	0		;number of bytes
+warn7	equ	0		;location of number of warning errors
+bytesw7	equ	0		;number of bytes
+fnderr7	equ	bytesf7 or bytesw7	;register 7 used for these errors
+;
+fatal8	equ	0		;location of number of fatal errors
+bytesf8	equ	0		;number of bytes
+warn8	equ	0		;location of number of warning errors
+bytesw8	equ	0		;number of bytes
+fnderr8	equ	bytesf8 or bytesw8	;register 8 used for these errors
+;
+fatal9	equ	0		;location of number of fatal errors
+bytesf9	equ	0		;number of bytes
+warn9	equ	0		;location of number of warning errors
+bytesw9	equ	0		;number of bytes
+fnderr9	equ	bytesf9 or bytesw9	;register 9 used for these errors
+
+;
+; System Buffers and Entries
+;
+fcb	equ	5ch
+bdos	equ	5
+
+;
+;
+; MACROS TO PROVIDE Z80 EXTENSIONS
+;   MACROS INCLUDE:
+;
+;	jrnz	- Jump Relative if No Zero
+;	djnz	- Decrement B and Jump Relative if No Zero
+;
+;	@gendd Macro used for Checking and Generating
+;	8-Bit Jump Relative Displacements
+;
+@gendd	macro	?dd	;;Used for checking range of 8-bit displacements
+	if2		;;M80
+
+	if (?dd gt 7FH) and (?dd lt 0FF80H)
+	db	100H,?dd	;Displacement Range Error
+	else
+	db	?dd
+	endif		;;Range Error
+
+	else		;;M80
+	db	?dd	;;M80
+	endif		;;M80
+
+	endm
+;
+;
+; Z80 MACRO EXTENSIONS
+;
+jrnz	macro	?n	;;Jump Relative on No Zero
+	if	i8080	;;8080/8085
+	jnz	?n
+	else		;;Z80
+	db	20H
+	@gendd	?n-$-1
+	endif		;;I8080
+	endm
+;
+djnz	macro	?n	;;Decrement B and Jump Relative on No Zero
+	if	i8080	;;8080/8085
+	dcr	B
+	jnz	?n
+	else		;;Z80
+	db	10H
+	@gendd	?n-$-1
+	endif		;;I8080
+	endm
+;
+;  Macros to do most of the work
+;
+;  SETBYT will set B register to 'value' if the any of the bytes
+;    at location 'loc' to 'loc'+'bytes'-1 are nonzero
+;    ('bytes' is the number of bytes to check)
+;    If no error, then B=0.  errno is the error number
+;
+setbyt	macro	loc,bytes,errno,value
+	local	nxtbyt
+	if bytes ne 0
+;;
+	if bytes eq 1
+	lda	loc		;;get byte
+	ora	a		;;see if zero
+	endif			;;bytes eq 1
+	if bytes eq 2
+	lxi	h,loc
+	mov	a,m		;;get lower byte
+	inx	h		;;point to higher byte
+	ora	m		;;see if 16 bit number is zero
+	endif			;;bytes eq 2
+	if bytes gt 2
+	lxi	h,loc
+	mov	a,m		;;get first byte
+	mvi	b,bytes-1	;;number of bytes
+nxtbyt:	inx	h		;;point to next byte
+	ora	m		;;see if number is zero
+	djnz	nxtbyt		;;more bytes?
+	if i8080
+	ora	a		;;set flags for a again
+	endif			;;I8080
+	endif			;;bytes gt 2
+	mvi	b,value
+	jrnz	err&errno
+;;
+	endif			;;bytes ne 0
+	endm
+;
+;  SETBYT will set register number errno to the value in
+;    B if entered at err&errno, else it will reset the value
+;    at register number errno.  This routine MUST follow the
+;    last setbyt for that error number.
+;
+finish	macro	errno
+	mvi	b,0		;;set for zero
+err&errno:
+	lxi	h,30h+errno	;;point to register number
+	dad	d
+	mov	m,b		;;save the error code
+;
+	endm
+;
+;  Environments
+;
+origin:
+;
+	if	extenv		; if external environment ...
+;
+;  External Environment Definition
+;
+	jmp	finderr
+	db	'Z3ENV'		; this is an environment
+	db	1		; class 1 environment (external)
+envloc:
+	dw	z3env		; ptr to environment
+finderr:
+	lhld	envloc		; HL pts to environment
+
+	else			; if internal environment ...
+;
+;  Internal Environment Definition
+;
+envloc:
+	jmp	finderr
+	db	'Z3ENV'		; this is an environment
+	MACLIB	SYSENV.LIB
+	SYSENV			; define environment
+finderr:
+	lxi	h,envloc	; HL pts to environment
+
+	endif
+
+;
+;  Beginning of FINDERR
+;
+	lda	fcb+1		;check for help request
+	cpi	'/'
+	jz	help
+	lxi	d,34		;message address offset in environment
+	dad	d		;point to location of message address
+	mov	a,m		;get message address
+	inx	h
+	mov	h,m
+	mov	l,a		;HL now points to the message buffer
+	ora	h		;see if message buffers supported
+	rz			;messages not supported, abort
+	xchg			;save pointer to message buffer
+	irp	errno,<0,1,2,3,4,5,6,7,8,9>
+if fnderr&errno
+	setbyt	fatal&errno,bytesf&errno,errno,1
+	setbyt	warn&errno,bytesw&errno,errno,2
+	finish	errno
+endif
+	endm
+;
+	ret
+;
+; Help Message
+;
+help:
+	lxi	d,helpmsg
+	mvi	c,9		;use BDOS print
+	jmp	bdos
+helpmsg:
+	db	'FINDERR '
+	db	(version/10)+'0','.',(version mod 10)+'0'
+	db	0dh,0ah,'Regs --'
+	regmsg
+	db	'$'
+
+	end
+

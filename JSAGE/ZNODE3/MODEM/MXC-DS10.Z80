@@ -1,0 +1,186 @@
+
+; MXC-DS10.ASM	DateStamper Overlay  rev 1.0
+;
+; MEXplus Clock Overlay for Plu*Perfect's DateStamper(tm)
+;
+; Usage: any Z80 computer using DateStamper (version after 6/85)
+;        Otherwise, this code is HARDWARE INDEPENDENT as it gets
+;        date via DateStamper rather than directly from clock.
+;
+;------------------------------------------------------------------------
+; revision |  date  |		    description 	   |	author
+;----------+-------------------------------------------------------------
+;   1.0    | 8Mar87 | created original, some code from     | Jim Lill
+;          |        | MXC-MC10.ASM, DATE.ASM, HSHBGPAT.Z80 |
+;------------------------------------------------------------------------
+bdos	equ	0005h
+cent	equ	1900		;DS doesn't supply century, change this
+				;in a few years!
+;...............................
+;
+; Prtval macro prints text and value during assembly
+;
+prtval	macro msg,n
+	.printx	msg n
+	endm
+;...............................
+;
+; start of MEX stuff....
+
+	org	0100h
+	db	0C3h		; this is for 8080 processor
+;...............................
+;
+; JMP table for clock overlay
+;
+	org	0E00h		;start of clock overlay
+
+start:	jp	gettim		;get time
+	jp	getdat		;get date
+	ret			;cset processor
+	nop
+	nop
+	ret			;clock overlay init
+	nop
+	nop
+	ret			;clock overlay de-init
+	nop
+	nop
+;...............................
+;
+; gettim, this routine gets the time in clktbl and readies it for MEX
+;
+;	B - hours (0-23)
+;	C - minutes (0-59)
+;	D - seconds (0-59)
+;	E - hundredths of sec (0-99)
+;
+gettim:
+	call	dschk		; see if DS is running
+	jr	z,cont1		; jump to cont1 if it is
+	ld	DE,0		; \__ make things zero if not 
+	ld	BC,0		; / 
+	ret			; report back to MEX
+
+cont1:	call	putdat		; get date and put BCD data in CLKTBL
+	
+	ld 	A,(hrs)		; load packed BCD hours into A
+	call	bcd2bin		; \__ place bin hours in B
+	ld	B,A		; /
+	
+	ld	A,(mins)	; load packed BCD mins into A
+	call	bcd2bin		; \__ place bin mins in C
+	ld	C,A		; /
+
+	ld	A,(secs)	; loaded packed BCD secs into A
+	call	bcd2bin		; \__ place bin secs in D
+	ld	D,A		; /
+
+	ld	E,0		; we don't have sec/100, so zero
+
+	ret			; back to MEX
+;................................
+;
+; getdat, this routine gets the date in clktbl and readies it for MEX
+;
+;	BC - year (1985-2099)
+;	D - month (1=jan, 2=feb, etc)
+;	E - day of month (1-31)
+;
+getdat:
+	call	dschk		; see if DS is running
+	jr	z,cont2		; jump to cont2 if it is
+	ld	E,1		; if not make day 1     ----\  Legal
+	ld	D,1		;  "  "   "   month 1        + Values
+	ld	BC,1999		;  "  "   "   year  1999  --/  for MEX
+	ret			; report back to MEX
+
+cont2:	call	putdat		; get date and put BCD data in CLKTBL
+				;
+	ld 	A,(day)		; load packed BCD day into A
+	call	bcd2bin		; \__ place bin day in E
+	ld	E,A		; /
+
+	ld	A,(mon)		; load packed BCD mon into A
+	call	bcd2bin		; \__ place bin mon in D
+	ld	D,A		; /
+
+	ld	A,(year)	; load packed BCD year (00-99) into A
+	call	bcd2bin		; \__ place bin year in C
+	ld	C,A		; /
+	ld	B,0		; make a whole year value
+	ld	HL,cent		; by adding cent (eg 1900)
+	add	HL,BC		; to partial year
+	ld	C,L		; move answer into BC
+	ld	B,H		; "     "      "  "
+
+	ret			; back to MEX
+;...............................
+;
+; bcd2bin --> packed BCD (A) converted to Binary (A)
+;
+bcd2bin:
+	push	BC		; be safe
+	ld	C,A		; load in value from A
+	and	0F0h		; mask off lower nibble
+	rra			; \
+	rra   			;  \_/ move upper nibble
+	rra  			;  / \ into lower nibble 
+	rra			; /
+	ld	B,A		; store value *1 
+	add	A		; \__ *4 
+	add	A		; /  
+	add	B		; now *5 
+	add	A		; finally *10
+	ld	B,A		; store 10's digit in B
+	ld	A,C		; \__ load lower digit into A	
+	and	00Fh		; /
+	add	B		; combine both digs. into single byte
+	pop	BC		; restore register
+	ret			; 
+;...............................
+;
+; Check for DateStamper running and set up code for getting time string.
+; The routine returns Z if DS is running and NZ if not.
+
+dschk:
+	ld	e,'D'		; DateStamper ID character
+	ld	c,0ch		; Return version function
+	call	bdos
+	cp	22h		; Must be CP/M 2.2
+	ret	nz		; If not, return NZ
+	ld	a,h		; Check for return of ID
+	cp	'D'
+	ret	nz		; If not, return NZ
+	ex	de,hl		; Get time subroutine addr into HL
+	ld	(time),hl	; Modify code in next routine
+	ret			; Return Z showing success
+;................................
+
+; Get the time string from DateStamper and put it in CLKTBL
+
+putdat:
+	ld	hl,clktbl	; Point to time string
+time	equ	$+1		; Address for code modification
+	jp  	0		; Filled in by DSCHK
+				;
+clktbl:				; Storage for packed BCD values 
+year:	ds	1		; 00 - 99
+mon:	ds	1		;  1 - 12
+day:	ds	1		;  1 - 31
+hrs:	ds	1		; 00 - 23
+mins:	ds	1		; 00 - 59
+secs:	ds	1		; 00 - 59
+;................................
+;
+; Assembly-time only, MEX modules have space restrictions
+;
+	if1
+	  .radix 16
+	  prtval <ending address = >,%($)
+	  prtval <  overlay size = >,%($ - start)
+	endif
+;................................
+
+	end			; MXC-DSnn
+

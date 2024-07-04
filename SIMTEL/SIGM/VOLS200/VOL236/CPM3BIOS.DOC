@@ -1,0 +1,314 @@
+                              CP/M-3 BIOS ROUTINES
+                              ------ ---- --------
+         FOR A THINKER TOYS/MORROW DESIGNS DISK-JOCKEY DISK CONTROLLER.
+         --- - ------- ---- ------ ------- ----------- ---- ----------
+
+This disk contains the bios routines I have used for running CP/M-3 on my
+computer. I hope they may be useful for someone implementing CP/M-3 on their
+machine although they will have to make some modifications.
+
+My system has a Z80 cpu, a Thinker Toys/Morrow Designs 'Disk Jockey' disk
+controller (the memory mapped version, 1980 vintage) driving a single DSDD 8
+inch disk drive, a 512 kbyte semidisk, a Microangelo display board, a Thinker
+Toys/Morrow Designs 'switchboard' io board, Tarbell tape handler, and 3 memory
+boards, 2 with 64K and one with 16K. I have a 4K common memory. If your computer
+looks something like this then these routines should be very useful if you are
+wanting to implement CP/M-3. Otherwise they might still save you some of the
+detective work I had to do.
+
+CP/M-3 fitted in well with my system and I now have just over 60K of memory
+available for programs despite the memory mapped disk controller board. Note
+that memory mapped part of the disk-controller board must not overlap the top 4K
+of memory which is used for common memory. The 4K of memory on my SSM cpu board
+(model CB2) provides the common memory and is especially convenient since it is
+accessible only by the Z80 and won't interfere with a second processor or
+require the blanking out of the corresponding blocks of the main memory boards -
+but note that the bank select code on the CB2 may be wrong, two bits being
+reversed on my one.
+
+As well as the routines supplied by DR you will need Microsoft's M80 macro
+assembler, or you will have to translate my Zilog mnemonics to the Intel ones
+which can then be assembled using RMAC supplied with CP/M-3. To build the CP/M-3
+bios one needs to build a series of modules which are assembled and then linked
+together. The first of these modules, BIOSKRNL.ASM, is supplied by DR and is not
+modified except to set 'banked' to false if one is building the unbanked
+version. (You must build the unbanked version first, get it debugged, then
+modify it to get the banked version - some routines such as Morrow's FORMT# will
+run only under the unbanked version so you will need it anyway). The source for
+the rest of the modules I have used are on this disk and I will describe how
+they work and what modifications you might need to make. In many cases you must
+set 'banked' to false at the top of these routines when you want the unbanked
+version.
+
+
+SCB.ASM
+
+This defines the locations in the System Control Block for the rest of the bios.
+The version here is the same as DR's except that I have added the locations of
+the variables that determine the disk search order, the temporary default disk,
+and whether .COM or .SUB files are executed. You need make no change to this.
+
+
+MOVE.MAC
+
+This contains the routines for copying blocks of data and setting banks. This
+includes the routines ?move, ?xmove, ?bank described by DR and also ?bank0 for
+switching to bank 0 and setting up a temporary stack, ?rbank for returning to
+the current bank and ?trans for transferring large blocks of data from one bank
+to another. A buffer is set up in common memory for doing the transfers. Only
+?move is required in the unbanked version. The only change you will need to make
+is to the routine ?bank. My processor board can switch the extended address and
+this is done with an 'out' instruction. The disk controller has bank select and
+so can be turned on if bank 0 is required, otherwise switched off. You may need
+different code here. If your system uses interrupts it would be advisable to
+disable them when switching to a bank other than bank 1.
+
+
+CHARIO.MAC
+
+This contains the io routines for the console, keyboard, printer, auxiliary
+devices, etc. DR's version is for a computer that can switch baud rates and is
+much more complicated than is required for a simple machine like mine. I have
+still set up a table containing the baud rates so that DR's system programs can
+look at them but do not need facilities for changing them. Five routines are
+required: ?cinit to initialize devices, ?ci for inputing characters, ?co for
+outputing characters, ?cist for getting input status, ?cost for getting output
+status. Each of these routines involves a call to a routine 'jump' which,
+together with a table following that call transfers control to the code
+appropriate for the particular device and function. Note that ?cist and ?cost
+must not change register bc.
+
+I have implemented 3 versions of the code to drive the Micro-Angelo board
+(including double size output) and this will be of no interest to people who
+don't have a Micro-Angelo board. Much of the code is for interfacing the MA
+board and everything looks a lot simpler when this is deleted. The standard
+Thinker Toys console input/output is the second device. This routine jumps into
+the middle of the disk controller code to get input characters (so that bit 8 is
+not stripped off) and you might need to change this. You may also need to modify
+the printer interface - which is attached to a parallel port - and the port
+numbers. (Its probably better to access a tape and switchboard directly with
+'in' and 'out' instructions since access via the bios may be too slow and
+characters may be lost). You will also want to change what the devices are
+called to what you have attached to the various ports (I have a MODEM and a
+MOUSE attached to the switchboard serial ports).
+
+
+DISKDEFN.ASM
+
+This contains the disk definitions to be generated with DR macros in CPM3.LIB.
+Although I have only one disk I want to be able to call it drive A, B or C and
+so have defined dph-s for each of these. Drive D is the semidisk, so delete
+references to drive D and semidisk if you don't have a semidisk. The dph-s and
+skew tables are for the various formats used by Thinker Toys. The order of the
+names in the table 'dskdef' is intended to fit in with the format code returned
+by the disk-controller.
+
+
+DISKHNDL.MAC
+
+This contains the disk handling routines and includes the routines for reading,
+writing, disk selection, and determining the format of the disk. I assume the
+disk jockey memory has its origin at E000H and in the banked case that there is
+real memory from E800H to EBFFH. Numerous changes would have to be made in this
+routine for other disk controllers and different versions of the disk-jockey
+might require different equates. 'djleav' and 'djprep' point to routines which
+enable one to determine the format of a disk without doing a read or write and
+in effect define the code which is common to read and write. If you can't find
+equivalent routines in your system, just read into a spare piece of memory to
+determine the disk format. The main problems which must be solved in this module
+are determination of the disk format, requesting that the disk be changed when a
+different drive is requested and reading to or writing from a memory bank other
+than bank 0. The disk jockey codes returned for indicating the disk format (bit
+5 = 1 for double sided, bits 2,3 = 0 for 128 byte sectors, 1 for 256 byte
+sectors, 2 for 512 byte sectors, 3 for 1024 byte sectors) mesh with the order of
+the tables given in DISKDEFN.ASM. Divide this code by two, add the address,
+'dskdef' to get the address of the appropriate skew table, add a further 8 to
+get the appropriate dpb table. Some rewriting will be required for a different
+format code. Note that for double sided disks, we pretend that the disk has 154
+tracks the 0th track on side 0 being called track 0 and the 0th on side 1 being
+call track 1 etc. If 'check' is set to true details of each disk operation are
+returned to the console. For multidisk systems, delete the drive select code
+following entry 'finita' and replace the code following entry 'dsk' with code
+that picks up the drive name and selects that drive. Different disk controllers
+may have different error codes and hence may require different code following
+the calls to djread, djwrite, djleav (Disk-jockey read and writes return a
+status variable in register A with bit 7 set if the drive door is open, bit 6
+set if a write is attempted to a write protected disk, bit 5 set for an illegal
+dma address, bit 4 set for an illegal sector, and bits 0,1,2 or 3 set for
+various read or write errors).
+
+
+SEMIHNDL.MAC
+
+The semidisk handling routines - good only for a 512K semidisk, version I (ie
+parity checking must be done with software). Do not include if you haven't got a
+semidisk. The routines here are adapted from those supplied by Semidisk and are
+given here with the permission of Semidisk.
+
+
+BOOT.MAC
+
+This is for firing up the system after CP/M-3 is loaded. It has two jobs -
+setting up a variety of constants and loading the CCP into a spare bit of memory
+(in the present case above the disk-jockey's memory in the unbanked case and the
+bottom of memory bank 2 in the banked case). You will need to make the following
+changes: console out and console in etc will be different and you probably won't
+want disk D being your temporary disk (leave out that assignment). For a start,
+unless you have the same memory arrangements as mine, I suggest you always load
+the CCP from disk, by deleting the code following ?rlccp and simply jumping to
+?ldccp and also delete the code following 'if banked' in the section following
+?ldccp, replacing it with ret. If you have a clock, you can implement the entry
+?time.
+
+
+This concludes the description of the bios routines and you can now assemble and
+load them, and then use GENCPM.COM to form CPM3.SYS. In the unbanked case use a
+submit file like the following
+
+ rmac.com bioskrnl
+ m80.com = boot
+ m80.com = move
+ m80.com = chario
+ rmac.com diskdefn
+ m80.com = diskhndl
+ m80.com = semihndl
+ rmac.com scb
+ link.com bios3[os,q]=bioskrnl,boot,move,chario,diskdefn,diskhndl,semihndl,scb
+ era cpm3.bak
+ ren cpm3.bak=cpm3.sys
+ gencpm.com
+
+and in the banked case use
+
+ rmac.com bioskrnl
+ m80.com = boot
+ m80.com = move
+ m80.com = chario
+ rmac.com diskdefn
+ m80.com = diskhndl
+ m80.com = semihndl
+ rmac.com scb
+ link.com bnkbios3[b,q]=bioskrnl,boot,move,chario,diskdefn,diskhndl,semihndl,scb
+ era cpm3.bak
+ ren cpm3.bak=cpm3.sys
+ gencpm.com
+
+I include the file GENCPM.DAT for my system for the banked case which might give
+some indication as to the answers to the questions GENCPM will ask. Note that in
+the banked case you must give the bottom of the disk-controller memory as the
+bottom of common memory (even though this is a lie).
+
+However, you are not yet ready. You must also build CPMLDR which is a cut down
+CP/M used for loading CPM3.SYS. In my system two modules are required.
+
+
+DDLDR.ASM
+
+This is a cut down version of DISDEFN.ASM and only drive A need be defined.
+
+
+LDRBIOS.MAC
+
+This is a cut down version of the rest. It starts with a CP/M-3 jump vector and
+by disassembling a trial version of CPMLDR I was able to find which entries were
+actually used. The remarks made under DISKHNDL.MAC also apply here.
+
+
+One can now assemble CPMLDR.COM
+
+ link.com cpmldr[L100]=cpmldr,ldrbios,ddldr
+
+One is now ready to go since CPMLDR can be called from CP/M-2 (or unbanked
+CP/M-3). The manual gives some instructions for debugging using SID (remember,
+SID will get upset if it hits a Z80 instruction). However the main moral is to
+start up with the simplest possible version. Unless you are almost exactly
+following mine, initially forget disk swapping or variable density, or even
+multiple drives if you have these.
+
+
+LOADSYS.MAC
+
+You want CP/M-3 to boot directly on switch on rather than getting CP/M-2 and
+then running CPMLDR. I have written a routine LOADSYS.MAC to load CPMLDR onto
+track 1 of the disk and a preliminary loader onto track 0. This works for the 4
+disk formats recognised by the disk-jockey. Because slightly different versions
+are required for the different disk formats part of the routine is used for
+identifying the disk format from the disk tables. The actual loading process is
+as follows. On switch on the cpu starts executing code in the disk-jockey rom.
+This loads the first record from track 0, side 0 of the disk in drive A to
+memory starting at, in my case, location E700H. Control is then transferred to
+E700H where, hopefully, there is now a routine for loading CPMLDR from track 1
+of the disk. Apart from possible adjusting location E700H, there should be
+almost no modifications to the bulk of this routine for a standard disk-jockey
+disk controller. This version allows CPMLDR to be loaded onto drive A, B, or C.
+You may wish to change this by changing the 'cp 3' following the label 'uc'.
+However the disk controller calls in the primary loader rdcpm must be checked.
+
+This routine should be compiled with M80 and then linked with Microsoft's L80.
+
+
+I have also included several other files to help you implement or run CP/M-3.
+
+
+REBOOT.MAC
+
+This does the same job as a reset key and is unnecessary if you have a reset
+key. It is used for restarting your system after building a new version of
+CPM3.SYS, CPMLDR, or LOADSYS. You will need to rewrite the bank select and the
+boot location. Assemble and link with M80 and L80.
+
+
+SEESCB.RAT, ACCSCB.MAC
+
+A ratfor routine and M80 subroutine for displaying the contents of the System
+Control Block.
+
+
+BARB2.MAC
+
+This is for checking that you have memory banks where you think you have them.
+It relocates itself in common memory then requests a bank number (control-c will
+cause a reboot at this stage) and then a range of memory to be tested. This
+routine is very untidy if a whole block of memory is missing and you might like
+to tidy it up. Nevertheless, it is very useful for checking that bank select is
+working and your memory is really there. You will need to change the console
+input and output routines, the reboot location, and the bank select routine.
+
+
+IF.MAC
+
+Used for putting simple conditional statements into submit files. For example
+
+ IF $1=YES
+ :PROG1
+ IF $1#YES
+ :PROG2
+
+in a submit file will run PROG1 if the first parameter is the submit call is
+YES, otherwise it will run PROG2.
+
+
+OVLMNGR.MAC
+
+DR's LINK can produce overlayed programs. However to use this facility you need
+a routine in DR's PL1 runtime library. OVLMNGR is an attempt to simulate this
+routine for use with, say, Fortran programs with Microsoft conventions. Only
+overlay method 1 is implemented and an additional restriction is that a maximum
+of two parameters may be passed to the subroutine heading the overlay.
+
+
+PRINT.MAC
+
+This is an RSX for printing a file while allowing most normal computer
+operations to continue simultaneously. That is, it is a CPM-3 translation of the
+'unspool' program that is available for CPM-2. To form the code file, one needs
+to go through the following sequence of instructions.
+ 
+ m80.com = print
+ link.com print [op]
+ rename print.rsx=print.prl
+ era print.com
+ gencom.com print [null]
+
+ you have a reset
+key. It is used for restarting your system after building 

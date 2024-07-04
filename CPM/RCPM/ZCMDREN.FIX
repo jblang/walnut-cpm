@@ -1,0 +1,118 @@
+; In ZCMD29 and ZCMD30B ( and maybe earlier versions), the REN internal,
+; when executed with:
+;
+; REN FN.EXT=FN1.EXT
+;
+; had the quirk of asking for deletion of FN.EXT (if it existed) before
+; it checked for existence of FN1.EXT. Well, needless to say if
+; FN1 did not exist, you ended up deleting FN before you ever found out
+; about it.
+;
+; Thanks to Bob Kramer of RI-RCPM for pointing this out to me.
+
+; Eugene Nolan
+; 5/27/88
+
+
+; The following is a cut of the code to replace for EXTEST and REN
+; in ZCMD29/30B if you use the internal REN facility. SAVE internal will
+; still function normally.
+
+;.....
+;
+;
+; Test file in FCB for existence, ask user to delete if so, and abort if
+; he chooses not to.
+;
+         IF     SAVEON OR RENON ; For save and ren functions
+EXTEST: CALL    EXTEST2
+        RZ                      ; Ok if not found
+EXTEST1:
+        PUSH    D               ; Save pointer to FCB
+        PUSH    D
+        CALL    PRINTC
+        DB      'Erase',' '+80H
+        POP     H               ; H now points at FCBDx
+        INX     H               ; up to name field
+        CALL    PRFN            ; Print it
+        MVI     A,'?'           ; Print question
+        CALL    CONOUT
+        CALL    CONIN           ; Get response
+        POP     D               ; Get ptr to fcb
+        CPI     'Y'             ; Key on yes
+        JNZ     ERR3            ; Restart as error if no
+        PUSH    D               ; Save ptr to fcb
+        CALL    DELETE          ; Delete file
+        POP     D               ; Get ptr to fcb
+        RET
+EXTEST2:
+        CALL    SCANLOG         ; Extract file name and log in user/disk
+        JNZ     ERROR           ; '?' is not permitted
+        CALL    SEARF           ; Look for specified file
+        LXI     D,FCBDN         ; Point to file FCB
+        RET
+         ENDIF                  ; SAVEON OR RENON
+;.....
+;
+;
+; Section:  5F
+; Command:  REN
+; Function: To change the name of an existing file
+; Forms:
+;       REN <new UFN>=<old UFN> perform function
+;
+         IF     RENON           ; REN enabled?
+REN:     IF     WREN            ; Wheel facility?
+        CALL    WHLCHK          ; Check for wheel byte
+         ENDIF                  ; WREN
+;
+        CALL    EXTEST2         ; Test for existence only
+        PUSH    PSW             ; save flags to say yes/no
+
+
+        LDA     TEMPDR          ; Save selected disk
+        PUSH    PSW             ; Save on stack
+;
+REN0:   LXI     H,FCBDN         ; Save new file name
+        LXI     D,FCBDM
+        LXI     B,16            ; 16 bytes
+        LDIR
+        CALL    ADVAN           ; Advance to next character (non-delim)
+        JRZ     REN4            ; Error if none
+;
+;
+; Perform rename function
+;
+REN1:   SDED    NXTCHR          ; Save pointer to old file name
+        CALL    SCANER          ; Extract FILENAME.TYP token
+        JRNZ    REN4            ; Error if any '?'
+        POP     PSW             ; Get old default drive
+        MOV     B,A             ; Save it
+        LXI     H,TEMPDR        ; Compare it against selected drive
+        MOV     A,M             ; Default?
+        ORA     A
+        JRZ     REN2
+        CMP     B               ; Check for drive error
+        JRNZ    REN4
+;
+REN2:   MOV     M,B
+        XRA     A
+        STA     FCBDN           ; Set default drive
+        POP     PSW             ; Get back existence flag
+        JRZ     REN2A           ; Z=none
+        CALL    SEARF           ; Look for source file
+        JRZ     REN3            ; Z=not here
+        LXI     D,FCBDM         ; Source and destination both here, query erase
+        CALL    EXTEST1
+REN2A:
+        LXI     D,FCBDN         ; Rename file
+        MVI     C,17H           ; BDOS rename FCT
+        CALL    GRBDOS
+        RNZ
+;
+REN3:   CALL    PRNNF           ; Print NO FILE message
+;
+REN4:   JMP     ERROR
+         ENDIF                  ; RENON
+;
+

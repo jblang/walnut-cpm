@@ -1,0 +1,487 @@
+********************************************************
+*                                                      *
+*        X.25 Protocol Interface for CP/M-80           *
+*                                                      *
+*            SYSTEM FUNCTIONAL DESCRIPTION             *
+*                                                      *
+*   (C) 1985  Ed Elizondo                              *
+*             6 Cypress Court                          *
+*             East Windsor, NJ 08520                   *
+*                                                      *
+*   NOTICE:  All Rights Reserved - These programs and  *
+*   accompanying documentation may be used freely for  *
+*   non-commercial applications.  They may not be sold *
+*   or used for commercial applications without the    *
+*   written permission of the author.                  *
+*                                                      *
+********************************************************
+
+
+
+1.  Introduction
+
+
+     Thå  techniquå oæ packeô transmissioî ió currentlù thå  mosô 
+widelù useä messagå switchinç techniquå iî computeò networkó  anä 
+haó  receiveä  significanô impetuó bù worlä widå  standardizatioî 
+efforts®  Thå  X.2µ packeô networë interface¬  pioneereä  bù  thå 
+Frencè  postaì  administratioî Transpaã networë anä thå  Canadiaî 
+Datapaã network¬  waó adopteä aó á standarä bù thå  Internationaì 
+Consultativå  Committeå  oæ Telephonù anä Telegraphù  (CCITT©  iî 
+1976¬ anä updateä tï itó currenô forí iî 1981.
+
+     Witè rarå exceptionó packeô transmissioî haó beeî limiteä tï 
+datá  communicationó  betweeî  largå  mainframå   computers¬   oò 
+internaì  tï largå networks®   Thå purposå oæ thió projecô ió  tï 
+providå   á  utilitù  prograí  tï  permiô  direcô   packeô   datá 
+communicationó betweeî á microcomputer¬ runninç undeò thå CP/M-8° 
+operatinç  system¬  anä á synchronouó networë modeí oò  mainframå 
+computeò  porô supportinç thå X.2µ standarä accesó protocol®  Thå 
+softwarå packagå developeä foò thió projecô fullù implementó  thå 
+functionó oæ á singlå logicaì channeì DTE¬ aó defineä bù thå X.2µ 
+standard.
+
+     Thå softwarå packagå waó implementeä iî Inteì 808°  assemblù 
+language¬  compatiblå  witè thå Digitaì Researcè RMAÃ  relocatinç 
+macrï   assembler¬   anä  targeteä  tï  ruî  oî  aî   inexpensivå 
+microcomputeò  system¬   thå  Digitaì  Researcè  Computers§  "Biç 
+Board"®    Thå   minimuí   hardwarå  requirementó   arå   á   Z8° 
+microprocessor¬  á  Ziloç  SIÏ synchronouó seriaì  communicationó 
+port¬  anä  á Ziloç CTÃ counter/timer¬  alì interfaceä usinç  Z8° 
+modå  ²  interrupts®   Memorù  requirementó  foò  thå  systeí  aó 
+implementeä arå á modesô 26Ë foò botè prograí anä datá buffers.
+
+
+Š2. The X.25 Protocol
+
+
+     Thå  ruleó  anä  mechanismó  bù whicè useró  anä  á  networë 
+exchangå  informatioî  iî á controlleä manneò arå referreä tï  aó 
+protocols®    Thå   complexitù  anä  diversitù  oæ  thå   networë 
+constituentó  favoò  multiplå layeró  oæ  protocols¬  eacè  layeò 
+providinç  communicationó betweeî twï similaò classeó oæ devices®  
+Thå  Internationaì  Standardó Organizatioî (ISO© haó  proposeä  á 
+structurå  oæ seveî hierarchicaì protocoì layeró  (seå  ref®  6)®  
+Thå X.2µ standarä specifieó thå threå lowesô layers¬ namely:
+
+     1. the physical circuit level
+
+     2. the link level
+
+     3. the network level
+
+
+     Leveì   1¬   thå  physicaì  circuiô  level¬   specifieó  thå 
+electricaì waveforms¬  voltages¬  anä piî connectionó betweeî thå 
+enä  user¬  iî  X.2µ  terminology¬  thå  "host¢  oò  "DTE¢  (Datá 
+Terminatinç  Equipment)¬  anä  thå  networë nodå oò  "DCE¢  (Datá 
+Communicationó Equipment)®  Thå X.2µ standarä specifieó thå Leveì 
+±  interfacå aó beinç thå CCITÔ X.2± standarä (seå referencå ± oò 
+2)¬  buô  allows¬  iî aî interií basis¬  thå uså oæ  thå  X.21bió 
+standard®   Thå  X.21bió standard¬  iî turn¬  permitó thå uså  oæ 
+existinç  synchronouó  modeí  standardó sucè aó thå  CCITÔ  V.24¬ 
+whicè  ió  equivalenô  tï  thå commoî (iî  thå  USA©  EIÁ  RS232Ã 
+standard.
+
+     Leveì 2¬ thå linë level¬ controló biô datá transmissioî oveò 
+thå  physicaì linë betweeî thå twï endó oæ thå leveì  ±  circuit®  
+Thå  primarù  purposå  oæ thå Leveì ² protocoì ió thaô  oæ  erroò 
+controì anä oæ datá transparencù tï higheò leveì protocols®   Thå 
+X.2µ  standarä  specifieó thå Leveì ² protocoì aó beinç  thå  ISÏ 
+standarä Higè Datá Linë Controì (HDLC).
+
+     Informatioî ió passeä froí Leveì ² tï Leveì ± iî thå forí oæ 
+datá blockó calleä frames®  Thå frameó utilizå á techniquå calleä 
+zerï  biô  insertioî  (seå  referencå  6)¬  tï  achievå  completå 
+transparencù tï thå datá aô thå biô level®   Thuó thå HDLÃ  framå 
+ió  capablå oæ transmittinç anù forí oæ datá withouô thå neeä foò 
+speciaì controì characteró withiî thå framå aó iî thå IBÍ  BYSYNÃ 
+methoä  oæ transmission®   Erroò controì aô thå Leveì ² interfacå 
+ió  achieveä bù transmittinç á cycliã polynomiaì  checë  sequencå 
+witè  everù  frame®   Thió checë sequencå ió re-generateä aô  thå 
+receivinç  enä  and¬  iæ  aî erroò ió  detected¬  á  requesô  foò 
+retransmissioî ió automatically senô bacë tï thå sender.
+
+     Leveì 3¬  thå networë level¬ controló thå actuaì transfeò oæ 
+informatioî  betweeî twï hostó (DTE's)®   Thå primarù purposå  oæ 
+thå  Leveì  ³  protocoì  ió thaô  oæ  datá  flo÷  control®   Thió 
+involveó  individuaì  addressinç  anä sequencinç oæ  datá  blockó 
+calleä  packets®   Flo÷ controì ió achieveä primarilù  bù  packeô Šsequencå   numberó  anä  correspondinç  acknowledgemenô   numberó 
+incorporateä  intï  thå returî flo÷ packetó. 
+
+     Leveì  ³ packetó arå transmitteä aó thå informatioî  portioî 
+of Level 2 frames, one data packet to each HDLC frame.
+
+     Higheò  leveì  protocoì taskó arå noô specifieä bù thå  X.2µ 
+standard®   Iî  thå ISÏ proposeä architecture¬  theså  additionaì 
+leveló  includå  thå transporô  level¬  thå  sessioî  level¬  thå 
+presentatioî leveì anä thå applicatioî level®  Foò thå purposå oæ 
+thió project¬  twï facilitieó arå provideä tï handlå theså higheò 
+functions.
+
+     Onå  higè leveì facilitù provideä bù thå systeí ió  thaô  oæ 
+terminaì modå emulation®   Witè thió facility¬ á typeä messagå aô 
+thå microcomputeò consolå ió senô tï thå networë aó á singlå datá 
+packeô  message®   Messagå  packetó returneä bù thå  networë  arå 
+similarlù displayeä oî thå console.
+
+     Thå  seconä  higè leveì facilitù provideä bù thå  systeí  ió 
+thaô oæ bidirectionaì datá filå transfer®   Witè thió facility¬ á 
+previouslù prepareä filå maù bå senô tï thå networë aó á sequencå 
+oæ datá packets®   Similarly¬ á sequencå oæ datá packetó receiveä 
+froí  thå  networë  maù  bå saveä iî á  locaì  file®   Witè  thió 
+facility¬  á pre-arrangeä sequencå oæ commandó and/oò datá maù bå 
+senô tï thå networë hosô anä thå returneä resultó saveä foò lateò 
+analysis.
+
+
+3.  System Organization
+
+
+     Thå  basiã  systeí organizatioî consistó oæ  twï  concurrenô 
+processes¬  aî  interrupô  handleò tï servicå thå reaì timå  datá 
+interfacå  functionó  betweeî thå systeí anä  thå  communicationó 
+port  anä á sequentiaì processoò tï handlå thå  orderlù  assemblù 
+anä disassemblù oæ datá packetó anä procesó locaì useò commands.
+
+     Thå  interrupô  handleò performó threå basiã  functionsº  a© 
+receiveó  incominç  datá  froí thå  communicationó  port  tï  thå 
+currentlù activå receivå buffer¬  b© transmitó outgoinç datá froí 
+thå  currentlù activå transmiô buffeò tï thå communicationó port¬ 
+anä c© keepó tracë oæ elapseä timå anä signaló timeouô conditionó 
+tï thå sequentiaì processor.
+
+     Thå  sequentiaì processoò performó fivå basiã functionsº  a© 
+receiveó  anä transmitó datá tï anä froí  thå locaì useò  consolå 
+includinç  processinç  oæ  locaì  useò  commands¬   b©  assembleó 
+informatioî   oò   supervisorù  frameó   foò   transmission¬   c© 
+disassembleó receiveä frameó anä processeó them¬  d© disassembleó 
+receiveä  packetó anä processeó them¬  anä e© assembleó  datá  oò 
+controì packetó foò transmission®
+
+     Processinç  oæ receiveä frameó includeó checkinç foò  formaô 
+erroró  anä foò valiä framå typeó anä formattinç thå  appropriatå Šreplù  frameó  baseä oî thå typå oæ receiveä  framå  anä  currenô 
+statå  oæ  thå system®   Foò informatioî frames¬  erroò  checkinç 
+includeó  checkinç  oæ framå sequencå numbers¬  updatinç  oæ  thå 
+framå   transmissioî  windo÷  anä  retransmissioî  oæ  frameó  iæ 
+requested by the remote system.
+
+     Processinç  oæ receiveä packetó ió similaò tï processinç  oæ 
+receiveä  frames¬   excepô  retransmissioî  oæ  packetó  ió   noô 
+required¬ sincå thå leveì ³ transmissioî ió considereä erroò freå 
+bù virtuå oæ thå erroò controì mechanismó thaô forí á parô oæ thå 
+level 2 link transmission.
+
+     Thå  implementatioî architecturå consistó oæ seveî  modules¬ 
+whose names and primary functions are as follows:
+
+     X2µ       - thå main program, which includes the system 
+                 initialization¬ useò interfacå anä maiî 
+                 program sequencer
+
+     LEVEL±    - thå interrupô handler
+
+     LEVEL²    - thå linë leveì handler¬ whicè includeó framå                              
+                 assemblù anä disassemblù 
+
+     LEVEL³    - thå packeô leveì handler¬ whicè includeó packet
+                 assemblù anä disassembly
+     
+     FILES     - the disk file handler
+
+     BUFFERS   - the data buffer handler
+
+     XUTIL     - miscellaneous general use subroutines
+
+     Theså .ASÍ moduleó arå separatelù assembleä intï relocatablå 
+objecô  codå  .REÌ  fileó bù meanó oæ thå Digitaì  Researcè  RMAÃ 
+macrï  assembler¬  anä  theî  linkeä togetheò  witè  thå  Digitaì 
+Researcè Z8° anä SEQIÏ macrï librarieó intï thå executablå objecô 
+codå  filå  X25.COÍ  bù meanó oæ  thå  Digitaì  Researcè  LINK-8° 
+linker® 
+
+
+4.  System Data Flow
+
+     Incominç  datá  froí thå communicationó port ió placeä  intï 
+thå  currentlù  activå  buffeò  bù  thå  receivå  datá  interrupô 
+handler®   Thå enä oæ á receiveä framå ió detecteä bù thå leveì ± 
+hardwarå  (Z8° SIO)¬  whicè alsï checkó foò correcô framå  formaô 
+anä  correcô cycliã polynomial®  Invaliä frameó arå discardeä  aô 
+thió  point®   Valiä  frameó arå passeä ontï  thå  receivå  framå 
+disassemblù processoò iî thå leveì ² module.
+
+     Iô  shoulä bå noteä aô thió poinô thaô thå  actuaì  receiveä 
+datá  ió  noô passeä froí onå leveì tï another¬  buô  ratheò  thå 
+receivå buffeò numbeò (aî internaì systeí parameteò identifyinç á 
+particulaò buffer¬ iî thió caså containinç á fulì valiä frame© ió Šplaceä  oî á queuå lisô foò processinç bù thå nexô  level®   Thió 
+importanô  concepô minimizeó thå overheaä requireä bù thå  systeí 
+tï movå datá froí onå leveì oæ processinç tï another.
+
+     Thå leveì ² receiveä framå disassembleò checkó thå framå foò 
+propeò  address¬  examineó thå controì bytå tï identifù thå framå 
+type¬  changeó  thå statå oæ thå systeí iæ requireä bù thå  framå 
+type¬  anä  giveó controì tï thå propeò responså  framå  transmiô 
+routine if required by the frame type and system state.
+
+     Iæ thå receiveä framå ió aî informatioî frame¬ anä thå statå 
+oæ  thå  systeí  permitó acceptancå oæ sucè  á  frame¬  thå  senä 
+sequencå numbeò oæ thå framå N(s© ió checkeä againsô thå expecteä 
+framå  sequencå  numbeò  anä  iæ  invalid¬   á  rejecô  framå  ió 
+transmitteä iî accordancå witè thå X.2µ protocol.
+
+     Iæ  thå  receiveä  senä  sequencå  numbeò  ió  correct¬  thå 
+informatioî  fielä oæ thå framå (whicè containó thå datá  packet© 
+ió  passeä  tï thå receiveä packeô disassembleò iî  thå  leveì  ³ 
+module®   Aó  before¬  actuaì datá ió noô passed¬  buô ratheò thå 
+receiveä buffeò numbeò ió placeä oî á receiveä packeô queuå  lisô 
+tï awaiô processinç bù thå nexô level.
+
+     Iî receiveä informatioî frames¬  anä iî numbereä supervisorù 
+frames¬  thå receiveä sequencå numbeò N(r© containeä iî thå framå 
+ió  useä tï acknowledgå previouslù transmitteä informatioî frameó 
+anä  updatå thå 'window§ oæ permitteä transmiô  sequencå  numberó 
+foò outgoinç informatioî frames®  Iî thió manner¬ receiveä frameó 
+controì  thå  ratå  oæ  transmissioî oæ frameó  iî  thå  oppositå 
+direction.
+
+     Thå  leveì ³ packeô disassembleò checkó thå packeô foò valiä 
+format¬  propeò  grouğ numbeò anä channeì  number¬  examineó  thå 
+packeô identifieò octeô tï determinå thå packeô type¬ changeó thå 
+statå  oæ  thå  systeí aó requireä bù thå packeô typå  anä  giveó 
+controì tï thå propeò packeô transmiô routinå iæ requireä bù  thå 
+packet type and current system state.
+
+     Iæ thå receiveä packeô ió á datá packeô anä thå statå oæ thå 
+machinå  permitó  acceptancå  oæ datá packets¬  thå  packeô  senä 
+sequencå  numbeò P(s© ió checkeä againsô thå expecteä  value®   Á 
+packeô  numbeò outsidå thå receiveä windo÷ oò ouô oæ sequencå  ió 
+considereä á locaì procedurå erroò anä causeó thå systeí tï  senä 
+a reset request packet to logically  reset the circuit.  
+
+     Iæ thå receiveä datá packeô ió valiä anä á receivå datá filå 
+haó beeî previouslù opened¬  thå datá iî thå packeô ió writteî tï 
+thå disë file®   Iæ á receivå filå ió noô open¬  thå datá ió senô 
+tï thå consolå (CRT© buffeò foò displaù tï thå locaì user®   Onlù 
+displayablå  ASCIÉ  characteró  anä  á selecteä  seô  oæ  controì 
+characteró arå actuallù senô tï thå console»  á perioä ió useä tï 
+replacå  anù  non-displayablå characteró tï  avoiä  unpredictablå 
+behavior of the console.
+
+     Iî á manneò similaò tï leveì 2¬  thå packeô receivå sequencå Šnumbeò  P(r©  iî  datá  oò  flo÷  controì  packetó  ió  useä   tï 
+acknowledgå previouslù transmitteä datá packetó anä tï updatå thå 
+packeô 'window§ foò  transmission®  Iî thió manner¬ receiveä datá 
+oò  flo÷ controì packetó controì thå ratå oæ transmissioî oæ datá 
+packets in the reverse direction.
+
+     Receivå  bufferó whicè havå beeî discardeä alonç thå waù  oò 
+havå  delivereä  theiò  datá tï thå finaì  destinatioî  arå  madå 
+availablå  foò  reuså bù placinç theiò framå numberó iî  á  queuå 
+lisô  oæ freå buffeò numbers®   Theså availablå frameó  arå  madå 
+activå  onå  aô  á  timå aó requireä bù  thå  hardwarå  interrupô 
+servicå  routineó  iî thå leveì ± module®   Thå  numbeò  oæ  freå 
+receivå  bufferó aô anù giveî timå determineó thå readù statå  oæ 
+thå  system¬  whicè controló thå updatinç oæ sequencå numberó anä 
+thå  typeó  oæ flo÷ controì frameó anä packetó  returneä  tï  thå 
+communicationó port®  Thió process¬ iî turn¬ controló thå ratå aô 
+whicè  ne÷  informatioî frameó anä datá packetó arå senô  tï  thå 
+system¬  thuó insurinç thaô datá ió noô transmitteä tï thå systeí 
+fasteò thaî thå systeí caî procesó it.
+
+     Thå  transmiô  procesó  ió  considerablù  simpleò  thaî  thå 
+receivå process®   Datá typeä iî thå systeí consolå ió writteî tï 
+á  consolå datá buffer®  Assuminç thå systeí haó beeî placeä iî á 
+statå  wherå  thå remotå systeí caî accepô datá  anä  thå  packeô 
+transmiô  windo÷ allowó it¬  thå transmiô procesó caî begin®  Thå 
+leveì  ³ packeô assemblù processoò readó datá froí  thå  transmiô 
+disë  file¬  iæ sucè á filå haó beeî opened»  oò froí thå consolå 
+buffer¬  anä  placeó thå datá iî thå nexô sequentiallù  availablå 
+freå transmiô buffer.
+
+     Wheî thå maximuí datá packeô sizå haó beeî reached¬  oò wheî 
+thå enä oæ filå haó beeî reached¬ oò wheî á carriagå returî typeä 
+aô thå systeí consolå ió encountered¬ thå leveì ³ packeô assemblù 
+processoò  stopó  readinç datá anä  assembleó á datá packeô  witè 
+thå  correcô sequencå numberó (iî thió system¬   thå  transmitteä 
+packeô  senä  sequencå numbeò P(s© ió bù definitioî equaì tï  thå 
+transmiô  buffeò number)®   Iô theî tagó thå buffeò witè á  readù 
+flag.
+
+     Thå  leveì  ² framå transmiô processoò onlù  startó  workinç 
+wheî  thå leveì ± processoò indicateó thaô thå hardwarå interfacå 
+(Z80-SIO©  ió  noô busù transmitting®   Wheî  thió  conditioî  ió 
+satisfied¬  anä wheî itó transmiô windo÷ allowó it¬ iô checkó foò 
+á  readù  flaç iî thå nexô sequentiaì transmiô buffer®   Wheî  iô 
+findó  sucè á flag¬  iô assembleó aî informatioî framå  witè  thå 
+correcô  sequencå  numberó anä signaló thå leveì ±  processoò  tï 
+transmit the frame.
+
+     Afteò  thå  framå ió transmitted¬  thå buffeò  pointeró  arå 
+restoreä  anä thå buffeò kepô intacô foò possiblå retransmission® 
+Aó transmitteä frameó arå acknowledgeä bù thå remotå system¬  thå 
+transmiô  'window§ ió updateä anä thå transmiô framå bufferó  arå 
+cleareä  anä  madå  availablå foò uså  bù  thå  nexô  transmitteä 
+packet® Bù thió mechanism¬ thå remotå systeí controló thå maximuí 
+ratå   aô  whicè  thå  systeí  wilì  transmiô  datá  packetó  anä Šinformatioî frameó tï thå communicationó port sï aó noô tï exceeä 
+the remote system's capacity for processing data packets.
+
+
+
+5.  Internal Data Storage
+
+     Witè somå minoò exceptions¬  alì datá internaì tï thå systeí 
+ió  storeä  iî circulaò first-in-first-ouô bufferó controlleä  bù 
+identicaì pointeò structures®   Usinç á commoî controì  structurå 
+haó  thå  decideä  advantagå  thaô iô  permitó  usinç   thå  samå 
+subroutineó tï accesó alì buffers¬ regardlesó oæ sizå oò purpose®  
+Thå  onlù bufferó noô complyinç witè thió formaô arå thå  bufferó 
+whoså  formaô  ió defineä bù thå CP/Í operatinç system¬  sucè  aó 
+disë filå reaä anä writå buffers®  
+
+     Aó  implemented¬  thå  systeí containó sixteeî receivå  datá 
+buffers¬  buô thió numbeò maù bå easilù increaseä uğ tï á maximuí 
+oæ  12·  iæ sufficienô memorù ió availablå iî  thå  system®   Thå 
+implementeä  buffeò  sizå correspondó tï á  maximuí  packeô  datá 
+fielä  sizå oæ 12¸ octets¬  whicè ió thå standarä maximuí  packeô 
+useò datá lengtè recommendeä iî thå X.2µ standard® 
+
+     Thå systeí alsï containó eighô transmiô datá buffers¬ oæ thå 
+samå  sizå aó thå receivå buffers®   Eacè transmiô datá buffeò ió 
+assigneä tï onå oæ thå eighô possiblå framå senä sequencå numberó 
+(° tï 7).
+
+     Iî  additioî tï thå receivå anä transmiô datá  buffers¬  thå 
+systeí containó threå queuå bufferó useä tï holä listó oæ receivå 
+buffeò identification numberó aó follows:
+     
+     list of free receive buffers
+     list of receive buffers containing full received frames
+     list of receive buffers containing full received packets
+      
+     Theså  queuå  bufferó  arå  useä tï controì  thå  datá  flo÷ 
+betweeî  processinç  leveló  bù  passinç  buffeò   identificatioî 
+numbers between levels, rather than transferring data.
+
+     Iî  additioî tï thå preceding¬  fivå additionaì bufferó  arå 
+provideä  tï handlå thå interfacå betweeî thå locaì useò anä  thå 
+packeô processinç system®  Theså bufferó are:
+
+     a© thå  consolå inpuô buffeò tï handlå typeä inpuô froí  thå 
+        locaì keyboard.
+
+     b© thå consolå outpuô buffeò tï handlå datá intendeä foò thå 
+        locaì CRÔ outpuô device.
+
+     c© thå consolå transmiô buffeò tï interfacå typeä inpuô datá 
+        intendeä foò transmissioî iî packets.
+
+     d© thå consolå receivå buffeò tï handlå incominç packeô datá 
+        intendeä foò displaù aô thå locaì console.Š
+anä  e©  thå  printeò outpuô buffeò intendeä tï  handlå  incominç                  
+        packeô  datá  anä  typeä  datá whicè ió  intendeä  tï  bå                           
+        printeä  locallù  (the printer featurå ió  noô  currentlù                   
+        implementeä iî thå hardwarå selecteä foò thå system).
+
+     Iî additioî tï thå systeí datá bufferó describeä above¬ fouò 
+additionaì  buffeò areaó havå beeî provideä foò  read/writå  disë 
+access®  Thå  areaó  arå   useä bù thå CP/Í operatinç  systeí  tï 
+buffeò datá froí anä tï thå receivå anä transmiô disë datá files¬ 
+thå  systeí defaulô parameteò disë filå anä thå sessioî loç  disë 
+file®   Theså  bufferó  arå  accesseä bù  thå  systeí  viá  macrï 
+routineó provideä iî thå Digitaì Researcè SEQIÏ macrï library®  
+
+
+6.  Hardware Configuration
+
+     Thå  systeí  waó implementeä tï ruî oî  á  Digitaì  Researcè 
+Computers'  "Biç  Board¢ singlå boarä computer®   Thió  uniô  waó 
+selecteä becauså oæ itó lo÷ cost¬  becauså iô haä thå desireä SIÏ 
+seriaì  interfacå  hardwarå anä CTÃ timeró builô in¬  becauså  iô 
+employeä thå desirablå Z8° modå ² vectoreä interruptó foò alì I/Ï 
+hardware¬  becauså oæ itó popularitù witè hobbyistó and¬ lasô buô 
+noô least¬  becauså oæ thå availabilitù oæ fulì documentatioî  iî 
+thå  forí oæ hardwarå schematicó anä sourcå codå foò thå builô iî 
+monitoò anä CP/Í BIOÓ routines.
+
+
+7. BIBLIOGRAPHY
+
+
+1®   "Datá  Communicationó  Networks¬  Serviceó  anä  Facilities¬ 
+Terminaì  Equipmenô anä Interfaces¬  Recommendationó X.1-X.29"‚  - 
+Thå  Yello÷ Book¬  Volumå VIIÉ - Fasciclå  VIII.2¬  Internationaì 
+Telecommunicatioî Unioî CCITT¬ Genevá 1981®  
+
+The international X.25 standard, revised in 1981
+
+2®  Thå X.2µ Protocoì anä Seveî Otheò Keù CCITÔ Recommendations‚ - 
+Lifetime Learning Publications, Belmont, CA 1983.
+
+Aî inexpensivå reprinô oæ thå CCITÔ X.1¬  X.2¬ X.3¬ X.21¬ X21bis¬ 
+X.25, X.28 and X.29 standards.
+ 
+3®  Microprocessoò Applicationó Referencå Book¬  Volumå 1‚ - Ziloç 
+Corporation, July 1981.
+
+Relevanô  compilatioî  oæ  applicatioî  noteó oî  thå  Ziloç  Z8° 
+microprocessor family (see references 3a and 3b).
+
+
+3a®    Usinç   thå  Z8°  SIÏ  witè  SDLÃ  (applicatioî  brief)‚   - 
+(part of reference 3)
+
+Applicatioî notå describinç thå uså oæ thå Ziloç Z80-SIÏ witè thå ŠHDLC/SDLÃ  Higè  Datá  Linë Controì  anä  Synchronouó  Datá  Linë 
+Controì protocols®  Thå samplå routineó describeä hereiî werå thå 
+basis of the routines utilized in the system LEVEL1 module.
+
+
+3b®    Z8°  Familù  Interrupô  Structurå  (tutorial)‚  - (parô  oæ 
+reference 3)
+
+Conciså tutoriaì describinç thå interrupô structurå oæ thå  Ziloç 
+Z80 microprocessor family.
+
+
+4®  Zilog Datá  Booë  - Ziloç Corporation, 1982/1983.
+
+Á  referencå  compilatioî oæ datá sheetó oî thå Ziloç  familù  oæ 
+microprocessor products, including the Z80, SIO and CTC.
+
+5.  Big Board Documentation - Digital Research Computers, 
+P.O®  Boø 401565¬  Garlanä Texaó (noô relateä tï Digitaì Researcè 
+Corp of Pacific Grove CA).
+
+Documentatioî  oî  thå  hardwarå useä tï  implemenô  thå  projecô 
+system.
+
+
+6. Cole, Robert - "Computer Communications", Springer-Verlag,
+1982® 
+
+Á  generaì overvie÷ oæ currenô computeò communicationó  practice¬ 
+witè  particulaò  emphasió  oî  networking®   Containó  excellenô 
+introductorù  descriptionó oæ thå operatioî oæ thå HDLÃ anä  X.2µ 
+protocols® Onå chapteò anä portionó oæ severaì otheró arå devoteä 
+tï  thå X.2µ protocol¬  includinç discussioî oæ areaó noô defineä 
+bù thå standard¬ probleí areaó  anä somå currenô useò practices.
+
+
+7®  "CP/Í  MAÃ Macrï Assemblerº  Languagå Manuaì anä Applicationó 
+Guide"‚ - Digital Research Corp.
+
+Referencå guidå foò thå MAÃ anä RMAÃ macrï assembler¬  thå latteò 
+useä  tï  develoğ thå projecô system®   Alsï  includeó  referencå 
+information on the SEQIO sequential file access macro library.
+
+8®   Inteì  808°  Assemblù  Languagå  Programminç  Manual¬  Inteì 
+Corporation 1976.
+
+Comprehensivå  referencå  tï thå assemblù  languagå  instructionó 
+used to implement the project.
+
+
+9®  Z8° Assemblù Languagå Programminç Manual¬  Ziloç Corporation¬ 
+1977.
+
+Comprehensivå reference tï thå speciaì biô manipulatioî anä blocë 
+move instructions used to implement the project.Š

@@ -1,0 +1,50 @@
+Using WordStar v4 on a Kaypro 10 with TurboRom v3.4 and ZCPR33, I
+occasionally had a problem of WS not finding its overlay or a
+BDOS error on a non-existent drive.
+   
+The problems occurred when logged on to a different user number
+than WS was on (the disk made no difference).  Sometimes there
+would not be a problem, and sometimes there was - depending on
+which program was run previously (if VEDIT PLUS, WS would NOT
+work - if SHOW, WS would work).
+  
+Upon much investigation, it was found that WS uses memory bytes
+02201H and 02202H in some manner to find its overlay and other
+things.  BUT these two bytes are not cleared by the WS I have,
+but are manipulated in some manner.
+  
+If memory byte 02201H has the most significant bit set from a
+previous program and memory byte 02202H has an acceptable value,
+WS will not find its overlay the first time run, but since it
+clears that bit when run, it will work fine if run again.
+  
+If memory byte 02202H has bit 4 set and bit 3 cleared from a
+previous program and memory byte 02201H has an acceptable value,
+a BDOS error on a non-existent drive occurs.
+   
+If memory bytes 02201H and 02202H are poked with 0 before running
+WS the program appears to work every time.
+   
+Since WS does start to run, a patch to an internal initialization
+routine can also be used to fill the two memory bytes with zeros
+either by using WSCHANGE or direct patching.
+   
+If the user patchable initialization is not being used, run
+WSCHANGE, go to selection "E Patching" of the main menu.  Enter
+"=" and "INISUB", then enter C3 5B 04.  Return to patch menu
+enter "=" and "MORPAT", then enter 21 00 00 22 01 22 C9, and exit
+saving patches.
+   
+That is:
+     03BB           INISUB::
+     03BB C3 5B 04            JP   045B
+  
+     045B           MORPAT::
+     045B 21 00 00            LD   HL,0
+     045E 22 01 22            LD   (02201H),HL
+     0461 C9                  RET
+  
+
+Originally posted on Lillipute #1 3/5/88 msg #7000 by Ernie Barnhart
+  
+  

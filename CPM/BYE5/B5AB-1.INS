@@ -1,0 +1,503 @@
+; B5AB-1.INS - BYE5 inset for Apple // with ALS CP/M card - 03/14/86
+;
+;	       6551 with internal baudrate generator
+;
+;
+; This version is for Apple ][ computers using the Advanced Logic Sys-
+; tems (ALS) CP/M Card and Apple Super Serial Card.  The ALS CP/M card
+; runs CP/M v3.0.
+;
+; NOTE:  This is an insert, not an overlay.
+;
+;=======================================================================
+;
+; 03/14/86  Written for use with BYE5	- Jerry Levy
+;
+;=======================================================================
+;
+; CONNECTING MODEM TO SSC:
+;
+;	MODEM=DCE			Super Serial Card
+;
+;	TXD	2  -------->	2	RXD	received data
+;	RXD	3  <--------	3	TXD	tranmitted data
+;	SG	7  ---------	7	SG	signal ground
+;	DCD	8  -------->	6	DSR	data set ready
+;	DTR	20 <-------	20	DTR	data terminal ready
+;				8-->20	DCD-->DSR (SSC side only)
+;
+; This cable configuration uses DSR signal at the SSC to check carrier.
+; Also, Serial card DCD wired to DTR so that modem result codes are
+; received when carrier is off.
+;
+; Set modem switches as defined in B5IM-1.DQC.
+;
+; THIS WORKS PROPERLY WITH BYE5 AND IS COMPATIBLE WITH IMP WITHOUT ANY
+; CHANGES. ANY OTHER CONFIGURATION MIGHT REQUIRE RESETTING SOME MODEM
+; SWITCHES WHEN GOING FROM BYE5 TO IMP, MDM7, MEX, ETC.
+;
+;-----------------------------------------------------------------------
+;
+;NOTES:
+;  1.	Check that SLOT equate is OK.  This is the only change you
+;	need to make in this insert.
+;
+;  2.	We do not need to identify a free area in common memory (for
+;	relocation of bank-switching routines or as safe haven for a
+;	replacement jump table) as has to be done for the Osborne and
+;	Morrow machines.  We are spared this because ALS BIOS's allocate
+;	enough common memory space that the code segments in question,
+;	which are in the BYE5 RSX, sit there in memory space that is
+;	common to all banks.
+;
+;	See the discussion by James Dunn in his B5LO-1.INS insert if
+;	you want to learn more...
+;
+;-----------------------------------------------------------------------
+;
+SLOT	EQU	2		; Slot 2 is normal
+OFFS	EQU	16*SLOT		; This is the slot offset
+;
+;
+; Modem port addresses.  Apple addresses for direct access of SSC 6551
+; ACIA registers
+;
+PORT	EQU	0C088H+OFFS	; SSC ACIA Data port
+STPORT	EQU	PORT+1		; SSC ACIA Status port
+CPORT	EQU	PORT+2		; SSC ACIA Command port
+BRPORT	EQU	PORT+3		; SSC ACIA Control/Baudrate port
+;
+;-----------------------------------------------------------------------
+;
+; Initialize BIOS addresses and insert in PEEK, POKE and bank-switching
+; routines.  Whichever of PEEK, POKE or MDPREP is called first funnels a
+; call through ALS1, ALS2, or ALS3 to ALSINIT.	ALSINIT computes and
+; stores the BIOS addresses, also overwrites the calls to ALS1-3 so it
+; doesn't get called more than once.  This initialization saves having
+; to wade through the BIOS for addresses and simplifies installation for
+; the different BIOS's for the ALS CP/M Card.
+;
+; The APREAD and APWRITE stuff is specific to the Apple ][ with ALS CP/M
+; Card, but the concept of more automated installation should be more
+; broadly applicable.
+;
+ALS1:	CALL	ALSINIT		; Do the initialization, and then do the
+APRD1:	CALL	0000H		; 'read' we thought we were going to do.
+	RET			;  ALSINIT fills in the APREAD address
+;
+ALS2:	CALL	ALSINIT		; Similarly
+APWRT1:	CALL	0000H		;   for APWRITE
+	RET
+;
+ALS3:	CALL	ALSINIT		; Initialize addresses in SWIN and SWOUT
+	RET
+;.....
+;
+;
+ALSINIT:
+	PUSH	H		; Save everything
+	PUSH	D
+	PUSH	B
+	PUSH	PSW
+	LHLD	0001H		; Point to WBOOT jump in BIOS jump table
+	LXI	D,3*26		; Offset to SELMEM jump
+	DAD	D		; Add them
+	INX	H		; Point to addr of SELMEM bIOS routine
+	PUSH	H		; Save pointer
+	CALL	INTO$HL		; Move addr into HL store in SWIN, SWOUT
+	SHLD	SLMEM1+1
+	SHLD	SLMEM2+1
+	INX	H		; Move past STA opcode to point to addr
+	CALL	INTO$HL		;   where current bank is stored, move
+	SHLD	CURBNK+1	;   adfdress into HL and then into SWIN
+	POP	H		; Recall pointer
+	LXI	D,3*6		; Advance pointer 6 jumps to APREAD addr
+	DAD	D
+	PUSH	H
+	CALL	INTO$HL
+	SHLD	APRD+1		; Store address of APREAD routine
+	SHLD	APRD1+1
+	POP	H
+	INX	H		; Bump HL to point to APWRITE address
+	INX	H
+	INX	H
+	CALL	INTO$HL
+	SHLD	APWRT+1		; Store address of APWRITE routine
+	SHLD	APWRT1+1
+	POP	PSW		; Restore all
+	POP	B
+	POP	D
+	POP	H
+	LXI	H,RETNUL	; Change CALL ALS3 in MDPREP to a call
+	SHLD	MDPREP+1	;   to a harmless RET so if MDPRE is
+				;   called, it won't do this again.
+RETNUL:	RET
+;.....
+;
+;
+; Move into HL what is stored where HL points
+;
+INTO$HL:MOV	E,M
+	INX	H
+	MOV	D,M
+	XCHG
+	RET
+;.....
+;
+;
+; The following two  routines are specific to the Apple // with ALS CP/M
+; Card.  The routines respectively read from and write to modem hardware
+; (Apple Super Serial Card ACIA registers) directly.  The calls to ALS1
+; and ALS2 are overwritten with the APREAD or APWRITE BIOS address by
+; the ALSINIT routine.
+;.....
+;
+;
+; Peek at 1 byte from Apple 6502 address space
+;
+;     ENTRY: HL = Address in Apple
+;     EXIT:  A = Data
+;
+PEEK:	PUSH	D	; Preserve, then restore regs
+	PUSH	B
+;
+APRD:	CALL	ALS1	; ALSINIT, called by ALS1, overwrites ALS1 with
+	POP	B	;   the addr of APREAD, a special BIOS function
+	POP	D	;   added by ALS that reads Apple memory space
+	RET
+;.....
+;
+;
+; Poke 1 byte to Apple 6502 address space
+;
+;     ENTRY: HL = Address in Apple
+;     EXIT:  A = Data
+;
+POKE:	PUSH	D
+	PUSH	B
+;
+APWRT:	CALL	ALS2		; ALSINIT fills in addr of APWRITE, etc.
+	POP	B
+	POP	D
+	RET
+;.....
+;
+;
+; Read the baud rate port of the 6551
+;
+RD$BRPORT:
+	PUSH	H
+	LXI	H,BRPORT
+	CALL	PEEK
+	POP	H
+	RET
+;.....
+;
+;
+; Read the command port of 6551
+;
+RD$CPORT:
+	PUSH	H
+	LXI	H,CPORT
+	CALL	PEEK
+	POP	H
+	RET
+;.....
+;
+;
+; Read data port of 6551
+;
+RD$PORT:
+	PUSH	H
+	LXI	H,PORT
+	CALL	PEEK
+	POP	H
+	RET
+;.....
+;
+;
+; Read the status port of the 6551
+;
+RD$STPORT:
+	PUSH	H
+	LXI	H,STPORT
+	CALL	PEEK
+	POP	H
+	RET
+;.....
+;
+;
+; Write to the baud rate port of the 6551
+;
+WR$BRPORT:
+	PUSH	H
+	LXI	H,BRPORT
+	CALL	POKE
+	POP	H
+	RET
+;.....
+;
+;
+; Write to the command port of 6551
+;
+WR$CPORT:
+	PUSH	H
+	LXI	H,CPORT
+	CALL	POKE
+	POP	H
+	RET
+;.....
+;
+;
+; Write to the serial data port of the 6551
+;
+WR$PORT:
+	PUSH	H
+	LXI	H,PORT
+	CALL	POKE
+	POP	H
+	RET
+;.....
+;
+;
+;----------------------------------------------------------------------
+;
+;
+; Check for a carrier, if none, return with the zero flag set.
+;
+MDCARCK:CALL	RD$STPORT	; Get status
+	ANI	40H		; Check DSR pin for DCD (see above)
+	XRI	40H		; Reverse the zero flag (the 6551
+	RET			; Has status 0 for DCD/DSR true)
+;......
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,41H		; Turn off DTR
+	CALL	WR$CPORT
+	PUSH	B		; Save register
+	MVI	B,20		; Delay 2 sec to drop carrier
+;
+OFFTI:	CALL	DELAY		; 1 sec per loop
+	DCR	B
+	JNZ	OFFTI		; Keep going until finished
+	POP	B		; Restore register
+	MVI	A,4BH		; Raise DTR
+	CALL	WR$CPORT
+	MVI	A,18H		; Set 1200, 8 bits, 1 stop
+	CALL	WR$BRPORT
+;
+	  IF	IMODEM
+	CALL	IMINIT
+	  ENDIF			; IMODEM
+;
+	RET
+;......
+;
+;
+; Super Serial Card status checks.  NOT READY indication if bit 3 of
+; STPORT byte equals zero (for receive-readiness check), or bit 4
+; equals zero (for transmit-readiness check).
+;
+; Check the status to see if a character is waiting to be received.
+; Return with zero flag set, if not.  If yes, clear flag and return with
+; 0FFH in A.
+;
+MDINST:	CALL	RD$STPORT	; Get modem status
+	ANI	08H		; Is data available?
+	RZ			; If not, return with zero flat set
+	ORI	0FFH		; Otherwise insure flag is reset
+	RET
+;.....
+;
+;
+; Check if transmit register is empty.	If empty, ready to transmit
+; another character and returns with zero flag clear.  If busy, returns
+; with zero flag set.
+;
+MDOUTST:
+	CALL	RD$STPORT	; Get modem status
+	ANI	10H		; Ready to transmit?
+	RET			; If not, returns with zero flag set
+;.......
+;
+;
+; Input a character from the modem port.
+;
+MDINP:	JMP	RD$PORT		; Get character
+;......
+;
+;
+; Output one character in register A.
+;
+MDOUTP:	JMP	WR$PORT		; Send character
+;.......
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,41H		; Drop DTR
+	JMP	WR$CPORT
+;.....
+;
+;
+; If you do not support a particular baud rate, put it here
+; before SETINV:
+;
+SETINV:	ORI	0FFH
+	RET
+;.....
+;
+;
+SET300:	MVI	A,16H
+	JMP	WR$BRPORT	; Go change the baud rate
+;
+SET1200:
+	MVI	A,18H
+	JMP	WR$BRPORT
+;
+SET2400:MVI	A,1AH
+	JMP	WR$BRPORT
+;
+SET4800:MVI	A,1CH
+	JMP	WR$BRPORT
+;
+SET9600:MVI	A,1EH
+	JMP	WR$BRPORT
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+;			CP/M v3.0 stuff
+;
+;-----------------------------------------------------------------------
+;
+; Perform system or hardware dependent PRE-processing.
+;
+; The following code will be executed by the PATCH subroutine before the
+; BIOS jump table is overwritten.  This will allow the BIOS intercept
+; routines to operate as early as the initial signon message display.
+; ALS3 calls ALSINIT, which initializes some addresses.
+;
+MDPREP:	CALL	ALS3		; ALSINIT (called by ALS3) initializes
+				;  BIOS addresses, then changes this
+				;  call to a call to a harmless RET so
+				;  we only do ALS3 once
+;
+; Replace the NEWJTBL BIOS routing table with our own
+;
+	LXI	H,JTBLNEW	; Get replacement table address
+	LXI	D,NEWJTBL	; Get address to overwrite
+	LXI	B,JTBLEN	; Get number of bytes to overwrite
+	DB	0EDH,0B0H	; (LDIR - Z80 opcodes)
+	RET
+;.....
+;
+;
+; Perform system or hardware dependent POST-processing.  The following
+; code will be executed by the EXCPM routine before returning control to
+; CP/M Plus when the BYE5 program is terminated.
+;
+MDPOSP:	RET			; None required
+;.....
+;
+;
+; The following code is required for proper operation of the ALS CP/M
+; Card.  As the CP/M Card operates in a banked environment, BIOS calls
+; and parameter storage may be in any bank (currently 0 and 1).  It is
+; therefore possible that the proper bank may not be in context at the
+; time a BIOS call or search of banked memory is made.	As a result,
+; steps must be taken to be sure that the BIOS jump table does not
+; direct an operation or BIOS call into bank 1 unless that bank is
+; selected.  Therefore, this code must be in common memory where it
+; will be visible to all banks.
+;
+; For each of the intercepted BIOS calls, this code will:
+;
+;   - Save the caller's bank
+;   - Switch to bank 1
+;   - Execute the BYE interface routine, then the original BIOS routine
+;     as necessary
+;   - Reset the bank to that of the caller
+;   - Return control to the caller
+;.....
+;
+;
+WBCOMN:	CALL	SWIN		; Warm boot
+	JMP	MBOOT
+;.....
+;
+;
+CSCOMN:	CALL	SWIN		; Console status
+	CALL	MSTAT
+	JMP	SWOUT
+;.....
+;
+;
+CICOMN:	CALL	SWIN		; Console input
+	CALL	MINPUT
+	JMP	SWOUT
+;.....
+;
+;
+COCOMN:	CALL	SWIN		; Console output
+	CALL	MOUTPUT
+	JMP	SWOUT
+;.....
+;
+;
+SWIN:	PUSH	PSW		; Bank switch-in destroys HL,A,flags
+;
+CURBNK:	LDA	0000H		; ALSINIT fills in addr of @CBNK, where
+				;   BIOS/BDOS store current bank
+	STA	CURBANK		; Save bank for the return trip
+	MVI	A,1		; Select bank 1
+;
+SLMEM1:	CALL	0000H		; Address of BIOS SELMEM routine filled
+	POP	PSW		;   in by ALSINIT
+	RET
+;.....
+;
+;
+SWOUT:	PUSH	PSW		; Bank switch-out destroys HL,A,flags
+	MOV	H,A		; Save A reg (for console input call)
+	LDA	CURBANK		; Retrieve caller's bank
+	PUSH	H
+;
+SLMEM2:	CALL	0000H		; Address of BIOS SELMEM routine filled
+	POP	H		;   in by ALSINIT
+	POP	PSW		; Restore A,flags
+	MOV	A,H		; Restore A reg (for console input call)
+	RET
+;
+CURBANK:DS	1		; For storage of bank
+;.....
+;
+;
+JTBLNEW:JMP	MCBOOT		; Cold boot
+	JMP	WBCOMN		; Warm boot
+	JMP	CSCOMN		; Modem status test
+	JMP	CICOMN		; Modem input routine
+	JMP	COCOMN		; Modem output routine
+;
+	 IF	(NOT HARDLOG) AND (NOT PRINTER)
+	JMP	COCOMN		; Modem list device
+	JMP	COCOMN		; Modem punch (auxout) device
+	JMP	CICOMN		; Modem reader (auxin) device
+	 ENDIF			; (NOT HARDLOG) AND (NOT PRINTER)
+;
+JTBLEN	EQU	$-JTBLNEW
+;
+;			end of insert
+;-------------------------------------------------------------------
+

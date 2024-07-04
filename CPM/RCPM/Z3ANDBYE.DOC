@@ -1,0 +1,219 @@
+                   Notes on using BYE with ZCPR3
+
+      This is an article on my experiences in using ZCPR3 on an RCP/M. It is
+intended for System Operators (SYSOPs) who are using, or are considering
+using, ZCPR3 in the RCP/M (with BYE) application. If you have any comments
+or experiences you would like to share, please feel free to do so at:
+
+                    David McCord, SYSOP
+                    The ZCPR3 BBS
+                    (415) 489-9005
+                    24 hrs/7 days  300/1200
+
+      One of the first things that a potential ZCPR3 sysop should understand
+is that implementation of ZCPR3 will reduce the Transient Program Area (TPA)
+available for running the BBS software you are using. In my case, the message
+system being used is METAL (by Tim Gary)...since it does not require a
+larger-than-average TPA, I have no problem with a "full" implementation of
+ZCPR3, which subtracts 5K bytes as compared to a "standard" cp/m or ZCMD
+arrangement.  However, some packages, such as RBBS, do require a large TPA,
+especially in the compile or link phases of program generation (that darn
+L80!). Simply be aware that if you are tight on memory space, that ZCPR3 will
+add to your problems. 
+
+      Having read that, you may be saying, "Well, why would I want to use
+ZCPR3 on my RCP/M?" There are many advantages to using ZCPR3, whether for your
+own personal use, or for RCP/M....
+
+      -Named Directories
+            Can help you partition your system in an easier-to-understand
+            manner. Also, the "secure" mode of operation with named directories
+            can add an additional level of security to that provided with BYE.
+
+      -ALIAS capability
+            ALIASes make a lot of things very easy. They can take the "teeth"
+            out of useful programs that normally can't be used in RCP/M
+            environments by "filtering" dangerous command line options. Also,
+            ALIASes can be used as primitive "translators" that will (for
+            instance) translate LDIR LIBNAME to DIR LIBNAME.LBR $L. This means
+            that users who are not familiar with SD (DIR in the example) can
+            still use the old familiar LDIR without actually having the LDIR
+            program on your system!
+
+      -Flow Control
+            The command line IF/ELSE/FI capabilities allow graceful error
+            recovery, and also allow branching capability. This means that
+            an ALIAS can do different things depending on whether an IF
+            condition is true or false.
+
+      -MENU capability
+            Allows you to make your system much more user friendly by
+            presenting callers with a list of choices.
+
+      -Video Applications
+            Video applications are programs that utilize terminal display
+            functions such as clear screen, reverse or dim video, cursor
+            addressing, and more. The Z3TCAP (Terminal CAPabilities) file
+            contains (presently) over sixty terminal types, and the coherent
+            usage of this information by the various ZCPR3 video utilities
+            give you the opportunity to go beyond the "plain vanilla" terminal
+            approach common on RCP/M's these days.
+
+      So you see, there are many advantages to using ZCPR3 on your RCP/M. I
+personally think that the power and flexibility of ZCPR3 with not only take
+the conventional personal computer world by storm, but will also be the
+operating mode of choice for the RCP/M's of the world.
+
+      For instance, here are two examples of the uses of ALIAS...In the first
+example, a simple "translator" approach is shown. The ALIAS file that contains
+the commands shown will be named LDIR.COM:
+
+            Line 1:DIR $1.LBR $$L
+
+      The "$1" is used as with the SUBMIT.COM program provided by Digital
+Research...it means "substitute the first command line parameter here". Thus,
+if the user had typed LDIR LIBNAME, LIBNAME would be substituted for $1. The
+"$$L" part of the command will be resolved as "$L"...the leading $ tells ALIAS
+that a following $ is to be interpreted literally, and no substitution is to
+take place. So, if the user had typed LDIR LIBNAME, the ALIAS named LDIR would
+be invoked, the substitution of LIBNAME for $1 would occur, and the resulting
+command that the ALIAS would "feed" to ZCPR3 is DIR LIBNAME.LBR $L.
+
+      The second example shows how an ALIAS can filter out "dangerous" command
+line options. This is a little more complicated. TCSELECT is a ZCPR3 program,
+that, when invoked with NO command line parameters (like TCSELECT<cr>) simply
+allows the user to select a terminal type from Z3TCAP file, and loads it into
+RAM at the appropriate address. This is not dangerous. However, when a user
+invokes it with a filename parameter (like TCSELECT FILENAME.TYP<cr>), the
+information from the Z3TCAP file is written to that filename. This IS
+dangerous, because if the user had entered TCSELECT XMODEM.COM, the XMODEM
+program would be overwritten with the TCAP data. So, the goal is to prevent
+users from using this feature by using an ALIAS to "filter" command line
+parameters.
+      The first step is to rename TCSELECT.COM so that it cannot be executed
+directly; TCSELECT.DAT is what it is renamed to. (Only the SYSOP can do this
+assuming the REN command is set to check the wheel byte, as in the RCP
+SYS 1.0C. Remote users typically do not have wheel priviliges.) Then, the
+ALIAS is created containing the commands shown below. The name of the ALIAS
+is TCSELECT.COM...so that when the user invokes TCSELECT, the ALIAS will assume
+control. ALIASes cannot be aborted via control-C; and their commands are not
+"echoed" on the screen. Remember this when trying to understand the example.
+
+      EXAMPLE:
+            Line 1:WHL PASSWORD;
+            Line 2:IF EXIST FOO.COM;
+            Line 3:REN TCSELECT.DAT=FOO.COM;
+            Line 4:FI;
+            Line 5:REN FOO.COM=TCSELECT.DAT;
+            Line 6:FOO;
+            Line 7;REN TCSELECT.DAT=FOO.COM;
+            Line 8:WHL
+
+      EXPLANATION:
+            Line 1: This line uses the WHL command of RCP SYS 1.0c to "set"
+the WHEEL byte, assuming PASSWORD is the correct wheel password for your
+system. If PASSWORD was NOT the correct password, WHL "re-sets" the wheel byte,
+i.e., it clears it. We need to have the wheel byte "set" so that the following
+REN commands will work. Remember, REN checks the wheel byte and only works if
+it is in the "set" state.
+            Lines 2-4: These lines will be discussed last. At this point,
+pretend that they don't exist as the rest of the ALIAS needs to be explained
+first.
+            Line 5: This command renames the ORIGINAL TCSELECT.COM (Remember,
+we renamed it to TCSELECT.DAT) to FOO.COM in preparation for the next step. (It
+could not be renamed to TCSELECT.COM, because name is being used by the ALIAS!)
+            Line 6: This line actually executes the ORIGINAL TCSELECT program.
+The thing to notice here is that it invokes it with NO command line parameters.
+Even if the user had typed TCSELECT XMODEM.COM, the parameter XMODEM.COM is not
+passed!
+            Line 7: After TCSELECT is done (either through selecting a terminal
+and load RAM or aborted with control-C), it is renamed back to the unexecutable
+TCSELECT.DAT.
+            Line 8: The WHL command, this time with an incorrect password
+(actually no password!) will "reset" the wheel byte.
+      Now, to explain what lines 2-4 are all about: Ask yourself what happens
+when a remote user drops carrier in the middle of running FOO (the original
+TCSELECT)? BYE will seize control, effectively ABORTING the ALIAS. When the
+next user goes to the cp/m section (like the message system C command), FOO
+will already be there! If we did NOT have lines 2-4, Line 5 (because of the
+way the REN command works under ZCPR3) would ERASE FOO.COM! It does this BEFORE
+it discovers there is no TCSELECT.DAT...Thus, unless we have some way of
+checking whether FOO.COM exists, a situation can arise where the original
+TCSELECT commits suicide! Lines 2-4 check for this situation, Line 2 checks to
+see if FOO.COM exists using the ZCPR3 IF. If it indeed exists, Line 3 will be
+executed, renaming it to TCSELECT.DAT, and avoiding the suicide situation. Line
+4 is a "marker" that shows where the effect of the IF command on Line 2 ends.
+If FOO.COM did not exist when that IF command on Line 2 was executed, the flow
+state would be set to FALSE, and all commands would be ignored until an FI was
+encountered. So, if FOO.COM did not exist at that point, Line 3 would be
+ignored.
+
+      Whew! Although somewhat complicated, this ALIAS can take the "teeth" out
+of TCSELECT, and keep creeps from overwriting accessible files on your system.
+(However there's still one minor problem....can you find it? It will be covered
+in the next section, but look for it as a test...) So, this concludes the
+discussion of the uses of ALIASes in ZCPR3 RCP/M applications.
+
+      BYE (the version I am presently using is 3-26) needs some minor additions
+to take care of some "loose ends" when running with ZCPR3. In particular, BYE
+should "flush" (clean out) the Multiple Command Line Buffer that ZCPR3 uses
+to store strings of commands, like for instance ALIASes when they are executed.
+The following excerpt from my version of BYE illustrates the needed changes:
+
+<Option Area>
+
+Z3CL	EQU	0FF00h	;where my Multiple Command Line Buffer is
+
+<this code is in the area that gets moved to high RAM when running with BYELOW>
+;
+; ZCPR3 Command Line Buffer Clear Subroutine
+;
+	 IF	Z3CL ne 0
+DOZ3CL:	LXI	H,Z3CL
+	MVI	M,(Z3CL MOD 256)+4
+	INX	H
+	MVI	M,(Z3CL/256)
+	INX	H
+	MVI	M,0C8h	;Length of my buffer
+	INX	H
+	XRA	A
+	MOV	M,A
+	INX	H
+	MOV	M,A
+	RET
+	 ENDIF		; Z3CL
+
+This code will initialize the MCLB so that anything "leftover" as a result of
+a caller dropping carrier in the middle of a long ALIAS would be flushed out.
+If this was not done, and then you, the SYSOP, aborted BYE with a control-C
+locally between callers, whatever had been left there would then be executed!
+This could be very dangerous...a particularly nasty scenario is for some creep
+to leave a command like ERA *.* in there. This is very nasty because BYE will
+restore ("set") the wheel byte when you locally abort, and ERA will just kill
+all of your files in the current user area!! And it can be just plain annoying
+to just be forced to finish off some less-dangerous command. This is why this
+code MUST be executed in BYE. It should be CALLed from two areas in BYE; the
+first is the sysop abort routine, called EXCPM. The second routine is where
+the COMFILE is called; the COMFILE may not be used in your system...if so,
+then you probably don't need to worry about it. However, if you are using the
+COMFILE option, then the CALL to DOZ3CL should be placed just prior to the
+instruction "CALL 100H" that hands over control to the COMFILE.
+
+      The bug in the TCSELECT ALIAS is that it is possible that FOO.COM may
+exist when the user enters cp/m. He could then enter FOO XMODEM.COM with the
+same painful result of erasing XMODEM. To avoid this, I use the COMFILE option
+of BYE to force the user into TCSELECT (the ALIAS) when entering cp/m. How do
+I do this? you may be asking....the solution is yet another ALIAS, that is used
+as the COMFILE! It is very simple really, the ALIAS name is STARTBBS.COM:
+
+            Line 1:BBSPROG;
+            Line 2:TCSELECT
+      Line 1 will execute the BBSPROG, whatever it is. The user does whatever
+in the BBS program, and when he goes to cp/m, he will execute TCSELECT. This
+ensures that FOO.COM will not be available to make trouble.
+
+If you are reading this on my bbs, this file can be found in the ZCPR3:
+directory where it is available for downloading. Please pass it to other rcp/m
+systems, particularly systems using ZCPR3. Thank You.
+                                              -David McCord  8 Nov 1984
+

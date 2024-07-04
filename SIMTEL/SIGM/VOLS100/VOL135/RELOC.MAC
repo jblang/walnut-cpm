@@ -1,0 +1,261 @@
+	Name	('RELOCATE')
+	Title	Relocation Module
+	Subttl	Move a program to top of TPA and run it
+	.Z80
+
+	Extrn	$MEMRY
+
+;------------------------------------------------------------------------------
+;
+;				R E L O C A T E
+;				===============
+;
+;    When linked at the head of a properly structured program, this module
+;    will move the program to the top of the TPA and transfer control to it.
+;
+;    The program to be relocated MUST start with the following two items in
+;    the data segment:-		(EXCEPTION - see version 2 notes below)
+;
+;			Dseg			;Data segment
+;
+;		$MEMRY::
+;			defs	2		;LINK-80 will fill this in.
+;						;Used by the relocator module
+;						;to determine the length of the
+;						;program.
+;
+;			jp	ntrypt		;where "ntrypt" is the address
+;						;to which the relocator program
+;						;will transfer control.  The
+;						;relocator will replace the
+;						;jump address with the address
+;						;of the BDOS
+;
+;
+;    Version 2 amendments:
+;    --------------------
+;
+;    This program now supports a variety of destinations for the relocated
+;    code.  The destination information is passed to this module in the
+;    4th and 5th bytes by the self-relocating-program generator.
+;
+;    If 5th byte (codest+1) is zero then the relocation is performed as in
+;    version 1, i.e. the program is moved to the top of free memory and
+;    executed.  If the 4th byte (codest) is 0 then the program is loaded
+;    just below the BDOS and the BDOS jump at base+5,+6,+7 is modified to
+;    reflect a smaller TPA size.  However, the SRP generator may set (codest)
+;    to -8 in which case the program is loaded below the CCP and the BDOS
+;    jump is not modified.  This feature is useful for loading SRPs which
+;    exit to CP/M by returning control to the CCP instead of doing a warm
+;    boot via a jump to location base+0.
+;
+;    If (codest+1) is 1 then (codest) is assumed to contain a page offset
+;    from the base of the BDOS (specifically -8, 0 or +14) which causes
+;    an overlay of the CCP, BDOS or BIOS.  The relocator module does not
+;    transfer control to the relocated code but returns to CP/M via a jump
+;    to location CCP+3.  This facility is particularly useful for generating
+;    a relocatable BIOS so that you may for example have a system disk with
+;    a fairly primitive BIOS but have a more sophisticated BIOS (perhaps too
+;    large to fit on the system tracks of a single-density disk) which loads
+;    from the data tracks.  You can even test such a BIOS without going
+;    through a system generation!
+;
+;    N.B.  IN THIS CASE IT IS NOT NECESSARY TO HAVE A JUMP INSTRUCTION AT
+;	   THE HEAD OF THE RELOCATABLE CODE.
+;
+;    If (codest+1) is 2 or more then this module assumes that you want the
+;    program relocated to an address of your choosing.  The BDOS jump is
+;    not modified.
+;
+;    VERSION 2.1	16th November 1982
+;	Corrected CCP entry.
+;
+;    VERSION 2.1 revisited	27th November 1982
+;	Corrected several problems in exit to CCP and to programs loaded
+;	below the CCP.
+;
+;------------------------------------------------------------------------------
+
+	.comment	\
+
+-------------------------------------------------------------------------------
+
+COPYRIGHT NOTICE	(C) 1982   John Hastwell-Batten
+
+These programs have been submitted to the public domain via Bill Bolton's RCPM 
+system and comprise a system for simply generating self-relocating programs by 
+a  method which relies on a linker to generate two object code files which are 
+then  processed to yield an object program consisting of  a  relocator,  user-
+supplied  object  code  and  a relocation  bitmap.   These  programs  and  the 
+accompanying  documentation may be freely distributed in original or  modified 
+form subject to the following conditions:
+
+1.   Although  there is no restriction on the sale of self-relocating programs 
+     generated  by  the method described herein,  these programs  or  variants 
+     thereof  may not be sold as part of any program package  without  written 
+     permission  from the author.   Neither may any program or program package 
+     which  is dependent for its operation on the use of this method  be  sold 
+     without such permission.
+
+2.   The  author's  name  must  be retained in all source  code  (original  or 
+     modified)  and  as an acknowlegement in any message  displayed  by  these 
+     programs or variant(s) thereof.  An acknowledgement giving credit for the 
+     method  shall contain the author's name or the words "H-B method" or  the 
+     words "Ashby method".
+
+3.   This copyright notice must be included in and retained in all source code 
+     and documentation pertaining to this system.
+
+                             John Hastwell-Batten
+                               38 Silvia Street
+                               Hornsby NSW 2077
+                                  AUSTRALIA
+                                (02) 477 4225
+
+                              1st November, 1982
+
+Acknowledgement
+
+In  testing those relocations which overlay specified portions of CP/M I  have 
+made  use of John Woolner's CCP protection scheme obtained via  Bill  Bolton's 
+RCPM  system.   Without  the CCP protection the verification of the  relocator 
+module  would have been exceedingly difficult as the standard program  testing 
+tools  all  overlay  the CCP which,  in the case of  the  CP/M  overlays,  the 
+relocator expects to be intact.
+
+------------------------------------------------------------------------------\
+
+base	equ	0			;(Some CP/Ms start elsewhere)
+userdk	equ	base+4			;Where CP/M keeps track of current
+					;user & disk
+
+	aseg
+	org	base+100h
+
+@@relocate::
+	jp	$+5			;Skip over address parameter
+codest:
+	defw	0			;Default is relocate to just below BDOS
+
+	ld	(ccpstack),sp		;Save caller's stack pointer
+	ld	sp,ccpstack		;Set up our own
+
+	ld	de,$memry+2		;Address of start of code to DE
+	ld	hl,($memry)		;Address of end of code to HL
+	xor	a			;Clear borrow flag and A register
+	sbc	hl,de			;Calculate code length
+	push	hl			;Save code length
+	sub	l			;Set carry if length not a multiple
+					;of 256
+	ld	a,(base+7)		;BDOS base page number
+	ld	c,a
+	ld	a,(codest)		;Offset from BDOS
+	sbc	a,h			;Form code destination page number
+	add	a,c
+	ld	h,a			;Code destination page number to H
+
+;	Having got here, the address calculation will have been in vain if
+;	a code destination was specified, i.e. if code destination >= 100h.
+;
+;	If code destination >= 200h then the destination is explicit and we
+;	load it directly from (codest+1,codest).  If code destination is in
+;	the range 100h to 1FFh then (codest) is assumed to be an offset from
+;	BDOS. (Specifically, -8 to overlay CCP, 0 to overlay BDOS or 14 to
+;	overlay BIOS)
+
+	ld	a,(codest+1)		;Get destination address page number
+	dec	a			;Test it
+	jp	m,normal		; 0 => normal relocation
+	jr	z,implicit		; 1 => CCP, BDOS or BIOS overlay
+	ld	hl,(codest)		;>1 => explicit address
+	jr	normal
+implicit:
+	ld	a,(base+7)		;BDOS base page number
+	ld	c,a
+	ld	a,(codest)		;Add offset (-8 for CCP, 0 for BDOS
+	add	a,c			;or +14 for BIOS)
+	ld	h,a
+normal:
+	ld	l,0			;HL now holds code destination address
+	pop	bc			;Retrieve code length
+	push	hl			;Save copy of address
+	ex	de,hl			;Destination address to DE,
+					;Source address to HL
+	ld	a,d			;Destination page number to A
+	push	bc			;Save code length
+	ldir				;Move code up to top of TPA
+	sub	2			;Form bias
+	defb	0fdh
+	ld	l,a			;Save in LY
+	pop	bc			;Recover code length
+	pop	ix			;Retrieve pointer to relocated code
+	push	ix			;Save a copy for BDOS entry
+@newrel:
+	ld	e,(hl)			;Get relocation flags in E
+	inc	hl			;Point at next 8 flags
+	ld	d,8			;Counter
+@reloc:
+	rlc	e			;Move a relocation flag into carry
+	jr	nc,@asis		;No change if bit is off, otherwise...
+	defb	0fdh
+	ld	a,l			;Retrieve bias
+	nop				;[NOP is so ZSID won't screw up on the
+					; next instruction]
+	add	a,(ix+0)		;Add bias to address
+	ld	(ix+0),a		;Put back new address byte
+@asis:
+	inc	ix			;Point at next code byte
+	dec	bc			;Decrement code length
+	ld	a,b			;Test residual code length
+	or	c
+	jr	z,@done			;Exit if finished
+	dec	d			;Count relocation flags
+	jr	z,@newrel		;Get another set if all used up
+	jr	@reloc			;otherwise continue with this lot
+@done:
+	ld	hl,(base+6)		;Get BDOS vector
+	pop	ix			;Recover address of relocated code
+	ld	e,(ix+1)		;Get program entry point to DE
+	ld	d,(ix+2)
+	ld	a,(codest+1)		;Get code destination indicator
+	dec	a			;Explicit or implicit destination?
+	jr	z,@CCP			;If relocation overlayed CCP, BDOS
+					;or BIOS then simply exit to the CCP
+	ld	(ix+1),l		;Fix up the JP at the start of the code
+	ld	(ix+2),h
+	jp	p,@enter		;If explicit destination then don't
+					;modify the BDOS jump
+	ld	a,(codest)		;Check if relocated under CCP
+	or	a
+	jr	nz,@enter		;If so, leave BDOS jump alone
+	ld	(base+6),ix		;Otherwise, mark new TPA size
+@enter:
+	pop	hl			;Here we deliberately underflow our own
+	ld	sp,hl			;stack to pick up the stack pointer as
+					;it was when we started.  This is to
+					;make the relocation invisible to those
+					;programs which RETurn to the CCP
+					;instead of ending with a warm boot.
+
+	ex	de,hl			;New start address to HL
+	jp	(hl)			;Transfer to relocated program
+
+@CCP:	ld	a,(userdk)		;Get current user number (high order
+					; four bits) & disk number (low-order)
+	ld	c,a			;.... then to C for CCP entry
+	ld	hl,(base+6)		;Get BDOS address
+	ld	l,0			;Align to page boundary
+	ld	de,3-800h		;Offset to CCP entry
+	add	hl,de			;Address of CCP warm boot entry
+	jp	(hl)			;Exit to CCP
+
+	defw	0,0			;We don't need much stack space but we
+	defw	0,0			;can't use our caller's because we may
+					;overlay it!
+ccpstack:
+	defw	0			;Temporary hidey-hole for our caller's
+					;stack pointer.  (Ordinarily, our
+					;caller would be the CCP.)
+
+	end
+

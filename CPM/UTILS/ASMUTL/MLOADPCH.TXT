@@ -1,0 +1,54 @@
+From: Fred Haines
+To:   Rick Charnes
+Date: January 8, 1988
+Subj: MLOAD24 patch
+
+
+Rick,
+
+Here's the way I patched the exit routine of MLOAD24 to get†ç
+around the problem I had running under XBIOS. The lines preceded†ç
+by double semicolons are the ones I commented out; the line with†ç
+the double semicolons before the comment is the one line I added.
+
+;
+; exit to cp/m
+;
+exit:	lxi	d,tbuf		;restore dma address
+	mvi	c,sdmaf
+	call	bdos
+
+;;	lda	system+2	;get top of memory pointer
+;;	sui	9		;allow for ccp+slop
+;;	lxi	h,hiload+1	;highest load address
+;;	sub	m		;above ccp?
+;;	jc	warmbt		;then warm-boot
+;;	lhld	spsave		;nope, ccp still in memory
+;;	sphl			;restore its stack
+;;	ret			;return to ccp
+
+	jmp	warmbt		;; unconditional jump inserted
+   †ç
+
+;
+; load program initialization
+;
+
+I hasten to emphasize that this is NOT a fix to MLOAD24. Quite†ç
+the contrary, this patch actually eliminates a desirable feature,†ç
+the ability of the program to quit without warmbooting if it†ç
+determines that the load did not overwrite the CCP. It's First†ç
+Aid rather than a miracle cure.
+
+"Top of memory" is the base address of DOS, "hiload" is the†ç
+highest address affected by the load, "warmbt" equals 0000h. The†ç
+routine provides two ways to quit, by jump to warmbt, or by a†ç
+simple ret to CPM.
+
+I believe it is the second routine that is causing the problem,†ç
+which behaves like a damaged CCP or a blown pointer to the CCP,†ç
+but I'm not able to follow the intricacies of the checking to see†ç
+whether the CCP has been overwritten or not. Somebody will crack†ç
+this case in short order, but the patch may keep you afloat until†ç
+he does.
+

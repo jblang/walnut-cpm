@@ -1,0 +1,115 @@
+	.z80
+cr	equ	13
+lf	equ	10
+display macro	addr
+	ld	de,addr
+	call	disp$
+	endm
+
+	dseg
+$memry::
+	defs	2
+where?::
+	jp	ntry
+csp::	defw	0
+	cseg
+hexode::
+	push	de
+	ld	a,d
+	call	hexprn
+	pop	de
+	ld	a,e
+;	call	hexprn
+;	ret
+
+;------------------------------------------------------------------------------
+;
+;				H E X P R N
+;				===========
+;
+;    Sends contents of A register to the console as 2 hex bytes.
+;
+;------------------------------------------------------------------------------
+
+hexprn::
+	push	af
+	rept	4
+	rrc	a
+	endm
+	call	outchr
+	pop	af
+outchr:	and	0fh		;;Mask 4 bits
+	add	a,90h		;;Add offset
+	daa			;;Decimal adjust
+	adc	a,40h		;;Add offset
+	daa			;;Decimal adjust
+	ld	e,a		;;To E for output
+	ld	c,2		;;Conout
+	jp	5		;;Call BDOS (he'll RETurn for us)
+
+disp$:	ld	c,9
+	jp	5
+
+	dseg
+intro:
+	defb	cr,lf,lf
+	defb	"This program looks at its own starting address"
+	defb	" to see if it has been relocated.",cr,lf,lf
+ttpa:	defb	"The TPA ends at $"
+tlong:	defb	"h long",cr,lf
+	defb	"This program starts at $"
+rmsg:	defb	"h and is $"
+rnot:	defb	"not $"
+rrest:	defb	"self-relocating",cr,lf,lf,"$"
+cmsg:	defb	"It appears to have been called from $"
+cmtail:	defb	"h with SP=$"
+sptail: defb	"h",cr,lf,"$"
+wbexit: defb	lf,lf,"Ending with warm boot$"
+retexit:defb	lf,lf,"Returning to CCP",cr,lf,"$"
+	cseg
+ntry:
+	ld	(csp),sp	;Save caller's stack pointer
+
+	display	intro		;Signon message
+	ld	hl,(6)		;Get BDOS entry point
+	ex	de,hl		;Put into DE for hex display
+	push	de		;Save a copy for length
+	call	hexode
+	display	rmsg		;Display " and is "
+	pop	de		;Recover BDOS address
+	dec	d		;Calculate length
+	call	hexode		;Display TPA length
+	display	tlong		;More message
+	ld	de,where?	;Program start address
+	push	de		;Save a copy
+	call	hexode		;Display it
+	display	rmsg
+	pop	de		;Recover program start address
+	ld	hl,180h		;Where programs normally start + a bit
+	or	a		;Clear carry
+	sbc	hl,de		;Check if we are above 100h
+	jr	c,above
+	display	rnot
+above:
+	display rrest
+	display	cmsg
+	ld	ix,(csp)
+	ld	e,(ix+0)
+	ld	d,(ix+1)
+	call	hexode
+	display	cmtail
+	ld	de,(csp)
+	call	hexode
+	display	sptail
+	ld	a,(6)		;Check to see if BDOS jump has been modified
+	cp	6		;Unmodified BDOS entry point is XXX6h
+	jr	z,retccp
+	display wbexit
+	jp	0
+retccp:
+	display retexit
+	ld	sp,(csp)	;Just in case I couldn't count!
+	ret
+
+	end	ntry
+

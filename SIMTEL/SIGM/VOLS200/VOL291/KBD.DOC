@@ -1,0 +1,123 @@
+
+(*
+    Keywords: VER. 3 KBD KEYBOARD LOGICAL DEVICE READ DESCRIPTION SUGGESTION
+    
+    
+      A description of what to expect when you do a read from the KBD logical
+    device.  This file was prompted by the fact that in version 3.0, reading
+    from the KBD logical device is different in some respects from the same
+    operation in version 2.  The description is followed by some suggestions as
+    to how to use the KBD device.
+    
+TURBO PASCAL
+Version 3.0
+Reading from the KBD device
+
+===================
+This program demonstrates the behavior of the keyboard buffer
+when reading string variables:
+*)
+
+program KBDdemo;
+
+type
+  MaxString = string[10];
+var
+  s1, s2 : MaxString;
+
+begin
+  ReWrite(KBD);                { 1.  Clear the KBD buffer     }
+  s1 := 'one';                 { 2.  Initialize s1            }
+  s2 := 'two';                 { 3.  Initialize s2            }
+  Read(KBD, s1);               { 4.  Read the first string    }
+  Read(KBD, s2);               { 5.  Read the second string   }
+  Writeln('1: ', s1:5);        { 6.  Echo the value of  s1    }
+  Writeln('2: ', s2:5);        { 7.  Echo the value of  s1    }
+end.
+(*
+
+
+  Analysis of the Program
+
+  Line#  Explanation
+  -----  -----------
+  1,2,3  Initialize the KBD buffer and both string variables.
+
+  4      Type: 1234 and then hit the <ENTER> key.   The Read
+         procedure keeps reading until it "looks ahead" and finds
+         a carriage return (denoted as ^M).  Note that it does
+         not actually "read" the ^M.  Instead, it reads all charac-
+         ters until it "looks ahead" and sees an EOF character (^Z)
+         or a ^M.  At that time, the Read procedure terminates and
+         the NEXT character to be read is the ^M.
+
+  5      Now the Read procedure "looks ahead" for a ^M and -- it
+         finds one!  It returns a null string value because no
+         characters were detected before it found the ^M.
+
+  6      s1 has the value that was input:  1234.
+  7      s2 has a null vale.
+
+
+  Suggestions
+  -----------
+  First, make this program behave as expected by inserting the following
+  statement between lines 4 and 5:
+
+     ReWrite(KBD);                { 4.5  Clear the KBD buffer    }
+
+  This statement clears the KBD buffer and the program will behave quite
+  predictably.
+
+  Note that the KBD buffer is not buffered and probably should not be
+  used for reading strings.  The advantages of reading from the KBD are:
+
+    1.  A keystroke can be detected even if no <CR> was entered.
+    2.  Any keyboard key can be detected and processed -- including
+        function keys, arrow keys, etc.
+    3.  Keystrokes are not automatically echoed to the console; this
+        enables the program to filter all keyboard input and control
+        console output (useful for entering passwords).
+
+  The best way to use the KBD device is to read character variables only:
+
+    program KBDdemo;
+
+    type
+      MaxString = string[10];
+
+    var
+      s1, s2 : MaxString;
+
+    procedure StringRead(var s : MaxString);
+    var
+      ch  : char;
+    begin
+      s := '';    { Initialize the string                        }
+      repeat
+        Read(KBD, ch);
+        case ch of
+          ' ' .. '~' : begin
+                         s := s + ch; { add character to string   }
+                         { To echo this character to the console,
+                           insert: Write(ch);  I omit this statement
+                           here to make this routine behave exactly
+                           as if the string was being read from the
+                           KBD device }
+                       end; (* legal characters *)
+        end; (* case *)
+       until ch in [^M, ^Z];       { Quit if EOF or <CR> is entered  }
+    end; (* StringRead *)
+
+    begin
+      ReWrite(KBD);                { 1.  Clear the KBD buffer     }
+      StringRead(s1);              { 2.  Read the first string    }
+      StringRead(s2);              { 3.  Read the second string   }
+      Writln('1: ', s1:5);        { 6.  Echo the value of  s1    }
+      Writeln('2: ', s2:5);        { 7.  Echo the value of  s2    }
+    end.
+4 and 5:
+
+     ReWrite(KBD);                { 4.5  Clear the KBD buffer    }
+
+  This statement clears the KBD buff

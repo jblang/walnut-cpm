@@ -1,0 +1,239 @@
+ZEDUX.INF
+General Update: June, 1987
+
+Chip availability (Z280):
+
+Zilog's official date for "volume" shipment of the Z280 chip has been
+set for September, 1987.  Until that time, products from the various
+support manufacturers will be in short supply.  Zilog is presently only
+shipping sample quantities, and word from the people who call me is that
+they no longer will ship the samples free of charge.
+
+The impact on Zedux is the same as has been for quite some time: we
+generally can only ship to persons already in possession of a Z280.
+
+Chip availability (1 MEG DRAM):
+
+This one is making the news: a recent article in the Wall Street Journal
+(dated June 22, 1987) states the worry of a general shortage in DRAMs
+due to the manufacturing cutback in Japan.  What does this mean for 1
+MEG DRAMs?  Of the people we have talked to, the only company presently
+shipping any 1 meg drams is Fujisu.  At last contact, they claim that
+the USA has hung them up for an import permit.  It may also be that the
+1 megs are part of a Japanese "retaliation" in our little trade war.  TI
+semiconductor says they are only shipping samples to the military.
+
+OK, why should Zedux care?  Well, the idea of our adapter board was to
+get the size down to the absolute minimum (it's 4.28" by 2.24").  This
+is the key to fitting as many different systems as possible.  To
+accomplish this, we made use of the industry standard SIP 8 bit dram
+package.  The boards accept either a 256kb or 1mb dram version of this
+package.
+
+Using 256kb, 128kb of this will be taken up by the RP operating system
+(for RP users), leaving two 64kb user partitions.  This is typically
+adequate for a single user with multiple task capability.
+
+For multiple task, multiple user capability, 1mb version will provide
+more breathing room.
+
+It certainly appears that the 1mb dram and the Z280 processor are
+basically in the same state (sampling), therefore, it is not
+unreasonable to expect that when we have good quantity of one, we will
+have the other.
+
+The Z280 to Z80 adapters:
+
+We now have two versions of the adapter board: The "straight" adapter,
+and the coprocessor version.  Both these boards are the same size and
+basic layout.  Onboard is a Z280, a 256kb/1mb dram, and the Z80 adapter
+socket.  On the straight adapter, the board REPLACES the Z80 in the host
+system completely.  The address, data and control lines come directly
+from the Z280, with a small amount of translation by onboard logic to
+correct minor incompatibilities.  This board is about 95% compatible
+with the Z80 processor.  100% compatibility is NOT POSSIBLE using the
+Z280 Z80 compatible mode (and Zilog has so published this fact in
+company newsletters).  See the after - note.  Because this version
+allows full access on the host of the new Z280 instruction set and
+onboard peripherals, this is the board to use for people who are
+evaluating an upgrade to the Z280 processor from an existing Z80 design,
+or if you wish the full performance and use of the Z280 processor in
+your system.  This board is recommended for people with SENIOR HARDWARE
+DESIGN LEVEL capability and full knowledge of the host system.  Our own
+use of the board here at Zedux is in a Cromemco ZPU S-100 Z80 processor
+card.  The modifications required for that board were the disabling of
+the "automatic jump" feature of the board (which made non-standard use
+of the "float" state of the Z80) and a change in the wait circuit (which
+ALWAYS started each cycle off with a wait, regardless of whether a wait
+was really required).
+
+In the coprocessor version, you unplug your present Z80, plug it into
+the adapter card, then plug the adapter into the vacated Z80 socket.
+The Z280 is isolated from the host Z80, and behaves as it's own
+processing subsystem with it's onboard 256kb/1mb dram.  The host Z80 and
+the Z280 both run at the same time, with the Z80/host performing all I/O
+work, and the Z280 running application programs.  Communication between
+processors is accomplished via an 8 bit "inter - CPU" communications
+chip (in fact, a registered bi - directional transceiver).  The address
+of the coprocessor port is selected via an 8 position dip switch on the
+board, which sets one of 256 I/O ports for the board to use.  You simply
+find an unused port in your system, and set the switches to that.  When
+booting up the software disk, you either set the port you selected by
+option, or by default leave the setting at the default $fe (chosen to be
+the most common unused I/O port).
+
+The only computers that cannot accept this board as a "plug and go"
+solution would be ones doing something VERY strange like using EVERY
+port in the Z80, or where there is no physical room for the adapter
+board.  Utilizing the Z80/host to process I/O separately should give
+speed gains.  The disadvantages of this arrangement are the speed penalty
+(estimate 20% on I/O operations) of passing data via the coprocessor
+port, the inability to use the onboard DMA to help I/O in the host
+processor, and finally, the inability to make use of the Z280
+instruction set while writing I/O drivers.
+
+AFTER-NOTE: WHY CAN'T THE Z280 BE 100% Z80 COMPATIBLE?
+
+The main incompatibility between the Z280 (in the Z80 bus mode) and the
+Z80 is the action of the M1 signal.  On the Z80, this line signals the
+fetch of the first byte of an instruction.  On the Z280, the pipelining
+mechanism is continually fetching ahead of the current PC for the next
+bytes, even before the processor needs them (so called "prefetch").
+This is supposed to speed the processor.  The Z280, then, does not know,
+at the time a byte is actually fetched from main memory, exactly what it
+is to be used for.  There is no way, either by circuitry internal to the
+Z280, or external adapter hardware, to generate a true M1 signal.
+
+This created a problem for Zilog; their own peripheral chips used the
+M1 line to detect execution of the "reti" instruction, to reset
+interrupts.  So how is this problem solved when M1 cannot be generated on
+the "reti" instruction fetch?  The actual fetch of the "reti" does not,
+in fact, generate a M1 signal.  Instead, the CPU executes the "reti" by
+running a "dummy fetch" of the "reti" instruction again, but this time
+with M1 set.  The M1 line, therefore, only is active for the "reti"
+instruction (which takes at least twice as long to execute as a
+consequence).
+
+CLOCK SPEEDS:
+
+Considerable confusion has surrounded the clock speed rating of the
+Z280.  Zilog rates the current top Z280 speed as 10 mhz.  You won't,
+however, find a 10 mhz clock on any of the Z280 pins!  The XTAL speed
+for this part is 20 mhz, which is immediately divided on - chip to 10
+mhz, the basic internal clock speed.
+
+It has become traditional to rate CPU's by clock speed.  A 24 meg 286
+should be 3 times as fast as a 8 mhz 8086 right?  The fact is, the input
+clock speed, which is usually quoted by the manufacturer simply because
+it is the highest and therefore most impressive statistic of the part,
+may have little or nothing to do with the actual performance of the
+part.  Most of the seemingly incredible "speed gains" in moving from the
+typical 2 - 6 mhz clocks of the older 8 bit CPUs to the 20 mhz + speeds
+of today's 16 bit processors is accountable to the change from random
+logic CPUs to microcoded CPUs.  A microcoded CPU usually takes 1, 2, 3
+or more internal "microcodes" to execute an external "macrocode" or
+normal instruction.
+
+If the situation now seems muddy, however, it is worth reflecting that
+the clock speed NEVER was an accurate indication of CPU power.  Is a 12
+mhz 8031 twice as fast as a 6 mhz z80?  Obviously a lot of factors enter
+in to CPU net performance.  The only reliable tests a formal benchmarks,
+and even these are famous for being slanted by a particular
+manufacturer.
+
+Clock speed HAS been a traditional comparison between identical versions
+of the same CPU.  An 8 mhz Z80 (Zilog ships Z80's all the way up to 12
+mhz) is reliably twice as fast as a 4 mhz Z80.  This has a lot to do
+with how stable the Z80 family has been in the past.  But relating the
+clock speed of the Z280 to the clock speed of a Z80 is a clear mistake.
+Since the Z280 uses a 20 mhz XTAL, is it 10 times as fast as a Z80 that
+uses a 2 mhz clock? Fortunately, there is a way to compare the Z280 to
+the Z80 in speed, using the Z280's Z80 compatible bus mode (which does
+not apply to the ZBUS!). The Z280 divides the "basic" clock speed of 10
+mhz down by 2 again (the external XTAL speed divided by 4) and outputs
+this as the Z80 bus clock.  This clock, and the corresponding bus cycles,
+are almost one - for - one with a Z80.  The following comparisons can be
+made then:
+
+     Z80         Z280             -->> XTAL SPEED (MHZ)
+     --------------------------------------------
+     1           4
+     2           8
+     4          16
+     5          20  (maximum speed of current part)
+
+According to Zilog, the use of the divide by 1 bus clock option should
+deliver the following:
+
+     Z80         Z280             -->> XTAL SPEED (MHZ)
+     --------------------------------------------
+     1           2
+     2           4
+     4           8
+     6          12
+     8          16
+    10          20  (maximum speed of current part)
+
+This mode requires external hardware to set.  Ok, so the Z280 is
+equivalent to a 10 mhz Z80, or with external hardware, a 10 mhz one?
+Nope.  From here we must discard the clock speed as a comparator, and
+use a benchmark.  I have run the BYTE benchmark, which calculates prime
+numbers, on the Z280.
+
+With cache disabled, the Z280 runs almost exactly as fast as a Z80 OF
+THE SAME BUS CLOCK (not XTAL clock!).  With cache on, the benchmark runs
+almost exactly twice as fast (the exact times are rather irrelevant, as
+that would mainly be a test of compiler efficiency).  Assuming the
+elimination of the bus clock division gains another speed doubling, and
+the use of the 16 bit ZBUS mode versus the 8 bit Z80 mode doubles the
+speed yet again, with all the trimmings the Z280 is equivalent (in
+theory!) to a 40 mhz Z80! This is not even taking into account the fact
+that the code could be rewritten to take advantage of the new, much more
+powerful Z280 instruction set, or the burst bus fetch mode.
+
+RP - THE FIRST (AND RIGHT NOW ONLY) Z280 OPERATING SYSTEM:
+
+With the bringing on - line of this BBS, the new multi - user, multi -
+task version of RP/M is now getting it's first full usage.  It is
+described elsewhere on the bbs, and you are invited to play with it on -
+line to try out it's many features.  So where did RP come from?  RP, or
+Remote Partition, started out doing just what it's name says.  I was
+caught between an applications program that was getting bigger, and a
+"TPA" that was getting smaller.  The artificial 64kb limitation was
+increasingly painful.  Having examined the "Z800" advance specification
+(in late 1985), and having obtained a 256kb memory board, I set up a
+quick fix that would carry forward readily to the Z280.  The basic idea
+with a remote partition is to run the applications program in it's own
+64kb partition, with little or no memory taken up by the system.  After
+a while, it became convent to include the CP/M monitor functions in the
+program, then to extend them past the rather limited CP/M modes.
+Finally, multiple tasking was added as a means to use the other 64kb
+partitions availability.  When I got hold of a Z280 sample in early
+1987, the system underwent a major upgrade, to add multiple users, use
+of the Z280 memory management and onboard peripherals, and RP's own
+"native" operating system interface.
+
+RP incorporates many features that they still say the IBM - PC will get
+"any time now", and in general introduces many mainframe - type software
+concepts to the microcomputer world.
+
+HI-TECH; THE UPGRADE PATH FOR THE KAYPRO:
+
+Some time ago, I talked to a company planning to market a board much
+like our adapter, but specifically designed for the Kaypro.  This makes
+a lot of sense; since Kaypros, like the IBM-PC, are basically alike,
+the board can be designed in to the physical space availability, and
+therefore incorporate more features than the generic version.  I
+understand that the board also corrects some basic problems with the
+Kaypro screen driving arrangement.  There is no way that one company can
+possibly cover all the bases, and address every CP/M type computer ever
+made individually.
+
+The CP/M world wasn't built by one manufacturer.  I think the HI-TECH
+example is a good one for entrepreneur types in the CP/M / Z80 world.
+For each individual machine there is need for hardware and software
+drivers to help the Z280.  HI-TECH has discussed with us interest in the
+RP O/S for that board.  Any news on HI-TECH or similar projects is
+welcome here.
+
+

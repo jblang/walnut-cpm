@@ -1,0 +1,187 @@
+	ZAS-SLR4.DOC by Richard Conn, 18 Sep 86
+
+	This message is in response to Jay Sage's comments in his
+ZAS-SLR2.DOC file.
+
+		MISLEADING COMMENTS (???) and ".IN"
+
+	If Jay thinks my comments in MS/J were misleading, such is
+his right.  I don't think they were and have no problem with them.  They
+are true.  If you want to modify the libraries to work with another
+assembler, be it Z80ASM or RMAC or M80, such is possible since I gave out
+the source code.  If you want to assemble the libraries without modifying them,
+then use ZAS.  Regardless, you can USE the libraries with Z80ASM, M80, or ZAS
+without modification of the REL file.
+	The problem that Z80ASM is tripping over is the ".IN" pseudo-op
+(I know this from Jay's comments, not from experience).  Virtually every
+module of Z3LIB contains this pseudo-op in order to read in the ZCPR 3.3
+Constant Definition File, Z3CONST.LIB.  I chose ".IN" over MACLIB for several
+reasons:
+		A. (primary) the PDL tools I am writing key on ".IN"
+for include file processing (".IN" processing was somewhat simpler than
+"MACLIB" processing thanks to the leading dot)
+		B. in considering the aspects of the standard assembly
+language, I felt that there was no need to have two statements which
+performed the same function (ie, ".IN" and "MACLIB"), and ".IN" offers
+two advantages over MACLIB: (1) its form with the leading dot is
+usefully different for analysis purposes and (2) ".IN" is more meaningful,
+standing for INCLUDE, than MACLIB, particularly since all of the include
+files I use in the Z System contain no macros (I will probably suggest
+to Patrick that at least an option to name include files as "filename.IN"
+be incorporated into ZAS)
+		C. the PPAL tool (Pretty Printer for Assembly Language)
+has had a radical effect on my outlook re form and structure, and I can
+easily include an option in PPAL to automatically translate MACLIB
+pseudo-ops to .IN pseudo-ops; since I am running PPAL on all Z System
+libraries and tools, there is no extra work involved
+	Both ZAS and Z80ASM allow grouping by [], so there is no problem
+here, where M80 would have more problems.
+	Note that I am definitely using the ".IN" pseudo-op everywhere
+and that ZAS is currently the only assembler I am aware of that supports
+the Z System standard language (which is unique primarily by the use of
+".IN" and [] for grouping) used by ZCPR 3.3 and all of its programs.
+My guess is that Z80ASM can be easily modified to add ".IN" which is
+equivalent to "MACLIB" (are you listening, SLR?).  Then we would have
+two implementations of the standard language (at least for a while).
+
+		MORE ON THE STANDARD LANGUAGE
+
+	Before all of this started, I submitted a request thru Echelon
+to modify ZAS in several ways, two of which are of particular interest:
+
+		1) add an IFDEF and IFNDEF pseudo-op pair, which tests
+to see if a symbol is or is not defined
+
+		2) add an option on the command line to define a symbol
+(I didn't care if you could also assign the defined symbol a value);
+the command line should look something like this (I didn't care what
+the exact syntax was):
+			ZAS filename Dsymbol
+in order to define the symbol "symbol".  It would be nice to be able to
+define more than one symbol, but not required.
+
+	The power this provides is obvious: programs can be written which
+can be very easily customized in particular ways by defining symbols from
+the command line (shades of the C compiler's -D option).
+
+	I was surprised (and pleased) to see IFDEF and IFNDEF pseudo-ops
+available in the Z80ASM language.  SLR did not include the define capability
+from the command line, however, and I mentioned it to them on the phone the
+other day.
+
+
+		JAY's TWO TECHNICAL ASIDES
+
+	1. Yes, I have abandoned 8080 compatability.  The Echelon Team had
+a meeting in Silicon Valley in the later part of last year, and using ZAS
+as the standard language and abandoning the 8080 were two of the points
+decided upon.
+
+	2. Yes, using DSEGs will decrease the size of library files.
+Note, however, my trend to use CODEND to dynamically allocate space
+when large buffers are needed.  For the most part, the size of the
+data areas in the library modules is quite small.  I will probably look
+into using DSEGs, particularly accessing their impact wrt using CODEND.
+
+
+		JAY's COMMENTS ON THE STANDARD
+
+	I think Jay has really blown this out of proportion, partly due to
+his own ego and partly due to not reading what I said in my first rebuttal
+or not understanding what I said.
+
+	The Z System standard language is a language, and a language can
+have many implementations.  ZAS is the only existing implementation, and
+Z80ASM could be with little effort on the part of SLR.  Ada now has 60
+implementations, all conforming to the Ada language standard defined in
+MIL-STD-1815A (in over 230 pages).
+
+	Let me relate three stories from previous experience:
+
+	1. Standards by committee are not necessarily good.  I worked on
+a government project once that had a fantastic amount of potential.  As
+more and more government agencies found out about it, they all wanted to
+put in their two cents, adding features that made it more suitable to
+their particular needs.  The budget for the design of the system was
+$20 million, but, after over a year of committee action and 10 ECPs
+(Engineering Change Proposals), the government had sunk over $35 million
+into the project and the design was not complete.  The project was
+scrapped.
+
+	2. Standards by Committee can take a very, very long time.
+In my work in the Ada community, I have been involved as a
+member of the IEEE's Working Group on Ada as a Design Language.  This
+group developed a Recommended Practice on the use of Ada as a DL which
+I liked, but, done by committee, three years were required to get this
+practice (under 100 pages) out.  I was involved for the last 1 1/2 years
+of it.
+
+	3. Standards don't have to be designed by committee.
+I am a fan of Ada, and the Ada language was designed by one
+small team headed by Jean Ichbiah, then of Honeywell Bull in France.
+Jean is the chief architect of the language.  Many outsiders think that
+Ada was designed by committee.  Ada was reviewed and selected by a
+very large committee, and minor changes were made to the language by
+this group, but Ada is still essentially the same as the original Green
+language of Honeywell Bull.
+
+	How can I say that I have created a standard language?  Simply put,
+I selected a language before I began work on ZCPR 3.3.  That language was
+implemented by ZAS.  When ZCPR 3.3 is released, the command processor, the
+libraries, and the myriad of new tools and modifications to old tools will
+be written in this language.  ZAS meets my needs, and I have no intention
+of changing now that the project is well underway.  The standard language
+is not much different from languages implemented by other assemblers,
+particularly Z80ASM by SLR, and with a minor modification, Z80ASM could
+be a second implementation of this language (note: by implementation,
+I mean translator).
+
+
+		GROWTH
+
+	As I have said from the beginning, ZCPR is an evolving system.
+ZCPR1 is different from ZCPR2, and ZCPR2 is different from ZCPR3 in
+many major ways.  ZCPR 3.3 is different from ZCPR 3.0 in many ways
+also.  Like the ZCPRs before it, ZCPR 3.3 is an experiment, and I feel
+it keeps getting better and better.  The current following of ZCPR3 is
+evidence of the excitement and interest sparked by this experiment.  I am
+learning and growing by this experiment while having a lot of fun (except
+when people like Jay Sage decide to get loud and obnoxious).
+
+
+		THERE IS NO SLAP
+
+	In ZAS-SLR2, Jay said "I ... would like to ask that Richard Conn
+show some genuine respect for the rest of the 8-bit programming community
+by paying a little attention to our ideas ...".  Jay is clearly totally
+out in left field.  I have just spent over 2 years collecting ideas
+for the new ZCPR 3.3.  I have worked with Ada, Ada Programming Support
+Environments, SUN workstations, Symbolics workstations, and so many
+things on the Defense Data Network that I can't count them all.  I have
+listened to your ideas (ZCPR 3.3 started from Jay's modification of ZCPR 3.0
+into ZCPR 3.2A because I liked the ideas Jay and others put into it).
+
+	I think that Jay's frustration mainly comes from his rather complete
+lack of understanding of who I am, what I am doing, and how I do things.
+Jay thought I worked for Echelon; instead, I functioned in a self-employed
+mode from January to May with 4 sources of income, one of which was Echelon
+royalties. Jay thinks I have only two interests - Z3 and Ada.  I'm into Z3,
+Ada, C, UNIX, VMS, TOPS-20, program design languages, VHSIC/VHDL/MOSIS, SUNs,
+the Amiga, satellites, the space program (a guy from NASA is even on my
+new Ada Software Repository committee), and so many more things.  Jay
+seems to expect me to jump when he says something; I don't.  Jay expects
+me to spend large amounts of time on Z-Nodes talking to users; I get
+occasional printouts of selected messages from Echelon because I have a lot
+to do with all of my interests (I get hundreds of email messages each week
+on the DDN, and I don't read all of these either, filtering them by
+subject and author).  I have to manage my time if I ever hope to get anything
+done (I took a course in Time Management, which I have applied ever since).
+And I've accomplished a lot, including ZCPRs, a ton of documentation, three
+books, the Ada Software Repository (with its 40M of source code and
+documentation, donated by many), etc.
+
+	I am going to continue with my work now, moving toward the release
+of ZCPR 3.3 and my new Ada Software Repository book.  As far as I am
+concerned, this presentation is finished.  Be sure to
+look for my next article on ZCPR 3.3 in Microsystems.  I'm sure Jay will.
+

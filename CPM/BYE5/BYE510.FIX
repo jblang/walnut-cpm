@@ -1,0 +1,79 @@
+; SUBJECT : BYE510 FIX
+;
+; FROM	  : IRV HOFF
+;
+; DATE	  : 4 AUG 86
+;
+;
+;	NOTE TO SYSOPS:  You may wish to put this little
+;			 file in your master BYE510.LBR so
+;			 it will be available to anybody
+;			 downloading that file.
+;
+;
+;	Several Sysops have mentioned when using BYE510 they were unable
+; to properly operate their local keyboard.  The fix involves (1) moving
+; three lines in the MINP2: area and (2) adding three lines plus a new
+; label in the MSTAT: area.
+;
+;	The problem occurred when those routines were altered to provide
+; proper timeout with the METAL BBS program when nobody had typed on the
+; remote keyboard for some time.  METAL was looping while waiting for a
+; status bit to go high indicating a character could be obtained.  The
+; BYE program(s) had been looping until the character was received.  The
+; METAL program could thus hang up the system for long periods of time
+; if nobody was typing at the other end.
+
+
+;-----------------------------------------------------------------------
+; CHANGE 1
+;-----------------------------------------------------------------------
+;
+MINP2:
+;;;	CALL	CONSTAT 	; Check for console input	=>DELETE
+;;;	ORA	A		; Got console input?		=>DELETE
+;;;	JNZ	CONIN		; Yep, get the console character=>DELETE
+	CALL	MSTAT		; Nope, check for modem input
+	ORA	A		; Got modem input?
+	JZ	MINP2		; Nope, loop again
+	CALL	CONSTAT 	; Check for console input	=> ADDED
+	ORA	A		; Got console input?		=> ADDED
+	JNZ	CONIN		; Yep, get the console character=> ADDED
+MINP3:	CALL	MDINP		; Yep, get modem character
+
+
+
+;-----------------------------------------------------------------------
+; CHANGE 2
+;-----------------------------------------------------------------------
+;
+; Modem status test and no-activity timer routine
+;
+MSTAT:	 IF	NOT CPM3
+	CALL	BDCHEK		; Set 6 to safety
+	 ENDIF			; NOT CPM3
+;
+	CALL	CONSTAT 	; Check local keyboard status	=> ADDED
+	ORA	A		;				=> ADDED
+	JNZ	MSTAT0		;				=> ADDED
+	LDA	MDMOFF
+	ORA	A
+	MVI	A,0
+	RNZ			; Don't let remote input while modem is
+				; Muted
+	CALL	CHECK		; Check for carrier lost
+	CALL	MDINST		; Get modem input status
+	ORA	A		; Character available?
+	JZ	MSTAT1		; Nope
+;
+MSTAT0: 			;			  => LABEL ADDED
+	PUSH	PSW		; Yep, save return status
+	XRA	A		; Clear no-activity flag
+	STA	MSFLAG
+	POP	PSW		; Restore return status
+	RET			; And return
+;
+MSTAT1: LDA	MSFLAG		; Get the no-activity flag
+
+	(etc.)
+

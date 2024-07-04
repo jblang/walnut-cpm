@@ -1,0 +1,182 @@
+
+                    CCP/M Meeting Notes - February 1989
+
+Our next meeting on February 14 (Valentine's Day!) will feature Z System 
+applications.  Remember, CCP/M is a dealer of NZCOM and Z3PLUS (and 
+DateStamper etc.) and we hope you come to the meeting and see examples of 
+how useful and fun it is to operate a CP/M machine equipped with this new 
+Operating System.  You'll never want to go back to CP/M after learning 
+about and then using New Z System!
+
+The best way to learn how a well built Z System looks is to see one in 
+operation.  The notes below are provided as background on the application 
+I'm going to have on display.
+
+The last meeting of CCP/M was well attended.  Ray Gentle picked up where 
+Brian Nalewajek left off and introduced spreadsheets via SuperCalc 2 on an 
+Osborne.   While skillfully explaining what spreadsheets did and how to run 
+them,  Ray also did a great job answering questions from the audience.  I 
+had a Royal running MicroCalc, a demo spreadsheet written in Turbo Pascal.  
+It was not really needed since Ray had such a well planned discussion of a 
+real spreadsheet.  Thanx a lot Ray and Brian for one of the best 
+presentations ever!  New member Ked Butt and about half of Ray's Fire Dpt.  
+were in attendance!  Hope all the new faces come back for more!
+
+                    A COBOL Application under Z System
+
+I hooked up my 20 mb hard disk to a Kaypro II about 3 weeks ago and 
+installed Z System.  I have been very busy building the environment I want 
+to work in and thought you might be interested in how one person has taken 
+advantage of the tools Z System provides.
+
+To get underway, a little history.  As is often the case, a single upload 
+to my RCP/M started the whole thing.  COBOL.LBR contains the files you need 
+to compile and execute programs written in NPS MICRO-COBOL (Common Business 
+Oriented Language).
+
+I've written some applications in this dialect of COBOL and built a library 
+named MIS301.LBR.  I chose this name in honor of the most complex program 
+I've written so far in it.  This program solved an assignment in MIS301, 
+the COBOL class at CCSU, a former employer of mine.  It is available for 
+download from my RCP/M (phone # is (203)-665-1100).
+
+Menu scripts and alias scripts are also being developed and will be 
+discussed below.
+
+As you read this, try to imagine yourself as you use your own computer.  
+What do you do frequently?  What would be nice to select from if you could 
+design your own menu?  Because this is exactly how I create my computing 
+environment.  Each time I found something that I wanted to do, I just beef 
+up the commands understood by the computer!  This, as I see it, is 
+precisely what Z System is all about.
+
+I offer, for starters, the following alias.  An "alias" is a little piece 
+of "job control language" which feeds the multiple command line buffer of Z 
+System after resolving any parameters it's passed.
+
+UNSEQ=RENUM=SEQ  REN REN1.CBL=$1;EXEC $0;REN $1=REN2.CBL;ERA REN1.CBL
+
+This will be explained below.  Finally, take a look at the following menu:
+
+
+                     COBOL Development Menu
+                      System File 1 $F1
+
+
+     Q     Quick look  (QLZ40)          V     Show Version     
+     L     run Library utility (LU310)                           
+     X     eXecute $F1                
+     C     Compile $F1   
+   R,U,S   Renumber,Unsequence,Sequence $F1
+     F     set System File 1          
+     E     Edit $F1  (VDE266)           ^    formfeed the printer 
+     B     Browse $F1                   1    print SALES.RPT 
+     Z     enter Z command              2    print SALES.ERR
+                                        3    print SALES.DAT
+     D     eDit SALES.DAT
+     O     lOok at SALES files          4    print $F1
+ 
+
+The following code is what I chose to support the single letter commands 
+above (space between letter and script added for easier reading)
+
+V ECHO 01/17/89 %>at 4:50 %<PM
+R RENUM $F1
+U UNSEQ $F1
+S SEQ $F1
+Z !"command->"
+E EDIT $F1
+F SETFILE 1 "file "
+Q QL "mask? " 
+X EXEC $F1
+C COBOL $F1 $$"options? (CDLPSTW) ->"
+D EDIT SALES.DAT
+O QL SALES.*
+L LU
+1 PIP LST:=SALES.RPT;CHRS 0C
+2 PIP LST:=SALES.ERR;CHRS 0C
+3 PIP LST:=SALES.DAT[P60;CHRS 0C
+^ CHRS 0C
+4 MODEM:WRAP -I16 -W200 -H $F1 >LST:
+B QL $F1
+
+
+One of the programs which evolved out of this process is named UNSEQ.CBL.  
+If you have an interest in learning more about COBOL, you might consider 
+downloading this file.
+
+UNSEQ reads a COBOL program and "unsequences" it.  That is, it strips away 
+the six digit sequence numbers in the input file.  COBOL programs must have 
+the first 6 "card columns" set aside for "sequence" numbers.  One of the 
+nice features of MICRO-COBOL is an option which tells the compiler if there 
+are sequence numbers in the source code file.  You save a lot of space on 
+the disk if you don't use sequence numbers.
+
+Recall the alias named UNSEQ above.  When I pick U from the menu shown 
+above, "system file" 1 is "unsequenced".  Z System allows you to identify 
+up to 4 files as "system files", with the SETFILE program.  You may display 
+what the system file names are and you may also use them in menu and alias 
+scripts.
+
+UNSEQ=RENUM=SEQ  REN REN1.CBL=$1;EXEC $0;REN $1=REN2.CBL;ERA REN1.CBL
+
+If "system file " 1 was MIS301.CBL, this would translate to
+
+REN REN1.CBL=MIS301.CBL;EXEC UNSEQ;REN MIS301.CBL=REN2.CBL;ERA REN1.CBL
+
+compliments of ARUNZ, the extended command processor (without which Z 
+System users could not live...)
+
+EXEC is one of the files in COBOL.LBR.  It loads .CIN files and invokes 
+CINTERP.COM.   In our example, UNSEQ.CIN (the output of the compilation of 
+UNSEQ.CBL) would load and run.
+
+UNSEQ.CBL, SEQ.CBL and RENUM.CBL all read in a file which is named 
+REN1.CBL, either unsequence, sequence or renumber it and put out their 
+result in a file named REN2.CBL.  Since you typically would want to process 
+files with real names, like MIS301.CBL for example, the alias above simply 
+renames your file to what the application requires, runs the application 
+(EXEC $0) and then renames the output back to your filename, MIS301.CBL for 
+example.
+
+The interesting thing about all this is the bootstrapped quality of the 
+operating environment.  That is, something that was developed under a 
+simpler environment now is being used to help create an even more powerful 
+operating environment.  I used to be able only to compile, edit and execute 
+COBOL programs.  Now I may request the use of a new "macro" called UNSEQ on 
+any .CBL file.  Neat!
+
+NPS MICRO-COBOL is pretty slick.  The DOC file is 19 pages long and is 
+well-written.  I am developing a COBOL.NOT file which discusses the 
+limitations I've encountered.  So far I've managed to list 23 things.  
+Experienced COBOL programmers might be interested for example in the 
+limitations of the MOVE and MULTIPLY verbs etc., the fact that AND and OR 
+are not implemented and many other "gothchas" I fell into.
+
+It's interesting to me that the author of NPS MICRO-COBOL did not credit 
+himself in the DOC file.  I'd like to know who wrote this fine 
+compiler/interpreter.  I'd like to know what the intermediate code is like 
+etc.  In fact, it would be a lot of fun to try and enhance the program so 
+it could handle multiple MOVEs etc.  Perhaps the Wizard can help is 
+out.
+
+Question for the Wizard:  Who wrote NPS MICRO-COBOL?  In what 
+language?  When was it released?  Is source code available?  Etc.
+
+(The Wizard is a very old and wise CP/M guru who exists solely to answer 
+those tough questions that come up from time to time.  If you, kind reader, 
+either have such a question or are amused by treasure hunts such as the one 
+posed above and the like, drop Jim Taylor, Pieces of Eight Editor, a note.)
+
+The single example I've tried to explain is obviously just one of the 
+hundreds of commands my computer now does for me.  I can jump from one menu 
+to another thanks to MENU.COM, a Z System shell.  I can print files 
+(established earlier to be "system files") by invoking WRAP.COM, a fine 
+file lister written in C (or PIP etc.).  I can backup changed files to 
+floppy, check the integrity of a disk and reorganize my hard and floppy 
+disks with single key strokes.  To find out more about how menu scripts are 
+written, check out MENU.MNU.  
+
+Lee Bradley, CCP/M Secretary and Z Plan Contact for CCP/M
+01/17/89 at 4:50 PM
+

@@ -1,0 +1,51 @@
+Note on RCPCLED 1.5
+August 12, 1991
+Rob Friefeld
+
+CLED 1.5 does not work with the Z-System command scheduler AT.  AT must 
+know that a shell is running.  It determines that by checking ZCPR's 
+Command Status Flag.  CLED must not reset this flag until it is ready to 
+exit.
+
+Code is easily modified.  Eliminate "Subtask 1".  Before "Subtask 4" 
+place the old Subtask 1 code.  (See below).
+
+Note that a shell is only interrupted by AT if there has been no console 
+activity for a preset time interval.  If you are actively using the 
+shell, AT will not break in.  If you are leaving the machine unattended 
+and expect a scheduled task to execute, it is OK to leave a shell (CLED, 
+LSH, ZFILER) running.  It is NOT OK to leave an application running.
+
+Here is a source code replacement section:
+
+;...
+;
+;=====	L I N E   E D I T ===========================================
+;
+
+; This is the main entry point for the shell
+; To do:
+;  1 - Display prompt
+;  2 - Get a line
+;  3 - Reset shell bit
+;  4 - Run the line
+
+cledit:
+; Subtask 1 -- Display system prompt
+	call	prompt
+
+;----------------------------------------
+; Subtask 2 -- Get a line
+
+; The editor returns NZ if the shell pop command has been given.  If not, it
+; returns the character count of the command line in B.
+
+	call	edit
+
+;----------------------------------------
+; Subtask 3 -- 
+	ld	hl,z3msg+3
+	res	0,(hl)		; Reset shell bit
+
+;...
+

@@ -1,0 +1,42 @@
+Date: Tuesday, 1 March 1988  21:33-EST
+From: Margaret H. Knox
+Re:   22PUBLIC bug
+
+Many people have by now either replaced their old DRI CCP completely,
+or are using one of the PUBLIC patches which declare individual files
+public.  Being lazy, I have been using the 22PUBLIC.ASM patch (from
+1981) to make all .COM files on USER 0 accessible from any other
+disk/user#.
+
+Over the years I have occasionally noticed that "certain" programs
+would NOT always run correctly from other user numbers.  In
+particular, MODEM7 would not run from any user number other than 0,
+although I could set USER to 0, launch MODEM7, exit, set the USER to
+whatever I wanted, and re-launch MODEM7 correctly.  Since this only
+affected about 3 programs that I use with any frequency, and since it
+was only a minor annoyance in the great antipathy of life, I mostly
+ignored the problem.
+
+It didn't go away!!  (:-}      Late last night I got frustrated
+enough to wonder why.
+
+The problem is actually rather simple.  22PUBLIC traps "File Not
+Found" returns when the CCP attempts to open a file for loading.
+It then tries the same user number on disk A:, and then user 0
+on disk A:.  If the file is not found after all that you get the
+usual "?" error msg.  If the file *IS* found, however, it resets
+the user number (so the running program will be in the correct
+area) and re-enters the CCP load routine to finish loading the
+now-open file.
+
+The bug is that, if the file is greater than 16k (one extent)
+the BDOS looks for the next extent in the WRONG user area!
+The fix is simple -- just save the original user area, and
+defer resetting the user area until after the load is completed.
+The "patch" is more complicated -- there is not enough room
+in the usual CCP patch locations.  I re-assembled CCP (from
+an old disassembly) and that gave me enough room to restore
+the user number in both the "command/load error" and "success"
+routines.
+
+Thought someone else might be interested.

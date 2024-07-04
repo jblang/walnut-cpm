@@ -1,0 +1,155 @@
+
+                    ***** BUG REPORT *****
+         ***** MAJOR BUG IN TURBO PASCAL V2.00 *****
+                         July 1,1984
+                    (updated December 1984)
+
+
+     The runtime routines  do  not  handle  a  floating-point 
+(real)  subtraction  correctly.  For  some subtractions,  the 
+correct  difference  is  returned;  for  others,  a  zero  is 
+returned. The following program demonstrates the bug:
+
+program test;
+begin
+     writeln(9.+(-6.0));        { Wrong value returned }
+     writeln(-1.0+(-1.0));      { Correct value returned }
+     writeln(1-2);              { Correct value returned }
+     writeln(1.-2:10:2);        { Wrong value returned }
+     writeln(1.-2.0);           { Wrong value returned }
+     writeln(1-2.0);            { Wrong value returned }
+     writeln(456 - 123.0);      { Correct value returned }
+end.
+
+A value of zero is returned on those lines marked as 'wrong'. 
+The other lines return the correct difference.
+
+
+
+VERSIONS TESTED AND FOUND OK (December 1984)
+
+The following versions of Turbo have been checked for this bug 
+and are alright.  Any versions for same OS, with higher serial 
+numbers, should be alright--but  use the above test program to 
+be sure.  The bug may be unique to MS-DOS versions.
+
+	Turbo  ver 1.01A for CP/M-86    serial #  1225
+	Turbo  ver 2.00B for CP/M-86    serial # 49036
+	Turbo  ver 2.00B for MS-DOS     serial #131821
+
+
+THE CAUSE
+
+    After disassembling and tracing through a sample compiled 
+program, the error was located in the following code:
+
+XXXX:12FA E84FFF        CALL    124C            ; Subtract
+XXXX:12FD 7306          JNB     1305
+XXXX:12FF 80F780        XOR     BH,80           ; Handle negative
+XXXX:1302 E863FF        CALL    1268            ;   numbers
+XXXX:1305 8B4504        MOV     AX,[DI+04]      ; Is mantissa zero?
+XXXX:1308 0B4502        OR      AX,[DI+02]
+XXXX:130B 0A4501        OR      AL,[DI+01]      ; ***** ERROR *****
+XXXX:130E 740D          JZ      131D            ; Yes
+XXXX:1310 F6450580      TEST    BYTE PTR [DI+05],80  ; Normalize
+XXXX:1314 750C          JNZ     1322
+
+(Comments  have  been  added for clarity).  This disassembled 
+code is located in the  routines  that  handle  addition  and 
+subtraction  (only the subtraction part is shown).  The error 
+occurs when the routine tests to see if  the  result  of  the 
+subtraction is zero. It tests for a zero by "OR-ing" together 
+the five bytes of the mantissa (the instructions that do this 
+are at offsets 1305H to 130BH). If the mantissa is zero, then 
+the result of this "multiple-or" will set the zero flag.  The 
+first  of  these instructions is a move of the word at [DI+4] 
+to AX.  The next instruction takes the logical OR of  AX  and 
+[DI+2].  No problem so far.  However, the last instruction is 
+"OR AL,[DI+1]",  an instruction that operates on a  byte  and 
+not  on  a word.  If the OR of the words at [DI+4] and [DI+2] 
+results in a word whose UPPER byte is NONZERO but whose LOWER 
+byte is ZERO,  then the next instruction, the "byte-wise" OR, 
+will SET the zero flag if the byte at [DI+1] is zero.  Notice 
+that the instruction at 130BH totally ignores the contents of 
+the upper byte of AX;  the flags are  set  according  to  the 
+lower byte of AX only.  This is what causes the error.
+
+
+THE FIX
+
+     The fix to this bug is simple: simply exchange the order 
+of the two "OR" instructions.  This way, the zero flag is set 
+according  to  a  full  16-bit  OR  and  not  an  8-bit  one. 
+IMPORTANT:  Only persons familiar with the operation of DEBUG 
+should  attempt  the  following.  Using DEBUG,  the following 
+sequence of commands can be used to fix the bug:
+
+     Assumptions and notes in the following:
+          1) ONLY WORK ON A COPY OF TURBO!  DO  NOT  USE 
+             YOUR MASTER COPY!
+          2) The sequence of commands shown below writes 
+             out  the   fixed   version   to   the  file 
+             'turbo.com'
+          3) Make sure that you have version 2.00
+          4) 'turbo.com'   must   be   in   the  current 
+             directory on drive B.
+          5) DOS  2.00  or  above  is  being  used  (the 
+             debugger in DOS 1.00 and 1.10 does not have 
+             the 'assemble' command).                           
+          6) Be  sure  to  verify  that  the code in the 
+             compiler is the same as  that  shown  below 
+             initially.  After the changes are made,  be 
+             sure to verify that the changes  have  been 
+             made  correctly  before  writing  the fixed 
+             version out to disk.
+
+B>debug turbo.com
+-u 12fa             <- Verify the following locations
+XXXX:12FA E84FFF        CALL    124C
+XXXX:12FD 7306          JNB     1305
+XXXX:12FF 80F780        XOR     BH,80
+XXXX:1302 E863FF        CALL    1268
+XXXX:1305 8B4504        MOV     AX,[DI+04]
+XXXX:1308 0B4502        OR      AX,[DI+02]
+XXXX:130B 0A4501        OR      AL,[DI+01]
+XXXX:130E 740D          JZ      131D
+XXXX:1310 F6450580      TEST    BYTE PTR [DI+05],80
+XXXX:1314 750C          JNZ     1322
+XXXX:1316 E8F9FE        CALL    1212
+XXXX:1319 FE0D          DEC     BYTE PTR [DI]
+-a 1308             <- Make changes
+XXXX:1308 or al,[di+1]
+XXXX:130E or ax,[di+2]
+XXXX:1311                       <- Press 'enter'
+-u 12fa             <- Verify that the changes are correct
+XXXX:12FA E84FFF        CALL    124C
+XXXX:12FD 7306          JNB     1305
+XXXX:12FF 80F780        XOR     BH,80
+XXXX:1302 E863FF        CALL    1268
+XXXX:1305 8B4504        MOV     AX,[DI+04]
+XXXX:1308 0A4501        OR      AL,[DI+01]
+XXXX:130B 0B4502        OR      AX,[DI+02]
+XXXX:130E 740D          JZ      131D
+XXXX:1310 F6450580      TEST    BYTE PTR [DI+05],80
+XXXX:1314 750C          JNZ     1322
+XXXX:1316 E8F9FE        CALL    1212
+XXXX:1319 FE0D          DEC     BYTE PTR [DI]
+-w                  <- Save fixed version of turbo
+Writing 8E80 bytes
+-q
+
+B>
+
+<end of fix>
+
+
+OTHER NOTES ABOUT TURBO
+
+     One  cannot  set  breakpoints  in TURBO using DEBUG.  It 
+seems that TURBO  uses  the  breakpoint  interrupt  for  some 
+hideous  reason.  If  one  attempts  to set breakpoints,  the 
+system will probably crash.  Tracing,  however,  does seem to 
+work.  The  above  bug  was  tracked down only after hours of 
+tracing (by machine and by hand) and disassembling.
+
+    --------

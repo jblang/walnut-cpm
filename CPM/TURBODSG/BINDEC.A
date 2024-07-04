@@ -1,0 +1,70 @@
+	#TITLE	"24-BIT BINARY TO DECIMAL ROUTINE"
+	#PAGE	132,66
+	MODULE	"BinDec"
+;
+	LOC	Data#
+;
+LEAD0:	BYTE	0
+;
+	LOC	Code#
+;
+;	Enter here with DX:AX containing SEGMENT:OFFSET to
+;	print as decimal.
+;
+SEGDEC::
+	PUSH	DX
+	MOV	CL,=4
+	SHL	DX,CL
+	ADD	AX,DX
+	POP	DX
+	MOV	CL,=12
+	SHR	DX,CL
+;
+;
+;	Enter with 20-bit number in DX and AX
+;	(low nybble of DL = MSN)
+;	ie DX=000F, AX=F000 for FF000
+;	If leading zero suppression, make CH=0 else CH=NZ
+;	DS:BX point to storage for result.
+;	Output: DS:BX points to byte past end of output string
+;	Destroys AX,DX
+;
+BINDEC::
+	MOV	LEAD0,CH		; SAVE LEADING 0 FLAG
+	MOV	CX,=10000		; DIVIDE BY 10000
+	DIV	CX			; REMAINDER NOW IN DX
+	CALL	DEC
+	MOV	AX,DX
+	CWD
+	MOV	CX,=100			; NOW DIVIDE BY 100
+	DIV	CX
+	CALL	DEC
+	MOV	AX,DX
+DEC:	AAM
+	CMP	AH,=9
+	JNA	__NOV
+	PUSH	AX
+	MOV	AL,AH
+	AAM
+	CALL	__NOV
+	POP	AX
+	OR	AL,=0X30
+	JMPS	__CL
+;
+__NOV:	OR	AX,=0X3030
+	CMP	AH,='0'			; ZERO?
+	JNZ	__NZ
+	CMP	LEAD0,=0		; LEAD 0 SUPPRESS?
+	JZ	__CL			;   YES, CHECK LOW
+__NZ:	MOV	LEAD0,AH
+	MOV	[BX],AH
+	INC	BX
+__CL:	CMP	AL,='0'
+	JNZ	__NZ1
+	CMP	LEAD0,=0
+	JZ	__CL1
+__NZ1:	MOV	LEAD0,AL
+	MOV	[BX],AL
+	INC	BX
+__CL1:	RET
+	END

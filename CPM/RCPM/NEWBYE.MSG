@@ -1,0 +1,79 @@
+                     Thoughts for a new BYE
+                 Bridger Mitchell, Dec. 24, 1987
+
+Discussions with Al Hawley have prompted me to set down notes
+about how basic improvements could be added to BYE - the
+host executive for remote-system operation.  These are just
+that -- notes for discussion, to be added to and improved on!
+
+For CP/M 2.2 BYE should be constructed as a standard RSX, using
+the Plu*Perfect Systems' RSX header (see BackGrounder ii manual,
+Appendix I).  This standard header has two key advantages:
+other RSX's can be loaded and unloaded below it and it provides
+for its own removal/deinitialization.
+
+The RSX image itself should be in PRL or REL format, and loaded
+by a quasi-standard RSX loader, customized for BYE's particular
+requirements and features.  Splitting the code into resident
+module and loader module makes it far easier to maintain and
+makes the relocation process painless.  A sample loader is
+available on the BGii disk.
+
+The new BYE can support two different, parallel terminals, each
+with terminal-specific video sequences.  The key to accomplishing
+this is to use a "generic" tcap in the z3 external environment,
+and have conout (which is intercepted by BYE) translate the
+generic video sequences differently for each terminal.
+
+One limitation:  while BYE is running, programs that use video
+sequences should be restricted to those that either use the z3tcap
+itself, or have been installed with the "generic" tcap.
+
+
+on init:
+        move current z3tcap to local_tcap
+        move generic tcap to z3tcap buffer
+on deinit:
+        move local_tcap to z3tcap buffer
+
+generic tcap:
+        a "generic" set of escape/control-char sequences.  It may be
+        best to choose/create a set that all have a fixed number of bytes.
+        e.g. ESC A = cleol, ESC B = cleos, ...
+
+        However, if sysops have programs that have internal video strings
+        (rather than getting them from z3tcap) it would be nice to have
+        the generic set be the same as the sysop's terminal's tcap, so
+        that he/she wouldn't have to install a separate version of those
+        programs for running while BYE is active.
+
+
+remote_tcap:
+        installed by an upgraded T3SELECT, which puts the selected
+        tcap into the remote_tcap buffer, NOT the z3tcap buffer
+
+        To accomplish this, the new BYE should have a service
+        call that returns pointers to internal data structures,
+        including the remote_tcap buffer.  It can usefully
+        return ptrs to other (configurable) parameters for other
+        applications, too.
+
+        The local and remote tcap buffers should be located within the RSX.
+
+conout routine:
+        The BYE conout splits the output stream into two parallel
+        streams -- for the remote user and the local console.  The
+        code would work as follows:
+
+        1. accumulate input chars in an input state-machine
+
+        2. if input-string == a generic tcap string
+                emit local_string to local conout
+                emit remote_string to modem output device
+           else
+                emit byte to local conout
+                emit byte to modem output device
+
+        The conout routine is probably best realized as three small
+        state machines, one for input-recognition, and one for each
+        output device (local, remote).

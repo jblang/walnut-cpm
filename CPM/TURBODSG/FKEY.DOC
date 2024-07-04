@@ -1,0 +1,73 @@
+FKEY version 1.00
+A creation of ESKAY Software (S. Kluger)
+No Lefts Reversed
+
+FKEY.REL and FKEY.O are modules designed to provide function keys under
+TurboDOS.  FKEY.REL can hold a total of 255 bytes, which should
+be sufficient for most applications. FKEY.O, the 16 bit version, can
+hold 4095 bytes.
+
+INSTALLATION
+============
+
+To install FKEY on your TurboDOS system, you are must have source to your
+console driver (usually named CON96, entry point CONDR@).  Follow this
+procedure for installation:
+
+1. Add the FKEY symbol to your GEN file.
+2. Set up the function keys in your PAR file.  The following is a sample
+   8-bit PAR file (details omitted):
+
+   LEADIN = "^A"	; leadin character (never gets printed!)
+   FKEYS  = "1DIR",0D,0	; ^A1 = DIR
+            "2WHO",0D,0 ; ^A2 = WHO
+	    "QLOGOFF",0D,0 ; ^AQ = LOGOFF
+            0FF		; endmark
+   ; (you get the picture...)
+   NOTE:
+	It is your responsibility to not exceed 255 bytes!  There are
+	two overhead bytes associated with each key, the key designator
+	and the endmark.  If the total number of bytes defined at FKEYS
+	is >255, the results are disasterous and may cause your system to
+	not boot!
+	The endmark (0FFH) MUST be present in the 16-bit version!!
+	To DISABLE the fkeys, store a 0 at FKEY (PAR FILE: FKEY = 00)
+
+3. Alter your CON96 file as shown below (detail omitted):
+
+CONDR@::LD	HL,INITC		; get initialization complete flag
+	LD	A,(HL)
+	OR	A	     		; initialization complete flag set ?
+	CALL	Z,CONINIT     		; no...initialize console channel
+;
+	LD	A,E	     		; get function number
+	cp	1
+	jr	z,cinhdl
+	:
+	:
+
+cinhdl:	call	getfk##
+	call	serial##
+	jp	fkey##
+
+   If installing the 16-bit version, alter CON96.A in the same fashion.
+
+4. Re-GEN the modified SYS files reset and use the f-keys.
+
+NOTE (again):
+	Whatever character you set up to be the lead-in character will
+	NOT be returned by the console driver!  If you do not use leadin
+	as one of the f-key designators, you may hit the leadin char twice
+	to send it.
+
+LEGAL STUFF:
+FKEY.REL and FKEY.O are in the Public Domain and may be freely distributed,
+whether for profit or not.  The author does not make any claim as to fitness
+for any purpose etc and must not be held liable for any damages arising from
+the use, abuse or inability to use FKEY.
+BUGS or PRAISE should be forwarded to SENECA RTDS (214) 553-1363 (1200 baud)
+in a public or private message to SYSOP.
+
+	LD	A,(HL)
+	OR	A	     		; initialization complete flag set ?
+	CALL	Z,CONINIT     		; no...initialize 

@@ -1,0 +1,345 @@
+;-----------------------------------------------------------------------------
+;PCHAT.MAC version 1.0A		For use with PBBS v3.0 or later only.
+; 07/16/86
+;
+; This program allows the user to CHAT chat with the sysop, if the bell
+; flag in BYE is on and the Chat times are correct.  If either of these
+; two conditions prevent him from chatting, PCHAT will ask the user if he
+; wants to leave a note to the sysop, if he does, PCHAT will chain to
+; PNOTE.
+; You must set the name of your PNOTE program at the label PNOTE:.
+; You may change the NOTE question at label NOTIN:.
+; Assemble this program and place it on A0 as CHAT.COM.
+;         Requires BYE5 or NUBYE and PBBS v3.0 or later.
+;
+; The Sysop my bypass the time and BYE check by entering CHAT C
+; This was added to allow the sysop to talk to a user even though
+; the chat time was not within the limits.
+;
+; PCHAT is based on code from PBBBS and used as part of:
+;
+;		The Public Bulletin Board System
+;		Author: Russ Pencin
+;			1301 Ridgeview Drive
+;			Mail Stop 102
+;			Lewisville, Texas 75067
+;			The Dallas Connection RCPM
+;			(214) 238-1016 (300/1200/2400)
+;------------------------------------------------------------------
+;
+;--> 1.0 initial Public Release 07/15/86
+;--> 1.1 enhancements and fixes submitted by Tom Brady
+;          1) TOS defeated during CHAT mode, restored on exit.
+;          2) More accurate message before PNOTE is loaded.
+;            [accepted and added 07/16/86. RLP]
+;
+;------------------------------------------------------------------------------
+;
+;NOTE:
+;	This file MUST be linked to PBBSUBS.REL....
+;------------------------------------------------------------------------------
+	.Z80
+	ASEG
+	ORG	100H
+;
+	JP	START		;jump around the header and subs
+VER::
+	DB	1		;version
+;
+VERR::
+	DB	1		;revision
+;
+;
+	INCLUDE	PBBSHDR.MAC	;header info  (switches, etc.)
+;
+	INCLUDE	BDOSHDR.MAC	;Time and Date conversions
+;
+PNOTE:	DB	4,'NOTE',0	;Length and Name of your PNOTE program
+				;null terminated.
+NOTIN:	DB	CR,LF,LF
+	DB	'The Sysop is unavailable at this time..',CR,LF
+	DB	'Would you like to leave a private note? ',0
+;
+VERDAT:	DB	' 07/16/86',0
+;
+START:
+	LD	C,32
+	LD	E,241
+	CALL	BDOS		; See if BYE5 is active
+	CP	77
+	JP	Z,BEGIN		; Yes, proceed
+	CALL	PRINT		; Else abort
+;
+	DB	CR,LF,'BYE not available, aborting...',CR,LF,0
+	RET
+
+BEGIN:
+	LD	HL,0
+	ADD	HL,SP
+	LD	(CCPSTK),HL	; save the return address
+	LD	SP,STACK	; install our stack
+	LD	E,255
+	LD	C,81
+	CALL	BDOS		; Get MXTIME from BYE
+	LD	(MXTIME),A	; And store it
+	LD	E,0
+	LD	C,81
+	CALL	BDOS		; Set unlimited time during CHAT
+	LD	C,32
+	LD	E,0FFH
+	CALL	BDOS		; Get current user
+	LD	(OLDUSR),A	; And save it
+	LD	C,25
+	CALL	BDOS		; Get current drive
+	LD	(OLDDRV),A	; And save it
+;
+	CALL	PRINT		; print all the neat stuff
+	DB	CR,LF,'PCHAT,  '
+	DB	'Version ',0
+	LD	HL,(VER)	; l=version, h=revision
+	CALL	PVER		; print the version
+	LD	HL,VERDAT	; and the date
+	CALL	PRINTM		;
+	LD	A,(SYSDRV)	;system files are here
+	LD	E,A		;
+	LD	C,LOGDRV	;
+	CALL	BDOS		;log to the drive
+	LD	A,(SYSUSR)	;
+	LD	E,A		;
+	LD	C,LOGUSR	;log to the user area
+	CALL	BDOS		;
+;
+;
+;------------------------------------------------------------------------------
+;
+YAK:
+	LD	A,(FCB+1)
+	CP	'C'
+	JP	Z,YAKSOP
+	LD	E,255		; see if the bell is on..
+	LD	C,78
+	CALL	BDOS
+	OR	A
+	JP	Z,NOYAK		;nope..sorry charlie...
+YAK0:
+	CALL	PRINT
+	DB	CR,LF,0
+	CALL	GETTIM		; get time and convert to binary
+	LD	A,(BTIME)
+	CP	CHAT0		;is it too early?
+	JP	M,NOYAK
+	CP	CHAT1		;is it too LATE?
+	JP	P,NOYAK
+;
+;calculate the hash to insure proper state.
+;
+CALHASH:
+	LD	HL,(USRS)
+	AND	A		; clear carry flag
+	LD	DE,26		; # of ascci chars
+	LD	BC,0		; counter
+DIV:	SBC	HL,DE
+	JP	C,HASHSET	;calculate the hash for this system
+	INC	BC
+	JR	DIV
+HASHSET:
+	LD	(HASH),BC
+;
+;----------------------------------------------------------------------------
+;
+;	User is on system, and has typed CHAT.	Allow the user to leave a
+;	private note if CHAT not available and then exit back to cp/m.
+;
+MAINT:
+	LD	HL,USERS	;address the filename
+	CALL	OPEN		;open the file
+	LD	HL,USRLEN	;set the record size
+	LD	(RRSZ),HL	;
+	LD	HL,(USREC)	;reget the user record no. in hl
+	CALL	GET		;get record into buffer
+	CALL	CLOSE		;and close the file
+	LD	HL,AVAILF	; save it for callers file update
+	LD	DE,AVAIL
+	LD	BC,USRLEN
+	LDIR
+	CALL	PRINT
+	DB	CR,LF,'Hold on,  ',0
+	LD	B,30
+	LD	HL,UNAME
+	CALL	PRINTN
+	CALL	PRINT		; Print:
+	DB	'. You may use ^C or ^X to abort.'
+	DB	CR,LF,0
+	CALL	PRINT
+	DB	'        |',0
+	LD	A,ALERT		; get the value
+	LD	(LINES),A
+	LD	IY,LINES
+;
+BARS1:	CALL	PRINT		; Print bar and space
+	DB	'-',0
+	DEC	(IY)		; Done with bars?
+	JR	NZ,BARS1	; Not done, do it again
+	CALL	PRINT
+	DB	'|',CR,LF,0
+	LD	A,ALERT		; restore value
+	LD	(LINES),A	; temp counter
+;
+	CALL	PRINT
+	DB	'Ringing: ',0
+;
+;
+; Attempt to alert operator
+;
+YAK2:
+	CALL	PRINT		; Print bell, period, space
+	DB	BEL,'.',0
+	CALL	DELAY
+	DEC	(IY)		; Done with alert attempts?
+	JR	NZ,YAK2		; Not done with attempts, do more
+	JP	NOYAK
+; Delay routine to wait between beeps
+;
+DELAY:
+	LD	B,CLOCK
+;
+DELAY1:
+	LD	HL,DLAYV
+	LD	DE,1
+;
+DELAY2:
+	PUSH	HL		; Save the values, consume some time
+	PUSH	DE
+	PUSH	BC
+	LD	E,0FFH
+	LD	C,6
+	CALL	SPBDOS		; Get console status
+	OR	A		; Character ready?
+	JR	NZ,DELAY4	; Let's check it out
+;
+DELAY3:
+	POP	BC		; Restore the values
+	POP	DE
+	POP	HL
+	ADD	HL,DE
+	JR	NC,DELAY2
+	DEC	B
+	JR	NZ,DELAY1
+	RET			; Finished this time
+;.....
+DELAY5:
+	LD	SP,STACK	; fix the stack
+	JP	NOYAK
+;
+;
+DELAY4:
+	CP	'X'-040H	; User has cold feet?
+	JP	Z,DELAY5	; Yes? then go back to pbbs
+	CP	'K'-'@'		; ^K
+	JP	Z,DELAY5
+	CP	03H		; Used to using CTL-C to quit?
+	JP	Z,DELAY5	; Ok, then back to pbbs
+	CP	ESC		; Was it the right answer?
+	JR	NZ,DELAY3	; If not, keep timing
+;
+;
+; Operator is present
+;
+YAKSOP:
+	LD	SP,STACK	; Fix stack
+	CALL	PRINT
+	DB	CR,LF,LF
+	DB	'Operator is available, please go ahead...',CR,LF
+	DB	'(Use three <RETURNS> to exit)',CR,LF
+	DB	CR,LF,0
+YAK3:
+	LD	IY,LINES
+	LD	(IY),3
+YAK4:
+	CALL	PRINT
+	DB	CR,LF,0
+	LD	B,74		;input length
+	XOR	A		;allow echo
+	LD	C,A		;no caps forced
+	LD	D,1		;want word-wrap at 53rd character
+	CALL	INPUT		;get line
+	OR	A
+	JR	NZ,YAK3
+	DEC	(IY)
+	JR	NZ,YAK4
+	JP	REXIT
+NOYAK:
+	LD	HL,NOTIN	; Load nobody home message
+	CALL	PRINTM
+	CALL	GETCH
+	CALL	CAPS
+	CALL	ECHO
+	CP	'Y'
+	JP	NZ,REXIT
+	LD	A,(MXTIME)	; Get MXTIME back
+	LD	E,A
+	LD	C,81
+	CALL	BDOS		; Restore MXTIME to pre-chat status
+	CALL	PRINT
+	DB	CR,LF,'Loading NOTE...Please wait...',CR,LF,0
+	CALL	RESTR
+	LD	HL,PNOTE	;load up command pointer
+	PUSH	HL		;set up for command buffer
+	JP	CPM+30		;move command without logging into INITAR.
+;
+REXIT:
+	LD	A,(MXTIME)	; Get MXTIME back
+	LD	E,A
+	LD	C,81
+	CALL	BDOS		; Restore MXTIME to pre-chat status
+	CALL	RESTR
+	LD	HL,(CCPSTK)
+	LD	SP,HL		; Restore original stack
+	RET			; And exit
+;
+;
+; subroutine
+;
+RESTR:
+	LD	A,(OLDDRV)	;subroutine to restore the user/drv areas
+	LD	E,A
+	LD	C,LOGDRV
+	CALL	BDOS		; Restore original drive
+	LD	A,(OLDUSR)
+	LD	E,A
+	LD	C,LOGUSR
+	CALL	BDOS		; Restore original user area
+	RET
+;
+EATCHR:
+	LD	E,0FFH
+	LD	C,6
+	CALL	SPBDOS
+	OR	A
+	JR	NZ,EATCHR
+	RET
+;.....
+;
+NOMSG:	DB	'No ',CR,LF,0
+COLUMN:	DB	0		;current column counter
+CRS:	DB	0		;carriage return counter
+HSHREC:	DW	0
+HASH:	DB	0
+MXTIME:	DB	0		; temporary storage for TOS
+;
+OLDUSR:		DB	0
+OLDDRV:		DB	0
+LINES:		DB	0
+CCPSTK::	DW	0
+TMPSTK::	DW	0
+;
+	DS	128		;stack area
+STACK	EQU	$
+;
+MSG::
+	DW	0		;message entry storage starts after
+				;linked PBBSUBS.rel file
+MSGARR::
+	DW	0		;storage for message pointers
+	END
+

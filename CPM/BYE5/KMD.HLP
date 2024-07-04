@@ -1,0 +1,220 @@
+SYSOPS:  SEE SPECIAL NOTE AT END WHICH YOU MIGHT PREFER TO DELETE
+
+
+		   USING KMD TO TRANSFER FILES
+		   ---------------------------
+			   by Irv Hoff
+			  03 March 1986
+
+
+
+   There are three basic file transfer methods with KMD:
+
+	     1) requesting the RCPM system to send you a file
+	     2) telling the RCPM system you want to send it a file
+	     3) receiving an individual library member file
+
+	     KMD <ret>	shows a summary of the commands below
+
+
+1) TELLING THE RCPM TO SEND YOU A FILE:
+   ===================================
+
+	a)   KMD S HELLO.DOC
+	b)   KMD SK HELLO.DOC
+	c)   KMD SB HEL*.*
+	d)   KMD SB HE*.* SD*.* FILT7.LBR FOR*.LBR
+	e)   KMD SP SYSOP.FIL
+
+a) Method normally used for asking the RCPM to send you a file.  It will
+     find the file, tell you how long it is (so you can tell if you have
+     that much room) and tell you how long it will take.
+
+b) KMD is capable of sending (or receiving) files with 1k protocol.  It
+     can do this from an automatic request made by the IMP modem program
+     (only one currently offering this feature) or if you manually type
+     'SK'.  Programs such as MEX, Pro-YAM, etc. require this manual com-
+     mand if the user wants 1k protocol.  (If unfamiliar with this term,
+     it essentially sends blocks of 1024 bytes, rather than 128 bytes,
+     stopping 1/8 as often for an acknowledgement it was received ok.
+     This speeds up the file tranfer about 8-9% at 1200 bps and 14-15%
+     at 2400 bps.  Some of the newer modem programs have 1k protocol.)
+
+c) KMD has 'batch file transfer' capability.  This permits sending one
+     file or a number of files sequentially.  The illustration shows how
+     several files starting with the characters 'HEL' can be sent, using
+     wildcards which CP/M accepts.  Adding a 'K' to force 1k protocol
+     is of no benefit as the KMD-batch mode assumes you have 1k ability.
+
+d) Another example of sending a group of files via batch mode.	Each is
+     separated by a space, and shows how wild cards may be used for any
+     of them.  The time needed to transfer the requested files is added
+     together and you are informed to make another selection if you do
+     not have that much time left on the system.
+
+		 NOTE:	Sending even a single file via
+			batch mode is beneficial, as you
+			only need type the file name at
+			the sending end.  Even then, you
+			can use wildcards, additionally
+			simpifying the typing needed.
+
+e) The SYSOP has a private area where he can hide a file which you may
+     receive using the 'SP' command.  He would then leave you a private
+     message telling the name of the file.  Nobody else would be able to
+     get it since they would not know its name.  This offers ample se-
+     curity for the short period of time he would keep it available.
+
+
+
+2) TELLING THE RCPM SYSTEM TO RECEIVE A FILE FROM YOU:
+   ==================================================
+
+	a)   KMD R
+	b)   KMD RB
+	c)   KMD R HELLO.DOC
+	d)   KMD RC HELLO.DOC
+	e)   KMD RM MESSAGE.TXT   * not available on all systems
+	f)   KMD RP HELLO.DOC
+	g)   KMD RPC HELLO.DOC
+	h)   KMD RX HELLO.DOC
+
+
+	     NOTE:  All of these requests will cause the
+		    RCPM to tell you how much room is left
+		    on the disk where the file will be re-
+		    ceived.  Check this before you start
+		    the transfer to insure you don't get
+		    cut off when partially finished.
+
+
+a) Will receive a file or a number of files from you, using the KMD-type
+     batch mode.  Currently IMP is the only modem program which supports
+     this type of batch mode fully.  It is compatible with programs that
+     use the YMODEM protocol such as Pro-YAM and MEX-PC.
+
+b) Same as a) - either 'B' or 'RB' may be used for the KMD-batch mode.
+     (This is not compatible with the MODEM7 batch mode which has no
+     header block for sending the file name, doing this via checksum
+     with no file length information.)
+
+c) Normal method of telling the RCPM to receive a file you will send,
+     named HELLO.DOC
+
+d) Tells the RCPM you plan to send a file using checksum.  This saves
+     time - otherwise KMD waits up to 40 seconds assuming you will use
+     CRC before it switches and attempts to use checksum, instead.  Some
+     modem programs do not offer CRC for error-checking even though they
+     use XMODEM protocol.  These are invariably commercial programs.
+
+e) This is a new feature which allows you to send a file with pre-typed
+     messages to a RCPM.  It automatically goes to the private upload
+     area, so does not ask for a file description and does not appear in
+     the "FOR" file.  Any FILENAME.EXT is suitable since using the 'RM'
+     command tells KMD that this file is to be appended to the bulletin
+     board message file.  If the RCPM system does not use a BBS that has
+     this feature, you will get an error message if requesting 'RM'.
+
+f) Receives a file in the private area for the SYSOP's own use.  It will
+     not ask for a file description when finished and does not display
+     the name of the file in the "NEW" file most users check to see what
+     files have been recently obtained.
+
+g) Receives a file in the private area using checksum mode.
+
+h) When receiving a file, KMD normally tells the sender it has automatic
+     1k protocol.  IMP is currently the only modem program that can use
+     this information.	There may be times (even if using IMP) that you
+     might want to intentionally transfer with the smaller 128 character
+     blocks.  Some programs capable of sending 1k protocol assume the
+     other end already has this capability without being told.	One such
+     program (newest versions of MITE) even gets confused when KMD fur-
+     nishes this information, which can be inhibited by using 'RX'.
+
+
+3) TELLING THE RCPM SYSTEM TO SEND YOU A FILE FROM A LIBRARY:
+   =========================================================
+
+	a)   KMD L HELLO.LBR HELLO.DOC
+	b)   KMD L HELLO HELLO.DOC
+	c)   KMD LK HELLO HELLO.DOC
+
+a) Using the 'L' option will send a member file from a library.  First
+     comes the library name followed by the name of the file contained
+     in that library, that you want.
+
+b) Another example, showing the customary method - the 'L' command does
+     not require you include the '.LBR' extent since it assumes that is
+     the name of a .LBR file...
+
+c) Shows how people using programs with manual 1k protocol (such as MEX,
+     Pro-YAM, etc.) can request the file be sent using 1k protocol.  IMP
+     users do not need to add the 'K' as IMP automatically makes this
+     request.
+
+
+AFTER THIS, WHAT?
+=================
+
+After telling KMD what it should do (send you a file or receive one from
+you), it winds up its part of the operation with a line telling you to
+use several CTL-X characters to abort.
+
+That is your clue to do  what is needed to tell your own system to re-
+ceive the file (or send the one you told the RCPM to expect from you).
+
+This guide assumes you have an instruction book for your modem program,
+or some prior experience in using it.  If it is a MODEM7, COMM7, MDM7,
+SMODEM, IMP or MEX program (just to name a few that are available free)
+you would return to the command mode (with a CTL-E or ESC-E, typically)
+and then use commands almost identical to those mentioned above for KMD.
+
+Other programs, particularly those for 16-bit computers running MS-DOS
+often have menus from which the user makes the appropriate selection.
+This triggers the start of the file transfer.
+
+
+SUMMARY:
+=======
+
+You can abort a file transfer with several CTL-X characters.  This nor-
+mally works quite well in terminating both at your end and at the RCPM
+end.  If you return to the terminal mode after an intentional abort, the
+RCPM system may not have received your request.  Usually a few manually
+sent CTL-X will then abort.  In any case, the fact you are not sending
+automatic acknowledgements should cause the RCPM system to time out in
+roughly 1-1/2 minutes and return to the prompt.  Don't despair too soon
+and disconnect, planning to phone right back.  That normally is not very
+helpful.
+
+When the RCPM system sends you a file you have requested, it then waits
+for your modem program to tell it whether you have CRC or checksum and
+also accepts information regarding automatic 1k protocol capability.  It
+is only when you send a file to the RCPM that you may need to mention
+things like checksum or to suspend its automatic 1k output information.
+
+
+If this modest help guide is still insufficient, or even has whetted the
+appetite for more information, look at some of the files in the KMD-SUPP
+file.  They go into far more depth on some of these topics, in what we
+hope is a very interesting and readable manner, telling how and why some
+of these protocols were developed.
+
+(Thanks to Wayne Masters, SYSOP of Potpourri RCPM in San Jose, CA for
+suggesting a summary such as this might be helpful to some of his users
+who have not previously attempted file CP/M file transfers.)
+
+					- Irv Hoff W6FFC
+					  Los Altos Hills, CA 94022
+					  (415) 948-2166 (voice)
+
+
+NOTE TO SYSOPS:  THIS SIMPLE HELP GUIDE ON HOW TO TRANSFER FILES WITH
+		 KMD MIGHT BE PLACED ON SOME EASILY ACCESSIBLE DISK
+		 LOCATION SO YOU CAN REFER NEW USERS TO ITS CONTENTS,
+		 HOPEFULLY SAVING YOU A LOT OF TIME IN ANSWERING SUCH
+		 QUESTIONS.  YOU MAY ALSO NOT KNOW ABOUT THE PRIVATE
+		 'SP' COMMAND WHICH FOR SECURITY DOES NOT WORK WITH
+		 WILDCARDS OR BATCH MODE.
+
+

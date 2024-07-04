@@ -1,0 +1,76 @@
+  PROCEDURE getnums(VAR wrd: wrdarray; nwrds: byte; VAR nmbr: numarray; 
+                     VAR n: byte);
+{        +------------------------------------------------------------+
+         |WRITTEN FOR ZUG USE.                  PASCAL Z, version 4.0 |
+         |BY       Clif Kinne                   DATE:  12/15/82       |
+         |                                                            |
+         |PURPOSE  This procedure will convert an array of numeric    |
+         |         strings into an array of integers.  It was designed|
+         |         as an adjunct to the procedure, READCMD.           |
+         |                                                            |
+         |CALL:    Getnums(name,nargs,num,numct);   - typical         |
+         |                                                            |
+         |ACCEPTS: 1.  An array, WRD, of strings, such as the output  |
+         |             array returned by  READCMD.                    |
+         |         2.  The number, NWRDS, of non-dummy members of WRD.|
+         |                                                            |
+         |RETURNS: 1.  A new array, NMBR, of the integer values of all|
+         |             input strings which begin with a digit or a    |
+         |             minus sign.                                    |
+         |         2.  The number, N, of members of this array, NMBR. |
+         |                                                            |
+         |GLOBALS  CONST maxword  = max digits allowed in WRD[i]      |
+         |REQUIRED TYPE  wrdtype  = string maxword;                   |
+         |               wrdarray = ARRAY[1..maxargs] OF wrdtype;     |
+         |               numarray = ARRAY[1..maxargs] OF INTEGER;     |
+         |               byte     = 0..255;                           |
+         |         FUNCTION ctoi (buf: wrdtype; i: INTEGER): INTEGER; |
+         +------------------------------------------------------------+
+.pa}
+    VAR   i : byte;
+
+    FUNCTION ctoi ( buf: wrdtype; i: INTEGER ): INTEGER;
+{$R-}
+      LABEL 1;
+      VAR    ch : char;
+          sign,       { for signed number }
+            val :INTEGER;
+  
+      BEGIN {------------------------------ctoi-------------------------------}
+        val := 0;
+        sign := 1;
+        IF buf[i] = '-' THEN
+          BEGIN
+            sign := -1; i := i + 1
+          END;
+        ch := buf[i];
+        WHILE ch IN ['0'..'9'] DO
+          BEGIN                { CHECK INTEGER WILL BE WITHIN RANGE 0..MAXINT }
+            IF ( val<3276 ) OR ((val=3276) AND (ch<'8')) 
+              THEN val := val * 10 + ORD(ch) - 48  {ord('0')}
+              ELSE 
+                BEGIN
+                  val := maxint; { overflow }
+                  WRITELN(' ':5,'Numeric arguments may not exceed +/- 32767.');
+                  WRITELN;
+                  {EXIT} GOTO 1
+                END;
+            i := i + 1;
+            ch := buf[i]      {THIS CAN GIVE "OUT OF RANGE" ERRORS IF "$R-" IS}
+          END{while};         {                                        OMITTED}
+  1:    ctoi := val * sign
+  {$R+}
+      END;  {------------------------------ctoi-------------------------------}
+  
+    BEGIN {-----------------------------getnums-------------------------------}
+
+      n := 0;
+      FOR i := 1 TO nwrds DO 
+        IF wrd[i,1] IN ['-','0'..'9'] THEN 
+          BEGIN
+            n := n + 1;
+            nmbr[n] := ctoi(wrd[i],1);
+          END;
+
+    END;  {-----------------------------getnums-------------------------------}
+

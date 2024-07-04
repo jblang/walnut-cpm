@@ -1,0 +1,231 @@
+;**************************************************************************
+;***                                                                    ***
+;***                    Screen to printer DUMP                          ***
+;***          Kaypro 10 Version copyright (c) 1984 Reliable Software    ***
+;***            This program can be freely used and distributed for     ***
+;***              Non Commercial purposes                               ***
+;***       Micro Cornucopia Release 2.4    New 4 version 3/14/84        ***
+;***			            2.5    Remove hard address for      ***
+;***				           kbdin     DmC  5/7/84	***
+;***				    2.6    Fix addressing for new       ***
+;***                                       u board  (subtle bug)        ***
+;***					             DmC 5/10/84        ***
+;**************************************************************************
+; initialize patch by copying to FF10h
+
+	ASEG
+	.z80
+	org 	100h
+
+	FALSE	equ	0000
+	TRUE	equ	NOT FALSE
+
+;************************************************************************
+;*									*
+;*	Set the following equate as appropriate for your system		*
+;*									*
+;*	New Kaypro 4 - 0F600h						*
+;*	Kaypro 10    - 0EA00h						*
+;*									*
+	bios	equ	0EA00h		;BIOS base page			*
+;*									*
+;************************************************************************
+
+conin	equ	bios + 0Ah
+vidout	equ	bios + 0Ch
+prntout	equ	bios + 0Fh
+
+	ld	de,(conin)		; make sure we don't patch twice
+	ld	a,d
+	cp	0ffh
+	jr	z,allred		; jump here if program already in MEM
+
+	ld	de,0ff10h		; destination address
+	ld	hl,code			; source address
+	ld	bc,codend-0ff10h	; length of patch
+	ldir
+
+; initialize bios by changing the conin jump table entry to jump to this 
+; program first to see if screen dump desired
+
+	ld	de,(conin)
+	ld	(kbdin),de
+	ld	hl,entry		; this is our conin jump entry
+	ld	(conin),hl		; patch into bios jump table
+
+	ld	de,MSG			; tell user we are on line
+	ld	c,9			; bdos print string function
+	call	5			; calling Mr. Bdos
+	ret				; takes us back to CCP control
+
+MSG: 	db	'Screen Print On$'
+
+allred:	ld	de,ALR			; tell user already on line
+	ld	c,9			; bdos print string function
+	call	5			; call Bdos Brothers
+
+	ret				; to CCP control
+
+ALR:	db 	'Screen Print Already On$' 	
+
+
+; main body of dump code....................................................
+;
+; This program intercepts any bios CONIN call and replaces the return address
+; with a return to here. This code tests for 1Ch ( cntrl-backslash ) from the
+; keyboard and dumps the screen memory to the printer if true. Any other key
+; hit is passed to the calling program by jumping to the address originally
+; located at conin vector. Absolute addresses are used to prevent problems
+; caused if User were to run the dumpscreen installation twice...............
+  
+code	equ	$
+
+	.phase	0FF10h
+
+entry:	db	0CDh			; call op code
+kbdin:	ds	2			; get keyboard character
+	cp	00h			; if ^W will dump screen
+	ret	nz			; else will return normally
+
+;**************************************************************************
+;***    Now the actual screen dumping is done                           ***
+;***                                                                    ***
+;**************************************************************************
+
+
+	ld	c,27			; remember cursor position
+	call	vidout			;
+	ld	c,'B'			
+	call	vidout
+	ld	c,'6'
+	call	vidout
+
+main:	ld	c,27			; move cursor to 0,0 (home position) 
+	call	vidout
+	ld	c,'='
+	call	vidout
+	ld	c,32			; <---: not a fixed number
+row	equ	$-1			; this keeps track of row we are
+	call	vidout			; dumping 
+	ld	c,32
+	call	vidout
+
+; Now we find out where we are in video memory and pick up the address
+
+	ld	a,14			; select crtc register 14
+	out	(1Ch),a			; (cursor position)
+	in	a,(1Dh)			; read in cursor pos H
+	and	7			; not to exceed 800h
+	ld	h,a
+	ld	a,15			; select video register 15 (CUR pos)
+	out	(1CH),a			
+	in	a,(1Dh)			; read in cursor position to L
+	ld	l,a
+	ld	d,80			; chars/line
+	call	advid
+
+; The Kaypro model 10 and the new 4 use the 6545 intelligent video controller
+; This chip contains various control registers which can be used to set
+; cursor characteristics, to interface a light pen, and to load/unload data
+; to video memory, Thhese Kaypros comunicate with video memory via I/O ports
+; as illustrated above. Although the 6545 can address 16K of video memory
+; ( actually more in special setups ) the Kaypros use 2048 bytes for storing
+; the screen. The other 2K of video memory present on the Kaypro board is
+; used for the storage of video attributes. The Kaypro bios contains a
+; variable for storing the address of row 0, column 0. This is used to 
+; calculate all cursor postioning. This variable is incremented by 80 each
+; time the screen is scrolled one line. This technique allows wrapping
+; around the 2K of video memory rather than assigning fixed addresses to
+; every screen location.
+;
+;
+; The 6545 allows loading/unloading of video data by accessing a dummy
+; register (31). Every access of 31 causes the update address to be
+; incremented by one. The first version of this program used this feature
+; but characters were lost when the wrap at 800h occurred. ????????
+;..........................................................................
+; The next 3 instructions were commented out because the time required    :
+; to complete the loop is sufficient to insure that the 6845 status will  :
+; indicate ready. When using quicker loops ( such as saving the screen to :
+; memory) the staus register must be polled                               :
+; This version actually uncomments these lines                            :
+;..........................................................................
+
+l1:	in	a,(1Ch)			; get status
+	or	a			; ready if bit 7 high
+	jp	p,l1
+
+l2:	in	a,(1Fh)			; attempt a read
+	cp	20h			; everthing in video memory should 
+	jp	m,l2			; be greater than 20h
+	ld	c,a
+	CALL	print			; this routine dumps one char to  
+					; the printer
+	inc	hl			; bump video address counter
+	ld	a,8			; check for wrap at 800h
+	cp	h
+	jp	nz,nowrap		; not yet:: jump over next two inst. 
+
+	ld	hl,00			; start over at 0
+	call	advid			; set 0 as new address
+
+nowrap:	dec	d			; now check to see if we got
+	jr	z,lindon		; all characters on the line
+					; if so we will do a carriage return
+					; line feed
+	jp	l1			; else get next character
+
+lindon:	call	CRLF			; done with line
+	ld	d,80			; char count for next line
+	ld	a,(row)			; update row count
+	inc	a
+	ld	(row),a
+	cp	57			; last row (rows begin at 32) 
+	jp	nz,main			; nope do more
+
+done:	call	CRLF			;linefeed to flush buffer
+	call	prntout
+	ld	c,27
+	call	vidout
+	ld	c,'C'
+	call 	vidout
+	ld	c,'6'
+	call	vidout
+	ld	a,32
+	ld	(row),a			;re initialize (row) for next dump
+	jp	entry			;return for next char
+
+
+CRLF:	ld	c,0dh			;routine to output newline
+	call	print
+	ld	c,0ah
+	call	print
+	ret
+
+print:	push	af			; routine to put char to LST: device
+	push	bc
+	push	de
+	push	hl
+	call	prntout
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ret
+
+advid:	ld	a,18			; routine to give address in hl
+					; to Video controller
+	out	(1Ch),a
+	ld	a,h
+	out	(1Dh),a
+	ld	a,19
+	out	(1Ch),a
+	ld	a,l
+	out	(1Dh),a
+	ld	a,31
+	out	(1Ch),a
+	ret
+	nop
+codend	equ	$
+	end
+

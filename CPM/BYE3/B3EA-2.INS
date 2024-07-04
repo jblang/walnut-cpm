@@ -1,0 +1,148 @@
+
+; B3EA-2.INS - Eagle II and Eagle III insert for BYE3 - 07/30/85
+;
+;		   Z80 SIO and CTC 8340 timer
+;
+; Note:  This is an insert, not an overlay.
+;
+; This version is for the Eagle II and III computers using channel "A"
+; Z80 SIO.  The Z80-CTC is used as the baud rate generator.
+;
+;
+; NOTE:  The Eagle does not support DTR on pin 20 or DCD on pin 8, so
+;	 be sure you wire the modem cable like this:
+;
+;		      modem     Eagle       
+;			
+;		   TXD 	 2  -->  3  RXD
+;		   RXD	 3  <--	 2  TXD
+;		   GND	 7  ---	 7  GND
+;		   DCD	 8  -->  5  CTS
+;		   DTR	20  <--	 4  RTS
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Note: For Port A, Data = 18H, CTC = 01H, Port B, Data = 1AH, CTC = 02H
+;
+DPORT	EQU	18H		; Data port
+SPORT	EQU	DPORT+1		; Status/control port
+BRPORT	EQU	01H		; Baud rate port
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00000100B	; Transmit buffer empty
+DCD	EQU	00100000B	; Data carrier detect
+;
+BD300	EQU	47D0H		; 62400/300  (first half is CTC command)
+BD1200	EQU	4734H		; 62400/1200
+BD2400	EQU	471AH		; 62400/2400
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	SPORT
+	IN	SPORT		; Get status
+	ANI	DCD		; Check for data carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	SPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	SPORT
+	MVI	A,84H		;*1 stop, 8 bits, no parity, 32x
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Clear RTS causing hangup
+	OUT	SPORT
+;
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 seconds delay to drop any carrier
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+;
+	MVI	A,3		; Setup to write register 3
+	OUT	SPORT
+	MVI	A,0C1H		; Initialize receive register
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0EAH		; Turn on RTS so modem can answer phone
+	OUT	SPORT
+;
+	 IF	IMODEM		; If using intelligent modem
+	CALL	IMINIT		; Go initialize
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Check receive ready bit
+	RZ			; Return if none
+	ORI	255		; Otherwise, set the proper flag
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT		; Check transmit ready bit
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Clear RTS causing shutdown
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	LXI	H,BD300		; Get 300 bps parameters in 'HL'
+	JMP	LOADBD		; Go load them
+;
+SET1200:LXI	H,BD1200
+	JMP	LOADBD
+;
+SET2400:LXI	H,BD2400
+;
+LOADBD:	MOV	A,H		; CTC command word
+	STA	BRPORT
+	MOV	A,L		; Baudrate
+	STA	BRPORT
+	XRA	A
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

@@ -1,0 +1,1259 @@
+; DIRPAT v3.40 Copyright S. Kluger - ESKAY SOFTWARE
+; All Rights Reserved
+;
+; A TurboDOS directory dump/patch utility
+;
+.z80
+.request timedif
+.request syslib			;use SYSLIB3 to assemble/link
+;
+cr	equ	0dh
+lf	equ	0ah
+dfcb	equ	5ch
+dbuf	equ	80h		;default dma
+;
+curdk	equ	25		;return current disk
+rrand	equ	33		;read random
+wrand	equ	34		;write random
+fsize	equ	35		;compute filesize
+gtime	equ	105		;get time
+parse	equ	152		;parse filename
+;
+tdos	equ	50h		;TD system call entry point
+stabo	equ	8		;set abort address
+fxmap	equ	11		;fix disk map
+vers	equ	12		;version number
+flush	equ	26		;flush disk buffers
+lockd	equ	25		;lock drive function
+fxdir	equ	42		;fix directory
+;
+; SYSLIB equates
+;
+	extrn	f$open,f$close,scanner
+	extrn	print,cin,cout,phl4hc,eval16,eval10
+	extrn	bbline,crlf,bdos,phlfdc,comphd,pa2hc
+	extrn	fname,capin,pstr,condin,initfcb
+;
+	cseg
+;
+begin:	jr	..strt
+;
+cls:	db	1bh,'E',0,0,0,0		; clear screen
+curpos:	db	1bh,'F',0,0,0,0		; cursor pos
+xory:	db	0			; 0=xy, nz=yx
+coffs:	db	32			; cursor offset
+timeon:	db	0ffh			; time on/off flag
+wyse:	db	0			; delay flag
+;
+..strt:	ld	sp,stack
+	ld	c,stabo
+	ld	de,abort
+	call	tdos
+	ld	c,gtime			; get time
+	ld	de,datim
+	call	bdos
+	call	atoh
+	ld	(sttime+6),hl
+	ld	a,(mmm)
+	call	atoh
+	ld	(sttime+3),hl
+	ld	a,(hhh)
+	call	atoh
+	ld	(sttime),hl
+	ld	a,(5ch)
+	ld	(dirfcb),a	; set drive
+	or	a
+	jr	nz,.ncd.
+	ld	c,25
+	call	bdos
+	inc	a
+.ncd.:	add	a,40h
+	ld	(cdrv),a
+	ld	(cdrv1),a
+rstrt:	call	clrscr
+	call	print
+	db	9,9,'+------------------------------------+',cr,lf
+	db	9,9,'| DIRPAT ver 3.40 01/23/86 (c) ESKAY |',cr,lf
+	db	9,9,'|  TurboDOS directory patch utility  |',cr,lf
+	db	9,9,'+------------------------------------+',cr,lf,lf,0
+	xor	a
+	ld	(frsttm),a
+	ld	(wrtn),a
+	ld	(hash),a
+	ld	(force),a
+	ld	(dfcb),a
+	ld	l,a
+	ld	h,a
+	ld	(curs),hl
+	ld	c,vers
+	call	tdos		;get version number
+	ld	a,c
+	cp	13h
+	call	z,unrel
+	bit	7,b
+	jp	z,noprv		;not privileged
+	call	print
+	db	'Do you wish to lock drive '
+cdrv:	db	'A: (Y/N) ? [ ]',8,8,0
+	ld	a,1
+	call	bbline
+	call	crlf
+	ld	a,(hl)
+	cp	'Y'
+	ld	a,0
+	jr	nz,nolock
+	ld	c,curdk
+	call	bdos
+	ld	e,a
+	ld	(curd),a
+	ld	d,-1
+	ld	c,lockd
+	call	tdos		;lock this drive
+	or	a
+	jp	nz,busy
+	ld	a,0ffh
+nolock:	ld	(locked),a
+	ld	de,dirfcb	;open directory file
+	call	f$open
+	or	a
+	jp	nz,direrr
+	ld	c,fsize
+	call	bdos
+	ld	hl,(rec)
+	ld	(tots),hl
+	call	fillbf
+	ld	a,(dbuf+12)
+	ld	(hash),a
+	ld	bc,12*256+18
+	call	gotoxy
+	call	print
+	'Press RETURN to display directory and begin',0
+;
+; This is the main command loop
+;
+cloop:	ld	hl,(curs)	;get current sector
+	ld	(rec),hl	;stash it away
+	ld	a,(frsttm)
+	or	a
+	ld	a,1
+	ld	(frsttm),a
+	ld	(dcall),a
+	call	nz,dsply
+	xor	a
+	ld	(dcall),a
+	ld	bc,16*256+20
+	call	gotoxy
+	call	print
+	db	'Command (or ? for help) [ ]',8,8,0
+.gtcc.:	ld	bc,16*256+45
+	call	gotoxy
+	call	condin			; see if input
+	jr	nz,.gotc.		; yes, process it
+	call	putt
+	jr	.gtcc.
+;
+.gotc.:	cp	'a'
+	jr	c,.nlcs.
+	and	5fh
+.nlcs.:	call	cout
+	ld	hl,fcntbl
+	ld	b,nmbfcn
+.slfcn:	cp	(hl)
+	inc	hl
+	jr	z,.gofcn
+	inc	hl
+	inc	hl
+	djnz	.slfcn
+	cp	cr
+	ld	a,7
+	call	nz,cout
+	jp	cloop
+;
+.gofcn:	ld	a,(hl)
+	inc	hl
+	ld	h,(hl)
+	ld	l,a
+	jp	(hl)
+;
+fcntbl:	db	'>'
+	dw	nxtact
+	db	'!'
+	dw	home
+	db	'?'
+	dw	help
+	db	'Q'
+	dw	quit
+	db	'+'
+	dw	advanc
+	db	'='
+	dw	advanc
+	db	'-'
+	dw	decrem
+	db	'A'
+	dw	again
+	db	'D'
+	dw	drives
+	db	'R'
+	dw	fillb
+	db	'W'
+	dw	purgbf
+	db	'G'
+	dw	goto
+	db	'H'
+	dw	dohash
+	db	'F'
+	dw	find
+	db	'L'
+	dw	fasc
+	db	'E'
+	dw	erasef
+	db	'U'
+	dw	unera
+	db	'S'
+	dw	edit
+	db	'X'
+	dw	hextgl
+nmbfcn	equ	($-fcntbl)/3
+;
+find:	ld	bc,16*256+20
+	call	gotoxy
+	call	print
+	db	'   Enter hex to be found, RET to stop',cr,lf,0
+	ld	de,tmpbf
+	ld	b,0
+fhl:	call	print
+	db	cr,lf,'Hex : ',0
+	ld	a,1
+	call	bbline
+	or	a
+	jr	z,fhd
+	push	de
+	call	eval16
+	ld	a,e
+	pop	de
+	ld	(de),a
+	inc	de
+	inc	b
+	jr	fhl
+;
+fhd:	ld	a,b
+	or	a
+	jp	z,cloop
+	ld	(vecl),a
+	ld	hl,tmpbf
+	ld	(vect),hl
+	jr	fntry
+;
+fasc:	ld	bc,16*256+20
+	call	gotoxy
+	call	print
+	db	'     Enter filename to be found : ',0
+	ld	a,1
+	call	bbline
+	or	a
+	jp	z,cloop
+	cp	16
+	jr	nc,fasc
+	ld	de,dfcb		; parse filename
+	call	fname
+	jr	z,fasc
+	ld	a,c		; get user number flag
+	cp	0ffh		
+	ld	a,'?'		; preload false
+	jr	z,..fau.	; skip if no user number
+	ld	a,c		; else get user #
+..fau.:	ld	(de),a		; and store in fcb
+	ld	hl,previ
+	push	de
+	ld	bc,12
+	ex	de,hl
+	ldir
+	pop	de
+..fa:	ld	(vect),de
+	ld	a,12		; file name is 12 chars
+	ld	(vecl),a
+	ld	hl,(curs)
+	ld	(temp),hl
+	xor	a
+fntry:	ld	(ascis),a
+floop:	call	fillbf
+nofas:	ld	a,(vecl)
+	ld	c,a
+	ld	hl,dbuf
+	ld	de,(vect)
+	ld	b,127
+	call	scan
+	jr	z,found
+	ld	hl,(curs)	;get current sector
+	inc	hl		;advance to next
+	ld	de,(tots)	;get total sectors
+	call	comphd		;check if we're at the end
+	jr	z,notfd		;not found.
+	ld	(curs),hl
+	jr	floop
+;
+found:	ld	a,l
+	and	7fh
+	ld	(fbyt),a
+	ld	a,1
+	ld	(loctd),a
+	ld	hl,(curs)
+	jp	fillb
+;
+notfd:	call	print
+	db	cr,lf,lf
+	db	9,9,'*** end of file ***',cr,lf,7,0
+	call	delay
+	ld	hl,(temp)
+	ld	(curs),hl
+	call	fillbf
+	jp	cloop
+;
+scan:	ld	a,(ascis)
+	or	a
+	jp	nz,scanner
+	ld	hl,dbuf
+..sl1:	res	7,(hl)
+	inc	l
+	jr	nz,..sl1
+	ld	hl,dbuf
+	ld	de,20h
+	ld	bc,5ch
+..sm1:	push	hl
+	push	bc
+..sm2:	ld	a,(bc)
+	cp	'?'
+	jr	z,..smw
+	cp	(hl)
+	jr	nz,..smn
+..smw:	inc	hl
+	inc	bc
+	ld	a,68h
+	cp	c
+	jr	nz,..sm2
+	pop	bc
+	pop	hl
+	ret
+;
+..smn:	pop	bc
+	pop	hl
+	add	hl,de
+	ld	a,l
+	or	a
+	jr	nz,..sm1
+	inc	a
+	ret
+;
+home:	ld	de,0
+	jp	secok
+;
+hextgl:	ld	a,(hexfl)
+	cpl
+	ld	(hexfl),a
+	jp	cloop
+;
+; go to specified sector
+;
+goto:	ld	bc,23*256+0
+	call	gotoxy
+	call	print
+	db	'Enter sector number to jump to (in decimal) : ',0
+	call	bbline
+	or	a
+	jp	z,cloop
+	ld	bc,20*256+0
+	call	cleol
+	ld	bc,23*256+0
+	call	cleol
+	call	eval10
+	ld	hl,(tots)
+	dec	hl
+	call	comphd
+	jr	nc,secok
+	ld	bc,20*256+27
+	call	gotoxy
+	call	print
+	db	'Sector number out of range',7,0
+	jr	goto
+;
+secok:	dec	de
+	ld	(curs),de
+	jp	advanc
+;
+; display current sector
+;
+dsply:	ld	a,1
+	ld	(dison),a
+	call	clrscr
+	call	print
+	9,'Sec [',0
+	ld	hl,(curs)
+	call	prthl
+	call	print
+	']     Hash=O',0
+	ld	a,(hash)
+	or	a
+	jr	nz,..hs.
+	call	print
+	'FF',0
+	jr	..hx.
+;
+..hs.:	call	print
+	'N',0
+..hx.:	call	print
+	'     Size ',0
+	ld	hl,(tots)
+	call	prthl
+	call	print
+	' sectors    ',0
+	ld	a,(wrtn)
+	or	a
+	ld	a,' '
+	jr	z,..nwr.
+	ld	a,'W'
+..nwr.:	call	cout
+	ld	a,(locked)
+	or	a
+	ld	a,' '
+	jr	z,..nlk.
+	ld	a,'L'
+..nlk.:	call	cout
+	call	print
+	db	' '
+cdrv1:	db	'A:',0
+	ld	hl,loctd
+	ld	a,(hl)
+	ld	(hl),0
+	or	a
+	jr	z,..nlcd
+	call	print
+	'    Found: byte ',0
+	ld	a,(fbyt)
+	call	pa2hc
+	push	af
+	and	0fh
+	ld	b,a
+	pop	af
+	and	0f0h
+	rra
+	rra
+	rra
+	rra
+	add	a,3
+	ld	h,a
+	ld	c,3
+	ld	a,-3
+.clh..:	add	a,c
+	dec	b
+	jp	p,.clh..
+	add	a,6
+	ld	l,a
+	ld	(editpt),hl
+	ld	a,1
+	ld	(dcall),a
+	call	..nlcd
+	xor	a
+	ld	(dcall),a
+	jp	edlp
+
+;
+..nlcd:	ld	hl,dbuf		;hl=buffer pointer
+	call	print
+	db	cr,lf
+	db	'ADDR  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F'
+	db	'  0123456789ABCDEF',cr,lf,0
+lp10:	call	crlf
+	push	hl
+	res	7,l		;reset bit for display
+	call	phl4hc		;print address
+	pop	hl
+	call	spc
+	call	spc
+	push	hl		;save for ascii display
+lpln:	ld	a,(hl)
+	call	pa2hc
+	call	spc
+	inc	l
+	ld	a,l
+	and	0fh		;done this line?
+	jr	nz,lpln
+	call	spc
+	pop	hl		;back for ascii
+asclp:	ld	a,(hl)
+	and	7fh
+	cp	7fh
+	jr	z,noprc
+	cp	' '
+	jr	nc,prasc
+noprc:	ld	a,'.'
+prasc:	call	cout
+	inc	l
+	jr	z,ddone
+	ld	a,l
+	and	0fh
+	jr	z,lp10
+	jr	asclp
+;	
+spc:	ld	a,' '
+	jp	cout
+;
+ddone:	call	crlf
+	ld	a,(dcall)
+	or	a
+	ret	nz
+	jp	cloop
+;
+decrem:	ld	hl,(curs)	;get current sector
+	ld	a,h
+	or	l
+	dec	hl
+	jr	nz,nonda	;skip if not at start
+	ld	hl,(tots)	;get total sectors
+	dec	hl		;minus 1 (0..end)
+	jr	nonda
+;
+advanc:	ld	hl,(curs)	;get current sector
+	inc	hl		;advance to next
+	ld	de,(tots)	;get total sectors
+	call	comphd		;check if we're at the end
+	jr	nz,nonda	;skip if not at end
+.wrp..:	ld	hl,0		;go to start (wrap around)
+nonda:	ld	(curs),hl	;save new sector
+fillb:	call	fillbf
+	jp	cloop
+;
+; got to next active dir sector
+;
+nxtact:	ld	hl,(curs)
+	inc	hl
+	ld	de,(tots)
+	call	comphd
+	jr	z,.wrp..
+	ld	(curs),hl
+	call	fillbf		;get buffer
+	ld	hl,80h
+	ld	de,20h
+	ld	b,4
+..nx..:	ld	a,(hl)
+	cp	0e5h
+	jr	nz,fillb
+	add	hl,de
+	djnz	..nx..
+	jr	nxtact
+;
+fillbf:	ld	hl,(curs)
+	ld	(rec),hl
+	ld	c,rrand
+rdwr:	ld	de,dirfcb
+	call	bdos
+	or	a
+	ret	z
+	call	print
+	db	cr,lf,lf,7
+	db	'Read/write error code ',0
+	call	pa2hc
+	call	print
+	db	'.',cr,lf,'Ignoring error.',cr,lf,0
+	jp	delay
+;
+purgbf:	ld	a,(locked)
+	or	a
+	jr	nz,purg1
+	ld	bc,23*256+10
+	call	gotoxy
+	call	print
+	db	7,'WARNING - DRIVE NOT LOCKED - PROCEED (Y/N) ? ',0
+	ld	a,1
+	call	bbline
+	ld	bc,23*256+0
+	call	cleol
+	ld	a,(hl)
+	cp	'Y'
+	jr	z,purg1
+	jp	cloop
+;
+purg1:	ld	hl,(curs)
+	ld	(rec),hl
+	ld	c,wrand
+	call	rdwr
+	ld	a,1
+	ld	(wrtn),a
+	jp	cloop
+;
+dohash:	ld	hl,0
+	ld	(curs),hl
+	call	fillbf
+	ld	bc,23*256+10
+	call	gotoxy
+	call	print
+	db	'Hash directory after exiting (Y=YES) ? ',0
+	ld	a,1
+	ld	(force),a
+	call	bbline
+	ld	bc,23*256+0
+	call	cleol
+	ld	a,(hl)
+	cp	'Y'
+	ld	a,80h
+	jr	z,yhash
+	xor	a
+yhash:	ld	(dbuf+0ch),a
+	ld	(hash),a
+	jp	purgbf
+;
+; delete all directory entries of a file
+; (unless already deleted)
+; report count
+;
+erasef:	call	print
+	db	cr,lf,lf
+	db	'Enter filename (no user # = all entries,',cr,lf
+	db	'else only entries in that user) RET=quit : ',0
+	ld	a,0e5h
+	ld	(eracmd),a
+	ld	a,1
+	call	bbline
+	or	a
+	jp	z,cloop
+	ld	(pfcb),hl		;save hl
+	ld	hl,sfcb
+	ld	(pfcb+2),hl
+	ld	c,parse
+	ld	de,pfcb
+	call	bdos
+	ld	a,(sfcb+15)
+	or	a
+	jr	z,nofu
+	ld	a,(sfcb+13)
+	inc	a
+nofu:	dec	a
+	ld	(sfcb),a
+	inc	a
+	jp	nz,noall
+	call	print
+	db	cr,lf
+	db	'WARNING - you are about to delete ALL those',cr,lf
+	db	'directory entries. Say "NO" to change your mind : ',0
+	ld	a,1
+	call	bbline
+	ld	a,(hl)
+	cp	'N'
+	jp	z,cloop
+noall:	ld	hl,0
+	ld	(curs),hl		;set current sector to 0
+erasl:	call	fillbf			;get buffer
+	ld	ix,dbuf			;ix=pointer to buffer
+	ld	de,32			;de=increment count
+	ld	c,4			;c=field counter
+	xor	a
+	ld	(noche),a		;set no change erase flag
+erasl1:	ld	hl,sfcb			;hl=fcb ptr
+	ld	b,12			;b=byte counter
+	push	ix			;move ix...
+	pop	iy			;...to iy
+	ld	a,(hl)
+	inc	a
+	jr	nz,erasl2
+	inc	ix
+	inc	hl
+	dec	b
+erasl2:	ld	a,'?'
+	cp	(hl)
+	jr	z,..qmk
+	ld	a,(ix+0)
+	and	7fh
+	cp	(hl)
+	jr	nz,eranxt
+..qmk:	inc	ix
+	inc	hl
+	djnz	erasl2
+	ld	a,(eracmd)		; get erase/unerase byte
+	ld	(iy+0),a
+	ld	a,0ffh
+	ld	(noche),a
+eranxt:	dec	c
+	jr	z,eradun
+	push	iy
+	pop	ix
+	add	ix,de
+	jr	erasl1
+;
+eradun:	ld	hl,(curs)
+	ld	(rec),hl
+	ld	c,wrand
+	ld	a,(noche)
+	or	a
+	jr	z,nowrt
+	ld	(dcall),a
+	call	dsply
+	ld	a,(eracmd)
+	cp	0e5h
+	jr	z,..due
+	call	print
+	cr,lf
+	'UN-DELETE FILE(S) above? ',0
+	ld	a,1
+	call	bbline
+	or	a
+	jr	z,nowrt
+	ld	a,(hl)
+	cp	'Y'
+	jr	nz,nowrt
+..due:	xor	a
+	ld	(dcall),a
+	call	rdwr
+nowrt:	ld	a,1
+	ld	(wrtn),a
+	ld	hl,(curs)	;get current sector
+	inc	hl		;advance to next
+	ld	(curs),hl
+	ld	de,(tots)	;get total sectors
+	call	comphd		;check if we're at the end
+	jp	z,cloop
+	jp	erasl
+;
+unera:	ld	c,32
+	ld	e,0ffh
+	call	bdos
+	ld	(eracmd),a	; current user #
+	ld	a,(locked)
+	or	a
+	jr	nz,..unel
+	call	print
+	cr,lf,lf,7
+	'WARNING: drive is not locked - proceed anyway? ',0
+	ld	a,1
+	call	bbline
+	or	a
+	jp	z,cloop
+	ld	a,(hl)
+	cp	'Y'
+	jp	nz,cloop
+..unel:	call	print
+	cr,lf,lf
+	'File will be undeleted to current user area. NOTE that multiple',cr,lf
+	'occurrences of the same filename can ALSO be unerased causing',cr,lf
+	'garbled information.',cr,lf
+	'Enter name of file to be undeleted (RET=quit) : ',0
+	ld	a,1
+	call	bbline
+	or	a
+	jp	z,cloop
+	ld	(pfcb),hl
+	ld	hl,sfcb
+	ld	(pfcb+2),hl
+	ld	c,parse
+	ld	de,pfcb
+	call	bdos
+	ld	hl,sfcb
+	ld	(hl),65h		; E5 and 7F
+	inc	hl
+	ld	a,'?'
+	ld	b,11
+..xxx:	cp	(hl)
+	jp	nz,noall
+	inc	hl
+	djnz	..xxx
+	call	print
+	cr,lf,7
+	'ERROR: cannot undelete *.*!',cr,lf,0
+	call	delay
+	jp	cloop
+;
+help:	call	clrscr
+	call	print
+	db	cr,lf
+	db	'DIRPAT COMMANDS (single commands only, no stacking) :'
+	db	cr,lf,lf
+	db	'!  =  HOME (go to sector 0)',cr,lf
+	db	'?  =  this message',cr,lf
+	db	'D  =  change logged drive',cr,lf
+	db	'E  =  delete (Erase) all entries of one file',cr,lf
+	db	'F  =  find hex data in directory',cr,lf
+	db	'G  =  goto record (prompting for decimal number)',cr,lf
+	db	'H  =  set hashed status (effective after exit)',cr,lf
+	db	'L  =  locate a file name',cr,lf
+	db	'Q  =  quit to TurboDOS',cr,lf
+	db	'R  =  re-read current record and display',cr,lf
+	db	'S  =  substitute onscreen (hex/ASCII edit)',cr,lf
+	db	'U  =  UNDELETE a deleted file',cr,lf
+	db	'W  =  write current record',cr,lf
+	db	'X  =  toggle hex/decimal sector DISPLAY',cr,lf
+	db	'+  =  advance pointer to next record and display',cr,lf
+	db	'-  =  move pointer to previous record and display',cr,lf,lf
+	db	'Use this program with extreme caution!',cr,lf,lf
+	db	'----> press any key to continue <----',0
+	call	cin
+	call	clrscr
+	jp	cloop
+;
+prthl:	ld	a,(hexfl)
+	or	a
+	jp	z,phl4hc
+	jp	phlfdc
+;
+busy:	call	print
+	db	cr,lf,lf,7
+	db	'ERROR - cannot lock drive. Cause all other users to',cr,lf
+	db	'log off and try again',cr,lf,0
+	rst	0
+;
+direrr:	call	print
+	db	cr,lf,lf,lf
+	db	'FATAL ERROR - $.DIR NOT FOUND.',cr,lf
+	db	'Are you not running under TurboDOS?',cr,lf,lf,0
+quit:	ld	de,dirfcb
+	call	f$close
+	ld	a,(wrtn)
+	or	a
+	jr	nz,fixit
+	jp	noth
+;
+fixit:	ld	a,(locked)
+	or	a
+	jr	nz,fixok
+	call	print
+	db	cr,lf,lf
+	db	9,'WARNING - UNABLE TO FIX UNLOCKED DRIVE',cr,lf
+	db	9,'YOU MUST RUN FIXMAP AND FIXDIR MANUALLY',7,cr,lf,lf,0
+	jp	noth
+;
+fixok:	call	print
+	db	cr,lf
+	db	'Now rebuilding disk map - stand by',0
+	ld	a,(curd)	;get current disk
+	ld	e,a
+	ld	c,fxmap
+	call	tdos
+	or	a
+	jp	nz,nofm		;error...
+	ld	a,(force)
+	or	a
+	jr	nz,forcef
+	ld	a,(hash)
+	or	a
+	jr	z,noth
+forcef:	call	print
+	db	cr,lf
+	db	'Now reorganizing directory - DO NOT ABORT',cr,lf,lf,0
+	ld	a,(curd)
+	ld	e,a
+	ld	c,fxdir
+	call	tdos
+	or	a
+	jp	nz,nofd
+noth:	call	print
+	db	cr,lf,lf
+	9,9,'   Time spent in DIRPAT: ',0
+	ld	c,gtime
+	ld	de,datim
+	call	bdos
+	call	atoh
+	ld	(entime+6),hl
+	ld	a,(mmm)
+	call	atoh
+	ld	(entime+3),hl
+	ld	a,(hhh)
+	call	atoh
+	ld	(entime),hl
+	call	timdif##
+	ld	hl,elaptm
+	call	pstr
+	call	print
+	cr,lf,lf
+	9,'     Thanks for using DIRPAT, an ESKAY product',cr,lf,lf,0
+	ld	c,lockd		;unlock drive
+	ld	d,0
+	ld	a,(curd)
+	ld	e,a
+	call	tdos
+	ld	c,flush		;flush buffers
+	ld	a,(curd)
+	ld	e,a
+	ld	d,80h
+	call	tdos
+	rst	0
+;
+nofd:	call	print
+	db	cr,lf,lf,7
+	db	'ERROR - cannot reorganize directory, aborting',cr,lf,0
+	rst	0
+;
+nofm:	call	print
+	db	cr,lf,lf,7
+	db	'ERROR - cannot fix disk map, aborting.',cr,lf,0
+	rst	0
+;
+noprv:	call	print
+	db	cr,lf,lf,7
+	db	'Not authorized to use DIRPAT',cr,lf,0
+	rst	0
+;
+unrel:	push	psw
+	call	print
+	db	cr,lf,7
+	db	'NOTE: Operation under TurboDOS 1.3 has not been fully',cr,lf
+	db	'tested. Directory size is reported as 0 and system may',cr,lf
+	db	'crash on exit. Proceed at your own risk.',cr,lf,lf,0
+	pop	psw
+abort:	ret
+;
+delay:	push	bc
+	ld	a,10
+	ld	bc,0
+....d.:	dec	c
+	push	hl
+	pop	hl
+	jr	nz,....d.
+	djnz	....d.
+	dec	a
+	jr	nz,....d.
+	pop	bc
+	ret
+;
+delay1:	ld	a,(wyse)
+	or	a
+	ret	z
+	push	bc
+	ld	bc,1000
+...d1.:	dec	c
+	jr	nz,...d1.
+	djnz	...d1.
+	pop	bc
+	ret
+;
+; a to h
+;
+atoh:	push	af
+	ld	hl,3030h
+	and	0fh
+	or	h
+	ld	h,a
+	pop	af
+	and	0f0h
+	rra
+	rra
+	rra
+	rra
+	or	l
+	ld	l,a
+	ret
+;
+ahlo:	call	atoh
+	ld	a,l
+	call	cout
+	ld	a,h
+	jp	cout
+;
+; edit command
+;
+edit:	ld	a,(dison)
+	dec	a
+	jr	z,.eact.
+	ld	a,7
+	call	cout
+	jp	cloop
+;
+.eact.:	ld	bc,3*256+6		; beginning of field
+	ld	(editpt),bc
+edlp:	ld	bc,(editpt)
+	call	gotoxy
+	xor	a
+	ld	(frsttm),a
+	call	condin
+	jr	nz,.char.
+	call	putt
+	jr	edlp
+;
+.char.:	cp	'a'
+	jr	c,..nl..
+	and	5fh
+..nl..:	cp	3			; exit
+	jp	z,cloop
+	cp	'E'-40h			; ^E = up
+	jr	z,.edup.
+	cp	'X'-40h			; ^X = down
+	jr	z,.eddn.
+	cp	'S'-40h			; ^S = left
+	jr	z,.edlf.
+	cp	'D'-40h			; ^D = right
+	jr	z,.edrt.
+	cp	27h			; check '
+	jp	z,.edasc		; edit ascii
+	call	nybble			; see if nybble
+	jp	nc,.edda.		; it is, edit data
+	ld	a,7
+	call	cout
+	jr	edlp
+;
+.edup.:	ld	a,(editpt+1)		; get row
+	dec	a
+	cp	2
+	jr	nz,.esnt.
+	ld	a,10			; set bottom
+.esnt.:	ld	(editpt+1),a
+	jr	edlp
+;
+.eddn.:	ld	a,(editpt+1)
+	inc	a
+	cp	11
+	jr	nz,.esnt.
+	ld	a,3
+	jr	.esnt.
+;
+.edlf.:	ld	a,(editpt)
+	sub	3
+	cp	3
+	jr	nz,.eslt.
+	ld	a,51
+	ld	(editpt),a
+	jr	.edup.
+;
+.eslt.:	ld	(editpt),a
+	jp	edlp
+;
+.edrt.:	ld	a,(editpt)
+	add	a,3
+	cp	54
+	jr	nz,.eslt.
+	ld	a,6
+	ld	(editpt),a
+	jr	.eddn.
+;
+.edasc:	call	cin			; get ascii character
+	call	pa2hc
+	jr	..asci
+;
+.edda.:	call	hexo			; display high nybble
+	cp	'A'
+	jr	c,...x
+	sub	7
+...x:	and	0fh
+	rla
+	rla
+	rla
+	rla
+	ld	b,a			; save it
+.ede..:	call	capin
+	call	nybble
+	jr	c,.ede..
+	call	hexo
+	cp	'A'
+	jr	c,...y
+	sub	7
+...y:	and	0fh
+	or	b			; a has byte now
+..asci:	push	af
+	call	calcbp			; calculate buffer pointer
+	pop	af
+	ld	(hl),a
+	ld	a,l
+	and	0fh
+	add	a,55
+	ld	bc,(editpt)
+	ld	c,a
+	call	gotoxy
+	ld	a,(hl)
+	and	7fh
+	cp	7fh
+	jr	z,.ed...
+	cp	' '
+	jr	nc,.edn..
+	cp	7fh
+.ed...:	ld	a,'.'
+.edn..:	call	cout
+	jp	.edrt.			; go to next hex on same line
+;
+; calculate buffer from screen address
+;
+calcbp:	ld	hl,(editpt)
+	ld	a,l			; get column
+	ld	b,0
+	sub	6
+.div3.:	inc	b
+	sub	3
+	jr	nc,.div3.
+	ld	l,b
+	ld	a,h
+	ld	h,0
+	sub	3
+	rla
+	rla
+	rla
+	rla
+	add	a,7fh
+	add	a,l
+	ld	l,a
+	ret
+;
+; test a if valid nybble
+;
+nybble:	cp	'0'
+	ret	c
+	cp	'F'+1
+	ccf
+	ret	c
+	cp	'9'+1
+	ccf
+	ret	nc
+	sub	7
+	cp	'9'+1
+	ret
+;
+; hex out
+;
+hexo:	cp	'9'+1
+	jp	c,cout
+	add	a,7
+	jp	cout
+;
+; position cursor. b=x, c=y
+;
+gotoxy:	push	hl
+	ld	hl,curpos
+	call	pstrg
+	ld	a,(xory)		; check xy or yx
+	or	a			; if zero, then xy
+	jr	z,..xy
+	ld	a,b
+	ld	b,c
+	ld	c,a			; exchange b and c
+..xy:	call	delay1
+	ld	a,(coffs)		; get cursor offset
+	push	af			; save for next
+	add	a,b
+	call	cout
+	call	delay1
+	pop	af
+	add	a,c
+	call	cout
+	pop	hl
+	ret
+;
+cleol:	push	hl
+	call	gotoxy
+	ld	b,79
+	ld	a,' '
+..ceol:	call	cout
+	djnz	..ceol
+	pop	hl
+	ret
+;
+clrscr:	push	hl
+	ld	hl,cls
+	call	pstrg
+	pop	hl
+	ret
+;
+pstrg:	ld	a,(hl)
+	or	a
+	ret	z
+	call	cout
+	inc	hl
+	jr	pstrg
+;
+putt:	ld	a,(timeon)
+	or	a
+	ret	z
+	ld	c,gtime
+	ld	de,datim
+	call	bdos
+	ld	b,a
+	ld	a,(lsec)
+	cp	b
+	ret	z
+	ld	a,b
+	ld	(lsec),a
+	ld	bc,16*256+0
+	call	gotoxy
+	ld	a,(hhh)
+	call	ahlo
+	ld	a,':'
+	call	cout
+	ld	a,(mmm)
+	call	ahlo
+	ld	a,':'
+	call	cout
+	ld	a,(lsec)
+	jp	ahlo
+;
+; select new drive
+;
+drives:	call	clrscr
+	call	print
+	db	cr,lf,lf
+	db	'Enter new drive (A..P, any other = no change) :',0
+	call	capin
+	cp	'A'
+	jp	c,cloop
+	cp	'Q'
+	jp	nc,cloop
+	ld	(cdrv),a
+	ld	(cdrv1),a
+	push	af
+	ld	de,dirfcb
+	call	f$close
+	call	initfcb
+	pop	af
+	sub	40h
+	ld	(dirfcb),a
+	jp	rstrt
+;
+; find again (repeat "l" command)
+;
+again:	ld	hl,previ
+	ld	a,(hl)
+	inc	a
+	jp	z,cloop		; ignore if no previous fn
+	ex	de,hl
+	jp	..fa
+;
+	dseg
+;
+editpt:	dw	0
+;
+sttime::db	'00:00:00'
+entime::db	'00:00:00'
+elaptm::db	'00:00:00',0
+dison:	db	0
+frsttm:	db	0
+locked:	db	0		;0=drive not locked
+noche:	db	0		;no change (erase)
+dcall:	db	0		;NZ=dsply called, else JMPed
+curs:	dw	0		;current sector
+tots:	dw	0		;total number of sectors
+eracmd:	db	0		;E5 if erase, user # if unera
+temp:	dw	0
+vect:	dw	0
+vecl:	db	0
+ascis:	db	0		;0=ascii search, nz=binary
+wrtn:	db	0		;0=no changes made, else changes were made
+hash:	db	0		;0=linear, 1=hashed
+curd:	db	0		;current drive
+lsec:	db	0
+hexfl:	db	0
+loctd:	db	0
+fbyt:	db	0
+force:	db	0		;force fixdir
+dirfcb:	db	0,'$       DIR',0
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+rec:	db	0,0,0
+sfcb:	ds	36
+pfcb:	ds	4
+tmpbf:	ds	64		;temp buffer space
+;
+previ:	db	0ffh
+	ds	11
+;
+datim:	dw	0
+hhh:	db	0
+mmm:	db	0
+;
+	ds	80
+stack	equ	$
+	end
+
+	jp	rstrt
+;
+; find again (repeat "l" command)
+;

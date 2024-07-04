@@ -1,0 +1,52 @@
+;Real-Time Clock overlay for SB180/MEX
+;Jerry Glomph Black 14 March 1987
+;Original release 1.0
+	org	0e00h
+	jp	gettim
+	jp	getdat
+	ret
+	nop
+	nop
+	ret
+	nop
+	nop
+	ret
+	nop
+	nop
+;gettim returns B=hours,C=minutes,D=seconds,E=0 (hundredths)
+gettim:
+	ld	hl,(1)	;bios warm boot vector
+	ld	bc,33h
+	add	hl,bc	;clock routine in SB180 bios
+	ld	bc,noogie
+	push	bc	;a pseudo-
+	jp	(hl)	;subroutine call
+noogie:	ld	bc,4
+	add	hl,bc	;hl now has addr of secs.
+	ld	d,(hl)
+	inc	hl
+	ld	c,(hl)
+	inc	hl
+	ld	b,(hl)
+	ld	e,0
+	ret		;ok, the appropriate regs. are stuffed
+getdat:
+;getdat puts year into BC, month into D, day into E
+;A routine using Mex's POKE utility can set the date,
+;since the SB180 doesn't keep it. Look for the 
+;string 'GLOMPH' to find the date bytes.
+	ld	bc,(year)
+	ld	a,(month)
+	ld	d,a
+	ld	a,(day)
+	ld	e,a
+	ret		;that does it.
+;
+;	Default date: Feb 31,2001
+;
+	db	'GLOMPH'	;the tag of distinction
+month:	db	2		;month from 1-12
+day:	db	31		;day from 1-31
+year:	dw	2001		;year from 1985-2099
+	end
+

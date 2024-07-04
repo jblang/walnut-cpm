@@ -1,0 +1,357 @@
+MEX-SET2.DOC	12-8-84			by HANK TATE 
+
+12/8/84 This is an update of MEX-SET.DOC.  I've learned some new 
+things since first writing MEX-SET and have changed the listings
+and explanations of the .MEX files included in this document to 
+reflect my current usage. 
+
+------------------------------------------------------------------
+
+SOME NOTES ON USING INI.MEX AND OTHER "READ" FILES TO SIMPLIFY THE
+OPERATION OF MEX.COM
+
+	After a long evening of working on setting up an INI.MEX 
+file and a number of READ files as suggested by Irv Block I think
+I have come up with some files that work nicely and I even under-
+stand what's happening. Sooo-o-o herewith are copies of the files
+I worked out with an explanation. Hope they help.
+
+
+======  general set-up  ===========================================
+
+   When setting up your version of MEX you have the option of
+
+    a).  just using the regular MEX file with your "Computer Overlay"
+    b).  also changing some of the variables with MEXPAT11.ASM
+
+  Since I had difficulty with my printer losing characters on long
+printings I chose to make two changes.
+
+	PSIZE: 	DB	24 	;instead of 2K which gives me
+				 a larger buffer size for the PRINTER. 
+	PQSIZE: DW	300	;instead of 150 characters which gives
+				 me a larger character buffer for the
+				 modem since I run mostly at 1200 baud.
+
+  After changing those two buffers I have not experienced any difficulty
+with the printing.
+
+also be sure
+
+	INIMEX: DB	1	;runs INI.MEX automatically on startup
+				 by setting INITFILE ON
+
+
+
+======  INI.MEX  ==================================================
+
+  INI.MEX is the .MEX file that MEX automatically looks for on starting
+up, whether you tell it to or not (assuming the INITFILE ON). You can
+disable this feature with "STAT INITFILE OFF" but there are some 
+advantages to using it. Write the INI.MEX file (and all the other 
+READ files) with any text editor.
+  Since I have chosen not to hardwire most of my changes I use the
+INI.MEX to allow quick and simple setup of the paramaters I want to
+start with. Using the INI.MEX system allows me to make quick changes
+to the way MEX works by simply changing INI.MEX without having to
+assemble and overlay the changes or CLONE a new MEX. The INI.MEX I 
+use is as follows:
+
+
+STAT WTECHO ON
+STAT SEARCH 3
+STAT SPLIT ON
+STAT BAKFILE ON
+STAT EXCLUDE OFF
+STAT FILTER ON
+STAT EXTEND ON
+ALT A0:
+ID "[MEXCD]"
+LOAD PHONE.PHN
+LOAD KEYS.KEY
+B:
+TERM SESSION.LOG
+DIR
+GLOBAL T
+
+
+
+1. STAT WTECHO ON - according to APPENDIX 3: of the MEX User's Guide
+   this will help you not overrun an RCP/M or RBBS when sending out
+   strings of information. Unless you send out a great deal of infor-
+   mation this protection should not slow you down very much.
+2. STAT SEARCH 3 - I have two drives and always load the MEX program
+   disk on A and the DATA disk on B. This command tells MEX to look
+   for READ files, phone libraries, keystring files, and other command
+   files first on the ALTERNATE drive (rather than the logged drive)
+   then on the LOGGED drive second. The ALTERNATE and LOGGED drive or
+   set below.
+3. STAT SPLIT ON - displays the phone directory in one column with any 
+   baud rate set figures displayed.
+4. STAT BAKFILE ON - will prevent any pre-existing files from being over-
+   written by any new files that are created of the same name.
+5. STAT EXCLUDE OFF - allows any system files to be shown on DIR command
+6. STAT FILTER ON - useful when working on a noisy connection. Filters out
+   control characters, nulls, and characters with the high bit set.
+7. STAT EXTEND ON - allows you to call a READ file without typing READ.
+   You only need to type the file name. I.E. "GET" will execute the 
+   "GET.MEX" file.
+		*** NOTE: One play off with this variable set "ON"
+		 is that giving a built in command (such as T or STAT)
+		 will cause MEX to first look for a "file" of that name 
+		 and cause a momentary delay. You can keep MEX from 
+		 looking for a file when you are giving a built in 
+		 command by preceding it with a "*". (I.E.  *T  to go 
+		 to the terminal mode)
+8. ALT A0: - sets the ALTERNATE drive to A user 0.
+9. ID "[MEX-MINE]" - changes the string which diplays on the command line
+   while MEX is running. If talking to another computer running MEX
+   instead of BYE this allows you to know which command line you are on,
+   yours or the remote's. You can make it anything you want up to 28
+   characters (in the standard distributed MEX).
+10.LOAD PHONE.PHN - reads in the phone list which is created either
+   inside MEX and then SAVED or with a text editor. Using a separate
+   PHONE.PHN file allows simple changing and means you don't have to
+   CLONE new versions of MEX to retain changes to your phone directory.
+11.LOAD KEYS.KEY - reads in the keylists. Same reasoning as for PHONE.PHN
+12.B: - changes the logged drive to B: so that all files captured or
+   received are automatically placed on B.
+
+		 *** NOTE: some of the information and .DOC files that
+                   I have seen show a ^M (carriage return) here and 
+                   in other places in the READ files. I kept getting 
+                   SYNTAX ERRORS. If the SUFFIX indicator is set to ^M
+   		   and your READ files are arranged in separate lines 
+		   as I have shown here you should not have any problems.
+
+13.TERM SESSION.LOG - creates a CAPTURE file named SESSION.LOG into
+   which everything which appears on the screen is captured. This is
+   a good protection. You won't find yourself wishing you'd captured
+   or printed something after it had already scrolled by. Particularly
+   valuable when operating on new boards, the SESSION.LOG file can be 
+   renamed to save it and then be edited and printed to give you a per-
+   manent record of how that system operates. That should allow you to 
+   save a great deal of time the next time you use the system. If after 
+   the session you decide you don't need the file or if you just fail 
+   to rename it, the next time you run MEX the previous SESSION.LOG 
+   file will be written over (poof...).
+14.DIR - will automatically display the directory of B (the LOGGED drive).
+15.GLOBAL T - will automatically take you to the terminal mode after
+   any file transfer.
+
+==>	Using the INI.MEX file as shown only takes about 1-2 seconds
+	on start up but can save you a lot of time in the long run.
+	And it sure is easier than trying to remember everything.
+
+
+======== GET.MEX ==========================================================
+
+WRT
+GLOBAL
+STAT REPLY 16
+SENDOUT "XMODEM S {1} {2:}"
+R{2:} {1}
+STAT REPLY 8
+GLOBAL T
+TA SESSION.LOG           
+
+
+	I really like this file! 
+
+  This is a READ file which greatly speeds up the process of downloading
+a file with XMODEM. All you need to do is type "GET XXXXXXX.XXX" on the
+command prompt (not in the terminal mode.)
+
+
+	*** NOTE: in the sample here the {1} would be automatically
+		be replaced by the filename (XXXXXXXX.XXX) that you
+		are requesting before being sent out to the remote
+		computer. If you are wanting to issue any extensions
+		to the "S" and "R" commands (such as "B" for BATCH 
+		or "V" for VIEW) then type that extension after the
+		filename and it will automatically be executed.
+	    * WARNING if you add a "T" extension the final line of
+		this GET.MEX will not execute since READ files cannot
+		work from the Terminal mode.
+	    SAMPLE:
+			GET NEWFILE.DOC		will transfer NEWFILE.DOC
+						to your system
+			GET *.NEW B		will transfer all .NEW
+						files in batch mode
+			GET USQ.DOC VX		will transfer USQ.DOC,
+						viewed then disconnect
+
+
+1.  WRT - writes the capture file to disk and closes it. If this is not
+	done prior to receiving a file all of the captured information 
+	still in memory will be destroyed.
+2.  GLOBAL - turns off the T so that this file has a chance to re-create
+    the session log before returning to the terminal mode.
+3.  STAT REPLY 16 - gives the computer extra time to respond to a reply
+    from the remote computer. Minimizes the chance of overrunning the
+    remote computer.
+4.  SENDOUT "XMODEM S{1} {2:}" - sends the string in quotations to the
+	remote computer after filling in the parameters as specified on
+	the command line.
+
+		*** NOTE: It is important when creating any READ 
+			file that strings to be sent are enclosed
+			in quotation marks.
+
+5.  R{2:} {1} - commands your MEX to receive the file specified automatically.
+6.  STAT REPLY 8 - sets the reply time back to normal
+7.  GLOBAL T - turns the GLOBAL T back on 
+8.  TA SESSION.LOG - will return to the terminal mode automatically after
+	finishing the transfer. The important thing is that it automatically
+	restarts the CAPTURE and APPENDS the new stuff to the SESSION.LOG
+	file that was closed at the start of GET.MEX.
+
+
+
+======= GETC.MEX   (stands for GET & CHANGE NAME) ==========================
+
+WRT                      
+STAT REPLY 16
+SENDOUT "XMODEM S {1} {2} {3:}"
+R{3:} {2}                 
+STAT REPLY 8
+TA SESSION.LOG               
+
+
+
+	This file works exactly the same as GET.MEX except that it allows
+you to specify a name change in the process of transferring the file.
+
+	SAMPLE:
+		GET FOO.OBJ FOO.COM		will transfer FOO.OBJ to 
+						your system and rename it 
+						to FOO.COM on your logged disk.
+		GET NEXT.DOC NEXT2.DOC V	will transfer NEXT.DOC and
+						rename it to NEXT2.DOC while
+						viewing the file during the
+						transfer.
+
+
+====== GETLIB.MEX ===========================================================
+
+WRT
+STAT REPLY 16
+SENDOUT "XMODEM L {1} {2} {3:}"
+R{3:} {2}
+STAT REPLY 8
+TA SESSION.LOG
+
+
+	This file will enable you to automatically copy a file out of a
+.LBR file if the remote computer's XMODEM program will allow it. Works
+exactly the same as files above except that the command string would be:
+
+		SAMPLE:
+			GETLIB ANYFILE THISFILE.DOC
+
+				Will download the member file THISFILE.DOC 
+				from ANYFILE.LBR. Extensions may be added
+				as the third parameter the same as above.
+				
+
+====== GETBYE.MEX ============================================================
+
+WRT
+STAT REPLY 16
+SENDOUT "XMODEM S {1} {2:}"
+R{2:} {1}
+SENDOUT "BYE"
+STAT REPLY 8
+DSC
+
+
+
+	Works exactly like GET.MEX except that it automatically signs off
+the remote computer and disconnects the modem from the phone line when the 
+file transfer is completed. Does not exit from MEX.
+
+
+====== SEND.MEX ===========================================================
+
+WRT			
+STAT REPLY 16
+SENDOUT "XMODEM R {1} {2:}"
+S{2:} {1}
+STAT REPLY 8  
+TA SESSION.LOG           
+
+
+	Works exactly like GET.MEX except that the R and S are transposed
+so that the file is sent instead of received. Turns off the checking for
+echos of each character sent to the remote since the XMODEM checking takes
+care of that during transfer (I think). TRIGGER set to nothing during the
+transfer while WTECHO OFF according to information in MEX User's Guide
+page 20.
+
+
+
+====== Q.MEX  (means QUIET MODEM) ==========================================
+
+STAT WTECHO OFF
+STAT TRIGGER ""
+STAT REPLY 0
+SENDOUT "ATM0"
+STAT REPLY 8
+STAT TRIGGER ">"
+STAT WTECHO ON
+
+
+	For the HAYES SMARTMODEM. This file turns off the speaker for those
+times where you're doing continuous dialing and don't want to keep listening 
+to the modem dialing tones. Just type  Q  on the command line and magic takes 
+place.
+
+1. STAT WTECHO OFF - turns off the checking of each character sent for an
+	echo from a remote computer. Necessary because the modem can't 
+	echo the characters it receives.
+2. STAT TRIGGER "" - turns off the TRIGGER so that MEX doesn't wait for 
+	anything before sending the SENDOUT string out.
+3. STAT REPLY 0 - turns off the wait time for a reply. Makes this command
+	to the modem almost instantaneous.
+4. SENDOUT "ATM0" - *** the critical line *** This sends the command to the
+	modem which actually instructs it to turn off the speaker. The 
+	command is in quotations and the one shown (ATM0) is for the HAYES
+	SMARTMODEM.
+5. STAT REPLY 8 - turns back on the normal wait for reply time.
+6. STAT TRIGGER ">" - turns back on the normal TRIGGER.
+7. STAT WTECHO ON - turns back on the character echo checking.
+
+
+====== Z.MEX  (noiZy MODEM) ================================================
+
+STAT WTECHO OFF
+STAT TRIGGER ""
+STAT REPLY 0
+SENDOUT "ATZ"
+STAT REPLY 8
+STAT TRIGGER ">"
+STAT WTECHO ON
+
+
+	Exactly like Q.MEX except it sends the string to turn the HAYES
+SMARTMODEM speaker back on (ATZ).
+
+
+=============================================================================
+
+	Thanks are due to Irv Block whose MEXFILES.INF prompted me to 
+undertake this task.
+
+	*** NOTE ***   This file has been written to allow you to easily
+		create all of the .MEX files shown here by using a text
+		editor program and defining each file listing individually 
+		as a block and then saving it to your disk under the name
+		shown or one of your own choosing. Good luck!
+
+
+				-  HANK TATE
+				   14503 JASON
+				   PINEHURST, TEXAS 77362
+				   (713) 356-3005  [voice only]
+
+                       

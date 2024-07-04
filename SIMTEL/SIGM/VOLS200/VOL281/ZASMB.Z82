@@ -1,0 +1,1415 @@
+;
+;			z80asmb.z82
+;
+;------------------------------------------------------------------------------
+;
+;		operator dispatch table
+;
+;		  need check at load3
+;
+;------------------------------------------------------------------------------
+;
+typtbl	dw	oponly		;class 1 - opcode only
+	dw	rotate		;class 2 - rotates
+	dw	jumps		;class 3 - jumps (non relative) calls
+	dw	jprel		;class 4 - relative jumps (jr and djnz)
+	dw	restrt		;class 5 - rst
+	dw	arops		;class 6 - arithmetic instructions
+	dw	ioops		;class 7 - i/o
+	dw	loads		;class 8 - ld instructions
+	dw	pshpop		;class 9 - push,pop
+	dw	exchng		;class 10- exchange (ex)
+	dw	return		;class 11- returns
+	dw	bitops		;class 12- bit,set,res
+	dw	incdec		;class 13- inc,dec
+	dw	pseudo		;class 14- pseudo operators
+;
+;
+;	class 1 - opcode only
+;
+oponly 	ld	a,(opcode+1)
+	or	a,a
+	ld	a,(opcode)
+	jp	z,end1
+	ld	l,a
+	ld	a,(opcode+1)
+	ld	h,a
+	jp	end2
+;
+;
+;	class 2 - rotates
+;
+rotate	call	readch		;readch
+	cp	a,'('		;if (ch<>'(')
+	jr	z,rtt1
+	call	backup		;  not "(" so putback
+	call	xprshn		;  xprshnession
+	ld	a,(regflg)	;  if (not <r>)
+	and	a,10H
+	call	z,aerror	;    error('A')
+	ld	a,(regflg)
+	and	a,07H		;    register number
+	push	af
+	ld	a,0CBH		;    instruction[0]=CBH
+	ld	l,a
+	ld	a,(opcode)
+	ld	b,a		;    instruction[1]=opcode or <r>
+	pop	af
+	or	a,b
+	ld	h,a
+	jp	end2		;else
+rtt1	call	xprshn		;  expression
+	ld	a,(regflg)	;  if ("hl")
+	cp	a,hlreg
+	jr	nz,rtt2
+	ld	a,0CBH		;    instruction[0]=CBH    
+	ld	l,a
+	ld	a,(opcode)	;    instruction[1]=opcode+6
+	add	a,06H
+	ld	h,a
+	call	clspar
+	jp	end2
+rtt2	cp	a,ixreg		;  elseif ("ix")
+	jr	nz,rtt3
+	ld	a,0DDH
+	jr	rtt4
+rtt3	cp	a,iyreg		;  elseif ("iy")
+	call	nz,serror
+	ld	a,0FDH
+rtt4	ld	l,a
+	ld	h,0CBH
+	ld	a,(xprval)
+	ld	e,a
+	ld	a,(opcode)
+	add	a,6
+	ld	d,a
+	call	clspar
+	jp	end4
+;
+;
+;	class 3 - jumps - calls		OK
+;
+jumps	call	readch
+	cp	a,'('
+	jp	nz,jump2
+	ld	a,(opcode)
+	cp	a,jpopc
+	call	nz,aerror
+	call	xprshn		;jp (??
+	call	clspar
+	ld	a,(regflg)	;jp (??)
+	cp	a,hlreg
+	jr	nz,jump1
+	ld	a,(regflg)
+	cp	a,hlreg
+	jr	nz,jump1
+	ld	a,0E9H		;jp (hl)
+	jp	end1
+jump1	cp	a,ixreg
+	jr	nz,jump11
+	ld	l,0DDH		;jp (ix)
+	jr	jump12
+jump11	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;jp (ix)
+jump12	ld	h,0E9H
+	jp	end2
+	;
+jump2	call	backup		;jp ??
+	call	xprshn
+	call	ctsrch		;search condition table
+	cp	a,8
+	jr	nc,jump21
+	push	af		;jp cc	;save <cc>
+	call	readch
+	cp	a,','
+	call	nz,serror
+	xor	a,a		;jp cc,
+	ld	(udfflg),a	;reset "undefined" set by "xprshn"
+	pop	af		;restore <cc>
+	rlca
+	rlca
+	rlca
+	ld	b,a
+	ld	a,(opcode+1)
+	or	a,b
+	ld	(opcode),a
+	call	xprshn		;jp cc,nn
+jump21	ld	a,(opcode)	;jp nn
+	ld	hl,(xprval)
+	jp	endahl
+;
+;
+;	class 4 - relative jumps (jr and djnz)	OK
+;
+;
+jprel	call	xprshn		;xprshnession
+	call	ctsrch		;search condition table
+	cp	a,8		;if (conditional)
+	jr	nc,jprl1
+	cp	a,4		;  only nz,z,nc,c allowed
+	call	nc,aerror
+	push	af		;  save condition number
+	xor	a,a		;  reset "undefined"
+	ld	(udfflg),a
+	pop	af		;  condition number
+	rlca			;  form opcode
+	rlca
+	rlca			;  001cc000
+	and	a,18H
+	add	a,20H
+	push	af		;  save opcode
+	call	readch		;  readch
+	cp	a,','		;  if (ch<>',')
+	call	nz,serror	;    error('S')
+	call	xprshn		;  expression
+	pop	af		;  retreive opcode
+	jr	jprl2
+jprl1	ld	a,(opcode)	;instruction=opcode
+jprl2	ld	e,a
+	ld	hl,(xprval)	;check range for "jr"
+	ld	bc,(pc)
+	or	a,a
+	sbc	hl,bc
+	dec	hl
+	dec	hl
+	ld	d,l
+	ld	bc,80H
+	add	hl,bc
+	ld	a,h
+	or	a,a
+	call	nz,rerror	;range error
+	ex	de,hl
+	jp	end2
+;
+;
+;	class 5 - restarts
+;
+restrt	call	xprshn		;must be 1 byte value = 0|8|10H|...|38H
+	ld	a,(xprval)
+	and	a,0C7H
+	call	nz,aerror
+	ld	a,(xprval)
+	and	a,38H
+	or	a,0C7H
+	jp	end1
+;
+;
+;	class 6 - arithmetic opcodes
+;
+;	add,sub,adc,sbc,and,or,xor,cp		arop  [a,]r   arop hl,rp
+;
+arops	call	readch
+	cp	a,'a'
+	jr	nz,arop1
+	call	readch		;arop a
+	cp	a,','
+	jr	z,arop2
+	call	backup
+arop1	call	backup
+arop2	call	readch
+	cp	a,'('
+	jr	z,arop4
+	call	backup
+	call	xprshn
+	ld	a,(xprtyp)
+	cp	a,notype
+	jr	nz,arop21
+	ld	a,areg
+	ld	(regflg),a
+arop21	ld	a,(regflg)
+	and	a,rpmask
+	jr	nz,arop5
+	ld	a,(regflg)
+	and	a,rmask
+	jr	z,arop3
+	ld	a,(regflg)	;arop [a,] r
+	and	a,07H
+	ld	b,a
+	ld	a,(opcode)
+	or	a,b
+	jp	end1
+arop3	ld	a,(xprtyp)
+	cp	a,notype
+	call	z,serror
+	ld	a,(opcode)	;arop [a,] n
+	add	a,46H
+	ld	l,a
+	ld	a,(xprval)
+	ld	h,a
+	jp	end2
+arop4	call	xprshn		;arop [a,] (?
+	ld	a,(regflg)
+	cp	a,hlreg
+	jr	nz,arop41
+	call	clspar
+	ld	a,(opcode+1)	;arop a,(hl)
+	jp	end1
+arop41	cp	a,ixreg
+	jr	nz,arop42
+	ld	l,0DDH		;arop a,(ix+d)
+	jr	arop43
+arop42	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;arop a,(iy+d)
+arop43	call	clspar
+	ld	a,(opcode+1)
+	ld	h,a
+	ld	a,(xprval)
+	jp	endhla
+arop5	ld	a,(regflg)	;arop rp
+	ld	(reg1),a
+	call	readch
+	cp	a,','
+	call	nz,serror	;arop rp,
+	call	xprshn
+	ld	a,(regflg)
+	ld	(reg2),a
+	and	a,rpmask
+	call	z,aerror
+	ld	a,(reg2)	;arop rp,rp
+	and	a,0FH
+	rlca
+	rlca
+	rlca
+	rlca
+	ld	b,a
+	ld	a,(reg1)
+	cp	a,hlreg
+	jr	nz,arop7
+	ld	a,(opcode+1)	;arop hl,
+	cp	a,addhl
+	jr	nz,arop6
+	ld	a,(reg2)	;arop hl,ss
+	cp	a,ixreg
+	call	nc,aerror
+	ld	a,09H
+	or	a,b
+	jp	end1
+arop6	cp	a,adchl
+	jr	nz,arop61
+	ld	a,4AH		;adc hl,ss
+	jr	arop62
+arop61	cp	a,sbchl
+	call	nz,aerror
+	ld	a,42H		;sbc hl,ss
+arop62	ld	l,0EDH
+	or	a,b
+	ld	h,a
+	jp	end2
+arop7	ld	hl,reg2		;modify B if pp=ix or qq=iy
+	cp	a,(hl)
+	jr	nz,arop71
+	ld	a,b
+	and	a,0FH
+	or	a,20H
+	ld	b,a
+	ld	a,(reg1)
+arop71	cp	a,ixreg
+	jr	nz,arop72
+	ld	a,(reg2)	;add ix,pp
+	cp	a,hlreg
+	call	z,aerror
+	cp	a,iyreg
+	call	nc,aerror
+	ld	l,0DDH
+	jr	arop73
+arop72	cp	a,iyreg
+	call	nz,aerror
+	ld	a,(reg2)	;add iy,qq
+	cp	a,hlreg
+	call	z,aerror
+	cp	a,ixreg
+	call	z,aerror
+	cp	a,afreg
+	call	z,aerror
+	ld	l,0FDH
+arop73	ld	a,09H
+	or	a,b
+	ld	h,a
+	jp	end2
+
+
+;
+;	class 7 - i/o instructions  OK
+;
+;
+ioops	ld	a,(opcode)
+	cp	a,0DBH
+	jp	nz,iops2
+	call	xprshn		;in ??
+	ld	a,(regflg)
+	ld	b,a
+	and	a,rmask
+	call	z,serror
+	ld	a,b		;in r
+	cp	a,areg
+	jp	nz,iops1
+	call	readch		;in a
+	cp	a,','
+	call	nz,serror
+	call	readch		;in a,
+	cp	a,'('
+	call	nz,serror
+	call	xprshn		;in a,(		(need length check)
+	ld	a,(xprval)
+	ld	h,a
+	ld	l,0DBH
+	call	clspar
+	jp	end2
+iops1	rlca			;in r
+	rlca
+	rlca
+	and	a,38H
+	add	a,40H
+	ld	h,a
+	ld	l,0EDH
+	call	readch
+	cp	a,','
+	call	nz,serror
+	call	readch		;in r,
+	cp	a,'('
+	call	nz,serror
+	call	xprshn		;in r,(
+	ld	a,(regflg)
+	cp	a,creg
+	call	nz,serror
+	call	clspar		;in r,(c
+	jp	end2		;in r,(c)
+iops2	call	readch		;out ??
+	cp	a,'('
+	call	nz,serror
+	call	xprshn		;out (
+	ld	a,(regflg)
+	cp	a,creg
+	jp	nz,iops3
+	call	clspar		;out (c
+	call	readch		;out (c)
+	cp	a,','
+	call	nz,serror
+	call	xprshn		;out (c),??
+	ld	a,(regflg)
+	ld	b,a
+	and	a,rmask
+	call	z,aerror
+	ld	a,b
+	and	a,07H		;out (c),r
+	rlca
+	rlca
+	rlca
+	and	a,38H	;???
+	add	a,41H
+	ld	h,a
+	ld	l,0EDH
+	jp	end2		;out (c),r
+iops3	ld	a,(xprval)
+	push	af
+	call	clspar
+	call	readch		;out (n)
+	cp	a,','
+	call	nz,serror
+	call	xprshn		;out (n),
+	ld	a,(regflg)
+	cp	a,areg
+	call	nz,aerror
+	pop	af
+	ld	h,a
+	ld	l,0D3H		;out (n),a
+	jp	end2
+;
+;
+;	class 8 - ld instructions
+;
+;
+;	class 8 - ld instructions
+;
+loads	call	readch
+	cp	a,'('
+	jp	z,load6
+	call	backup
+	call	xprshn
+	ld	hl,(xprval)
+	ld	(savval),hl
+	ld	a,(regflg)
+	ld	(reg1),a
+	ld	a,(regflg)
+	and	a,rpmask
+	jp	nz,load3
+	call	readch
+	cp	a,','
+	call	nz,serror
+	call	readch		;ld r,
+	cp	a,'('
+	jp	z,load1
+	call	backup
+	call	xprshn
+	ld	a,(regflg)
+	or	a,a
+	jr	nz,load01
+	ld	a,(reg1)	;ld r,n
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	or	a,06H
+	ld	l,a
+	ld	a,(xprval)
+	ld	h,a
+	jp	end2
+load01	and	a,rmask
+	call	z,aerror
+	ld	a,(regflg)	;ld r,r
+	ld	(reg2),a
+	ld	a,(reg1)
+	cp	a,areg
+	jr	nz,load03
+	ld	a,(reg2)	;ld a,
+	cp	a,ireg
+	jr	nz,load02
+	ld	hl,57EDH	;ld a,i
+	jp	end2
+load02	cp	a,rreg
+	jr	nz,load06
+	ld	hl,5FEDH	;ld a,R
+	jp	end2
+load03	cp	a,ireg
+	jr	nz,load04
+	ld	hl,47EDH	;ld i,a
+	jr	load05
+load04	cp	a,rreg
+	jr	nz,load06
+	ld	hl,4FEDH	;ld R,a
+load05	ld	a,(reg2)
+	cp	a,areg
+	call	nz,aerror
+	jp	end2
+load06	ld	a,(reg1)	;ld r,r
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	or	a,40H
+	ld	b,a
+	ld	a,(reg2)
+	and	a,0FH
+	or	a,b
+	jp	end1
+load1	call	xprshn		;ld r,(
+	call	clspar
+	ld	a,(regflg)
+	ld	(reg2),a
+	ld	a,(reg1)	;ld r,(??)
+	cp	a,areg
+	jr	nz,load2
+	ld	a,(regflg)	;ld a,(??)
+	and	a,rpmask
+	jp	nz,load11
+	ld	a,3AH		;ld a,(nn)
+	ld	hl,(xprval)
+	jp	endahl
+load11	ld	a,(reg2)
+	cp	a,bcreg
+	jr	nz,load12
+	ld	a,0AH		;ld a,(bc)
+	jp	end1
+load12	cp	a,dereg
+	jr	nz,load2
+	ld	a,1AH		;ld a,(de)
+	jp	end1
+load2	ld	a,(reg1)	;ld r,(rp)
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	or	a,46H
+	ld	h,a
+	ld	a,(reg2)
+	cp	a,hlreg
+	jr	nz,load21
+	ld	a,h		;ld r,(hl)
+	jp	end1
+load21	cp	a,ixreg
+	jr	nz,load22
+	ld	l,0DDH		;ld r,(ix+d)
+	jr	load23
+load22	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;ld r,(iy+d)
+load23	ld	a,(xprval)
+	jp	endhla
+load3	call	readch		;ld rp
+	cp	a,','
+	call	nz,serror
+	call	readch
+	cp	a,'('
+	jr	z,load5
+	call	backup		;ld rp,
+	call	xprshn
+	ld	a,(regflg)
+	ld	(reg2),a
+	or	a,a
+	jr	nz,load4
+	ld	de,(xprval)
+	ld	a,(reg1)	;ld rp,nn
+	cp	a,ixreg
+	jr	nz,load31
+	ld	hl,21DDH	;ld ix,nn
+	jp	end4
+load31	cp	a,iyreg
+	jr	nz,load33
+	ld	hl,21FDH	;ld iy,nn
+	jp	end4
+load33	ld	a,(reg1)	;ld rp,nn
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	sla	a
+	or	a,01H
+	ex	de,hl
+	jp	endahl
+load4	ld	a,(reg1)	;ld rp,rp
+	cp	a,spreg
+	call	nz,aerror
+	ld	l,0F9H
+	ld	a,(reg2)
+	cp	a,hlreg
+	jr	nz,load41
+	ld	a,l		;ld sp,hl
+	jp	end1
+load41	ld	h,l
+	cp	a,ixreg
+	jr	nz,load42
+	ld	l,0DDH		;ld sp,ix
+	jr	load43
+load42	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;ld sp,iy
+load43	ld	a,(xprval)
+	or	a,a
+	call	nz,aerror
+	jp	end2
+load5	call	xprshn		;ld rp,(
+	ld	de,(xprval)
+	ld	a,(regflg)
+	or	a,a
+	call	nz,aerror
+	call	clspar		;ld rp,(nn)
+	ld	a,(reg1)
+	cp	a,hlreg
+	jr	nz,load51
+	ld	a,2AH
+	ex	de,hl
+	jp	endahl
+load51	cp	a,ixreg
+	jr	nz,load52
+	ld	hl,2ADDH	;ld ix,(nn)
+	jr	load53
+load52	cp	a,iyreg
+	jr	nz,load54
+	ld	hl,2AFDH	;ld iy,(nn)
+load53	ld	bc,(savval)
+	ld	a,b
+	or	a,c
+	call	nz,aerror
+	jp	end4
+load54	ld	l,0EDH		;ld dd,(nn)
+	ld	a,(reg1)
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	sla	a
+	or	a,4BH
+	ld	h,a
+	jp	end4
+load6	call	xprshn		;ld (
+	call	clspar
+	call	readch		;ld (??)
+	cp	a,','
+	call	nz,serror
+	ld	a,(regflg)	;ld (??),
+	ld	(reg1),a
+	ld	hl,(xprval)
+	ld	(savval),hl
+	ld	a,(regflg)
+	and	a,rpmask
+	jp	z,load8
+	call	xprshn		;ld (rp),
+	ld	a,(regflg)
+	ld	(reg2),a
+	and	a,rmask
+	jr	z,load7
+	ld	a,(reg1)	;ld (rp),r
+	cp	a,hlreg
+	jr	nz,load61
+	ld	a,(reg2)
+	and	a,0FH
+	or	a,70H		;ld (hl),r
+	jp	end1
+load61	cp	a,ixreg
+	jr	nz,load62
+	ld	l,0DDH		;ld (ix+d),r
+	jr	load63
+load62	cp	a,iyreg
+	jr	nz,load64
+	ld	l,0FDH		;ld (iy+d),r
+load63	ld	a,(reg2)
+	and	a,0FH
+	or	a,70H
+	ld	h,a
+	ld	a,(savval)
+	jp	endhla
+load64	ld	a,(reg2)
+	cp	a,areg
+	call	nz,aerror
+	ld	a,(reg1)	;ld (rp),a
+	cp	a,bcreg
+	jr	nz,load65
+	ld	a,02H		;ld (bc),a
+	jp	end1
+load65	cp	a,dereg
+	call	nz,aerror
+	ld	a,12H		;ld (de),a
+	jp	end1
+load7	and	a,0FH
+	call	nz,aerror
+	ld	hl,(xprval)	;ld (rp),n
+	ld	a,h
+	cp	a,0
+	jr	z,load70
+	cp	a,0FFH
+	call	nz,verror	;value error
+load70	ld	c,l
+	ld	a,(reg1)
+	cp	a,hlreg
+	jr	nz,load71
+	ld	h,l
+	ld	l,36H
+	jp	end2
+load71	cp	a,ixreg
+	jr	nz,load72
+	ld	l,0DDH		;ld (ix+d),n
+	jr	load73
+load72	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;ld (iy+d),n
+load73	ld	h,36H
+	ld	a,(savval)
+	ld	e,a
+	ld	d,c
+	jp	end4
+load8	call	xprshn		;ld (nn),a
+	ld	a,(regflg)
+	cp	a,areg
+	jr	nz,load9
+	ld	a,32H
+	ld	hl,(savval)
+	jp	endahl
+load9	and	a,rpmask
+	call	z,aerror
+	ld	a,(regflg)
+	cp	a,hlreg		;ld (nn),rp
+	jr	nz,load91
+	ld	a,22H
+	ld	hl,(savval)
+	jp	endahl
+load91	cp	a,ixreg
+	jr	nz,load92
+	ld	l,0DDH		;ld (nn),ix
+	jp	load93
+load92	cp	a,iyreg
+	jr	nz,load94
+	ld	l,0FDH		;ld (nn),iy
+load93	ld	h,22H
+	jr	load95
+load94	ld	a,(regflg)	;ld (nn),rp
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	sla	a
+	or	a,43H
+	ld	h,a
+	ld	l,0EDH
+load95	ld	de,(savval)
+	jp	end4
+;
+;
+;	class 9 - push pop
+;
+pshpop	call	xprshn
+	ld	a,(regflg)
+	and	a,rpmask
+	call	z,aerror
+	ld	a,(regflg)	;push/pop rp
+	cp	a,ixreg
+	jp	z,phpp2
+	cp	a,iyreg
+	jp	z,phpp3
+	cp	a,spreg
+	call	z,aerror
+	ld	a,(regflg)	;push/pop hl,de,bc but NOT SP
+	cp	a,afreg
+	jr	nz,phpp1
+	ld	a,3		;push af
+phpp1	and	a,0FH
+	rlca
+	rlca
+	rlca
+	rlca
+	ld	b,a
+	ld	a,(opcode)
+	add	a,b
+	jp	end1
+phpp2	ld	l,0DDH		;push/pop ix
+	jr	phpp4
+phpp3 	ld	l,0FDH		;push/pop iy
+phpp4	ld	a,(opcode)
+	add	a,20H
+	ld	h,a
+	jp	end2
+;
+;
+;	class 10 - exchange (ex)	OK
+;
+exchng	call	readch
+	cp	a,'('
+	jp	nz,xchg5
+	call	xprshn
+	ld	a,(regflg)
+	cp	a,spreg
+	call	nz,aerror
+	call	clspar		;ex (sp),
+	call	readch
+	cp	a,','
+	call	nz,serror
+	call	xprshn
+	ld	a,(regflg)
+	cp	a,ixreg
+	jp	z,xchg1
+	cp	a,iyreg
+	jp	nz,xchg3
+	ld	l,0FDH		;ex (sp),iy
+	jp	xchg2
+xchg1	ld	l,0DDH		;ex (sp),ix
+xchg2	ld	h,0E3H
+	jp	end2
+xchg3	cp	a,hlreg		;ex (sp),hl
+	call	nz,aerror
+	ld	a,0E3H
+	jp	end1
+	;
+xchg5	call	backup
+	call	xprshn
+	ld	a,(regflg)	;  if (rp=="af")
+	cp	a,afreg
+	jr	nz,xchg6
+	call	readch		;ex af
+	cp	a,','
+	call	nz,serror
+	call	readch		;ex af,
+	cp	a,'a'
+	call	nz,aerror
+	call	readch
+	cp	a,'f'
+	call	nz,aerror
+	call	readch
+	cp	a,''''
+	call	nz,aerror
+	ld	a,08H		;ex af,af'
+	jp	end1
+xchg6	cp	a,dereg
+	call	nz,aerror
+	call	readch		;ex de
+	cp	a,','
+	call	nz,aerror
+	call	xprshn		;ex de,
+	ld	a,(regflg)
+	cp	a,hlreg
+	call	nz,aerror
+	ld	a,0EBH		;ex de,hl
+	jp	end1
+;
+;
+;	class 11 - returns.	ret, ret <cc>, reti, retn   OK
+;
+;
+return	call	readch		;if (operand)
+	push	af
+	call	backup
+	pop	af
+	cp	a,cr
+	jp	z,rtrn1
+	cp	a,';'
+	jp	z,rtrn1
+	call	xprshn		;  expression
+	xor	a,a		;  reset "undefined" flag set by "xprshn"
+	ld	(udfflg),a
+	call	ctsrch		;  search condition table
+	cp	a,8		;  if (condition)
+	call	nc,serror
+	rlca			;    instruction
+	rlca
+	rlca
+	and	a,38H
+	add	a,0C0H
+	jr	rtrn2		;  else
+rtrn1	ld	a,(opcode)	;    instruction=opcode
+rtrn2	jp	end1
+;
+;
+;	class 12 - bit,set,res
+;
+;
+bitops	call	xprshn		;bit
+	ld	a,(xprval)
+	ld	(savval),a	;bit n
+	and	a,0F8H
+	call	nz,aerror
+	call	readch
+	cp	a,','
+	call	nz,serror
+	call	readch		;bit n,
+	cp	a,'('
+	jp	z,btst1
+	call	backup
+	call	xprshn
+	ld	a,(regflg)
+	and	a,rmask
+	call	z,aerror
+	ld	l,0CBH		;bit n,r
+	ld	a,(savval)
+	sla	a
+	sla	a
+	sla	a
+	ld	b,a
+	ld	a,(opcode)
+	and	a,0F8H
+	or	a,b
+	ld	b,a
+	ld	a,(regflg)
+	and	a,07H
+	or	a,b
+	ld	h,a
+	jp	end2
+	;
+btst1	call	xprshn		;bitop  n,(
+	ld	a,(regflg)
+	cp	a,hlreg
+	jr	nz,btst2
+	ld	l,0CBH		;bitop  n,(hl)
+	ld	a,(savval)
+	sla	a
+	sla	a
+	sla	a
+	ld	b,a
+	ld	a,(opcode)
+	or	a,b
+	ld	h,a
+	call	clspar
+	jp	end2
+
+btst2	cp	a,ixreg
+	jr	nz,btst21
+	ld	hl,0CBDDH	;bitop  n,(ix+p
+	jr	btst22
+btst21	cp	a,iyreg
+	call	nz,aerror
+	ld	hl,0CBFDH	;bitop  n,(iy+p
+btst22	ld	a,(xprval)
+	ld	e,a
+	ld	a,(savval)
+	sla	a
+	sla	a
+	sla	a
+	ld	b,a
+	ld	a,(opcode)
+	or	a,b
+	ld	d,a
+	call	clspar		;bitop  n,(iz+p)
+	jp	end4
+;
+;
+;	class 13 - inc,dec
+;
+incdec	call	readch
+	cp	a,'('
+	jr	z,ncdc1
+	call	backup		;inc ?
+	call	xprshn
+	ld	a,(regflg)
+	ld	b,a
+	and	a,rmask
+	jr	z,ncdc2
+	ld	a,b		;inc r
+	and	a,07H
+	rlca
+	rlca
+	rlca
+	ld	b,a
+	ld	a,(opcode)
+	or	a,b
+	jp	end1
+ncdc1	call	xprshn		;inc (?
+	call	clspar
+	ld	a,(opcode)	;inc (hl)
+	ld	b,a
+	ld	a,30H
+	or	a,b
+	ld	(opcode),a
+	ld	a,(regflg)	;inc(??)
+	cp	a,hlreg
+	jr	nz,ncdc11
+	ld	a,(opcode)
+	jp	end1
+ncdc11	cp	a,ixreg
+	jr	nz,ncdc12
+	ld	a,0DDH		;inc (ix+p)
+	jr	ncdc13
+ncdc12	cp	a,iyreg
+	call	nz,aerror
+	ld	a,0FDH		;inc (iy+p)
+ncdc13	ld	l,a
+	ld	a,(opcode)
+	ld	h,a
+	ld	a,(xprval)
+	jp	endhla
+ncdc2	ld	a,b
+	and	a,rpmask
+	call	z,aerror
+	ld	a,b
+	cp	a,ixreg
+	jr	nc,ncdc21	;inc rp
+	and	a,0FH
+	sla	a
+	sla	a
+	sla	a
+	sla	a
+	ld	b,a
+	ld	a,(opcode+1)
+	add	a,b
+	jp	end1
+ncdc21	ld	a,(opcode+1)
+	or	a,20H
+	ld	h,a
+	ld	a,b
+	cp	a,ixreg
+	jr	nz,ncdc22
+	ld	l,0DDH		;inc ix
+	jp	end2
+ncdc22	cp	a,iyreg
+	call	nz,aerror
+	ld	l,0FDH		;inc iy
+	jp	end2
+;
+;
+;	class 14 - pseudo operators
+;
+pseudo	ld	a,(opcode)
+	dec	a
+	add	a,a
+	ld	e,a
+	ld	d,0
+	ld	hl,psdtab
+	add	hl,de
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	ex	de,hl
+	jp	(hl)
+;
+;
+psdtab	dw	equop		; 1 equ
+	dw	dsop		; 2 defs
+	dw	dbop		; 3 defb
+	dw	dwop		; 4 defw
+	dw	endop		; 5 end
+	dw	orgop		; 6 org
+	dw	listop		; 7 list
+	dw	include		; 8
+	dw	ifop		; 9 if
+	dw	endifop		;10 endif
+	dw	forgop		;11 false origin
+	dw	reorgop		;12 re-origin
+;
+;
+equop	ld	a,(havlbl)	;if (not have_label)
+	or	a,a
+	jr	nz,equop0
+	call	lerror		;  "label error"
+	jp	ndstmt		;else
+equop0	ld	a,equtyp	;  linetype="equ"
+	ld	(lintyp),a
+	call	xprshn		;  expression
+	ld	a,(passno)	;  if (pass1)
+	or	a,a
+	jr	nz,equop1
+	ld	hl,(xprval)	;    put value into symtab
+	ex	de,hl
+	ld	hl,(symadr)
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+equop1	ld	hl,00		;  length=0
+	ld	(length),hl
+	jp	ndstmt
+;
+;
+dsflag	db	0
+dslgth	dw	0
+;
+dsop	ld	a,dstyp		;linetype="ds"
+	ld	(lintyp),a
+	call	xprshn		;expression
+	ld	hl,(xprval)	;length=exprval
+	ld	(length),hl
+	ld	de,(dslgth)
+	add	hl,de		;dslgth=dslgth+length
+	ld	(dslgth),hl
+	ld	a,true		;dsflag=true
+	ld	(dsflag),a
+	ld	a,(hexflg)	;if (hexflag)
+	cp	a,true
+	jr	nz,dsop1
+	ld	a,(passno)	;  if (pass2)
+	or	a,a
+	jr	z,dsop1
+	ld	a,(hxbfcnt)	;    if (hxbfcount<>0)
+	or	a,a
+	call	nz,wrhxbff	;      write hex record
+	ld	hl,(pchex)	;    pchex=pchex+length
+	ld	de,(length)
+	add	hl,de
+	ld	(pchex),hl
+	ld	(ldaddr),hl	;    load address=pchex
+	ld	a,false		;    dsflag=false
+	ld	(dsflag),a
+dsop1	jp	ndstmt
+;
+;
+dbop	ld	a,dbtyp		;linetype="db"
+	ld	(lintyp),a
+	call	dsfill		;generate zero fill if previous "ds"
+	xor	a,a		;length=0
+	ld	(length),a	;repeat
+dbop1	call	xprshn		;  expression
+	ld	a,(xprtyp)	;  if (exprtype==string)
+	cp	a,strtyp
+	jr	nz,dbop2
+	ld	hl,(length)	;    length=length+stringlgth
+	ld	de,(strlth)
+	add	hl,de
+	ld	(length),hl
+	jr	dbop3
+dbop2	cp	a,notype	;  elseif (exprtype<>notype)
+	jp	z,dbop31
+dbop21	ld	a,(xprval)	;    data_buffer[fas]=exprval
+	ld	hl,(datfas)
+	ld	(hl),a
+	inc	hl		;    fas=fas+1
+	ld	(datfas),hl
+	ld	a,(length)	;    length=length+1
+	inc	a
+	ld	(length),a
+dbop3	call	readch		;  readch
+	cp	a,','
+	jr	z,dbop1		;  until (ch<>',')
+dbop31	call	backup		;backup one char
+	jp	ndstmt
+;
+;
+dwop	ld	a,dbtyp		;linetype="defw"
+	ld	(lintyp),a
+	call	dsfill		;if previous "ds" generate zero fill
+	ld	hl,datbff	;data buffer fas=0
+	ld	(datfas),hl	;repeat
+dwop1	call	xprshn		;  expression
+	ld	hl,(datfas)
+	ld	de,(xprval)
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	ld	(datfas),hl
+	ld	hl,length
+	inc	(hl)
+	inc	(hl)
+	call	readch
+	cp	a,','		;  until (ch<>',')
+	jr	z,dwop1
+	call	backup		;backup one character
+	jp	ndstmt
+;
+endop	ld	a,orgtyp	;linetype="end"
+	ld	(lintyp),a
+endop1 	ld	a,true		;endflag=true
+	ld	(endflg),a
+	ld	hl,00		;length=0
+	ld	(length),hl
+	ld	hl,linbff	;insert <cr> at end of source in case none
+	ld	(lnbptr),hl	;  there already.
+	ld	a,cr
+	ld	(hl),a
+	jp	ndstmt
+;
+;
+orgop	ld	a,orgtyp	;linetype="org"
+	ld	(lintyp),a
+	call	xprshn		;expression
+	ld	hl,(xprval)	;if (exprval<pc)
+	ld	de,(pc)
+	call	cphlde
+	jp	nc,orgop1
+	call	berror		;  argument error
+	jp	ndstmt
+orgop1	ld	a,(passno)	;if (pass 2)
+	or	a,a
+	jr	z,orgop4
+	ld	a,(hexflg)	;  if (hexflg)
+	cp	a,true
+	jr	nz,orgop3
+	ld	a,(hxbfcnt)	;    if (hxbfcnt<>0)
+	or	a,a
+	call	nz,wrhxbff	;      write hex record
+	ld	(pchex),hl	;    pchex=exprval
+	ld	(ldaddr),hl	;    load_address=exprval
+	jr	orgop4		;  else
+orgop3	call	cphlde		;    while (exprval<>pc)
+	jr	z,orgop4
+	xor	a,a		;      write(0)
+	call	wrbyte
+	inc	de
+	jr	orgop3
+orgop4	ld	(pc),hl		;pc=exprval
+	ld	hl,00		;length=0
+	ld	(length),hl
+	jp	ndstmt
+;
+;
+on	db	3,'on'
+off	db	4,'off'
+;
+listop	ld	a,comtyp	;linetype=comment
+	ld	(lintyp),a
+	ld	a,(passno)
+	or	a,a		;if pass2
+	jr	z,lstp4
+	ld	a,(lstflg)
+	ld	c,a		;  oldlistflag=listflag
+	call	getnam
+	ld	hl,namlth	;  if (token=='off')
+	ld	de,off
+	call	cpstrg
+	jr	nz,lstp1	
+	ld	a,0		;    list off
+	jr	lstp3
+lstp1	ld	de,on		;elseif (token=='on')
+	call	cpstrg
+	jr	nz,lstp2
+	ld	a,1		;  list on
+	ld	(lstcls),a	;  list_close=true
+	jr	lstp3
+lstp2	call	aerror		;else
+	ld	a,1		;  list on
+lstp3	ld	(lstflg),a
+lstp4	jp	ndstmt
+;
+;
+movnam	push	hl		;move name from "nambff" to ^DE converting
+	push	de		;  to U/C
+	ld	hl,namlth
+	ld	b,(hl)
+	inc	hl
+	dec	b
+mvnm1	ld	a,(hl)
+	inc	hl
+	call	lctouc
+	ld	(de),a
+	inc	de
+	djnz	mvnm1
+	pop	de
+	pop	hl	
+	ret
+;
+;
+level	dw	0
+ppfcb	ds	2
+;
+include	push	hl
+	push	de
+	ld	de,(level)	;HL=^index[level]
+	ld	hl,buffers
+	add	hl,de
+	add	hl,de
+	ld	a,(hl)
+	inc	hl
+	ld	h,(hl)
+	ld	l,a
+	ld	de,(ipbndx)	;index[level]=ipbndx
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	ld	de,(nlines)	;lineno[level]=nlines	
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	ld	hl,level	;level=level+1
+	inc	(hl)
+	ld	a,(level)
+	cp	a,maxlvl+1
+	jr	c,incl0
+	call	dspnxt
+	db	bel,cr,lf,lf,'"include" nesting level exceeded',0
+	jp	abort
+incl0	ld	de,(level)
+	ld	hl,buffers	;buffer pointer vector
+	add	hl,de
+	add	hl,de
+	ld	a,(hl)
+	inc	hl
+	ld	h,(hl)
+	ld	l,a
+	ld	de,4		;skip index, nlines
+	add	hl,de
+	ld	(ppfcb),hl	;^fcb[level]
+	ex	de,hl
+	call	inifcb
+	call	readch		;drive
+	sub	a,'a'-1		;convert to number. A=1, B=2 ....
+	ld	(de),a
+	inc	de
+	call	readch		;":"
+	cp	a,':'
+	call	nz,serror
+	call	getnam		;name
+	call	movnam		;move name to fcb ^DE in U/C
+	call	readch		;"."
+	cp	a,'.'
+	call	nz,serror
+	call	getnam		;extension
+	ld	a,(namlth)
+	dec	a
+	ld	b,a
+	ld	a,(ndots)
+	add	a,b
+	ld	(ndots),a
+	ld	hl,(ppfcb)
+	ld	de,9
+	add	hl,de
+	ex	de,hl
+	call	movnam
+	ld	hl,(ppfcb)
+	ld	(fcb),hl
+	call	opnfil
+	jr	nz,incld1 
+	call	ferror		;  "include" file not found
+	jp	incld9
+incld1	ld	hl,(ppfcb)
+	call	dspfnm
+	ld	hl,ch4dsp
+	ld	de,(level)
+	add	hl,de
+	ld	a,(hl)
+	ld	(chdsp),a
+	ld	hl,(ppfcb)	;set new file
+	ld	(pipfcb),hl
+	ld	de,36
+	add	hl,de
+	ld	(ipbuff),hl
+	ld	de,bffsiz
+	add	hl,de
+	ld	(ipbndx),hl	;this will force a read
+	ld	(ipbend),hl	;set end of new buffer
+	ld	hl,-1		;nlines=-1
+	ld	(nlines),hl
+incld9	pop	de
+	pop	hl
+	jp	ndstmt
+;
+;
+nocode	ds	1
+;
+ifop	call	dsfill		;zero fill if previous "ds" ?????
+	call	xprshn		;expression
+	ld	a,(xprval)	;nocode=not exprval
+	xor	a,1
+	ld	(nocode),a
+	jp	ndstmt
+;
+;
+endifop	ld	a,false		;nocode=false
+	ld	(nocode),a
+	jp	ndstmt
+;
+;
+forgop	ld	a,orgtyp	;linetype="org"
+	ld	(lintyp),a
+	call	xprshn		;expression
+	ld	hl,(xprval)	;if (exprval<pc)
+	ld	de,(pc)
+	call	cphlde
+	jp	nc,forgop1
+	call	aerror		;  argument error
+	jp	ndstmt
+forgop1	ld	a,(passno)	;if (pass 2)
+	or	a,a
+	jr	z,forgop4
+	ld	a,(hexflg)	;  if (hexflg)
+	cp	a,true
+	jr	nz,forgop3
+	ld	a,(hxbfcnt)	;    if (hxbfcnt<>0)
+	or	a,a
+	call	nz,wrhxbff	;      write hex record
+	ld	hl,(ldaddr)	;    ldaddr=ldaddr-1
+	dec	hl
+	ld	(ldaddr),hl
+	jr	forgop4		;  else
+forgop3	call	cphlde		;    while (exprval<>pc)
+	jr	z,forgop4
+	xor	a,a		;      write(0)
+	call	wrbyte
+	inc	de
+	jr	forgop3
+forgop4	ld	hl,(xprval)	;pc=exprval
+	ld	(pc),hl
+	ld	hl,00		;length=0
+	ld	(length),hl
+	jp	ndstmt
+;
+;
+reorgop	ld	a,orgtyp	;linetype="org"
+	ld	(lintyp),a
+;	call	xprshn		;expression
+;	ld	hl,(xprval)	;if (exprval<pc)
+;	ld	de,(pc)
+;	call	cphlde
+;	jp	nc,orgop1
+;	call	aerror		;  argument error
+;	jp	ndstmt
+rorgop1	ld	a,(passno)	;if (pass 2)
+	or	a,a
+	jr	z,rorgop4
+	ld	a,(hexflg)	;  if (hexflg)
+	cp	a,true
+	jr	nz,rorgop3
+	ld	a,(hxbfcnt)	;    if (hxbfcnt<>0)
+	or	a,a
+	call	nz,wrhxbff	;      write hex record
+	ld	hl,(pchex)	;    pc=pchex
+	jr	rorgop4		;  else
+rorgop3	call	cphlde		;    while (exprval<>pc)
+	jr	z,rorgop4
+	xor	a,a		;      write(0)
+	call	wrbyte
+	inc	de
+	jr	rorgop3
+rorgop4	ld	(pc),hl		;pc=exprval
+	ld	hl,00		;length=0
+	ld	(length),hl
+	jp	ndstmt
+;
+;
+

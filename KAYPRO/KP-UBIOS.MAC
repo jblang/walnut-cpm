@@ -1,0 +1,578 @@
+;****************************************************************
+;*								*
+;*		      CBIOSZ for CPM 2.2u1			*
+;*								*	
+;****************************************************************
+;
+;HISTORY:
+;vs 0.9 
+;4/25/86 	disassembled, cleaned up, rewritten, commented 
+;		and zcpr3 and cursor, keyboard routines added
+;		still much not understood.. note several unknx 
+;		(unknown) routines after months of stubborn 
+;		hacking (and bludgeoning).. PLEASE send further
+;		improvements and commenting to:
+;					Will Ridenour
+;					338 S. Campbell
+;					Macomb, Il 61455
+;					(309) 833-1109 (voice)	
+;
+;NOTE:		this cbios is experimental... been using it for
+;		weeks without problems or bugs (with ws, turbo, bds c
+;		assemblers, loaders, etc.) but since I'm on my own out
+;		here in the midwest, i have no beta testers.. use at
+;		your own risk and if you find bugs.. let me know or, 
+;		even better, fix them and let me know what you did.
+;
+;FURTHER NOTE:	I removed several routines from this bios that made
+;		bdos calls... I think they were a very half baked way to
+;		make a shell of the 2x's masmenu system.... since
+;		I never use the masmenu I haven't missed these routines
+;		... if you want to put them back, you're on your own... but
+;		for god's sakes find a better way than putting bdos calls
+;		in the bios.	
+
+	.z80		;set up to compile with m80
+	aseg		;comment these lines out and cap 
+			;pseudo -ops to use z80mr
+			;since no macros or maclibs can also use 
+			;zasm or such as long as it's a z80 assembler
+			;may need to alter some syntax if not m80
+;
+;******* system	location equates
+;
+	boot	equ	1
+	jbdos	equ	5		
+	bdloc	equ	0D406h
+	ccp	equ	0CC00h
+	bios	equ	0E200h
+	iobyte	equ	3		;iobyte vector in page zero
+	duvct	equ	4		;default drive user vector
+	tpa	equ	100h		;start of transient program area
+;
+;******* zcpr specific equates
+;	graf	equ	4fh	;toggle byte for graphics (not implemented)
+	whlb	equ	04bh	;zcpr3 wheel byte
+	login	equ	0f0h	;log in to disk A, user 15
+				;works nicely to keep all system files out
+				;in a15 and applications in a0
+;	
+;******* 
+	bitport	equ	14h	;system select port
+	maxdsk	equ	2	;standard 2 floppy 2x kaypro
+	keyreg	equ	5	;keyboard register 
+	quiet	equ	8	;value to turn off clicker
+	vidsel	equ	1ch	;video select port	
+	cureg	equ	1fh	;video cursor register 
+	cursor	equ	0f000h	;nonblink block	
+	cflag	equ	0f1f0h  ;this may be heresy-- using unused area
+				;of tcap to store cursor and keyboard
+				;values-- but its seems logical and it's
+				;going to waste otherwise -- unused area
+				;above bios stack at e6f0 may be used if
+				;you wish to remain orthadox	
+	curs1	equ	0f1f1h	;values for cursor and keyboard stored
+	curs2	equ	0f1f2h	;under tcap
+	kybd	equ	0f1f3h
+;	
+	org	bios		;use 3d80 offset to load with ddt or zsid
+				;if not changing tpa size from 58k
+;
+;******** standard cpm bios jump table
+
+	jp	cboot		;arrive here from cold boot		
+jwboot:	jp	wboot		;jump to warm boot
+	jp	const		;jump to console status routine
+	jp	conin		;console in
+	jp	conout		;console out
+	jp	list		;list out
+	jp	punch		;punch out
+	jp	reader		;reader in
+	jp	home		;home disk routine
+	jp	seldsk		;select disk routine
+	jp	settrk		;set track routine
+	jp	setsec		;set sector
+	jp	setdma		;set default memory address
+	jp	read		;read file
+	jp	write		;write file
+	jp	listst		;list status
+	jp	sectran		;sector translate
+;
+const:	call	unkn2		;can't comment on any of the following	
+	call	unkn3		;these routines are mostly in rom 
+	db	19h		;and don't have that sorted out yet
+conin:	call	const		
+	and	a
+	db	28h
+	db	0fah
+	call	unkn3
+	db	1ah
+conout:	push	bc
+	call	unkn2		
+	pop	bc
+	call	unkn3		
+	db	1bh
+list:	push	bc
+	call	unkn2		
+	pop	bc
+	call	unkn3		
+	db	1ch
+punch:	push	bc
+	call	unkn2		
+	pop	bc
+	call	unkn3		
+	db	1dh
+reader:	call	unkn2		
+	call	unkn3		
+	db	1eh
+home:	call	unkn3
+	db	1fh
+seldsk:	call	unkn3		
+	db	20h
+settrk:	call	unkn3		
+	db	21h
+setsec:	call	unkn3
+	db	22h
+setdma:	call	unkn3
+	db	23h
+read:	call	unkn1		
+	call	unkn3		
+	db	24h
+write:	call	unkn1		
+	call	unkn3		
+	db	25h
+listst:	call	unkn3		
+	db	26h
+sectran:
+	call	unkn3
+	db	27h	
+;
+unkn1:	ld	hl,2800h
+	ld	(stak+2),hl
+	ld	hl,800h
+	ld	(stak+4),hl	
+	ret	
+;
+unkn2:	ld	a,(sizkbf)	
+	and	a
+	ret	z
+	ld	hl,(stak+2)	
+	ld	a,h
+	or	l
+	ret	z
+	dec	hl
+	ld	(stak+2),hl	
+	ld	a,h
+	or	l
+	ret	nz
+	ld	hl,(stak+4)	
+	ld	(stak+2),hl	
+	ld	hl,0000h	
+	ld	(stak+4),hl	
+	call	unkn3		
+	inc	(hl)
+	ret	
+;
+unkn3:	pop	hl
+	ld	d,(hl)
+	ld	(stak+6),sp
+	ld	sp,stak+35h
+	ld	hl,unkn4
+	push	hl
+	jp	gorom1		
+;
+unkn4:	ld	sp,(stak+6)
+	ei
+	ret
+;
+ioconfg:			;configuration for iobyte
+	db	10011001b	;99h to support Kaypro internal	modem
+				;set to 81h to use serial data port 
+				;for external modem
+	db	0	
+;*** the following section may as well be in hebrew.. be glad if
+;*** someone can sort it out
+;
+unkn5:	db	18h,4ch		;can't guarantee that any of this is
+	db	0		;right since i don't know what it's
+	ret	nc		;doing yet... bytes are right but op codes
+	pop	hl		;don't make any sense to me yet
+	jp	pe,0000h	
+	db	18h,4ch
+	db	0	
+	ret	po
+	pop	hl
+	jp	pe,0000h	
+	db	18h,4ch
+	db	0	
+	ret	po
+	pop	bc
+	ld	l,b
+	db	0,0	
+	dec	b
+	dec	b
+	db	0,0,0	
+;
+; note: config will no longer work on this system to set number pad and
+;	vector keys... sorry... keybuf can hold approx 16 characters per
+;	number pad key +2 bytes at beginning for each key definition 
+;	(1 for number of relative bytes to location of definition and 1 
+;	for number of bytes in definition.. number of bytes comes first
+;	have defined zero key as 'HOLD, <RTN>' to show how to do your own. 
+;	seems to me this is more space than needed but haven't been able 
+;	to cut it down.. has something to do with values in indexed
+;	registers(ix iy), but haven't got that figured yet.. at any rate 
+;	it seems that we could get more flexibility out of this with some 
+;	thought.. would be very grateful for help
+;
+sizkbf:	db	0ffh	;don't know if this is really size of key buf
+			;or just a coincidence.. changing it doesn't
+			;help in cutting size of buffer	
+keybuf:	db	05h	;5 bytes in 'HOLD' <RTN>
+	db	1ch	;1ch bytes to location of definition
+	db	01h,20h,01h,21h,01h,22h,01h,23h,01h,24h,01h,25h
+	db	01h,26h,01h,27h,01h,28h,01h,29h,01h,2ah,01h,2bh
+	db	01h,2ch
+	db	'HOLD',0dh	;HOLD <RTN>
+	db	'123456789-,',0dh,'.'
+	db	0ffh,0ffh	;end markers don't need to be there
+				;if nothing defined
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+;note:  above buffer must be exactly 255 bytes long (incl defs) unless
+;	you figure out indexed registers... otherwise all key defs will be off	
+;
+uparo:	db	05h		;ws keys ^E
+dnaro:	db	18h		;^X
+rtaro:	db	13h		;^S
+lfaro:	db	04h		;^D
+	db	0f0h,0f1h,0f2h,0f3h,0f4h,0f5h,0f6h,0f7h,0f8h  ;key vectors?
+	db	0f9h,0fah,0fbh,0fch,0fdh
+keydef:	db	'1234567890-='
+	db	'`qwy[]a;',27h,'\zm,./eiou!@#$%^&*()_+~'
+	db	'QWY{}A:"|ZM<>?EIOU'
+
+;******************* cold boot routines
+;
+cboot:	di			;disable interupts	
+	ld	sp,stak+35h	
+	in	a,(bitport)
+	and	7fh
+	out	(bitport),a
+	ld	d,36h
+	call	gorom1		
+	ld	de,0054h	
+	add	hl,de
+	ex	de,hl
+	ld	ix,cbuf1	
+	ld	a,4
+cloop1:	ex	af,af'		;cloop1 was 4 calls in a row to the same
+	ld	bc,0002h	;subroutine called only here-- replaced with
+	ld	a,2		;a loop and put inline
+				;-- cloop1 and two are setting up
+	call	cloop2		;indexed registers, don't quite follow yet
+	add	ix,bc		;cloop2 was the same called 2,
+	ld	a,4		;then 4 times, then 2 again.. made another
+	call	cloop2		;series of loops
+	add	ix,bc
+	ld	a,2
+	call	cloop2		
+	inc	ix
+	ex	de,hl
+	ld	d,00h
+	ld	e,(ix+0f9h)
+	add	hl,de
+	ld	e,(ix+0efh)
+	add	hl,de
+	ex	de,hl
+	ex	af,af'
+	dec	a
+	jr	nz,cloop1
+	ld	bc,cbuf1	
+	ld	d,36h
+	call	gorom1		
+	ld	bc,unkn6	
+	ld	d,00h
+	call	gorom1		
+	ld	bc,unkn5	
+	ld	d,2ah
+	call	gorom1		
+	ld	bc,keybuf	
+	ld	d,2bh
+	call	gorom1		
+	ld	a,login			
+	ld	(duvct),a		
+	ld	a,(ioconfg)		;this is also repeated in gocpm	
+	ld	(iobyte),a	
+	ld	d,28h
+	ld	bc,signon		;uses a rom sub to print signon
+	call	gorom1			;msg... 'Kaypro CPM 2.2' in rom	
+					;u1 added in bios, added z3 and
+	ei				;tpa size... considered adding
+					;date and my initials, but this
+					;is too far from finished to feel
+					;proprietary... add your own if
+					;it makes you feel good
+;	
+;*********** routines to initialize system for zcpr3
+;
+	ld	hl,path
+	ld	de,40h
+	ld 	bc,9			;load path 
+	ldir
+;
+	ld	a,0ffh
+	ld	(whlb),a		;set wheel byte
+;
+;graphics byte set commented out because graphics don't seem to make any
+;trouble on u1... will need to add 8th bit filter toggle to conout
+;to use this
+;	
+;	ld	a,0
+;	ld	(graf),a		;set graphics byte
+	ld	hl,0e700h		;initialize high memory buffers
+	ld	a,17			;zeroing all the way to f7ff
+zloop:	ld	b,0ffh			;even tho top at f5.. doesn't 
+zero:	ld	(hl),0			;add more than a milisecond to cboot
+	inc	hl			;and keeps things clear and clean
+	djnz	zero			;for planned additions
+	dec 	a	
+	jr	nz,zloop
+	ld	hl,mcmd			;initialize multiple command
+	ld	de,0f400h		;buffer and load cold boot command
+	ld	bc,24
+	ldir
+	jr	gocpm			;all done so get ready to go to cpm
+;
+;****************** warm boot routines
+;
+wboot:	ld	sp,stak+35h	
+;	ld	hl,0000h	
+;	ld	(buf1),hl	;what's going on here?	
+;	ld	(buf2),hl	
+	ld	d,29h
+	call	gorom1		
+;
+;***************** gocpm routines shared by warm and cold boot
+;
+gocpm:
+;
+;***************** cursor set routine
+;
+	ld	a,(cflag)	;check to see if cursor defs are loaded
+	cp	0		
+	jr	nz,stcurs	;yes so go set them
+	ld	a,1		;no so load then first
+	ld	(cflag),a	
+	ld	hl,cursor
+	ld	(curs1),hl
+	ld	a,quiet
+	ld	(kybd),a
+stcurs:	ld	a,0ah		;select cursor reg 1
+	out	(vidsel),a
+	ld	a,(curs1)
+	out	(cureg),a	;set blink and top of cursor
+	ld	a,0bh		;select cursor reg 2
+	out	(vidsel),a
+	ld	a,(curs2)		;set bottom of cursor
+	out	(cureg),a
+;
+;***************** routine to set keyboard to quiet (or not)
+;
+;	note: this doesn't work as well as I'd like -- clicker is
+;	on at cold boot... shuts off after warm boot.. don't know why
+;	probably something in rom
+;
+	ld	a,(kybd)
+	out	(keyreg),a
+;
+;***************** loading warm boot and bios jumps
+;
+	ld	a,0c3h
+	ld	(0),a	
+	ld	(jbdos),a
+	ld	hl,jwboot	
+	ld	(boot),hl	
+	ld	hl,bdloc
+	ld	(6),hl
+	ld	a,(duvct)
+	and	0fh		;zero out user nibble
+	cp	maxdsk+1	;make sure it's a valid disk
+	ld	a,(duvct)		;get a fresh copy
+	jr 	c,gocp2		;if ok then skip		
+	xor	a		;else default to disk a user 0
+gocp2:	ld	(duvct),a	;reload
+	ld	c,a		;pass du to ccp for action
+	ld	sp,tpa		;set stack pointer for program exec
+	jp	ccp		;note all entry is at 1st ccp entry
+				;seems to me that zcpr3 and multiple
+				;commands make 2 entry points meaningless
+;	
+cloop2:	ld	l,(ix+00h)
+	ld	h,(ix+01h)
+	add	hl,de
+	ld	(ix+00h),l
+	ld	(ix+01h),h
+	add	ix,bc
+	dec	a
+	jr	nz,cloop2
+	ret	
+;
+unkn6:	call	gorom2		;seems to me this can be cleaned up
+	db	01h		;with loop(s), but don't understand it
+	call	gorom2		;well enough yet
+	db	02h
+	call	gorom2		
+	db	03h
+	call	gorom2		
+	db	04h
+	call	gorom2		
+	db	05h
+	call	gorom2		
+	db	06h
+	call	gorom2
+	db	07h
+	call	gorom2		
+	db	08h
+	call	gorom2		
+	db	0dh
+	call	gorom2		
+	db	0eh
+	call	gorom2
+	db	0fh
+	call	gorom2		
+	db	10h
+	call	gorom2		
+	db	9h
+	call	gorom2		
+	db	0ah
+	call	gorom2		
+	db	0bh
+	call	gorom2		
+	db	0ch
+	call	gorom2		
+	db	11h
+	call	gorom2
+	db	12h
+;
+gorom1:	ld	a,(iobyte)	
+	ld	h,a
+	in	a,(bitport)
+	push	af
+	set	7,a
+	out	(bitport),a
+	ld	a,h
+	call	004bh		
+	pop	bc
+	ex	af,af'		;these were push and pop
+				;same space but faster
+	ld	a,b
+	and	80h
+	ld	b,a
+	in	a,(bitport)
+	and	7fh
+	or	b
+	out	(bitport),a
+	ex	af,af'
+	ret	
+;
+gorom2:	ex	(sp),hl
+	ld	(stak+07ah),sp
+	ld	sp,stak+090h
+	push	de
+	push	bc
+	push	af
+	push	ix
+	push	iy
+	ld	d,(hl)
+	in	a,(bitport)
+	ex	af,af'
+	set	7,a
+	out	(bitport),a
+	call	004bh		
+	ex	af,af'
+	and	0fch
+	ld	d,a
+	in	a,(bitport)
+	and	03h
+	or	d
+	out	(bitport),a
+	pop	iy
+	pop	ix
+	pop	af
+	pop	bc
+	pop	de
+	ld 	sp,(stak+07ah)
+	pop	hl
+	ei
+	reti
+	
+;
+cbuf1:	db	0,0
+	ld	e,00h		;don't know what all this is
+	ld	e,00h		;zsid and ddt alter some values in here
+	db	0,0,0,0	
+	ld	e,00h
+	inc	hl
+	nop	
+	dec	b
+	nop	
+	ld	e,00h
+	ld	e,00h
+	db	0,0,0	
+	dec	b
+	nop	
+	dec	b
+	db	0,0,0,0,0	
+	dec	b
+	nop	
+	inc	hl
+	nop	
+	ld	e,00h
+	dec	b
+	nop	
+	dec	b
+	db	0,0,0,0	
+	ld	e,00h
+	ld	e,00h
+	db	0,0,0,0	
+	ld	e,00h
+	inc	hl
+	nop	
+	dec	b
+	nop	
+	ld	e,00h
+	ld	e,00h
+	db	0,0,0	
+	inc	d
+	nop	
+	inc	d
+	db	0,0,0,0,0	
+	inc	d
+	nop	
+	rla	
+	nop	
+	inc	bc
+	nop	
+	inc	d
+	nop	
+	inc	d
+;
+	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+signon:	db	'u1z3 58k tpa',0dh,0ah,0
+path:	db	01h,0,01h,0fh,0,0,0,0,0
+mcmd:	db	04h,0f4h,0D0h,0,'LDR SYS.ENV;STARTUP',0	
+	db	'END'		;end of bios
+stak	equ	$+8		;note this is bottom of stack-- top is
+				;0afh bytes higher (have compressed it much)
+				;may possibly be compressed further 
+;	
+	end	
+ó…

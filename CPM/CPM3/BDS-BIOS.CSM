@@ -1,0 +1,45 @@
+;
+;	(c) 1984 Kevin W. Rudd
+;	All Commercial Rights Reserved
+;	This set of routines is presented into the public
+;	domain for any non-commercial use provided this
+;	message is included.
+;
+;	cpm plus (vers 3.0) versions of BDS-C bios and biosh functions
+;
+
+	INCLUDE "bds.lib"
+
+	FUNCTION	bios
+	call	arghak	
+	push	b
+	lda	arg1	;get function number (1-85)
+	sta	bios3x+0	;store in FUNC byte
+	lhld	arg2	;get value to be put in BCREG
+	shld	bios3x+2	;store it in BCREG word
+	mvi	c,50	;cpm3 bdos call for dir bios call
+	lxi	d,bios3x	;get addr of block
+	call	bdos	;execute it
+	pop	b	;restore b register
+	ret		;and return to caller
+	ENDFUNC
+
+	FUNCTION	biosh
+	call	arghak	
+	push	b
+	lda	arg1	;get function number (1-85)
+	sta	bios3x+0	;store in FUNC byte
+	lda	arg2	;get value to be put in AREG
+	sta	bios3x+1	;store in BCREG word
+	lhld	arg3	;get value to be put in BCREG
+	shld	bios3x+2	;store it in BCREG word
+	lhld	arg4	;get value to be put in DEREG
+	shld	bios3x+4	;store it in DEREG word
+	lhld	arg5	;get value to be put in HLREG 
+	shld	bios3x+6	;store it in HLREG word
+	mvi	c,50	;cpm3 bdos call for dir bios call
+	lxi	d,bios3x	;get addr of block
+	call	bdos	;execute it
+	pop	b	;all done. Leave return value in HL
+	ret		;and return to caller
+	ENDFUNC

@@ -1,0 +1,160 @@
+
+; B5CM-1.INS  -   BYE5 insert for Cermetek modems  -  07/17/85
+;
+;	   Cermetek Infomate 212A modem control package
+;
+; 	     Note:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Renamed for use with BYE5		- Irv Hoff
+; 12/14/84  Written for BYE3			- Paul Traina
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; To use this code, the BYE5 routines for your USART must be modified:
+;
+;	IMODEM	EQU	YES	; Yes, using intelligent modem
+;
+;	After all USART and baud rate instructions have been executed
+;	and IMMEDIATELY after DTR has been set logic true, (DTR must be
+;	On for the Cermetek to receive and execute commands), add the
+;	following:
+;
+;		 IF	IMODEM
+;		CALL	IMINIT
+;		 ENDIF
+;
+; The following hardware configuration is assumed:
+; -----------------------------------------------
+;	DTR (Pin 20) is supported
+;	DCD (Pin 8) is supported
+;	RI  (Pin 22) is NOT supported
+;
+; The following software configuration is assumed:
+; -----------------------------------------------
+;	CWAIT	EQU	20	; Wait up to 20 seconds for carrier
+;	CLOSS	EQU	1	; If carrier lost wait 1 sec. to hang-up
+;	NORING	EQU	YES	; Yes, UART ring indicator not available
+;
+; The following Infomate 212A default switches are assumed:
+; --------------------------------------------------------
+;	1=On   asynchronous mode
+;	2=Off  8 data bits
+;	3=Off  DCD active only when carrier is present
+;	4=On   host controls DTR
+;	5=On   battery backup enabled
+;	6=Off  not using exclusion key phone
+;	7=On   undocumented, should be on
+;	8=Off  undocumented, should be off
+;
+; Notes:
+; -----
+;	The Cermetek will automatically set itself to the speed of the
+;	calling modem, provided the speed is 300 or 1200 baud.	This
+;	relieves us of the need to set the modem (still have to check
+;	and set the USART/baud), via software instructions.
+;
+; Command strings sent to modem:
+; -----------------------------
+;	a. '  XY\r'
+;		   Lets the modem "learn" what baud rate we're using.
+;
+;	b. The meaning of the second command string follows:
+;	  '^NN ~'  Set command character to tilde ('~').
+;	  '~P 04'  Do not echo commands, disconnect on loss of carrier
+;	  '~U 1'   Tell modem to ignore commands when carrier present
+;	  '~C 1'   Tell modem to answer phone after first ring
+;
+;	c. When the operator aborts BYE by typing a ^C when waiting for
+;	   a call to come in, the modem should be sent a command string
+;	   to reset it to a more "user-friendly" state, and also tell
+;	   the modem to stop answering calls.  This third command string
+;	   is as follows:
+;	  '^NN ~'  Make sure tilde is command character
+;	  '~C 0'   Disable auto-answer
+;	  '~P 44'  Echo commands
+;
+;-----------------------------------------------------------------------
+;
+;
+; Initialize the Infomate 212a.  DTR must be logic true for the modem to
+; receive and process a command.
+;
+IMINIT:	CALL	IMLERN		; Make modem learn current baud rate
+	DB	'  XY',CR
+	DB	'  XY',CR,0
+	CALL	IMSEND		; No delay - do not answer the phone
+	DB	'N'-40H		; Send attention character
+	DB	'N ~',CR	; Set new attention character
+	DB	'~P 04',CR	; Disable command echo, enable carrier
+	DB	'~U 1',CR	; Do not process command char if carrier
+	DB	'~C 1',CR,0	; Answer phone after first ring
+	RET
+;.....
+;
+;
+; Send string slowly for modem to find baud rate
+;
+IMLERN:	MVI	A,YES		; Set delay flag to yes
+	STA	DLYFLG
+	XTHL			; Save HL and get text address
+	PUSH	B		; Save BC
+	JMP	IMSEN1		; Continue with normal routine
+;.....
+;
+;
+; De-initialize the Cermetek.  DTR must be set logic true for modem to
+; receive and process a command.  The ring register setting should be
+; set to 0 so that the modem will not answer calls, also some other re-
+; gisters should be reset, then after all is done, the USART routines
+; should turn off DTR.
+;
+IMQUIT:	CALL	IMLERN		; Make modem learn baud rate
+	DB	'  XY',CR
+	DB	'  XY',CR,0
+	CALL	IMSEND		; No delay - tell modem to shutdown
+	DB	'N'-'@'		; Send attention character
+	DB	'N ~',CR	; Set new attention character
+	DB	'~P 44',CR	; Enable command echo
+	DB	'~U 1',CR	; Do not process command char if carrier
+	DB	'~C 0',CR,0	; Do not answer phone
+	RET
+;.....
+;
+;
+; Send the Command String to the modem, similiar to how ILPRT sends to
+; console.
+;
+IMSEND:	XRA	A		; Make sure there is no delay
+	STA	DLYFLG
+	XTHL			; Save HL and get address of message
+	PUSH	B		; Save BC
+;
+IMSEN1:	CALL	MDOUTST		; Get the modem output status
+	JZ	IMSEN1		; Not ready to send yet
+	MOV	A,M		; If ready, get the character
+	CALL	MDOUTP		; Send the character
+	INX	H		; Point to next character
+	CALL	DELAY		; Wait 100 ms here
+	MOV	A,M		; Get next character
+	ORA	A		; Are we all done?
+	PUSH	PSW
+	LDA	DLYFLG		; Check to see if we should delay
+	ORA	A
+	CNZ	DELAY		; If flag is set, delay another 100ms
+	POP	PSW		; ..for a total of 200ms delay.
+	JNZ	IMSEN1		; If not done, go do another
+	POP	B		; Otherwise restore BC
+	XTHL			; Restore HL and get return address
+	RET
+;.....
+;
+;
+DLYFLG:	DB	0		; Delay flag
+;
+;			       end
+;-----------------------------------------------------------------------
+

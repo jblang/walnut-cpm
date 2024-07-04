@@ -1,0 +1,232 @@
+
+; B5MD-1.INS - BYE5 insert for Morrow Micro Decision Computers	07/17/85
+;
+;	    8251A and Intel 8253 timer for Rev 2.x only
+;
+; Pin 8 (DCD) from the modem must be connected to the USART's DSR input,
+; either on the internal jumper block or in the modem connecting cable.
+;
+;	     Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written to work with BYE5			- Irv Hoff
+; 03/30/85  Written for Rev 1.x and Rev 2.x boards	- Jim Sinning
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; The following equate will be YES if using a later Micr Decision with
+; Intel 8253 timer chip and Centronics Port.  Set NO for rev 1.x board.
+;
+REV2X	EQU	YES		; Yes if Centronix port and 8253 chip
+				; No if Rev 1.x board
+;
+;The following define the port address to use
+;
+PORT	EQU	0FEH		; Data port
+MDCTL1	EQU	PORT+1		; Status/control port
+;
+;
+; NOTE: The DIP switches for Serial 2 Port must be set for 1200 baud for
+; this to work.
+;
+	 IF	REV2X
+BPORT	EQU	0F2H		; Serial 2 Port on Intel 8253 timer
+CPORT	EQU	0F3H		; 8253 control port
+MODINS1	EQU	4EH		; 8 bits, 1 stop, 16x, no parity
+	 ENDIF			; REV2X
+;
+	 IF	NOT REV2X
+BPORT	EQU	MDCTL1		; Baud rate port=8251 control
+CPORT	EQU	MDCTL1		; Control port=8251 control
+MODINS1	EQU	4FH		; 8 bits, 1 stop, 64x, no parity
+	 ENDIF			; NOT REV2X
+;
+;
+; The following byte selects the proper mode for the Intel 8253 timer.
+; Selects counter 2, reads least significant byte then most significant
+; byte, sets the square wave generator and count is binary.
+;
+	 IF	REV2X
+CNTR2	EQU	0BEH
+	 ENDIF			; REV2X
+;
+;
+;-----------------------------------------------------------------------
+;
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Get status
+	ANI	80H		; Check DSR bit for a carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	MDCTL1		; Causing hangup
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finnished
+	POP	B		; Restore BC
+	MVI	A,17H		; Assert DTR so that modem
+	OUT	MDCTL1		; Can answer phone
+	CALL	UDELAY		; Added to be safe
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	02H		; Check the receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; We have a character
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1
+	ANI	01H		; Check the transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Tell smartmodem to quit
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; Turn off DTR
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;		     Start of rev 1.x speeds
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+	 IF	NOT REV2X
+SET2400	EQU	$		; Only supports 300/1200
+;
+SETINV:	ORI	0FFH		; Make sure zero flag not set
+	RET
+;.....
+;
+;
+SET300:	MVI	B,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	B,BD1200
+;
+SETBAUD:MVI	A,47H		; Reset, enable Rx, DTR, Tx
+	OUT	MDCTL1		; Rx,Tx enabled
+	CALL	UDELAY
+	MOV	A,B		; Recover Baud Rate Word
+	OUT	BPORT
+	CALL	UDELAY		; Wait for USART
+	MVI	A,17H		; ERR reset, DTR, Rx, Tx all on
+	OUT	MDCTL1
+	CALL	UDELAY
+	XRA	A		; Say rate OK
+	RET
+;.....
+;
+;
+; Values to switch the 8251 between x16 and x64 for rev 1.x boards
+;
+BD300	EQU	4FH		; 300 baud
+BD1200	EQU	4EH		; 1200 bps
+	 ENDIF			; NOT REV2X
+;
+;		      End of rev 1.x speeds
+;-----------------------------------------------------------------------
+;		     Start of rev 2.x speeds
+;
+	 IF	REV2X		; 300/1200/2400 baud supported
+SET300:	PUSH	H		; Save HL just in case
+	LXI	H,BD300		; Point Divisor word
+	JMP	SETBAUD
+;
+SET1200:PUSH	H
+	LXI	H,BD1200
+	JMP	SETBAUD
+;
+SET2400:PUSH	H
+	LXI	H,BD2400
+;
+SETBAUD:MVI	A,CNTR2		; Select Serial 2 Counter
+	OUT	CPORT
+	CALL	UDELAY
+	MOV	A,L		; Send Least significant byte
+	OUT	BPORT
+	CALL	UDELAY
+	MOV	A,H
+	OUT	BPORT
+	CALL	UDELAY
+	MVI	A,17H		; ERR reset, Rx, DTR, Tx all on
+	OUT	MDCTL1
+	CALL	UDELAY
+	XRA	A		; Say baud rate is OK
+	POP	H		; Recover HL
+	RET
+;.....
+;
+;
+; The following data words are the Intel 8253 divisors for BPORT
+;
+BD300	EQU	416		; 300 baud
+BD1200	EQU	104		; 1200 bps
+BD2400	EQU	52		; 2400 bps
+BD9600	EQU	13		; 9600 bps
+	 ENDIF			; REV2X
+;.....
+;
+;
+; IN8251 specific USART delay
+;
+UDELAY:	NOP
+	NOP
+	NOP
+	RET
+;.....
+;
+;			       end
+;------------------------------------------------------
+

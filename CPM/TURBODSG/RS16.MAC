@@ -1,0 +1,295 @@
+;RS-16
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+dfcb	equ	5ch
+dbuf	equ	80h
+;
+	extrn	f$open,f$close,f$read,f$write
+	extrn	scanner,codend,cout
+	extrn	bbline,print,phl4hc,eval16,phlfdc
+	extrn	initfcb,pfn2,crlf
+	extrn	wildex
+;
+.z80
+;
+start:	ld	sp,stack
+	call	print
+	cr,lf
+	' --------------------------------------------------',cr,lf
+	'|      RS-16 reserializer for 16-bit TurboDOS      |',cr,lf
+	'| WARNING: (c) infringement is YOUR responsibility |',cr,lf
+	' --------------------------------------------------',cr,lf,lf,0
+	ld	a,(dfcb+1)
+	cp	' '
+	jr	nz,..ct1
+	call	print
+	'No file specified',cr,lf,0
+	rst	0
+;
+..ct1:	ld	a,(dfcb+9)
+	cp	'O'
+	jr	nz,..noo
+	ld	hl,(dfcb+10)
+	ld	de,'  '
+	xor	a
+	sbc	hl,de
+	jr	nz,..noo
+	call	codend
+	ld	de,dfcb
+	call	wildex
+	jr	nz,..ct2
+	call	print
+	'File(s) not found',cr,lf,0
+	rst	0
+;
+..noo:	call	print
+	'File(s) must be type .O',cr,lf,0
+	rst	0
+;
+..ct2:	call	phlfdc
+	call	print
+	' files matched.',cr,lf,lf
+	'Enter: New Origin (hex) : ',0
+	push	hl
+	ld	a,1
+	call	bbline
+	call	eval16
+	ld	(neworg),de
+	call	print
+	cr,lf
+	'       New Unit (hex)   : ',0
+	ld	a,1
+	call	bbline
+	call	eval16
+	ld	(newuni),de
+	pop	hl
+	inc	hl
+	ld	(count),hl		;save # of files
+	ex	de,hl
+	ld	hl,0
+	ld	bc,16			;find file buffer start
+..mlp:	add	hl,bc
+	dec	de
+	ld	a,d
+	or	e
+	jr	nz,..mlp
+	ex	de,hl
+	call	codend
+	ld	(fcbs),hl
+	add	hl,de
+	inc	h
+	ld	l,0
+	ld	(buffer),hl
+;
+; come here for each file
+;
+loop:	ld	hl,(count)
+	dec	hl
+	ld	(count),hl
+	ld	a,h
+	or	l
+	jp	z,done
+	ld	hl,(fcbs)
+	ld	bc,16
+	ld	de,dfcb
+	ldir
+	ld	(fcbs),hl
+	ld	de,dfcb
+	call	initfcb
+	call	print
+	cr,lf,lf
+	'Now processing ',0
+	inc	de
+	call	pfn2
+	call	crlf
+	ld	de,dfcb
+	call	f$open
+	ld	hl,(buffer)
+	ld	(bufptr),hl
+	xor	a
+	ld	(chgd),a
+rdlp:	call	f$read
+	jr	nz,allrd
+	ld	hl,(bufptr)
+	ld	bc,dbuf
+..mvl:	ld	a,(bc)
+	ld	(hl),a
+	inc	hl
+	inc	c
+	jr	nz,..mvl
+	ld	(bufptr),hl
+	jr	rdlp
+;
+allrd:	call	f$close
+	ld	hl,(bufptr)
+	ld	(bufend),hl
+	ld	hl,(buffer)
+	ld	(bufptr),hl
+..fol:	call	findo
+	jr	nz,lku			;exhausted, look for unit
+	push	hl			;save pointer
+	call	getbd			;get seg=BC, val=DE
+	ld	a,b
+	or	c
+	jr	nz,..no1
+	push	hl			;(HL=.val)
+	call	print
+	cr,lf
+	'"Origin" value ',0
+	push	bc
+	pop	hl
+	call	phl4hc
+	ld	a,':'
+	call	cout
+	ex	de,hl
+	call	phl4hc
+	ld	de,(neworg)
+	pop	hl
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+..no1:	pop	hl
+	jr	..fol
+;
+lku:	ld	hl,(buffer)
+..ful:	call	findu
+	jr	nz,endsb		;end of substitutions
+	push	hl			;save pointer
+	call	getbd			;get seg=BC, val=DE
+	ld	a,b
+	or	c
+	jr	nz,..nu1
+	push	hl			;(HL=.val)
+	call	print
+	cr,lf
+	'"Unit"   value ',0
+	push	bc
+	pop	hl
+	call	phl4hc
+	ld	a,':'
+	call	cout
+	ex	de,hl
+	call	phl4hc
+	ld	de,(newuni)
+	xor	a
+	sbc	hl,de
+	jr	z,ch
+	ld	a,1
+	ld	(chgd),a
+ch:	pop	hl
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+..nu1:	pop	hl
+	jr	..ful
+;
+endsb:	ld	a,(chgd)
+	or	a
+	jp	z,loop
+;
+; write back to disk
+;
+	ld	de,dfcb
+	call	initfcb
+	call	f$open		;open for write
+	ld	hl,(buffer)
+	ld	(bufptr),hl
+wrlp:	ld	hl,(bufptr)
+	ld	bc,(bufend)
+	ld	a,b
+	cp	h
+	jr	nz,..ne
+	ld	a,c
+	cp	l
+	jr	z,wrend
+..ne:	ld	bc,80h
+..ss:	ld	a,(hl)
+	ld	(bc),a
+	inc	hl
+	inc	c
+	jr	nz,..ss
+	ld	(bufptr),hl
+	call	f$write
+	jr	wrlp
+;
+wrend:	call	f$close
+	JP LOOP
+;
+getbd:	dec	hl
+	ld	a,(hl)
+	cp	' '+1
+	jr	nc,getbd
+	ld	b,(hl)
+	dec	hl
+	ld	c,(hl)
+	dec	hl
+	ld	d,(hl)
+	dec	hl
+	ld	e,(hl)
+	ret
+;
+findu:	ld	de,unit
+	jr	..fnd
+;
+findo:	ld	de,orgin
+..fnd:	push	de
+..flop:	ld	a,(de)
+	or	a
+	jr	z,..fxt
+	cp	(hl)
+	inc	hl
+	call	..ckb
+	jr	nz,..nfd
+	inc	de
+	jr	..flop
+;
+..nfd:	pop	de
+	jr	..fnd
+;
+..fxt:	pop	de
+	xor	a
+	ret
+;
+..ckb:	ld	bc,(bufend)
+	push	af	
+	ld	a,b
+	cp	h
+	jr	nz,..nbd
+	ld	a,c
+	cp	l
+	jr	nz,..nbd
+	pop	af
+	pop	de		;dummy
+	pop	de
+	xor	a
+	inc	a
+	ret
+;
+..nbd:	pop	af
+	ret
+;
+done:	call	print
+	cr,lf,lf
+	'*** END OF EXECUTION ***',cr,lf,lf,0
+	rst	0
+;
+neworg:	dw	24
+newuni:	dw	227
+orgin:	db	'Origin',0
+unit:	db	'Unit',0
+chgd:	db	0		;0=no change, NZ=must write
+fcbs:	dw	0		;pointer to next file name
+buffer:	dw	0		;buffer start
+bufptr:	dw	0
+bufend:	dw	0
+count:	dw	0		;file count
+	ds	80
+stack	equ	$
+	end
+(hl)
+	ld	(bc),a
+	inc	hl
+	inc	c
+	jr	nz,..ss

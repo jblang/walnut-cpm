@@ -1,0 +1,280 @@
+;*****************************************************************************
+;
+;      -----  A86  SUPPORT  ROUTINES  FOR  RT-11  REFORMATTER -----
+;
+;******************************************************************************
+code	cseg	
+cgroup	group	code
+	public		setmem
+	public		movmem
+	public		bios
+	public		bdos
+	public		setfcb
+
+iocb_drv	equ	0
+iocb_mcnt	equ	1
+iocb_track	equ	2
+iocb_sector	equ	4
+iocb_dmaseg	equ	6
+iocb_dmaoff	equ	8
+iocb_retseg	equ	10
+iocb_retoff	equ	12
+
+; cp/m-86 system calls
+s_bdosver	equ	12		; 
+s_bios		equ	50		;
+;****************************************************************************
+; NAME		setmem
+; ENTRY		setmem (pointer,int,byte)
+; FUNCTION	block fill memory
+; EXIT		no returned value
+; REGISTERS	CS,DS,ES,SS,SI,DI,BP preserved
+; MEMORY MODELS Small,compact
+;****************************************************************************
+
+setmem:
+	push	bp		; save frame pointer
+	mov	bp,sp		; 
+	push	di		;
+	push	es
+	mov	ax,ds		;
+	mov	es,ax		;
+	mov	di,4[bp]	; pick up pointer to memory to fill
+	mov	cx,6[bp]	; pick up length of block
+	mov	ax,8[bp]	; pick up value to fill with
+	cld			; set auto increment
+	rep	stosb		; fill memory
+	pop	es
+	pop	di		;
+	pop	bp		;
+	ret
+
+;***************************************************************************
+;
+;
+;
+;
+;***************************************************************************
+
+movmem:
+	push	bp		;
+	mov	bp,sp		;
+	push	di		;
+	push	si		;
+	push	es		;
+	mov	ax,ds		;
+	mov	es,ax
+	mov	si,4[bp]	;
+	mov	di,6[bp]	;
+	mov	cx,8[bp]	; pick up number of bytes to copy
+	cld			; default auto increment string copy
+	cmp	si,di		; destination address > source address ?
+	ja	mm10		; yes, then 'bottom up' copy
+	add	si,cx		; no, then 'top down' copy
+	dec	si		; .. adjust pointers for 'top down copy'
+	add	di,cx		;
+	dec	di		;
+	std			; set auto decrement string copy
+mm10:	rep	movsb		; block move
+	pop	es
+	pop	si		;
+	pop	di		;
+	pop	bp		;
+	ret
+
+;**************************************************************************
+; NAME		bdos
+;
+; FUNCTION	Make CP/M-86 or CCP/M-86 or MP/M-86 System Call
+; EXIT		4
+; REGISTERS	CS,DS,SS.ES,SI,DI,BP Preserved
+; MEMORY MODELS Small,Compact
+;**************************************************************************
+
+bdos:
+	push	bp		; save frame pointer
+	mov	bp,sp		;
+	push	es		;
+	push	si
+	push	di
+	mov	cx,4[bp]	; get cp/m system function number
+	mov	dx,6[bp]	; get cp/m system function parameter
+	int	224		;
+	pop	di
+	pop	si
+	pop	es		;
+	pop	bp		;
+	ret			;
+
+;*************************************************************************
+;
+;
+; FUNCTION	Under CP/M-86 make a direct bios call
+;               Under CCP/M-86 emulate CP/M-86 bios call
+;	
+;
+;
+; 
+; REGISTERS	CS,DS,SS,ES,SI,DI,BP Preserved
+; RESTRICTIONS  Sector Translate not supported.
+; MEMORY MODELS	Small,Compact
+; REENTRANT	No
+;*************************************************************************
+
+bios:
+	push	bp		;
+ 	mov	bp,sp			; 
+	push	si
+	push	di
+	push	es
+	mov	ax,4[bp]		; bios function number
+	mov	bios_descriptor,al	;
+	mov	ax,6[bp]		;
+	mov	word ptr bios_descriptor+1,ax; cx
+	mov	word ptr bios_descriptor+3,0; 
+	; following code necessary for bios with sector blocking/deblocking
+	cmp	byte ptr bios_descriptor,9; disk select op?
+	jne	bios20			; no
+	cmp	disk_selected_flag,0	; 1st time disk selected ?
+	je	bios10			; yes
+	mov	word ptr bios_descriptor+3,1;
+bios10:	mov	disk_selected_flag,0ffh	;
+bios20:	mov	dx,offset bios_descriptor;
+	mov	cx,s_bios		; 
+	int	224
+	pop	es
+	pop	di
+	pop	si
+	pop	bp
+	ret
+
+;*****************************************************************************
+;NAME		setfcb
+;ENTRY		setfcb (fcb,filename)
+;FUNCTION	Construct FCB from supplied file name
+;
+;
+;REGISTERS	CS,DS,SS,ES,SI,DI,BP Preserved.
+;MEMORY MODELS	Small, Compact
+;*****************************************************************************
+
+setfcb:
+	push	bp		; save 'c' frame pointer
+	mov	bp,sp		;
+	push	si		;
+	push	di		;
+	mov	si,6[bp]	; si -> string
+	mov	di,4[bp]	; di -> fcb
+
+	; discard leading blanks
+	dec	si
+stf10:	inc	si		;
+	cmp	byte ptr [si],0	; end of string ?
+	jne	stf15		; yes then illegal file name
+	jmp	stferr
+stf15:	cmp	byte ptr [si],20h;
+	je	stf10		; loop for next one
+
+	; Initialize FCB
+	mov	byte ptr [di],0	; set default drive
+	mov	byte ptr 11[di],0;set current extent to 0
+	mov	byte ptr 12[di],0;
+	mov	byte ptr 13[di],0;
+	mov	byte ptr 14[di],0;
+	cmp	byte ptr 1[si],':'; drive specified in file name?
+	jne	stf20		; no
+	mov	al,[si]		; get drive specifier
+	and	al,11011111b	; make upper case
+	cmp	al,'P'		; valid drive ?
+	ja	stferr		; no, then error exit
+	sub	al,'A'-1	; yes, then set drive number in fcb
+	mov	[di],al		;
+	add	si,2		;
+	
+	; copy file name into fcb
+stf20:	inc	di		; di -> file name field
+	mov	bx,di		; pre-fill fcb with blanks
+	mov	al,20h		;
+	mov	cx,11		;
+stf22:	mov	[bx],al		;
+	inc	bx		;
+	loop	stf22		;
+
+	mov	cx,11		; 11 byte file name
+	mov	bx,di		; save pointer to filename field in fcb
+
+stf25:	mov	al,[si]		; 
+	cmp	al,60h		; lower case?
+	jb	stf30		; no
+	and	al,11011111b	;
+stf30:	cmp	al,21h		; blank or below in ascci sequence?
+	jb	stfgood		; yes, then end of file name
+	cmp	al,','		; check for illegal characters
+	je	stferr		;
+	cmp	al,'*'		;
+	je	stferr		;
+	cmp	al,';'		;
+	je	stferr		;
+	cmp	al,'<'		;
+	je	stferr		;
+	cmp	al,'>'		;
+	je	stferr		;
+	cmp	al,'='		;
+	je	stferr
+	cmp	al,'?'		;
+	je	stferr		;
+	cmp	al,':'		;
+	je	stferr		;
+	cmp	al,'['		;
+	je	stferr
+	cmp	al,']'		;
+	je	stferr		;
+	cmp	al,'.'		; end of file name?
+	jne	stf40		; no
+	mov	cx,3		;
+	mov	di,bx		; make di point to file name extension
+	add	di,8		;
+	inc	si		; get char following '.'
+	mov	al,[si]		;
+stf40:	cmp	al,0		; end of string ?
+	je	stfgood		; yes, then good exit
+	mov	[di],al		;
+
+	inc	si		;
+	inc	di
+	loop	stf25		;
+
+stfgood:mov	ax,0		;
+	jmp	stfexit		;
+
+stferr:	mov	ax,1		;
+stfexit:
+	pop	di
+	pop	si
+	pop	bp
+	ret
+
+;******************************************************************************
+
+
+
+
+;******************************************************************************
+
+date:
+	push	bp		;
+	mov	bp,sp		;
+	
+
+
+
+
+
+	eject
+dgroup	group 	dataRT11
+dataRT11 dseg	
+
+disk_selected_flag	db	0	;
+
+bios_descriptor rb	5	;
+

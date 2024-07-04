@@ -1,0 +1,147 @@
+; QT-GENIE.Z keyboard map function and user function to enable
+; line splitting
+
+.var	linesz	30		; default number of chars before we start
+				; looking for a space
+
+.var	free	0x0400		; where in the patch we can place things
+
+.org	0x0276			; patch into the user function
+	jp	user		; go do ours
+
+.org	0x0279
+	jp	kbmap		; hook into keyboard map routine
+
+.var	ilprmt	0x027c		; in line prompt call
+
+.org	free
+user:
+	call	ilprmt		; prompt for and get an answer
+	db	'Auto line splitting enable (Y/n)? \0'
+	ld	hl,0x7f		; point just before it
+byp:	inc	hl
+	ld	a,(hl)		; get the next character
+	cp	' '		; space?
+	jr	z,byp		; yes, skip over it
+	sub	'0'
+	cp	10
+	jr	c,number	; numeric input - go handle it
+	add	a,'0'		; convert back
+	or	0x20		; force lower case
+	xor	0x20		; this really tests for a null .....
+	jr	z,gotans	; yes, save zero byte
+	xor	0x20 ^ 'y'	; and check for a 'y' (including 'Y')
+gotans:	ld	(split),a	; save the flag - zero enables, non-zero
+				; disables
+	ld	a,linesz	; set line length to default of 30
+setll:	ld	(linlen),a	; set the line length from a
+	xor	a
+	ld	(count),a	; and set the count to zero
+	ret
+
+number:	ld	e,a		; save current value in e
+	inc	hl		; point to next character
+	ld	a,(hl)
+	sub	'0'		; convert .....
+	cp	10		; and test if it's a digit
+	jr	nc,gotnum	; nope - we're all done
+	ld	d,a
+	ld	a,e
+	add	a,a		; a = e * 2
+	add	a,a		;       * 4
+	add	a,e		;       * 5
+	add	a,a		;       * 10
+	add	a,d		;       + d
+	jr	number
+gotnum:	ld	a,e		; get value back from e
+	or	a		; if it's zero .....
+	ld	a,1		; set a != 0 to disable
+	jr	z,gotans	; and go do it
+	xor	a
+	ld	(split),a	; else set split flag to enable
+	ld	a,e		; and get the line length back from e
+	jr	setll		; go do the set with whatever we have
+
+kbmap:
+	and	0x7f		; ditch bit 7, just because I'm paranoid
+	cp	0x7f		; is the key a delete?
+	jr	nz,nodel	; nope, leave it alone
+	ld	a,'\b'		; else change it into a backspace
+nodel:	ld	hl,split	; point at the flag
+	inc	(hl)
+	dec	(hl)
+	ret	nz		; not splitting - get outa here
+	ld	c,a		; save char in c
+	ld	hl,(state)
+	ld	a,h
+	or	l		; are we in the middle of a line break?
+	jr	nz,linbrk	; yes, so handle it elsewhere
+	ld	a,c		; get the character back from c
+	ld	hl,0x01cf	; point at the escape character
+	cp	(hl)
+	ret	z		; we have to let these through!
+	ld	hl,count	; point hl at the count for everyone
+	cp	'\b'
+	jr	z,backsp	; handle backspaces
+	cp	'\r'
+	jr	z,return	; and returns
+	cp	'\n'
+	jr	z,newlin	; and linefeeds
+	inc	b		; set b to 1 for a potential swallow
+	cp	0x7f		; throw away deletes
+	ret	z
+	cp	' '		; is it a space?
+	jr	z,space		; handle specially if so
+	ret	c		; and throw away other control characters
+	dec	b		; reset b to pass the single character
+	inc	(hl)		; bump count
+	ret			; and return - char is still in a
+
+backsp:
+	dec	(hl)		; anything in the current count
+	ret	p		; yes, return, char in a, b is OK
+	inc	(hl)		; nothing on line, restore count
+	inc	b		; set b to 1 for a swallow
+	ret			; all done
+
+return:
+	ld	hl,retstr	; point at the return string
+	jr	linbrk
+
+newlin:
+	ld	hl,nlstr	; point at the new line string
+	jr	linbrk
+
+space:
+	inc	(hl)		; we passed another character, count it
+	ld	a,(linlen)	; get the line length
+	cp	(hl)		; too long yet?
+	ld	a,c
+	dec	b
+	ret	nc		; no, return character in a
+	ld	hl,string	; else point at the string to send
+
+linbrk:
+	ld	a,(hl)		; get the next character from the string
+	inc	hl		; move the pointer
+	inc	(hl)
+	dec	(hl)		; end of string?
+	ld	b,2		; set b to 2 to say there's more coming
+	jr	nz,savehl	; not end of string, save hl and return
+	ld	b,(hl)		; set b to zero again
+	ld	hl,count
+	ld	(hl),b		; zero out the count from b
+	ld	h,b
+	ld	l,b		; set hl to zero to reset the state machine
+savehl:	ld	(state),hl	; save the pointer / NULL
+	ret
+
+count:	db	0		; count of chars since the last new line
+linlen:	db	linesz		; line size we're currently using
+split:	db	1		; flag if we're splitting: zero => we are
+state:	dw	0		; what state are we in?
+
+string:	db	' .....\r\0'	; space string to break lines
+retstr:	db	' /end\r\0'	; return string to end a paragraph
+nlstr:	db	'\r\0'		; newline to end
+

@@ -1,0 +1,130 @@
+
+ 			  FBAD.ASM ver. 5.7
+ 			  (revised 11/29/84)
+ 		   NON-DESTRUCTIVE DISK TEST PROGRAM
+ 
+  FBAD will find all bad blocks on a disk and build a file [UNUSED].BAD
+  to allocate them, thus "locking out" the bad blocks so CP/M will not
+  use them.  This allows continued use of the disk as though it had no
+  bad areas.
+ 
+  Originally written by Gene Cotton, published in "Interface Age" for
+  September 1980, page 80.
+ 
+  This program has been written to allow it to work with (hopefully) all
+  CP/M 2.x systems, and most 1.4 CP/M systems.	It has been tested on
+  numerous different disk systems.
+ 
+ =======================================================================
+ 
+  SYSTST, BADUSR and ASTRS options:
+ 
+  Many double-density disk systems have single-density system tracks.
+  If this is true with your system, you can change the program to skip
+  the system tracks, without re-assembling it.	To do this, set the byte
+  at at 103H to 0 if you don't want the system tracks tested, otherwise
+  keep it 1.  The program tests if you have a "blocked" disk system,
+  that is, when the same physical disk is separated into logical disks
+  by use of the SYSTRK word in the disk parameter block.  If more than 5
+  tracks are specified, the program skips the system tracks.
+ 
+  If you are using CP/M 2.x , you may assign the user number where the
+  [UNUSED.BAD] file will be created, by changing the byte at 104H to the
+  desired user number.
+ 
+  FBAD displays the TRACK-Nr it has checked on the screen-terminal.  If
+  you like to log the results on a printer (or you have a hardcopy term-
+  inal, you may want to change LOC 105H to a non-zero value, and FBAD
+  will display a * for each track checked.  The number in 105H controls
+  the number of *'s per line.  (Note patch values are HEX: 76=4CH.)  Use
+  ^P to turn the printer on before running FBAD, it will be automatically
+  turned off by the warm boot at the end.
+ 
+  NOTE:  These changes can be done with DDT as follows:
+ 
+ 		A>DDT FBAD.COM
+ 		-S103
+ 		103 01 00	;Don't test SYSTEM tracks
+ 		104 FF 0F	;Put [UNUSED.BAD] in USER 15
+ 		105 00 4C	;Issue CR/LF after 76 *'s
+ 		106 31 .	;Finished with changes
+ 		-^C
+ 
+ 		A>SAVE 7 FBAD.COM
+ 
+ =======================================================================
+ 
+ 			   USING THE PROGRAM
+ 
+  Before using this program to "reclaim" a diskette, the diskette should
+  be reformatted.  If this is not possible, at least assure yourself
+  that any existing files on the diskette do not contain unreadable re-
+  cords.  If you have changed diskettes since the last warm-boot, you
+  must warm boot again before running this program.
+ 
+  To use the program, insert both the disk containing FBAD.COM and the
+  diskette to be checked into the disk drives.	The diskette containing
+  FBAD.COM can be the one that is to be checked.  Assume that the pro-
+  gram is on drive "A" and the suspected bad disk is on drive "B".  In
+  response to the CP/M prompt "A>", type in FBAD B: This will load the
+  file FBAD.COM from drive "A" and test the diskette on drive "B" for
+  unreadable records.  The only allowable parameter after the program
+  name is a drive specification (of the form " N:") for up to four (A
+  to D) disk drives.  If no drive is specified, the currently logged-in
+  drive is assumed to contain the diskette to check.
+ 
+  The program first checks the CP/M System tracks (up to 5), and any
+  errors here prohibit the diskette from being used on drive "A", since
+  all "warm boots" occur using the system tracks from the "A" drive.
+  Floppy diskettes normally use 2 tracks for the system; Winchester hard
+  disks may use one or more.
+ 
+  Version  5.5	and  later  automatically skip the system check if 5 or
+  more tracks are reserved for the system.  This allows the program to
+  be used on BOTH floppy and Winchester systems without patching.
+ 
+  The  program next checks the first two data blocks containing the
+  diskette directory.  If errors occur here, the program terminates with
+  the control returning to CP/M.  No other data blockes are checked as
+  errors in the directory render the diskette useless.
+ 
+  Finally, all the remaining data blocks are checked.  Any records that
+  are unreadable cause the data block which contains them to be stored
+  temporarily as a "bad block".  At the end of this phase, the message
+  "nn bad blocks found" is displayed (where nn is replaced by the number
+  of bad blocks, or "No" if no read errors occur).  If bad blocks occur,
+  the filename [UNUSED].BAD is created, the list of "bad blocks" is put
+  in the allocation map of the directory entry for [UNUSED].BAD, and the
+  file is closed.  When the number of "bad blocks" exceeds 16, the pro-
+  gram will open additional extents as required to hold the overflow.
+  If the diskette has more than 32 "bad blocks", perhaps it should be
+  sent to the "big disk drive in the sky" for the rest it deserves.
+ 
+  If any "bad blocks" do occur, they are allocated to [UNUSED].BAD and
+  no longer will be available to CP/M for future allocation.  This ef-
+  fectively locks out bad records on the diskette allowing its continued
+  use.
+ 
+ 
+ =======================================================================
+ 
+  11/29/84  Integrated Mike Webbs idea to display Track-Nr. Changed DOC
+    v57	    up front accordingly.  (BGE)
+ 
+  07/04/84  Added Ted Shapin's fixes from 1981 that were not included in
+    v56	    the 06/07/84 version.  Reformatted.  (IMH)
+ 
+  06/07/84  Added code at CHKSYS to skip system tracks if more than 5
+    v55     are present (most systems use 1 or at most 2 tracks for the
+            system).  This makes the program practical for both floppy
+ 	    and Winchester systems.  Cosmetic change for printer logging
+ 	    to add CR/LF after 76 *'s.  Fixed problem in DECOUT to give
+ 	    correct total for max size Winchester disks. (DHR)
+ 
+ =======================================================================
+ 
+ 
+ 
+ 
+ 
+

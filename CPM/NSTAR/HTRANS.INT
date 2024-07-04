@@ -1,0 +1,285 @@
+NTIU	==	1	; entry in use (account or file)
+ENTDE	==	2	; deleted entry
+;
+;
+;  File Types
+;
+FTMI	==	1	; memory image file
+FTBP	==	2	; BASIC program file
+FTBD	==	3	; BASIC data file
+FTRD	==	4	; BACKUP/RECOVERY compressed directory
+FTRP	==	5	; BACKUP/RECOVERY packets
+FTCC	==	6	; CP/M work file
+FTCU	==	7	; CP/M unit
+FTPC	==	10	; PASCAL connection table
+FTPV	==	11	; PASCAL volume
+FTAS	==	18	; ASP sequential file
+FTAR	==	19	; ASP random file
+FTAI	==	20	; ASP index file
+;
+;
+;  FMLX Option Codes
+;
+LXRLE	==	0	; return load errors, execute loaded code
+LXALE	==	1	; use FMABT for load errors, execute code
+LXRET	==	2	; return on load errors, donot execute
+LXXPO	==	080H	; extended path option bit
+;
+;
+;  FMTFR Operation Codes
+;
+TCORD	==	1	; read
+TCOWR	==	0	; write
+TCOVF	==	2	; verify
+TCOWC	==	3	; write 'clean'
+;
+;
+;  Disk Label Structure
+;
+DLILL	==	0		; illegal directory address
+DLALX	==	DLILL+2		; auto-load-and-execute path name
+DLASZ	==	35		; auto load&execute pathname length
+DLMAJOR	==	DLALX+DLASZ	; major disk structure revision level
+DLMINOR	==	DLMAJOR+1	; minor disk structure revision level
+DLDSZE	==	DLMINOR+1	; disk size
+DLNSRT	==	DLDSZE+2	; number of sectors reserved for testing
+DLNHSZ	==	DLNSRT+2	; hunk size as a power of two
+DLDRSZ	==	DLNHSZ+1	; directory size (sectors)
+DLDIR	==	DLDRSZ+2	; base disk address for the unit's directory
+DLXXX	==	DLDIR+2		; reserved space
+DLSIZ	==	BPS-DLXXX	; structure size
+;
+;
+;  Hunk Table Structure
+;
+HTALC	==	0		; the count of allocated hunks
+HTMAP	==	HTALC+2		; the bit map of hunks, a 1 bit means inuse
+;
+;
+;  Directory Entry Structure
+;
+DETYP	==	0		; entry type
+DESYM	==	DETYP+1		; The entry's symbol
+DEACN	==	DESYM		; the account number
+DENAM	==	DEACN+2		; the name protion of the symbol
+DENMZ	==	14		; name length in symbol
+DESYZ	==	DENAM+DENMZ-DESYM	; symbol length
+DEBAS	==	DESYM+DESYZ	; base for account and file data
+DESIZ	==	32		; the size of an entry
+DESZ2	==	5		; the size of an entry as a power of 2
+DEPS	==	4		; directory entries per sector (2^DEPS)
+EPD	==	2048		; entries per directory
+DIRM	==	07H		; entry number upper mask
+DEOSM	==	0FH		; entry-of-sector lower mask
+;
+;
+;  File Structure Discriptor
+;
+FSDAT	==	0		; attributes
+FSDFZ	==	FSDAT+1		; file size in sectors
+FSDLB	==	FSDFZ+2		; bytes in use in last sector
+FSDHS	==	FSDLB+2		; nHunk size as a power of 2
+FSDMU	==	FSDHS+1		; unit number
+FSDH0	==	FSDMU+1		; hunk 0 address divided by SPH
+FSDSZ	==	FSDH0+2		; structure descriptor size
+;
+;
+;  File Directory Entry
+;
+FDESD	==	DEBAS		; structure descriptor
+FDEAT	==	FDESD+FSDAT	; attributes
+FDEFZ	==	FDESD+FSDFZ	; file size in sectors
+FDELB	==	FDESD+FSDLB	; bytes in use in the last sector
+FDEHS	==	FDESD+FSDHS	; sectors per nHunk as a power of 2
+FDEX1	==	FDESD+FSDMU	; reserved space
+FDEH0	==	FDESD+FSDH0	; hunk 0 disk addr divided by SPH
+FDEFT	==	FDEH0+2		; file type
+FDETD	==	FDEFT+1		; type dependant data
+FDEXX	==	FDETD+3		; reserved space, 2 bytes
+;
+;
+;  Account Directory Entry
+;
+ADEAN	==	DESYM+DESYZ	; account number
+ADEXX	==	ADEAN+2		; reserved space, 13 bytes
+;
+;
+;  Index block
+;
+IXSIZ	==	BPS/2		; one half sector long
+EPI	==	129		; entries per index
+;
+;
+;  Open FIle Block (OFB)
+;
+OFBDE	==	0		; directory entry number
+OFBDB	==	OFBDE+2		; base disk address for directory
+OFBIL	==	OFBDB+2		; index length (1..EPI)
+OFBSD	==	OFBIL+1		; the file's structure descriptor
+OFBAT	==	OFBSD+FSDAT	; attributes
+OFBFZ	==	OFBSD+FSDFZ	; file size in sectors
+OFBLB	==	OFBSD+FSDLB	; bytes in last sectorH+37H	; Sector address of last HDCOM error
+HDEDN	==	DSPCH+39H	; Drive number of last HDCOM error
+MDCB	==	DSPCH+3AH	; Personalization byte, address of Micro Disk Controller
+FTPTM	==	DSPCH+3BH	; Storage for processor speed indicator
+HMEM	==	DSPCH+3CH	; Memory limit indicator
+ADEV	==	DSPCH+3DH	; Additional output device number
+AOUT	==	DSPCH+3EH	; Character output bypassing additional device feature
+ISTAT	==	DSPCH+41H	; Input device status check
+OSTAT	==	DSPCH+44H	; Output device status check
+LINED	==	DSPCH+47H	; Line input editor
+FMNGR	==	DSPCH+4AH	; Hard disk file manager entry point
+HDCOM	==	DSPCH+4DH	; Lowest level hard disk driver entry point
+;
+; ORIGINS OF SYSTEM MODULES
+;
+LINE	==	DSPCH+100H-NLINE	; Space for a line of text
+TSTAK	==	LINE			; Space for small argument stack for overlays
+BUFF	==	DSPCH+100H		; Shared sector buffer
+UIOB	==	BUFF+200H		; Users' I/O block
+HDCORG	==	0500H			; Hard Disk driver
+FMGORG	==	0D00H			; File manager origin
+TSSORG	==	01F00H			; Transient system border
+CMPORG	==	02600H			; Command Processor
+
+;
+;
+;
+;            MFDOS result codes
+;
+;
+;
+MFSNF	==	1	; sync not found
+MFCRC	==	2	; CRC error
+MFVFY	==	3	; verify compare error
+MFNIP	==	4	; no index pulse found
+MFDMM	==	5	; density mismatch on read or verify
+MFWRP	==	6	; attempt to write on protected diskette
+MFCCX	==	7	; control C detected from console
+MFIDW	==	8	; illegal call to DWRIT
+MFIDN	==	9	; illegal drive number
+MFIDA	==	10	; illegal disk address
+MFITL	==	11	; illegal transfer length
+MFIDC	==	12	; illegal command to DCOM
+MFTDM	==	13	; track density mismatch error
+;
+;
+;
+;
+;            File Manager Definitions
+;
+;
+;
+;
+;  File Manager Operation Codes
+;
+FMCRE	==	00H		; create file
+FMDEL	==	FMCRE+1		; delete file
+FMOPN	==	FMDEL+1		; open file
+FMCLO	==	FMOPN+1		; close file
+FMTFR	==	FMCLO+1		; transfer sectors to/from file
+FMLOK	==	FMTFR+1		; lookup file information
+FMLAC	==	FMLOK+1		; lookup account information
+FMCTY	==	FMLAC+1		; change file type
+FMCAT	==	FMCTY+1		; change file attributes
+FMCFS	==	FMCAT+1		; change file size
+FMCAP	==	FMCFS+1		; change the auto-load-and-go pathname
+FMABT	==	FMCAP+1		; abort the calling program
+FMRST	==	FMABT+1		; reset the File Manager
+FMLX	==	FMRST+1		; load and execute a file of type FTMI
+FMFSZ	==	FMLX+1		; return a file's size to the caller
+FMCA	==	FMFSZ+1		; create account
+FMDA	==	FMCA+1		; delete account
+FMSDV	==	FMDA+1		; set/return default values
+FMCM	==	FMSDV+1		; compose a standard message code message
+FMFIN	==	FMCM+1		; finish executing the calling program
+FMRDS	==	FMFIN+1		; return disk statistics to the calling prog
+FMADE	==	FMRDS+1		; access directory entry
+FMRDV	==	FMADE+1		; return default values to the calling prog
+FMCAN	==	FMRDV+1		; change account name
+FMPD	==	FMCAN+1		; power down a specific unit
+FMPU	==	FMPD+1		; power up a specific unit
+FMFBU	==	FMPU+1		; flag buffer used
+FMINI	==	FMFBU+1		; initialize after bootstrap
+FMEOL	==	FMINI		; end of FM list
+;
+;
+;  Message Codes
+;
+MOK	==	00H		; ok, must be zero!
+MANE	==	20		; account not empty
+MDDUP	==	MANE+1		; directory: attempt to add duplicate symbol
+MDFUL	==	MDDUP+1		; directory: directory is full
+MDFND	==	MDFUL+1		; directory: matching symbol found
+MDBAD	==	MDFND+1		; directory: bad directory structure
+MDFNF	==	MDBAD+1		; directory: file name not found
+MDANF	==	MDFNF+1		; directory: account name not found
+MCADS	==	MDANF+1		; cant allocate disk space, disk possibly full
+MOFUL	==	MCADS+1		; cant open file, Open File Table full
+MOAVL	==	MOFUL+1		; OFT entry available
+MILDN	==	MOAVL+1		; illegal decimal number
+MILFN	==	MILDN+1		; illegal file name
+MILAN	==	MILFN+1		; illegal account name
+MILUN	==	MILAN+1		; illegal unit number
+MILID	==	MILUN+1		; illegal account ID
+MWRP	==	MILID+1		; write protect
+MDEP	==	MWRP+1		; delete protect
+MADEP	==	MDEP+1		; account delete protected
+MCCPF	==	MADEP+1		; can't change protected field
+MPARA	==	MCCPF+1		; pramater in error or out of range
+MFRT	==	MPARA+1		; file of wrong type specified
+MFNO	==	MFRT+1		; file not open
+MFOPN	==	MFNO+1		; file is open
+MFAIL	==	MFOPN+1		; general failur
+MEOLA	==	MFAIL+1		; end of list with available space
+MEOL	==	MEOLA+1		; end of list with no available space
+MIFMR	==	MEOL+1		; illegal File Manager request
+MFZNZ	==	MIFMR+1		; file size not zero
+MIFZ	==	MFZNZ+1		; illegal file size
+MEOF	==	MIFZ+1		; end of file reached during transfer
+MPEOF	==	MEOF+1		; transfer attempted past EOF
+MMEMP	==	MPEOF+1		; memory protect violation
+MUNPU	==	MMEMP+1		; unit not powered up
+MNYI	==	MUNPU+1		; function not yet implimented
+MFMO	==	MNYI+1		; file is multiply opened
+MDLRE	==	MFMO+1		; Disk level revision error
+MDNSL	==	MDLRE+1		; Drive label mismatch error
+MDNSS	==	MDNSL+1		; Drive size mismatch error
+MDNRDY	==	127		; drive not ready-out of speed
+MDNACC	==	126		; drive not ready for command
+MCNPR	==	125		; controller not there
+MDWNR	==	124		; drive went not ready after command started
+MCNFTS	==	123		; can not find target sector
+MDRDFL	==	122		; failure in drive read elel CRASH!!!      ") ’=š ’M$à"   There is a hierarchy to the functions--e.g., ")=¤ ’M$à"you cannot eliminate SIN/COS and retain ATN.  In")=® ’M$à"the following table, to eliminate a function,   ")=¸ ’M$à"you must also eliminate all functions ABOVE it. ")Â ’IÌ ’M$à"Which function (and the ones ABOVE it) should be eliminated?")Ö ’à ’M$à"A)tn       ")ê ’M$à"S)in & Cos ")ô ’M$à"L)og       ")ş ’M$à"E)xp & ^   ")" ’M$à"X) exit to BASIC menu") ’3 XõPà"Select  [ A, S, L, E, or X ]: ","ASLEX")& „ Xõ5 ² š 0 … #1 %24 ã 2âX å1,&L,&H#: … #1 %6,&L1,&H1 \ get old end!D ™ #1 %6,&L,&H,¹ \ shrink it%N ™ #1 %15,&1,¹ \ off autoåstart’
+X ‰ š(#;b ’M$à¸à256âàH1åH)ãL1åL)ã" bytes have been recovered.")l ’v ’€ ’;Š ’M$à"You CANNOT now auto-start "ãF$ã" using SYSGEN!")” ’ ’>¨ ’M$à"You should rename "ãF$ã" to avoid accidental use!")² ’¼ ’=Æ ’M$à"Press any key to return to the main menu..."),ºà0)Ğ  Š$o verify default name, open file
+p ‰ š(#9z ’M$à"Is "ãF$ã" the desired file to be configured?")„ ’ ’˜ ’)¢ ’M$à"  Y)es, use this name       "))¬ ’M$à"  N)o,  fetch alternate name")¶ ’À ’M$à"E)xit to main menu")Ê ’Ô ’Ş ’ä  Q7õ1 \ used default<è  “ Pà"Select  [ Y, N, or E ]: ", "EYN" ) ˆ šò,šB,šüò Šü ’  ’  ’  ’>$  ’M$à"Enter desired file name (including drive number)")..  ’M$à"followed by a CARRIAGE RETURN: "),8  †"",F$=  Q7õ0 \ typed own name
+B ˆ š@V"W  write to DOS command buffer"X ™ #1 %D1,¹ \ start of bufferb  Iõ1 ± ÌàL$)l   ™ #1,&¶àL$àI,I))v ƒ€ ™ #1,&13,¹ \ trailing CRŠ Š:+;  open file F$ àwith imbedded drive #)< Ok, E1õ0, Tõtype of file)= No, E1õ0 àno want menu exit),  Tõå10>     E1õ1 àwant to menu exit),  Tõundefined?'@  Ÿ šh,L1,E1 \ trap floppy errorsJ  Tõ »àF$) \ file typeT  Ÿ \ good access Y  E1õ0 \ clear exit to menu^  ˆ š¤h   ‰ š(#1m   ’µà7),"There has been a disk drive error!",r   ’"Re-mount the diskette, THEN" \’\’\’A‹  „ Pà"Type  R)e-try, or  E)xit to main menu ","RE")õ1 ² š@•   E1õ1 \ set menu exitš   Š \ to main menu¤   „ Tñå1 ² šÂ \ exists?©   ‰ š(#$®     ’µà7),F$," does not exist!"$¸     Š \ with cleared menu exitÂ  ŸÌ  — #1 %T, F$Ñ  ŠÖ(# Clear the screen<#   Iõ1 ± C	F#    ’P#  ƒZ#  Š–#$ # Center text line L$ in width WÈ# ‘ M$àL$)2Ò#  „ ÌàL$)ïW ² Š L$ ´ Š  B$à1, àWåÌàL$))ç2 )ãL$æ# ğ#¸$CÂ$ Get char CR, convert to upper case, return position in stringê$ ‘ PàL$,P$)ì$  ’M$àL$),ï$  †1"",K$7ñ$  „ ÌàK$)ö1 í ÌàK$)õ0 ² š% \ accept exactly 1 keyò$   P9õ¶àK$)Bó$   K$õ µà P9 å 32âàP9ï¶à"a") ì P9ğ¶à"z")) ) \ upper case only.ô$    P9õ1 ± ÌàP$) \ see if legal responseş$    „ K$õP$àP9,P9) ² – š%%   ƒ%  ’µà7),µà13),%   ˆ šì$%  ’
+%  Š P9% &% '   c˜˜    º˜    ğ˜    ˜ò—    ÷—            ü—      Ï  é•Oã˜|–  €   B  #   B  P  Select  [ D, B, or E ]: rogram must terminate with .SBTTL	"********* EQUATES FOR HDOS *********"
+.PAGE	132,60
+;
+;
+;              EQUS
+;         NOVEMBER 13, 1981
+;
+; This file contains the equates for use in all modules of the 
+;       North Star Hard Disk Operating System.
+;
+RLEAS	==	2*16+0		; Release 2.0.0
+MAJORRV	==	1		; Major disk revision level
+MINORRV	==	0		; Minor disk revision level
+DSPCH	==	100H		; SYSTEM ORIGIN
+BADDR	==	0E800H		; Micro Disk Controller address
+PADDR	==	0		; Motherboard I/O ports
+NTRAC	==	35		; Number of tracks per side on a Micro Disk
+ZTRAC	==	18+35+35+1	; Initial track counter value for Micro Disks
+MAXIO	==	7		; Maximum legal I/O device number
+NLINE	==	80		; Length of input line for Command Processor
+DFSTP	==	26		; Default processor speed constant (Z80A)
+;
+; SYSTEM DISPATCH TABLE ADDRESSES
+;
+TRAKT	==	DSPCH		; Micro Disk track table
+REVN	==	DSPCH+4		; Sequential revision number
+CNFG2	==	DSPCH+5		; Secondary configuration byte
+SUNIT	==	DSPCH+6		; Last used Micro Disk drive
+OFTEN	==	DSPCH+7		; Poling vector

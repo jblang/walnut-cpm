@@ -1,0 +1,132 @@
+ 
+                     Last update:  02/09/86
+                           HD64180.BUG
+                              V 1.0
+ 
+ 
+I believe the following section was written by:
+ 
+                             WA7GXD
+ 
+           (See Gateway Vol 2, No 11.  Jan. 24, 1986)
+ 
+ 
+     If  you  are planning on using a Hitachi HD64180 (guess  you 
+have to use Hitachi if you plan on using a 64180...) please  note 
+that it is not directly compatible with Z80 (tm) style peripheral 
+ICs when using the Mode 2 interrupt scheme.   I know; I found out 
+the hard, expensive way.
+ 
+     I  have  designed a packet switch for Amateur  packet  radio 
+usage that is based on the 64180, a PIO, a pair of SIO/2s and the 
+NCR5380 SCSI chip.  It also has 16 bytewide sockets and screws on 
+the  side of a 5.25" floppy disk controller.   It is on a 4-layer 
+board  and we had prototype boards made (compiled is the  nearest 
+software  equivalent...).   During final hardware debug  testing, 
+mode 2 interrupts were switched on.
+ 
+     The peripheral would service exactly 1 interrupt,  then lock 
+its IEO line low and stay that way until power off/power on reset 
+was accomplished!
+ 
+     It  turns  out that the timing of the LIR* output  from  the 
+64180  needs to be delayed (undocumented requirement of  the  Z80 
+(tm)  peripherals!).  Hitachi has a simple circuit to  accomplish 
+this  if  you  happen  to have the spare flip flop  and  OR  gate 
+floating  around on your board.   I didn't and simply  redesigned 
+the wait-state generator to accomplish the same thing.
+ 
+     Now Mode 2 works just fine.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+ 
+  
+                  The following section is by:
+ 
+                             KA8BMT
+ 
+                           Reference:
+  
+Hitachi  HD64180 8-Bit High Integration CMOS Microprocessor  Data 
+Book  [January, 1985 #U77]
+ 
+                  PG 27: I/O ADDRESSING NOTES:
+ 
+     "The  on-chip I/O register addresses are located in the  I/O 
+address  space from 0000H to 00FFH (16-bit I/O  addresses)."   [A 
+note  under figure 2.2.5 on page 15:  'NOTE:  A16-A18 = 0 for I/O 
+cycles'.] "Thus,  to access the on-chip I/O registers (using  I/O 
+instructions),"
+ 
+ 
+     [Is there some other way to access these registers,  besides 
+I/O instructions?  IOE* and ME* would determine whether it is I/O 
+or  MEmory,  so what does the last part of the previous paragraph 
+mean?]
+ 
+"the high-order 8 bits of the 16-bit I/O address must be 0."
+ 
+     "The  conventional I/O instructions (OUT (m),A / IN A,(m)  / 
+OUTI / INI / etc.) Place the contents of a CPU register,"
+ 
+     [The "B" register,  this is because of the way the Z-80 (tm) 
+handles  the "IN g,(C)" and the "OUT (C),g"  instructions.   This 
+means  that you could design a Z-80 circuit that could have  more 
+than  256 I/O address,  by using the "B" register as part of  the 
+I/O  address.  This  could  also means that if your  I/O  address 
+decoder does not properly account for the A8 - A15 address  lines 
+you may not get the I/O address you want.]
+ 
+"on  the  high-order 8 bits of the address bus,  and thus may  be 
+difficult to use for accessing on chip I/O registers."
+ 
+     "For efficient on-chip I/O registers access, a number of new 
+instructions have been added which force the high-order 8 bits of 
+the 16-bit I/O address to 0.   These instructions are IN0,  OUT0, 
+OTIM,  OTIMR, OTDM, OTDMR and TSTIO (See section 3.1 Instructions 
+set)."
+ 
+     [Unfortunitly   the  instructions  described  in  the   last 
+paragraph  would  not  be Z-80 compatible,  if  that  is  of  any 
+consideration.   A  possible  solution would be to zero  the  "B" 
+register   of  the  64180  or  the  Z-80  before  doing  any  I/O 
+instructions,  however  this  may  not be possible  {if  the  "B" 
+register is being used} or practical in all cases.]
+  
+
+     "Note  that when writing to an internal  I/O  register,  the 
+same  I/O  write  occurs  on  the  external  bus.   However,  the 
+duplicate  external  I/O  write cycle will exhibit  internal  I/O 
+write  cycle  timing.   For  example,  the WAIT*  input  and  the 
+programmable  wait  state generator are  ignored."   [This  could 
+conceivably  cause  some slow peripherals to 'go out to  lunch'.] 
+"Similarly,  internal  I/O  read cycles also  cause  a  duplicate 
+external  I/O  read cycle - however,  the external read  data  is 
+ignored by the HD64180."
+ 
+     "Normally,  external I/O addresses should be chosen to avoid 
+overlap  with  internal  I/O  addresses to  avoid  duplicate  I/O 
+accesses."
+ 
+     Several places Hitachi states that the HD64180 can  directly 
+address  64K of I/O address [which it can in hardward] (pages  2, 
+5,  15,  51 and others), however it does not tell how to do it in 
+software.   Is there some way besides doing tricks with "B",  DMA 
+or  I/O block instructions,  that I missed,  to address more than 
+256   I/O  locations?     (Such  as  "OUT  (1234H),reg"  or   "IN 
+reg,(1234H)".)
+ 
+ 

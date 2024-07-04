@@ -1,0 +1,750 @@
+	TITLE	"ZMP Overlay for YASBEC/SB-180 and B/P Bios"
+;============================================================================
+; Overlay to ZMP (Z-Modem Program), for YASBEC Z180 SBC and MicroMint SB-180
+;			(B/P Bios Version)
+;
+;  YASBEC B/P Bios calls used for modem I/O, setup, and breaks.  ZCPR3
+;  generic version (overlay uses Z3 termcap for terminal dependant stuff).
+;  This is a cut and file to fit version - my apologies for the mess, but
+;  hey, it works and we were trying to get something out to you all before
+;  the next ice age comes!!!  (Wayne Hortensius)
+;
+;  This version is locked into ASCI0 on the HD64180/Z-180 chip to insure
+;  that routines are speedy enough at higher data rates.  This should not be
+;  too much of a hardship since the Baud Rate setup in the generic version
+;  was tied into this port anyway.  (Harold Bower)
+;
+; Name	: ZMO-YBBP.Z80
+; Dated	: 2 February 1992
+; Author: Harold F. Bower (from ZMO-YB11.Z80, 2 Mar 91, by Wayne Hortensius)
+;===========================================================================
+; HD64180/Z-180 Ports needed in this overlay
+
+CNTLA0	EQU	00H		; Control Port A ASCI 0
+CNTLB0	EQU	02H		; Control Port B ASCI 0
+STAT0	EQU	04H		; Status Port, ASCI 0
+ODAT0	EQU	06H		; Output Data Port, ASCI 0
+IDAT0	EQU	08H		; Input Data Port, ASCI 0
+
+; Set the following two equates to the drive and user area which will
+; contain ZMP's .OVR files, .CFG file, .FON file and .HLP file.  Set both
+; to zero (null) to locate them on the drive from which ZMP was invoked.
+
+OVRDRV	EQU	'B'		; Drive to find overlay files on ('A'-'P')
+OVRUSR	EQU	12		; User area to find files
+
+;------------------------------------------------------------------------------
+; User-set variables:
+
+CLKSPD	EQU	9		; Processor clock speed in MHz.  Set to nearest
+				;  even MegaHertz
+MSPEED	EQU	003CH		; Current Baud Rate Location in Memory: as used
+				;  by BYE etc. This MUST be the same as Mspeed
+				;  in ZMP.H
+USERDEF	EQU	0145H		; origin of this overlay: get this value from
+				; the .SYM file produced when ZMP.COM is linked
+OVSIZE	EQU	0400H		; max size of this overlay
+
+;------------------------------------------------------------------------------
+
+	ORG	USERDEF
+
+SO	EQU	'N'-'@'
+CTRLQ	EQU	11H
+CR	EQU	13
+LF	EQU	10
+BDOS	EQU	5
+
+; Jump table for the overlay: do NOT change this
+
+jump_tab:
+	JP	SCRNPR		; screen print
+	JP	MRD		; modem read with timeout
+	JP	AUXIN		; get a character from modem
+	JP	AUXOUT		; send a character to the modem
+	JP	AUXOST		; test for tx buffer empty
+	JP	AUXIST		; test for character received
+	JP	SNDBRK		; send break
+	JP	CURSADD		; cursor addressing
+	JP	CLS		; clear screen
+	JP	INVON		; inverse video on
+	JP	INVOFF		; inverse video off
+	JP	HIDE		; hide cursor
+	JP	SHOW		; show cursor
+	JP	SAVECU		; save cursor position
+	JP	RESCU		; restore cursor position
+	JP	MINT		; service modem interrupt
+	JP	INVEC		; initialise interrupt vectors
+	JP	DINVEC		; de-initialise interrupt vectors
+	JP	MDMERR		; test uart flags for error
+	JP	DTRON		; turn DTR on
+	JP	DTROFF		; turn DTR OFF
+	JP	INIT		; initialise uart
+	JP	WAIT		; wait seconds
+	JP	MSWAIT		; wait milliseconds
+	JP	USERIN		; user-defined entry routine
+	JP	USEROUT		; user-defined exit routine
+	JP	GETVARS		; get system variables
+	JP	SETPORT		; choose one of two (not implemented)
+
+; Spare jumps for compatibility with future versions
+
+	DEFB	0C9H,0,0	; Spare Jump for later use
+	DEFB	0C9H,0,0	; Spare Jump for later use
+	DEFB	0C9H,0,0	; Spare Jump for later use
+	DEFB	0C9H,0,0	; Spare Jump for later use
+	DEFB	0C9H,0,0	; Spare Jump for later use
+
+;=================== Main code starts here =======================
+CODEBGN EQU	$
+;.........................................................................
+; User-defined entry routine
+
+USERIN:	LD	HL,(0109H)	; Z3 pointer
+	LD	DE,80H		; .80H bytes later..
+	ADD	HL,DE
+	LD	(VIDPTR),HL	; ..set Z3TCAP pointer
+	LD	DE,14H		; Offset to CLS Delay valie
+	ADD	HL,DE
+	LD	A,(HL)		; .fetch
+	LD	(CLSDLY+1),A	; ..store inline
+	INC	HL		; Advance to CM Delay value
+	LD	A,(HL)		; .fetch
+	LD	(CMDLY+1),A	; ..store inline
+	INC	HL		; Advance
+	INC	HL		; .to CLS String start
+	LD	(CLSPTR+1),HL	; ..store inline
+	CALL	VIDSKP		; Skip to Next (CM) String Start
+	LD	(CMPTR+1),HL	; ..store inline
+	CALL	VIDSKP		; Skip over CE String Start
+	CALL	VIDSKP		; .advance to SO String Start
+	LD	(INVONV+1),HL	; ..and Save inline
+	CALL	VIDSKP		; Advance to SE String Start
+	LD	(INVOFV+1),HL	; ..and Save inline
+	RET
+
+;.........................................................................
+; User-defined exit routine.
+; If this is NOT a B/P Bios, this routine simply returns with the ASCI0
+; parameters in whatever state exists.  If this IS a B/P Bios, the Device
+; Initialization routine is called to restore default settings.
+
+USEROUT: LD	HL,(0001H)	; Get BIOS Base address
+	LD	L,3*30		; ..offset to Return BIOS Information entry
+	LD	A,(HL)		; Get the char
+	CP	0C3H		; Is it a Jump?
+	RET	NZ		; ..Not B/P Bios if not
+	CALL	JPHL		; Call it if it appears Ok
+	LD	HL,-6		; "B/P" must be at -6 from Config
+	ADD	HL,DE		; ..offset to start of ID string
+	LD	A,(HL)		; Get first
+	CP	'B'		; Ok?
+	RET	NZ		; ..just quit if not
+	INC	HL
+	LD	A,(HL)		; Get second
+	CP	'/'		; Ok?
+	RET	NZ		; ..just quit if not
+	INC	HL
+	LD	A,(HL)		; Finally third
+	CP	'P'		; Ok?
+	RET	NZ		; ..just quit if Not
+
+	CALL	PRINT		; Else we are under B/P Bios, say so
+	DEFB	CR,LF,'...Restoring B/P Bios Defaults...',CR,LF,0
+	LD	HL,(0001)	; Get Bios Base address
+	LD	L,3*21		; .offset to Device Init Function Jump
+JPHL:	JP	(HL)		; ..execute returning thru stack
+
+;.........................................................................
+
+SCRNPR:				; Screen Print Function
+SETPORT:			; Set Communications Port Function
+SPARE:	RET
+
+;.........................................................................
+; Get a character from the modem: return in HL
+;  It is not necessary to test for status
+
+AUXIN:	CALL	AUXIST		; Check input status
+	JR	Z,AUXIN		; ..loop if Not Ready
+	IN0	A,(IDAT0)	; Else read the Char
+	LD	L,A		; .place it for return
+	LD	H,0		; ..in 16-bit form
+	RET
+
+;.........................................................................
+; Send a character to the modem
+
+AUXOUT:	LD	HL,2		; Get the character
+	ADD	HL,SP
+	LD	C,(HL)
+AUXOV:	CALL	AUXOST		; Check the Status
+	JR	Z,AUXOV		; ..looping if Not ready
+	OUT0	(ODAT0),C	; Else send the character
+	RET			; ..and return
+
+;.........................................................................
+; Test for output ready: return TRUE (1) in HL if ok
+
+AUXOST:	IN0	A,(STAT0)	; Read the Status port
+	AND	02H		; Mack for Send Bit
+	JR	RDYV		; ..continue below
+
+;.........................................................................
+; Test for character at modem: return TRUE (1) in HL if so
+
+AUXIST:	IN0	A,(STAT0)	; Read the Status port
+	AND	80H		; Mask for Receive Bit
+RDYV:	LD	HL,0		; Assume No char
+	RET	Z		; ..return if this is the case
+	INC	L		; Else set flag to 1
+	LD	A,L		; ..duplicate in A
+	RET
+
+;.........................................................................
+; Send a break to the modem: leave empty if your system can't do it
+
+SNDBRK:	RET			; Z-180 Can't support Break
+
+;.........................................................................
+; Test UART flags for error: return TRUE (1) in HL if error (this is dummy)
+
+MDMERR:	LD	HL,0		; errors processed in BIOS
+	XOR	A
+	RET			; modem error return
+
+;.........................................................................
+; Turn DTR (and optionally RTS) ON.
+
+DTRON:	RET			; DTR not available on modem port,
+				; RTS handled internal to BIOS
+;.........................................................................
+; Turn DTR (and RTS?) OFF
+
+DTROFF:	RET			; DTR not available on modem port,
+				; RTS handled internal to BIOS
+;.........................................................................
+; Initialize the UART
+
+INIT:	LD	HL,2		; get parameters
+	ADD	HL,SP
+	LD	A,(HL)
+	LD	(BRATE),A
+	INC	HL
+	INC	HL		; bump for next
+	LD	A,(HL)		; get lo
+	AND	5FH		; Convert to upper case
+	LD	(PARITY),A	; parity
+	INC	HL
+	INC	HL		; bump for next
+	LD	A,(HL)		; get lo
+	AND	0FH		; Make sure binary
+	LD	(DATA),A	; Save data bits
+	INC	HL
+	INC	HL		; bump for next
+	LD	A,(HL)		; get lo
+	AND	0FH		; Make sure binary
+	LD	(STOP),A	; stop bits
+INITX:	DI			; no interrupts while we're playing with
+	IN0	B,(CNTLA0)	; the ASCI, please
+	LD	A,(STOP)
+
+; -- set up # of stop bits
+
+	CP	2		; one or two stop bits?
+	JR	Z,INIT1		; 2 bits asked for 
+	RES	0,B		; 1 bit - reset bit 0
+	JR	INIT2
+
+INIT1:  SET	0,B		; 2 bits - set bit 0
+
+; -- set up parity enable/disable
+
+INIT2:  RES	1,B		; stop bits set up, set parity (assume none)
+	LD	A,(PARITY)
+	SUB	'N'		; no parity (bits 0 & 1 reset)?
+	JR	Z,INIT3
+	SET	1,B
+INIT3:	SET	2,B		; assume 8 data bits
+	LD	A,(DATA)
+	CP	8
+	JR	Z,INIT4
+	RES	2,B		; 7 data bits
+INIT4:	OUT0	(CNTLA0),B
+
+; -- set up odd/even parity, if parity enabled
+
+	BIT	1,B
+	JR	Z,INIT6		; jump if no parity
+	IN0	B,(CNTLB0)
+	SET	4,B		; assume ODD parity
+	LD	A,(PARITY)
+	CP	'O'
+	JR	Z,INIT5
+	RES	4,B
+INIT5:	OUT0	(CNTLB0),B	; set parity
+
+; -- set up baud rate
+
+INIT6:	LD	HL,(BRATE)	; Get Configured rate (only low byte valid)
+	LD	H,0		; .convert to 16-bits
+	LD	B,L		; ..save Rate Byte for later
+	LD	DE,BTABLE	; Point to Baud Rate Table
+	ADD	HL,DE		; index into baud rate table
+	LD	A,(HL)		; fetch baud rate code
+	OR	A
+	JR	NZ,INIT7	; unsupported baud rate?
+	LD	A,(MSPEED)	; Get default Speed
+	LD	(BRATE),A	; ..and save
+	JR	INITGO
+
+INIT7:	IN0	A,(CNTLB0)
+	AND	00010000B	; save parity setting
+	OR	(HL)		; or in baud rate divisor
+	RES	7,A		; make sure valid marker is off
+	OUT0	(CNTLB0),A
+	LD	A,B
+	LD	(MSPEED),A	; set new baud rate in low memory
+INITGO:	LD	HL,0
+	EI
+	RET
+
+; Baud rate factors, output to bauda to select baud rate
+
+BTABLE:
+	  IF  [CLKSPD = 6]	; Baud Rate Bits at 6.144 MHz
+	DEFB	0		; 0 - 110b (not supported)
+	DEFB	00001101B	; 1 - 300b
+	DEFB	0		; 2 - 450b (not supported)
+	DEFB	00001100B	; 3 - 600b
+	DEFB	0		; 4 - 710b (not supported)
+	DEFB	00001011B	; 5 - 1200b
+	DEFB	00001010B	; 6 - 2400b
+	DEFB	00001001B	; 7 - 4800b
+	DEFB	00001000B	; 8 - 9600b
+	DEFB	00000001B	; 9 - 19.2Kb
+	DEFB	00000000B	; 10 - 38.4Kb
+	DEFB	0		; 11 - 57.6Kb (not supported)
+	DEFB	0		; 12 - 76.8Kb (not supported)
+	  ENDIF
+	  IF  [CLKSPD = 12]	; Baud Rate Bits at 12.288 MHz
+	DEFB	0		; 0 - 110b (not supported)
+	DEFB	00001110B	; 1 - 300b
+	DEFB	0		; 2 - 450b (not supported)
+	DEFB	00001101B	; 3 - 600b
+	DEFB	0		; 4 - 710b (not supported)
+	DEFB	00001100B	; 5 - 1200b
+	DEFB	00001011B	; 6 - 2400b
+	DEFB	00001010B	; 7 - 4800b
+	DEFB	00001001B	; 8 - 9600b
+	DEFB	00001000B	; 9 - 19.2Kb
+	DEFB	00000001B	; 10 - 38.4Kb
+	DEFB	0		; 11 - 57.6Kb (not supported)
+	DEFB	0000000B	; 12 - 76.8Kb
+	  ELSE			; (Default) Baud Rate Bits at 9.216 MHz
+	DEFB	0		; 0 - 110b (not supported)
+	DEFB	00101100B	; 1 - 300b
+	DEFB	0		; 2 - 450b
+	DEFB	00101011B	; 3 - 600b
+	DEFB	0		; 4 - 710b (not supported)
+	DEFB	00101010B	; 5 - 1200b
+	DEFB	00101001B	; 6 - 2400b
+	DEFB	00101000B	; 7 - 4800b
+	DEFB	00100001B	; 8 - 9600b
+	DEFB	00100000B	; 9 - 19.2Kb
+	DEFB	0		; 10 - 38.4Kb (not supported)
+	DEFB	80H		; 11 - 57.6KB
+	DEFB	0		; 12 - 76.8Kb (not supported)
+	  ENDIF
+
+PARITY: DEFB	'N',0		; parity (will be 'N', 'E' or 'O')
+DATA:	DEFW	8		; data bits (will be 7 or 8)
+STOP:	DEFW	1		; stop bits (will be 1 or 2)
+BRATE:  DEFB	9		; temp baud rate location
+
+LINEBUF: DEFS	80
+
+;****************************************************************************
+;   Video terminal sequences: Adapted for Z3TCAP access from Syslib 3.6
+;----------------------------------------------------------------------------
+; Cursor addressing:
+
+CURSADD: LD	HL,2		; get parameters
+	ADD	HL,SP
+	LD	D,(HL)		; Get Row to H (Base 0)
+	INC	HL		; ..advance to Hi byte (ignored)
+	INC	HL		; ...and to Lo byte of Column
+	LD	E,(HL)		; Get Column (Base 0)
+	CALL	CKTCAP		; Is a Termcap installed?
+	RET	C		; ..return if Not
+CMPTR:	LD	HL,$-$		; Load Ptr to CM String (Set in Init)
+	LD	A,(HL)		;get first char of CM string
+	OR	A		;if no string, error
+	RET	Z
+	EX	DE,HL		;DE=address of CM string
+	CALL	GXY		;output xy string with delay
+CMDLY:	LD	HL,$-$		; Load Cursor Motion Delay (Set in Init)
+	JP	WAITHLMS
+
+;.....
+; GOTOXY
+; Enter: H = Row
+;	 L = Column to Position To (0,0 is Home)
+;	DE = Address of CM string
+
+GXY:
+
+; Cycle thru string
+
+GXYLOOP: LD	A,(DE)		; Get next Char
+	INC	DE		; .pt to next
+	OR	A		; Done?
+	RET	Z		; ..exit here if so
+	CP	'%'		; Command?
+	JR	Z,GXYCMD	; ..jump to process if so
+	CP	'\'		; Escape?
+	JR	NZ,GXYNOR	; ..jump if Normal Character
+	LD	A,(DE)		; Else get next literal char
+GXYNOX:	INC	DE		; .advance to next
+GXYNOR:	CALL	COUT		; Send Character
+	JR	GXYLOOP		; ..and loop
+
+; Interpret next character as a Command Character
+
+GXYCMD:	LD	A,(DE)		; Get Command Char
+	INC	DE		; .advance to next
+	CP	'a'		; Is it less than small-A?
+	JR	C,GXYCM0	; ..jump if so
+	CP	'z'+1		; Greater than small-Z?
+	JR	NC,GXYCM0	; ..jump if so
+	AND	5FH		; Else Capatilize
+GXYCM0:	CP	'D'		; %D
+	JR	Z,GXYOUT1
+	CP	'2'		; %2
+	JR	Z,GXYOUT2
+	CP	'3'		; %3
+	JR	Z,GXYOUT3
+	CP	'.'		; %.
+	JR	Z,GXYOUT4
+	CP	'+'		; %+v
+	JR	Z,GXYOUT5
+	CP	'>'		; %>xy
+	JR	Z,GXYGT
+	CP	'R'		; %R
+	JR	Z,GXYREV
+	CP	'I'		; %I
+	JR	NZ,GXYNOR	; ..jump to print literal char if Not
+			;..else fall thru to..
+
+; I - Set Row/Col Home to 1,1 rather than 0,0
+
+GXYINC:	INC	H		; Set Row to Row + 1
+	INC	L		; Set Col to Col + 1
+	JR	GXYLOOP		; ..and loop
+
+; R - Reverse order of output to Column then Row (default is Row then Column)
+
+GXYREV:	LD	A,L		; Reverse Row and Col
+	LD	L,H
+	LD	H,A
+	JR	GXYLOOP
+
+; >xy - If value of Row/Col is greater than x, Add y to it
+
+GXYGT:	LD	A,(DE)		; Get value to test
+	INC	DE		; .pt to next
+	CP	H		; Is value > x?
+	JR	NC,GXYGT1	; ..jump if Not
+	LD	A,(DE)		; Else get value to add
+	ADD	A,C		; .add
+	LD	H,A		; ..and put value back
+GXYGT1:	INC	DE		; Advance to next
+	JR	GXYLOOP		; ..and loop
+
+; +n - Add n to Next Value and Output
+
+GXYOUT5: LD	A,(DE)		;get value to add
+	INC	DE		;pt to next
+			;..fall thru to..
+; . - Output Next Value
+
+GXYOUT4: ADD	A,H		; Add offset
+RCMKEV:	CALL	COUT		; .output value
+	LD	H,L		; Move any next byte in position
+	LD	L,0		; .set any following to Null
+	JR	GXYLOOP		; ..back for More
+
+; 3 - Output Next Value as 3 Decimal Digits
+
+GXYOUT3: LD	C,1		; Set to output Leading Zeroes
+GXY03A:	LD	A,H		; Get byte to output
+	LD	B,100		; .set divisor
+	CALL	DIGOUT		; ..and Output first digit
+GXYOT3:	LD	B,10		; Output 10's
+	CALL	DIGOUT
+	ADD	A,'0'		; Output 1's
+	JR	RCMKEV		; ..Echo then vector back
+
+; 2 - Output Next Value as 2 Decimal Digits
+
+GXYOUT2: LD	A,H		; Get Value
+	LD	C,1		; .set for Leading Zeros
+	JR	GXYOT3		; ..and jump to Output
+
+; D - Output Next Value as n Decimal Digits with No Leading Zeroes
+
+GXYOUT1: LD	C,0		; Set for No Leading Zeroes
+	JR	GXY03A		; ..and use code above
+
+; Output A as Decimal Digit Character
+;   B = Quantity to Subtract from A, C(LSB) = 0 if No Leading Zeros allowed
+
+DIGOUT:	PUSH	DE		;save DE
+	LD	D,'0'		;char
+DECOT1:	SUB	B		;subtract
+	JR	C,DECOT2
+	INC	D		;increment char
+	JR	DECOT1
+
+DECOT2:	ADD	A,B		;add back in
+	PUSH	AF		;save result
+	LD	A,D		;get digit
+	CP	'0'		;zero?
+	JR	NZ,DECOT3
+	BIT	0,C		; Does the Zero Flag say to Print Zeros?
+DECOT3:	CALL	NZ,COUT		; ..print it if Flag says so
+	POP	AF		;get A
+	POP	DE		;restore DE
+	RET
+
+; GXY Buffers
+
+;;RCORDER: DEFB	0		; 0 = Row/Col, else Col/Row
+;;RCBASE:	 DEFB	0		; 0 = Org is 0,0, else Org is 1,1
+;;CMDELAY: DEFW	0		; Number of milliseconds to delay for CM
+
+;;ROW:	DEFS	2		; row
+COL:	DEFS	2		; Column, Row bytes
+
+;.....
+; Skip to end of string.  Exit pointing at start of following string
+
+VIDSKP:	LD	A,(HL)		;get next char
+	INC	HL		;pt to next
+	OR	A		;done if zero
+	RET	Z
+	CP	'\'		;literal value?
+	JR	NZ,VIDSKP	;continue if not
+	INC	HL		;pt to after literal value
+	JR	VIDSKP
+
+;.....
+; Termcap Pointer
+
+VIDPTR:	DEFW	0		;first byte of termcap entry
+
+;.........................................................................
+; Clear screen:
+
+CLS:	CALL	CKTCAP		; Is a TermCap Installed?
+	RET	C		; ..return if Not
+CLSDLY:	LD	D,$-$		; Load CLS Delay value (Set in Init)
+CLSPTR:	LD	HL,$-$		; .load Ptr to CLS String (Set in Init)
+	JR	VIDCHV		; ..jump to print string if exists
+
+;.........................................................................
+; Inverse video on:
+
+INVON:	CALL	CKTCAP		; Is a TermCap Installed?
+	RET	C		; ..return if Not
+INVONV:	LD	HL,$-$		; Load Ptr to SO String (Set in Init)
+	JR	VIDCHV		; ..jump to print Stand Out (SO) String
+
+;.........................................................................
+; Inverse video off:
+
+INVOFF:	CALL	CKTCAP		; Is a TermCap Installed?
+	RET	C		; ..return if Not
+INVOFV:	LD	HL,$-$		; Load Ptr to SE String (Set in Init)
+VIDCHV:	LD	A,(HL)		; Get first char of String
+	OR	A		; Any string there?
+	RET	Z		; ..quit here if Not
+			;..else fall thru to..
+;.....
+; VIDOUT - Output video string pted to by HL
+;	Output also a delay contained in the D register
+
+VIDOUT:	LD	A,(HL)		;get next char
+	OR	A		;done if zero
+	JR	Z,VID2
+	INC	HL		;pt to next
+	CP	'\'		;literal value?
+	JR	NZ,VID1
+	LD	A,(HL)		;get literal char
+	INC	HL		;pt to after it
+VID1:	CALL	COUT		;output char
+	JR	VIDOUT
+
+VID2:	PUSH	HL
+	LD	L,D		;output delay
+	LD	H,0
+	CALL	WAITHLMS	;output delay
+	POP	HL
+	RET
+
+;.........................................................................
+; Check for valid TERMCAP.
+; Return: HL = Points to start of TERMCAP if valid, undefined if Not
+;	   Carry Set (C) if No Termcap present
+
+CKTCAP:	LD	HL,(VIDPTR)	; Point to Environment Descriptor
+	LD	A,(HL)		; Get first char of ID Name
+	CP	' '+1		; Anything There?
+	RET			; ..return Carry Set if Space (No Tcap)
+
+;****************************************************************************
+
+HIDE:				; Turn Off Cursor
+SHOW:				; Turn On Cursor:
+SAVECU:				; Save Cursor Position:
+RESCU:				; Restore Cursor Position:
+
+MINT:				; Service Modem Interrupt:
+INVEC:				; Initialise Interrupt Vectors:
+DINVEC:	RET			; De-initialise Interrupt Vectors:
+
+;****************** End of user-defined code ********************************
+; Don't change anything below this point. We needed some assembly language
+; stuff for speed, and this seemed like a good place to put it.
+
+;.........................................................................
+; Modem character test for 100 ms
+
+MRD:	PUSH	BC		; Save BC
+	LD	BC,100		; Set Limit
+MRD1:	CALL	AUXIST		; Char at Modem?
+	JR	NZ,MRD2		; ..jump to Exit if Yes
+	LD	HL,1		; Else wait 1ms
+	CALL	WAITHLMS
+	DEC	BC		; Loop till done
+	LD	A,B
+	OR	C
+	JR	NZ,MRD1
+	LD	HL,0		; Nothing there, Result = 0
+	XOR	A
+MRD2:	POP	BC
+	RET
+
+;.........................................................................
+; Inline print routine: destroys A and HL
+
+PRINT:	EX	(SP),HL		; get address of string
+PLOOP:	LD	A,(HL)		; get next
+	INC	HL		; bump pointer
+	OR	A		; done if zero
+	JR	Z,PDONE
+	CALL	COUT		; else print
+	JR	PLOOP		; and loop
+
+PDONE:	EX	(SP),HL		; restore return address
+	RET			; and quit
+
+;.........................................................................
+; Output a character in A to the console
+
+COUT:	PUSH	BC		; save regs
+	PUSH	DE
+	PUSH	HL
+	LD	E,A		; Save the character to E for BDOS routine
+	LD	C,2		; BDOS conout routine
+	CALL	BDOS		; print it
+	POP	HL
+	POP	DE
+	POP	BC
+	RET
+
+;.........................................................................
+; Wait(seconds)
+
+WAIT:	LD	HL,2
+	ADD	HL,SP
+	LD	E,(HL)		; Get Low byte of Parm
+	INC	HL
+	LD	D,(HL)		; .get High byte
+	INC	HL		; ..bump to pt to next
+	EX	DE,HL		; ...put Parm in HL
+			; fall thru to..
+; Wait seconds in HL
+
+WAITHLS: PUSH	BC		; Save BC
+	 PUSH	DE		; .DE
+
+; Calculate values for loop constants. Need to have two loops to avoid
+;   16-bit overflow with clock speeds above 9 MHz.
+
+OUTERVAL	EQU	(CLKSPD / 10) + 1
+INNERVAL	EQU	(6667 / OUTERVAL) * CLKSPD
+
+WAIT10:	LD	B,OUTERVAL
+WAIT11:	LD	DE,INNERVAL
+WAIT12:	BIT	0,(IX)		; time-wasters
+	BIT	0,(IX)
+	BIT	0,(IX)		; 20 T-states each
+	BIT	0,(IX)
+	BIT	0,(IX)
+	BIT	0,(IX)
+	DEC	DE
+	LD	A,E
+	LD	A,D
+	OR	E
+	JR	NZ,WAIT12	; 150 T-states per Inner Loop
+	DJNZ	WAIT11		; Decrement Outer Loop
+	DEC	HL		; Ok, decrement count in HL
+	LD	A,H
+	OR	L
+	JR	NZ,WAIT10
+	POP	DE		; Done -- restore DE
+	POP	BC		; .and BC
+	RET
+
+;.........................................................................
+; Wait milliseconds
+
+MSWAIT:	LD	HL,2
+	ADD	HL,SP
+	LD	E,(HL)		; Get Low byte of Parm
+	INC	HL
+	LD	D,(HL)		; .get High byte
+	INC	HL		; ..bump to pt to next
+	EX	DE,HL		; ...put Parm in HL
+			; fall thru to..
+; Wait milliseconds in HL
+
+WAITHLMS:
+	LD	A,H
+	OR	L
+	RET	Z
+	PUSH	DE
+W1MS0:	LD	DE,39 * CLKSPD
+W1MS1:	DEC	DE
+	LD	A,D
+	OR	E
+	JR	NZ,W1MS1
+	DEC	HL
+	LD	A,H
+	OR	L
+	JR	NZ,W1MS0
+	POP	DE
+	RET
+
+;.........................................................................
+; Get address of user-defined variables
+
+GETVARS: LD	HL,USRVARS
+	 RET
+
+USRVARS: DEFW	OVRDRV		; .OVR etc. Drive/User
+	 DEFW	OVRUSR
+
+	END
+

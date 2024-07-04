@@ -1,0 +1,164 @@
+
+; B5SB-2.INS - Intertec Superbrain overlay file for BYE5 - 03/17/86
+;
+;	  BYE5 routine for 8251A and BR1941 baudrate generator
+;
+;	       NOTE:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 03/17/86  Added some missing equates		- Irv Hoff
+; 07/17/85  Written for use with BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; The following define the port addresses to use
+;
+PORT	EQU	58H		; Modem base port
+MDCTL1	EQU	59H		; Modem control port
+BRPORT	EQU	60H		; BR1941 baudrate generator port
+;
+MDMODE	EQU	82H		; Insures 8251 is out of mode, DTR high
+MDRSET	EQU	42H		; Resets USART for additional commands
+MDSET1	EQU	4EH		; 1 stop bit, no parity, 8 bits, x16
+MDSET2	EQU	0CEH		; 2 stop bits, no parity, 8 bits, x16
+;
+;
+; Baudrate table
+;
+BD300	EQU	57H		; Modem 300,  printer 1200
+BD1200	EQU	77H		; Modem 1200, printer 1200
+BD2400	EQU	0A7H		; Modem 2400, printer 1200
+BD9600	EQU	0E7H		; Modem 9600, printer 1200
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Get status
+	ANI	80H		; Check DSR for carrier from modem
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call.
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	MDCTL1		; Causing hangup
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until carrier drops
+	POP	B		; Restore BC
+	MVI	A,MDMODE	; Insure 8251 is out of mode
+	OUT	MDCTL1
+	XTHL			; Delay a little
+	XTHL			; Delay a little
+	MVI	A,MDRSET	; Reset the 8251A for new command
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,MDSET1	; Set stop pulse, no parity 8 bits, x16
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,17H		; Reset error flags, RCV, DTR, TX ready
+	OUT	MDCTL1
+	XTHL
+	XTHL
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	02H		; Check the receive ready flag
+	RZ			; Return if none
+	IN	MDCTL1		; Get status again
+	ANI	30H		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,17H		; Reset error flags
+	OUT	MDCTL1
+	XRA	A		; Return false
+	RET
+;...
+;
+;
+MDINST1:ORI	0FFH		; We have a character
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1
+	ANI	01H		; Check transmit ready flag
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; DTR low hangs up phone, keep DTR low
+	OUT	MDCTL1		;   so will not auto-answer at any time
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the Zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,BD300		; Load 300 baud
+	JMP	SETSPD
+;
+SET1200:MVI	A,BD1200	; Poke in 1200 bps
+	JMP	SETSPD
+;
+SET2400:MVI	A,BD2400	; Load 1200 bps
+;
+SETSPD:	OUT	BRPORT
+	XRA	A		; Say it is ok
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

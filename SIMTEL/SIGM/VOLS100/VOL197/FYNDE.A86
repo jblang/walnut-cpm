@@ -1,0 +1,970 @@
+
+;	----------------------------------------------------------
+;	Reassembly of FIND.COM, which was originally extracted
+;	from the CBBS(R) package available from Ward Christensen
+;	and Randy Suess. However, considerable rearrangement has
+;	taken place, most notably the following:
+;	    <no file name> results in a screen of information
+;	    the search pattern may be a regular expression
+;	    label+line number as an alternative to line number
+;	    instance count reported, both per file and globally
+;	    .SYS and .CMD files are automatically excluded
+;	    squeezed files do not deter the search
+;	To achieve compatibility with MicroShell the vertical bar
+;	was replaced by exclamation point; all syntactic elements
+;	are defined by EQU's and may be redefined. LABEL!PATTERN
+;	is checked for balanced parentheses and non-null arguments
+;	to forestall the most common failure modes. Had MicroShell
+;	not been available, an option to direct the output to some
+;	disk file would probably have been included.
+;
+;		    FYNDE.A86   Copyright (C) 1982
+;		    Universidad Autonoma de Puebla
+;
+;	[Harold V. McIntosh, 20 December 1982 (SIG/M 165.10)]
+;	[1 July 1984 - scan squeezed files]
+;	[4 July 1984 - no false matches w/null lines]
+;	----------------------------------------------------------
+
+bdos	equ	224			;bdos interrupt
+
+HT	equ	09H			;horizontal tab
+LF	equ	0AH			;line feed
+CR	equ	0DH			;carriage return
+KZ	equ	1AH			;^Z
+
+;	Delimiters for the command line
+
+LSQ	equ	'['			;begin alternative list
+RSQ	equ	']'			;end alternative list
+LBR	equ	'{'			;begin iterated expression
+RBR	equ	'}'			;end iterated expression
+ORR	equ	'!'			;separate alternatives
+
+;	Representatives of characters or classes.
+
+TAB	equ	'_'			;substitute for tab
+QUE	equ	'?'			;represent any byte
+ALF	equ	'@'			;represent any alphanumeric
+
+;	CPM locations and parameters
+
+cfcb	equ	005CH			;CP/M's file control block
+csiz	equ	0080H			;CP/M's record size
+cbuf	equ	0080H			;CP/M's record buffer
+ksiz	equ	26			;sector capacity of IN buffer
+isiz	equ	ksiz*128
+hsiz	equ	256			;max no chars encoded
+
+;	------------
+	org	100H
+;	------------
+
+begn:	mov	bx,(offset cfcb+1)	;file name
+	cmp	byte ptr [bx],' '
+	jnz	head
+	mov	bx,(offset M1)
+meex:	call	mssg			;message to console
+exit:	mov	dl,00
+	mov	cl,00
+	int	bdos
+
+head:	mov	bx,(offset M2)
+	call	mssg			;message to console
+
+	mov	cx,12
+	mov	si,(offset cfcb)	;CP/M's file control block
+	mov	bx,(offset file)
+	call	miuc			;block move
+
+	xor	al,al
+	mov	enth,al
+	mov	bx,(offset cbuf)	;CP/M's record buffer
+	mov	dl,[bx]
+	mov	dh,al
+	mov	cx,dx
+	xchg	bx,dx
+	inc	dx
+	add	bx,dx
+	mov	[bx],al
+	xchg	bx,dx
+X0152:	inc	bx
+	dec	cx
+	cmp	(byte ptr[bx]),00
+	jnz	goop
+	mov	bx,(offset M3)		;"bad pattern"
+	jmp	meex			;type message, exit
+
+goop:	cmp	(byte ptr[bx]),' '
+	jnz	X0152
+	inc	bx
+	call	bala			;check balance of [], {}.
+	call	nula			;check for null alternatives
+	mov	si,(offset patt)	;command line pattern
+	call	muve
+
+	mov	cx,4
+	mov	si,(offset lzer)
+	mov	bx,(offset dtot)
+	call	miuc			;block move
+
+	mov	lapo,0000
+	mov	bx,(offset patt)	;command line pattern
+	mov	papo,bx
+	call	next
+	or	al,al
+	jz	scan
+	mov	papo,bx
+	mov	lapo,(offset patt)
+
+;	Scan the directory for file names.
+
+scan:	mov	cl,26			;(1A) set DMA address
+	mov	dx,(offset cbuf)	;CP/M's record buffer
+	int	bdos			; - B D O S -
+
+	mov	cl,17			;(11) search once
+	mov	dx,(offset file)
+	int	bdos			; - B D O S -
+
+	inc	enth
+	mov	cl,enth
+fnth:	inc	al
+	jz	done			;we're all done
+	dec	cl
+	jz	this
+	push	cx
+	mov	cl,18			;(12) search again
+	mov	dx,(offset file)
+	int	bdos			; - B D O S -
+	pop	cx
+	jmp	fnth
+
+;	We're all done.
+
+done:	mov	bx,(offset dtot)
+	jmp	meex			;type message, exit
+
+;	A prospective file has been located
+
+this:	dec	al
+	and	al,03
+	mov	ah,32
+	mul	ah
+	add	ax,(offset cbuf+1)
+
+	mov	cx,11
+	mov	si,ax
+	mov	bx,(offset cfcb+1)	;CP/M's file control block
+	call	miuc			;block move
+
+	mov	(byte ptr[bx]),00	;guarantee extent 0
+
+	mov	bx,(offset cfcb+9)	;CP/M's file control block
+	call	tsys			;test for extension 'SYS'
+	jc	scan
+	mov	bx,(offset cfcb+9)	;CP/M's file control block
+	call	tcmd			;test for extension 'CMD'
+	jc	scan
+	mov	bx,(offset cfcb+9)	;CP/M's file control block
+	call	tcom			;test for extension 'COM'
+	jc	scan
+
+;	Open the file, check for squeezing.
+
+nsys:	mov	cl,15			;(0F) open file
+	mov	dx,(offset cfcb)	;CP/M's FCB
+	int	bdos			; - B D O S -
+
+	inc	al
+	jnz	G9
+	jmp	exit			;quit [without message]
+G9:	xor	al,al
+	mov	bx,(offset cfcb+32)	;CP/M's block counter
+	mov	[bx],al			;block pointer
+	mov	dens,al			;z/nz=un/squeezed
+	mov	mult,al			;repeat factor
+	mov	ictr,0000		;input counter
+
+	mov	bx,(offset cfcb+10)	;CP/M's file control block
+	cmp	(byte ptr [bx]),'Q'
+	jz	cota
+	jmp	nsqz
+
+cota:	call	rwor			;fetch two bytes
+	cmp	bx,0FF76H		;marker for squeezed file
+	jz	rchk
+	jmp	nsqz
+
+;	Read the checksum.
+
+rchk:	call	rwor			;fetch word
+	mov	cksm,bx			;given checksum
+
+;	Clear space for the unsqueezed file name.
+
+	mov	cx,2008H		;eight spaces
+	mov	bx,(offset uzfn)	;unsqueezed file name
+	call	fiuc
+
+;	Clear space for the unsqueezed extension.
+
+	mov	cx,2003H		;three spaces
+	mov	bx,(offset uzex)	;unsqueezed extension
+	call	fiuc
+
+;	Read the unsqueezed file name.
+
+	mov	cx,8
+	mov	si,(offset uzfn)	;unsqueezed file name)
+luup:	call	rbyt			;fetch one byte
+	cmp	al,'.'
+	jz	lyyp
+	or	al,al
+	jz	fize
+	mov	[si],al
+	inc	si
+	loop	luup
+
+;	Read the unsqueezed extension.
+
+lyyp:	mov	cx,3
+	mov	si,(offset uzex)	;unsqueezed extension
+lyyq:	call	rbyt
+	or	al,al
+	jz	lodi
+	mov	[si],al
+	inc	si
+	loop	lyyq
+
+;	Go on until finding zero.
+
+fize:	call	rbyt
+	or	al,al
+	jnz	fize
+
+	mov	bx,(offset uzex)	;CP/M's file control block
+	call	tcmd			;test for extension 'CMD'
+	jc	jscn
+	mov	bx,(offset uzex)	;CP/M's file control block
+	call	tcom			;test for extension 'COM'
+	jnc	lodi
+jscn:	jmp	scan
+
+;	Load code dictionary.
+
+lodi:	call	rwor			;fetch word
+	cmp	bx,(offset 4*hsiz+1)
+	jc	lodj
+	mov	bx,(offset MA)
+	call	mssg
+	jmp	scan
+
+lodj:	add	bx,bx
+	add	bx,bx
+	mov	cx,bx			;dictionary length
+	mov	si,(offset code)	;code table
+
+looq:	call	rbyt			;fetch one byte
+	mov	[si],al
+	inc	si
+	loop	looq
+
+	mov	smck,0000		;developing checksum
+	mov	dens,0FFH		;z/nz=un/squeezed
+	mov	roco,1			;rotation counter
+
+nsqz:	mov	cx,4
+	mov	si,(offset lzer)
+	mov	bx,(offset lnum)	;'line number'
+	call	miuc			;block move
+
+	mov	cx,4
+	mov	si,(offset lzer)
+	mov	bx,(offset ftot)	;'file total'
+	call	miuc			;block move
+
+	mov	cx,8
+	mov	si,(offset cfcb+1)	;file name
+	mov	bx,(offset fnam)	;'file name'
+	call	miuc			;block move
+
+	mov	cx,3
+	mov	si,0065H		;extension
+	mov	bx,(offset fext)	;'file extension'
+	call	miuc			;block move
+
+	mov	bx,(offset fhed)
+	call	mssg			;message to console
+	mov	al,dens
+	or	al,al
+	jz	sixs
+	mov	bx,(offset hesq)
+	call	mssg
+
+sixs:	mov	cx,2006H		;six spaces
+	mov	bx,(offset llbl)
+	call	fiuc			;block fill
+
+X01C8:	mov	bx,(offset lnum+3)	;increment l.c.
+	call	inco			;increment line counter
+	mov	bx,(offset lbuf)	;line buffer
+	mov	ch,0FFH
+X01E0:	inc	ch
+	js	X01FD
+	push	cx
+	push	bx
+	call	inch			;char from big bffr to line bffr
+	pop	bx
+	pop	cx
+	mov	[bx],al
+	inc	bx
+	cmp	al,KZ
+	jnz	X01E8
+	mov	bx,(offset ftot)
+	call	mssg			;message to console
+	jmp	scan
+X01E8:	cmp	al,LF
+	jnz	X01E0
+	jmp	X0202
+
+X01FD:	mov	(byte ptr[bx]),CR
+	inc	bx
+	mov	(byte ptr[bx]),LF
+	inc	bx
+
+;	Check console for termination request. If one
+;	is present, clear it out before leaving.
+
+X0202:	mov	(byte ptr[bx]),00	;guarantee right hand fence
+	mov	cl,11			;(0B) console status
+	int	bdos			; - B D O S -
+	or	al,al
+	jz	culi
+	mov	cl,1			;(01) read console
+	int	bdos			; - B D O S -
+	cmp	al,03H			;^C
+	jnz	skpf
+	mov	bx,(offset M4)		;'search terminated'
+	jmp	meex			;type message, exit
+
+skpf:	mov	bx,(offset M5)		;'remainder of file skipped'
+	call	mssg			;message to console
+	jmp	scan
+
+;	Scan the current line.
+;	First see if it is labelled.
+
+culi:	mov	si,lapo
+	or	si,si
+	jz	X0217			;no label requested
+	mov	bx,(offset lbuf)
+	call	chek
+	jnz	X0217			;label not found
+	push	bx
+	mov	cx,2006H		;six spaces
+	mov	bx,(offset llbl)
+	call	fiuc			;block fill
+	pop	bx
+	mov	dx,(offset llbl+5)
+	mov	cl,6
+didl:	dec	bx
+	mov	al,[bx]
+	cmp	al,HT			;ignore tabs in text
+	jz	didl
+	cmp	al,' '			;quit at head of line
+	jc	dido
+	xchg	bx,dx
+	mov	[bx],al
+	xchg	bx,dx
+	dec	dx
+	dec	cl
+	jnz	didl
+
+dido:	mov	cx,4
+	mov	si,(offset lzer)
+	mov	bx,(offset lnum)
+	call	miuc			;block move
+
+;	Now look for the pattern.
+
+X0217:	mov	bx,(offset lbuf)	;line buffer
+X021A:	mov	si,papo			;pattern pointer
+	push	bx
+	call	chek
+	pop	bx
+	jz	X0263
+	cmp	(byte ptr[bx]),CR
+	jnz	ginc
+	jmp	X01C8			;increment l.c. at X026A
+ginc:	inc	bx
+	jmp	X021A
+
+;	Pattern matches, so type label & line containing it.
+
+X0263:	mov	bx,(offset llbl)	;line label
+	call	mssg			;message to console
+	mov	bx,(offset lbuf)	;line buffer
+	call	mssg			;message to console
+	mov	bx,(offset ftot+3)
+	call	inco
+	mov	bx,(offset dtot+3)
+	call	inco
+	jmp	X01C8			;increment l.c. at X026A
+
+;	Increment ASCII counter at (HL-3).
+
+inco:	or	(byte ptr[bx]),30H
+	inc	(byte ptr[bx])
+	cmp	(byte ptr[bx]),':'
+	jnz	incr
+	mov	(byte ptr[bx]),'0'
+	dec	bx
+	jmp	inco
+incr:	ret
+
+;	Memory to console
+
+mssg:	mov	dl,[bx]
+	inc	bx
+	push	bx
+	mov	cl,2			;(02) write console
+	int	bdos			; - B D O S -
+	pop	bx
+	mov	al,[bx]
+	or	al,al
+	jnz	mssg			;message to console
+	ret
+
+;	Decode next character.
+
+dnch:	mov	bx,(offset code)	;code table
+dncr:	call	rbit
+	jnc	ducs
+	inc	bx
+	inc	bx
+ducs:	mov	ax,[bx]
+	cmp	ax,0FEFFH
+	jz	duct
+	or	ax,ax
+	jns	ducu
+	not	al
+	stc
+	cmc
+	ret
+
+duct:	stc
+	ret
+
+ducu:	mov	bx,(offset code)	;code table
+	add	ax,ax
+	add	ax,ax
+	add	bx,ax
+	jmp	dncr
+
+;	Read one bit at a time.
+
+rbit:	push	bx
+	dec	roco			;rotation count
+	jnz	rbiu
+	mov	roco,8
+	call	rbyt			;fetch one byte
+	mov	roby,al			;rotating byte
+rbiu:	rcr	roby,1			;rotating byte
+	pop	bx
+	ret
+
+;	Read one word.
+
+rwor:	call	rbyt			;fetch one byte
+	push	ax
+	call	rbyt			;fetch one byte
+	pop	bx
+	mov	bh,al
+	ret
+
+;	Fetch the next byte. The input buffer will be refreshed if it
+;	is necessary. For normal files, one byte will be extracted from
+;	the input buffer; for squeezed files, the byte will be decoded
+;	from the incoming bit stream and added to the developing checksum.
+
+inch:	cmp	dens,00			;z/nz = un/squeezed
+	jz	rbyt			;fetch one byte
+	cmp	mult,00			;repeat factor
+	jz	gusq
+	dec	mult			;repeat factor
+	mov	al,lach			;last character read
+	jmp	acck			;accumulate checksum
+
+;	Report ^Z in place of [end], verify checksum.
+
+gusq:	call	dnch			;decode next character
+	jnc	guss
+	mov	bx,cksm
+	cmp	bx,smck
+	jz	gusr
+	mov	bx,(offset M9)
+	call	mssg
+gusr:	mov	al,1AH
+	ret
+
+;	Note and return new character unless it is a repetition marker.
+
+guss:	cmp	al,090H
+	jz	gusu
+	mov	lach,al			;last character read
+	jmp	acck			;accumulate checksum
+
+;	Read and record the repetition count.
+
+gusu:	call	dnch			;decode next character
+	dec	al
+	dec	al
+	mov	mult,al			;repeat factor
+	mov	al,lach			;last character read
+
+;	Accumulate checksum.
+
+acck:	mov	ah,0
+	add	smck,ax
+	ret
+
+;	Unsqueezed (normal) text.
+
+rbyt:	cmp	ictr,0000		;input counter
+	jnz	gbyy
+	call	indi			;disk to IN area
+gbyy:	dec	ictr			;input counter
+	mov	bx,iptr			;input pointer
+	mov	al,[bx]
+	inc	iptr			;input pointer
+	ret
+
+indi:	mov	al,ksiz
+	mov	ictr,(offset isiz)	;input counter
+	mov	iptr,(offset ibuf)	;input pointer
+	mov	dx,iptr
+indd:	push	dx
+	push	ax
+
+	mov	cl,26			;(1A) set DMA address
+	int	bdos			; - B D O S -
+
+	mov	dx,(offset cfcb)	;CP/M's file control block
+	mov	cl,20			;(14) read one record
+	int	bdos			; - B D O S -
+
+	or	al,al
+	jnz	inee
+	pop	ax
+	pop	dx
+	dec	al
+	jz	inss
+	add	dx,(offset csiz)	;CP/M's record size
+	jmp	indd
+
+inee:	pop	ax
+	pop	dx
+	mov	(byte ptr [bx]),1AH
+inss:	ret
+
+;	Disregard .COM files.
+
+tcom:	cmp	(byte ptr[bx]),'C'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'O'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'M'
+	jnz	nfil
+	mov	bx,(offset M6)		;'.COM file disregarded'
+	call	mssg			;message to console
+	stc
+	ret
+
+;	Disregard .CMD files.
+
+tcmd:	cmp	(byte ptr[bx]),'C'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'M'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'D'
+	jnz	nfil
+	mov	bx,(offset M7)		;'.CMD file disregarded'
+	call	mssg			;message to console
+	stc
+	ret
+
+;	Disregard .SYS files.
+
+tsys:	cmp	(byte ptr[bx]),'S'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'Y'
+	jnz	nfil
+	inc	bx
+	cmp	(byte ptr[bx]),'S'
+	jnz	nfil
+	mov	bx,(offset M8)		;'.SYS file disregarded'
+	call	mssg			;message to console
+yfil:	stc
+	ret
+nfil:	stc
+	cmc
+	ret
+
+;	Advance to next alternative
+
+nexr:	ret
+nexx:	mov	bx,[bx]
+next:	mov	al,[bx]
+	or	al,al
+	jz	nexr
+	inc	bx
+	call	enda
+	jz	nexr
+	call	begb
+	jz	nexx
+	jmp	next
+
+;	Block fill with cl ch's starting at (bx).
+
+fiuc:	mov	(byte ptr[bx]),ch
+	inc	bx
+	dec	cl
+	jnz	fiuc			;block fill
+	ret
+
+;	Block move of cx bytes from (si) to (bx).
+
+miuc:	mov	al,[si]
+	mov	[bx],al
+	inc	si
+	inc	bx
+	loop	miuc
+	ret
+
+;	Move and semi-compile the command line.
+
+muve:	mov	al,[bx]
+	cmp	al,TAB
+	jnz	munt
+	mov	al,HT
+munt:	mov	[si],al
+	inc	bx
+	inc	si
+	cmp	al,RBR
+	jz	murb
+	cmp	al,RSQ
+	jz	murb
+	cmp	al,LBR
+	jz	mulb
+	cmp	al,LSQ
+	jz	mulb
+must:	loop	muve
+	ret
+
+murb:	mov	ax,bx
+	pop	bx
+	mov	[bx],si
+	mov	bx,ax
+	jmp	must
+
+mulb:	push	si
+	inc	si
+	inc	si
+	jmp	must
+
+;	Check balance of []'s and {}'s.
+
+bala:	push	bx
+	push	cx
+	mov	cx,0101H
+balb:	mov	al,[bx]
+	inc	bx
+	cmp	al,LSQ
+	jnz	balc
+	inc	ch
+	jmp	balb
+balc:	cmp	al,RSQ
+	jnz	bald
+	dec	ch
+	jz	balx
+	jmp	balb
+bald:	cmp	al,LBR
+	jnz	bale
+	inc	cl
+	jmp	balb
+bale:	cmp	al,RBR
+	jnz	balf
+	dec	cl
+	jz	balx
+	jmp	balb
+balf:	or	al,al
+	jnz	balb
+	cmp	cl,01
+	jnz	balx
+	cmp	ch,01
+	pop	cx
+	pop	bx
+	jnz	balx
+	ret
+balx:	mov	bx,(offset M3)		;"bad pattern"
+	jmp	meex			;type message, exit
+
+;	Check for termination of alternative.
+
+enda:	cmp	al,ORR
+	jz	endr
+endb:	cmp	al,RSQ
+	jz	endr
+	cmp	al,RBR
+	jz	endr
+	or	al,al
+endr:	ret
+
+;	Check for beginning of alternative.
+
+bega:	cmp	al,ORR
+	jz	begr
+begb:	cmp	al,LSQ
+	jz	begr
+	cmp	al,LBR
+begr:	ret
+
+;	Check for null alternative.
+
+nula:	push	bx
+	call	nulb
+	pop	bx
+nulr:	ret
+
+nulb:	mov	al,[bx]
+	inc	bx
+	or	al,al
+	jz	nulr
+	call	bega
+	jnz	nulb
+	mov	al,[bx]
+	call	enda
+	jnz	nulb
+	jmp	balx
+
+;	Check for given expression.
+
+chek:	mov	ah,[bx]
+	mov	al,[si]
+	inc	si
+	call	enda
+	jz	chre
+	cmp	ah,CR
+	jz	chno
+	cmp	al,LBR
+	jnz	G69
+	jmp	chlb
+G69:	cmp	al,LSQ
+	jz	chsq
+	inc	bx
+	cmp	al,QUE
+	jz	chek
+	cmp	al,ALF
+	jz	chal
+	cmp	al,ah
+	jz	chek
+	cmp	ah,'a'
+	jc	chno
+	cmp	ah,'{'
+	jnc	chno
+	and	ah,05FH
+	cmp	al,ah
+	jz	chek
+chno:	or	al,0FFH
+chre:	ret
+
+;	Check alphanumeric.
+
+chal:	cmp	ah,'0'
+	jc	chno
+	cmp	ah,':'
+	jc	chek
+	cmp	ah,'A'
+	jc	chno
+	cmp	ah,'['
+	jc	chek
+	cmp	ah,'a'
+	jnc	chno
+	cmp	ah,'{'
+	jc	chek
+	jmp	chno
+
+;	Check list of alternatives.
+
+chsq:	push	sqxx
+	push	sqaa
+	push	sqzz
+	mov	sqxx,bx
+	mov	bx,[si]
+	inc	si
+	inc	si
+	mov	sqaa,si
+	mov	sqzz,bx
+chaa:	mov	bx,sqxx
+	call	chek
+	jz	chff
+chbb:	mov	bx,sqaa			;fail so find next alternative
+chcc:	call	next
+	cmp	al,RSQ
+	jz	chdd			;no more alternatives, so fail
+	cmp	al,ORR
+	jnz	chcc
+	mov	sqaa,bx
+	mov	si,bx
+	jmp	chaa			;try next alternative
+chdd:	mov	bx,sqxx
+	or	al,0FFH
+chee:	pop	sqzz
+	pop	sqaa
+	pop	sqxx
+	ret
+
+chff:	mov	si,sqzz			;good alternative, try rest
+	call	chek
+	jz	chee
+	jmp	chbb
+
+;	Check iterative pattern.
+
+chlb:	push	text
+	push	texx
+	push	rest
+	push	rept
+	push	repp
+	mov	text,bx
+	mov	texx,bx
+	xchg	bx,si
+	mov	si,[bx]
+	inc	bx
+	inc	bx
+	mov	rept,bx
+	mov	repp,bx
+	mov	rest,si
+chlc:	mov	si,rest
+	mov	bx,text
+	call	chek			;check rest
+	jz	chzz
+chii:	mov	si,rept			;rest failed
+	mov	bx,text			;keep same text
+	call	chek			;try out the repeater
+	jnz	choo
+	mov	text,bx			;repeater worked, record progress
+	mov	bx,repp			;start alternatives over again
+	mov	rept,bx
+	jmp	chlc
+choo:	mov	bx,rept			;repeater failed, try next
+chxx:	call	next
+	cmp	al,RBR
+	jz	chyy			;this was the last, quit
+	cmp	al,ORR
+	jnz	chxx
+	mov	rept,bx
+	jmp	chii
+chyy:	mov	bx,texx
+	or	al,00			;emphasize the RBR
+chzz:	pop	repp
+	pop	rept
+	pop	rest
+	pop	texx
+	pop	text
+	ret
+
+M1	db	'The command line',CR,LF
+	db	'     FYNDE D:FILE.EXT EXPRESSION',CR,LF
+	db	'will search through all instances of FILE.EXT',CR,LF
+	db	'(which may be an ambiguous reference) on disk D',CR,LF
+	db	'to find lines containing EXPRESSION. Such lines',CR,LF
+	db	'will be presented on the console preceded by a',CR,LF
+	db	'line number, and classified by file. EXPRESSION',CR,LF
+	db	'may have the form LABEL!PATTERN or simply the',CR,LF
+	db	'form PATTERN. Both may contain:',CR,LF
+	db	'     [p1!p2!...!pn]  alternative strings',CR,LF
+	db	'     {p1!p2!...!pn}  repeated alternatives',CR,LF
+	db	'     ? any single character',CR,LF
+	db	'     @ for any alphanumeric: a-z, A-Z, 0-9',CR,LF
+	db	'     _ in place of horizontal tab',CR,LF
+	db	'When a label is present, lines will be numbered',CR,LF
+	db	'relative to the label.  Example: X{?}:![call!ret]',CR,LF
+	db	'will list calls and returns relative to labels',CR,LF
+	db	'like X0100: or X33:. LABEL begins in column 1,',CR,LF
+	db	'PATTERN can begin in any column. Squeezed files',CR,LF
+	db	'will be searched just as well as unsqueezed ones.',CR,LF
+	db	'Use ^C to quit; any other key skips rest of file.',CR,LF
+	db	00
+
+M2	db	'FYNDE.CMD 07/01/84 ICUAP',CR,LF,CR,LF,00
+
+M3	db	'-- Bad Pattern --',00
+
+M4	db	CR,LF,'-- Search Terminated --',00
+
+M5	db	' -- Remainder of File Skipped --',CR,LF,00
+
+M6	db	'.COM file disregarded',CR,LF,00
+
+M7	db	'.CMD file disregarded',CR,LF,00
+
+M8	db	'.SYS file disregarded',CR,LF,00
+
+M9	db	' (checksum failure) ',CR,LF,00
+
+MA	db	'-- Code Table Won''t Fit --',CR,LF,00
+
+enth	rb	1
+file	db	'DFilenameEXT',00
+	rb	19
+
+sqxx	rw	1
+sqaa	rw	1
+sqzz	rw	1
+text	rw	1
+texx	rw	1
+rest	rw	1
+rept	rw	1
+repp	rw	1
+
+patt	rb	256			;command line pattern
+	rb	100			;stack area
+stak	rb	0			;initialize stack pointer
+lapo	rw	1			;label pointer
+papo	rw	1			;pattern pointer
+crlf	db	CR,LF,00
+fhed	db	'~~~~~~> File '
+fnam	db	'xxxxxxxx.'		;filename
+fext	db	'xxx',CR,LF,00		;file extension
+hesq	db	'[squeezed] : '
+uzfn	db	'squeezed.'		;unsqueezed file's name
+uzex	db	'eqt',CR,LF,00
+llbl	db	'      +'
+lnum	db	'         ',00
+lzer	db	'   0'
+ftot	db	'      lines found',CR,LF,00
+dtot	db	'      instances in the entire disk',CR,LF,00
+	db	00			;fence for line buffer
+lbuf	rb	85H			;line buffer
+dens	rb	1			;z/nz = un/squeezed
+roby	rb	1			;rotating byte
+roco	rb	1			;rotation count
+cksm	rw	1			;given checksum
+smck	rw	1			;developing checksum
+mult	rb	1			;repeat factor
+lach	rb	1			;last character read
+ictr	rw	1			;input counter
+iptr	rw	1			;input pointer
+ibuf	rb	isiz			;input buffer
+code	rb	4*hsiz			;Huffman code table
+fini	rb	0
+
+	end
+

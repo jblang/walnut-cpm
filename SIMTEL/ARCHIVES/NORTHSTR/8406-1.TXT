@@ -1,0 +1,167 @@
+ 2-Jun-84 21:23:01-MDT,5206;000000000000
+Return-Path: <bbloom@Brl-Mis.ARPA>
+Received: from BRL-MIS by SIMTEL20.ARPA with TCP; Sat 2 Jun 84 21:22:36-MDT
+Date:     Sat, 2 Jun 84 23:16:39 EDT
+From:     Bob Bloom (TECOM) <bbloom@Brl-Mis.ARPA>
+To:       info-modem7@Simtel20.ARPA, northstar-users@Simtel20.ARPA
+cc:       rbloom@Apg-1.ARPA
+Subject:  MEX with NorthStar's TSS/C
+
+A "moderate" call for help (I'm not desperate [yet]):
+
+I have MEX running fine on my NorthStar Horizon (second serial 
+port) w/ZCPR2 under N*'s split BIOS CP/M.  It works so fine that 
+I've been trying to do the same on my work Horizon (from HSIO 
+card) under N*'s multi-user os, TSS/C.  I had MDM730 nearly 
+working so MEX should be easy.
+
+First, what does work:  straight terminal mode, ASCII capture and 
+ASCII file send, Christensen upload, function keys, autodialing 
+through the Hayes SmartModem 1200, and all the local functions.
+
+What doesn't work:  Christensen download and some character loss 
+directly attributed to the band switching and interrupts of the 
+multi-user system.  Also, ^C doesn't seem to abort the call 
+command, I have to wait for it either to connect or abort.  (It 
+occassionally does require a reset to get out of a call command 
+when it either refuses to accept the carrier or there is no 
+answer.)  Sometimes it takes abnormally long (10-20 seconds) for 
+MEX to report a connection after the SmartModem has raised the 
+carrier light.  (This is without other users on the machine 
+[sleep 10 does take 10 seconds] and I have installed the 
+MEXNEWS.003 patches.)
+
+What's weird:  upon exit from MEX, the TD line (pin 2) goes high 
+and stays high until reset by MEX on next login.  MDM7 does not 
+do this when assembled with the same overlay.
+
+As I know that many of these are overlay related I've uploaded 
+the overlay I'm using to OFFICE-1 (imp 43 on the net) with open 
+protection.  Maybe someone else can see what I'm missing.  It's 
+in <IME-TECOM>MXO-TSSC.ASM.
+
+Christensen download doesn't work in MDM7 either, although the 
+effect is different.  MDM asks to delete the file (if existing) 
+and dies with no outgoing transmission.  MEX reports waiting ...,
+sends the ready character and then dies.  Looking at the source 
+code to MDM and doing some ddt'ing, in the routine RCVC3 it 
+successfully does the CALL ERAFIL (@1804h) and CALL MAKEFIL 
+(@1807h), but never does return from the CALL WAITQ1 (@180Ah).  
+I'm not good enough to discover why (kept getting lost in jmps 
+and calls).  As best as I can see there are no terminal/system/os 
+dependant calls in there so I'm at a loss why.
+
+What is there in both MEX and MDM7 in the download routines that 
+would cause this sort of action?  Especially since everything 
+else seems it work as expected.  I would think that a overlay i/o 
+error would cause problems elsewhere too.
+
+The overlay I'm using is developed from the N* HSIO MDM7 overlay 
+and Fowler's overlay for his multi-user system.  I'm doing 
+extended BDOS calls for input status and to input a character; 
+normal port reads for output status and to output a character to 
+a port.  (When I used entended BDOS calls for output something 
+really weird happened - everything was transmitted, but only in 
+pairs!.  A single keystroke would not transmit, the following one 
+transmitted both.  As direct "INs" worked, I gave up trying to 
+
+figure out that one.)
+
+One question on Fowler's overlay: why is 'call instat' (check 
+status of input) in the call to input a character?  Shouldn't inchar 
+be called only if instat has already returned positive?  Why do 
+it twice?
+
+On another point, is there anyone out there familiar with 
+NorthStar's TSS/C os?  I heard a rumor that a new version 
+(current version is 1.1.0) will soon be released with enhanced 
+capabilities.  Anyone know anything on this?
+
+I have other problems with communication programs but these are 
+attributable to the multi-user bank switching.  As the very 
+nature of bank switching makes communication difficult does ayone 
+know how to: 
+     . Make the 16 character "channels" larger?  
+     . Move the modem channel to an unused memory block (FPB 
+reserved area)?  
+     . Modify the interrupt system to put the modem input 
+somewhere else than the input channel?  
+     . Or maybe to try to drop the DTR line on the input port 
+when that channel is full so that an EXTERNAL buffer (MicroBuffer 
+MBIS) can catch the output?  (There is some code to do this 
+within the MEX overlay, but it doesn't really work well - it 
+really needs to be in the os.)
+
+As the overlay is written now, and with a external buffer, very 
+few characters are lost at 300 baud.  1200 baud works only ok - 
+as long as no one else logs in or hits the disk hard during long 
+input strings.  I'm really shooting for 9600 baud however - there 
+is a direct line to a local mini I'd like to grab.
+
+Any suggestions/help is appreciated.  (As I'll be away for a couple 
+weeks on a travel assignment, anything that requires a answer 
+from me will have to wait.  But then although the above problems 
+are vexing, MEX DOES work - except download.  Thanks Ron Fowler 
+for a great program.
+
+-bob bloom
+ 8-Jun-84 22:48:42-MDT,1683;000000000000
+Mail-From: RFOWLER created at  8-Jun-84 22:48:35
+Date: 8 Jun 1984  22:48 MDT (Fri)
+Message-ID: <RFOWLER.12021976369.BABYL@SIMTEL20>
+Sender: RFOWLER@SIMTEL20
+From: Ron Fowler < RFOWLER@SIMTEL20>
+To:   Bob Bloom (TECOM) <bbloom@Brl-Mis.ARPA>
+Cc:   northstar-users@Simtel20.ARPA, rbloom@Apg-1.ARPA
+Subject: MEX with NorthStar's TSS/C
+In-reply-to: Msg of 2 Jun 1984  21:16-MDT from Bob Bloom (TECOM) <bbloom at Brl-Mis.ARPA>
+
+I think the bulk of your problem is length of interrupt-driven-
+input queues (is that what you're referring to by "16-character
+channels"?) ...For Christensen protocol to work correctly on a
+multiuser system, you have to be able to receive up to about 132
+characters open-loop ... we have 134 character buffers on our
+multiuser system at work.  Anything less is simply not acceptable
+for Christensen, and will cause received transmissions to bomb
+(note that transmitting will work fine unless the system is out-
+rageously busy)}i.
+
+My overlay calls status from data-in because it was originally
+written for MDM712 or thereabouts ... I wasn't sure if MDM
+called status first in all cases, and didn't want to take any
+chances hanging the system.
+
+I have to admit that our OS is tailored toward modem transfers
+moreso than most (except perhaps TurboDOS) ... since I wrote
+the OS, I made sure that it would function correctly with modem
+programs (rather than the other way around).
+
+By the way, with the large input buffers, we routinely do 9600
+baud error-free transfers between local systems over RS232 links;
+only when the systems are extremely busy do we get retries (our
+OS does bank-switching also: one TPA per bank).		--Ron
+20-Jun-84 06:04:27-MDT,1179;000000000000
+Return-Path: <jrv@mitre-bedford>
+Received: from mitre-bedford by SIMTEL20.ARPA with TCP; Wed 20 Jun 84 06:04:19-MDT
+Date: Wednesday, 20 Jun 1984 07:56-EDT
+From: jrv@Mitre-Bedford
+To: northstar-users@simtel20
+Subject: gmgradd
+
+I have uncovered a subtile bug in GMGRADD, the program that adds the
+graphics manager to a user program.  It normally terminates with the
+message
+	 GRAPHICS MANAGER HAS BEEN APPENDED TO YOUR COM FILE.
+If the original file has length 48K or larger, you get the message
+	 YOUR COM FILE IS TOO BIG (>=48K).
+The interesting part is that you also get this message if the com file
+is exactly 32K (=128 pages or 256 records)!  If the original file is
+exactly 16K (=64 pages or 128 records), you get the message
+	 GRAPHICS MANAGER MAY NOT BE APPENDED FOR THE REASON BELOW:
+	 WRITE ERROR (OUT OF SPACE PERHAPS).
+The workaround for either a 16K or 32K program is to read it in with DDT,
+escape to the operating system, and SAVE it, making it just one page
+longer.  I called Northstar about the problem long ago.  They didn't
+sound interested at the time, but may have fixed the bug by now.  If so,
+nobody notified me.
+     - Jim Van Zandt

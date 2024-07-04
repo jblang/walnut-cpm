@@ -1,0 +1,71 @@
+
+Note   : These fixes will be in the next NUBYE release (tmb)
+
+From   : Bob Clyne CoSYSOP Royal Oak RCP/M (313-759-6569)
+Date   : 09/21/86
+Subject: NUBYE v1.01 bug fixes
+
+I have found two bugs in NUBYE101 in addition to the one addressed in
+NUBY-FIX.001 -- both are dependent on the particular equate settings.
+
+======
+FIX #1
+
+The first, and most obvious, bug is in the routine RDBYTE. There is a 
+semicolon missing from in front of "Have to read a sector". This will only
+show up if WELFILE is true. [RDBYTE: comes after IMQUIT: -- tmb]
+
+======
+FIX #2
+
+The second bug is less obvious. In the routine IMQUIT if IMAT is true
+and DOATZ, NOATA, and OFFHK are all false then execution will fall through
+to IMSEND.
+
+Lines marked with "==>>" are new/modified -- either make the individual
+changes shown, or insert this entire section of code and delete the old
+section in your copy of NUBYE.
+
+;
+; De-initiaize the modem.  When the operator uses CTL-C followed by any-
+; thing but "R", this call will return the modem to default settings.
+;
+IMQUIT:	LXI	H,LFMSG
+	CALL	PRINTL
+	CALL	DLP		; Some need this delay
+	CALL	EATALL		; ...and this garbage collection
+	 ENDIF			; IMAT
+;
+	 IF	(IMAT AND DOATZ) AND (NOT OFFHK)
+	LXI	H,IMATZ
+	CALL	IMSEND		; Send ATZ message to modem
+	CALL	DLP
+	CALL	EATALL
+	 ENDIF
+;
+	 IF	IMAT AND (DOATZ	OR NOATA) AND (NOT OFFHK)
+	LXI	H,IMUSR
+	CALL	IMSEND		; Send ATS0=0 to modem
+;==>>	JMP	EATALL	<<== delete this line
+	 ENDIF
+;
+	 IF	IMAT AND OFFHK
+	LXI	H,IMATH1
+	CALL	IMSEND		; Send ATH1 to the modem
+;==>>	JMP	EATALL	<<== delete this line
+	 ENDIF
+;
+;==>> Next 2 lines are NEW
+	 IF	IMAT
+	JMP	EATALL		;Replaces final 2 JMPs deleted above
+;==>> end of NEW code
+;
+; Send a command string to the modem. (If ECHO) Verify, reset the modem
+; and resend string if echo fails.
+;
+;==>>	 IF	IMAT	<<== delete this line
+IMSEND:	PUSH	B		; Save 'BC' registers
+	SHLD	ADDSTR		; Save start of command string
+
+** end of fix file **
+

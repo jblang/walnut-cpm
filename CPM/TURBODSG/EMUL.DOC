@@ -1,0 +1,166 @@
+EMUL.DOC	as of 12/07/85		version 2.20
+
+
+This is version 2.20 of EMUL.CMD, an 8080 emulator for use with the NEC
+uPD70116 and uPD70108 series CPUs (also known as the V30 and V20,
+respectively).
+
+NOTE:	UPDATE INFO APPENDED TO END OF FILE
+
+	This copyrighted program has been released to the Public Domain
+	for NONCOMMERCIAL uses only. Users wishing to use this utility
+	for ANY purpose other than personal use must first obtain written
+	authorization. Commercial distribution of this utility is
+	strictly forbidden without authorization and a $20.00 royalty fee
+	per distributed copy.
+	The above does not apply to distribution via "SIG-M library"!
+
+	The author assumes no liability of any kind for damages arising
+	from the use or inability to use this utility.
+
+
+Background:
+
+The NEC V20 and V30 are direct hardware replacements for Intel's 8088
+and 8086 CPU chips, respectively, and in most cases just drop in and
+make life SLIGHTLY faster.  The speed improvement is in many cases nothing
+to lose sleep about, certainly not worth the twenty bucks you'll have to
+shell out for the chip!  I have run a series of "average" programs and
+found that they USUALLY run about 5% faster.  A popular Public Domain
+CPU speed test for MSDOS clocked the V30 at 7.85MHz and the 8086 at 7.95!!!!
+
+There are 3 reasons, however, why you might want to spend the twenty anyway.
+First, the little critters are 80186/80188 instruction compatible. This means
+you can do your PUSHAs and POPAs and your string out a'la Z80's OTIR.  Note
+that the V-series, unlike the 80186, does not mask the shift/rotate count,
+so there is no easy way of telling the chip is not an 8086/88...
+Second, NEC crammed a number of unique instructions into the chip, giving
+you basically the same type bit handling like the Z80, as well as BCD
+shift/rotate. Here a note to BCD: the manual does not explain, but fact is
+that a BCD shift/rotate wipes out the high nybble of AL. As if that mattered,
+anyway...
+Third, and now we're at the bottom of all THIS, NEC has added a mode bit
+which, when reset, makes that chip think it's an 8080 with 4 afterburners.
+You'll see shortly why afterburners.
+
+Foreground:
+Picture yourself sitting in front of some CP/M-86 or 16 bit TurboDOS machine
+wanting, like I have for YEARS now, to be able to run you favorite text
+editor which is unavailable outside the CP/M-80 world.  Frustrating that
+you have to put up with old WordPlanet or somesuch, where you could, for
+example run MINCE (the king of editors, yea!!!) if you only had something to
+run it on!!!!
+Now, in the TurboDOS world there is a neat Z80 simulator called TZ80 which
+runs nearly every program that would ordinarily run under 8 bit TurboDOS.
+Unfortunately, it is a SIMULATOR, and instructions have to be decoded one
+at a time and executed. It is SLLLLLLLLLOOOOOOOOOOOOOW. Also, aside from
+some inferior Public Domain "emulators", there is no such beast available
+for CP/M-86 that runs reliably.
+
+Enter EMUL.CMD.
+EMUL is a true emulator which only works with NEC's V20 and V30 CPUs and
+EXECUTES 8080 instructions. It allows you to run just about ANY CP/M-80
+program with the following exceptions:
+
+1. The CP/M-80 program MUST be 8080-only (no Z80 code) or the HCF (halt
+   and catch fire) instruction will obliterate every byte of RAM!
+2. You must be running a NEC CPU, either V20 (uPD70108) or V30 (uPD70116);
+   EMUL tries to do some checking but may not be able to tell in all cases!
+3. Your 8080 program must not attempt any BIOS calls other than for
+   console I/O. All other calls are IGNORED.
+
+EMUL has been tested with the following software:
+MBASIC 5.21
+MINCE 2.6
+WordStar 3.3
+SID 3.0
+M80
+LINK-80
+BDS C 1.50A
+
+
+Internals:
+To TurboDOS programmers, the source code may be readable. Those used to
+ASM-86 or RASM may find it a bit weird. Sorry, that's what I use around
+here.   The only real confusion will arise in the fact that in EMUL ver
+2, the 8080 environment is compacted so as not to take up 64k of mostly
+empty space. Since the environment is ORGed in the data segment and the
+8086 data segment includes base page.    Therefore, all offsets used in
+the 8080 environment must not only be adjusted for theit actual running
+location, but also for their relative location at load time.    This is
+why you see equates like "BDOS-0X100",  or in the base page setup code,
+"DFCB1-0X100" is used.   End effect is, that EMUL works.   The programs
+hardest to please in regard to base page setup were M80 and MBASIC, and
+they both work flawlessly now.
+
+
+
+The afterburner:
+
+I wrote a timing proram with the following core:
+
+	MVI	E,50
+	LXI	B,0
+LOOP:	XTHL
+	XTHL
+	DCX	B
+	MOV	A,B
+	ORA	C
+	JNZ	LOOP
+	DCR	E
+	JNZ	LOOP
+
+The program, running on a 6MHz Z80 under TurboDOS 1.41 executed
+in 35.84 seconds, including time to access the clock.
+The same program running on an 8MHz V30 under EMUL executed
+in 24.88 seconds, making execution speed equivalent to an 8.64MHz Z80!
+
+I have also run the following speed tests under the following conditions:
+Z80 TurboDOS, 6MHz CPU, 800k RAM disk on 16 bit slave
+8086 TurboDOS, 8MHz V30, 800k RAM disk on slave
+
+Times:				Z80		V30/EMUL
+WordStar: ^Q^C on 180k file:	0:59		0:17
+WordStar: ^F last line:		1:05		0:21
+M80 assemble 64k source:	1:36		0:59
+Compile+link RBBS4 (BDS C):	2:59		1:58
+
+Ever seen ANY 8080 THAT FAST????!!!!!?????
+
+have fun 8080ing!!!!!!!!
+
+
+-------------------------- UPDATE INFORMATION ---------------------------
+
+VERSION 2.10  11/25/85
+	CP/M-86 returns a  version number which may be objectionable to some
+	programs. Therefore, the equate "CPMVER" in the source file has been
+	added, which should be customized for your system if you do not have
+	CP/M-86. It is currently set to return a CP/M version of 2.2,  which
+	should work in most cases.  If you run this under either  MP/M-86 or
+	TurboDOS, you may want to set it to return 3.0 and/or MP/M.
+	To do this, load EMUL.CMD into a debugger (in edit mode,  not trace)
+	and change the word at DS:6AF from 22 00 to 30 01.   The low byte is
+	the version number and the high byte is the MP/M flag (0 or 1).
+	NOTE that EMUL simply routes  ALL other function requests through to
+	the host operating system, so no further changes are required to run
+	programs that do MP/M record locking.
+	TurboDOS  users should always set the  CP/M version to 30 01 and add
+	MPMSUP to the slave GEN file.   TurboDOS users may change the CPMVER
+	equate and reassemble with TASM and link with TLINK (use -1 option).
+
+VERSION 2.11  11/28/85
+	Changed default message to show TPA size. Noticed the following:
+	If the 8080 stack pointer points to an ODD address, all stack
+	operations will be degraded. If possible, check programs and adjust
+	stack pointer to point to an EVEN address. Example: A small program
+	using CALL and RET ran in 6.4 seconds with even stack pointer and
+	8.68 seconds with odd stack pointer.
+
+VERSION 2.20  12/07/85
+	Minor cosmetic changes.  Also changed error check after opening file
+	to work correctly under CP/M-86.  EXPERIMENTALLY trapping the emulator
+	BDOS calls now since I suspect certain BDOS functions destroy BP
+	(which serves as SP for the 8080).
+requests through to
+	the host

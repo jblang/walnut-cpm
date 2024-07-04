@@ -1,0 +1,639 @@
+; ADVENTURE Z80 DATABASE SYSTEM
+; Released into the public domain 1981 P. Scargill
+; --modification by Bill Soon, Nov. 1981
+; This file is called B:SAMPADV.MAC
+; for the Microsoft Mac80 assembler using /Z switch
+    .Z80
+     DSEG
+ PUBLIC OBJLOC
+ PUBLIC OBJDES
+ PUBLIC MATCHW
+ PUBLIC OBPROP
+ PUBLIC OBJDSK
+ PUBLIC TITL1
+ PUBLIC MSG
+ PUBLIC UMESS
+ PUBLIC LOC
+ PUBLIC TABKEY
+ PUBLIC FLAG
+ PUBLIC FL14
+ PUBLIC FL20
+ PUBLIC FL21
+RTN DEFL 249
+ANY DEFL 255
+INP DEFL 00
+NULL DEFL 00
+NORMAL DEFL 255
+NOEXIT DEFL 254
+DARK DEFL 253
+DARKNO DEFL 252
+CL DEFL 1
+NCL DEFL 2
+OP DEFL 3
+OC DEFL 4
+OW DEFL 5
+OWC DEFL 6
+OH DEFL 7
+ONP DEFL 8
+ONC DEFL 9
+ONW DEFL 10
+NWC DEFL 11
+ONH DEFL 12
+OE DEFL 13
+ONE DEFL 14
+ZL DEFL 15
+NZL DEFL 16
+RND DEFL 17
+TF DEFL 18
+NTF DEFL 19
+GES DEFL 20
+LTS DEFL 21
+C2 DEFL 22
+C3 DEFL 23
+NC2 DEFL 24
+NC3 DEFL 25
+INV DEFL 1
+TKE DEFL 2
+WR DEFL 3
+DR DEFL 4
+PR DEFL 5
+PRM DEFL 6
+DL DEFL 7
+SF DEFL 8
+DSCOB DEFL 9
+SWP DEFL 10
+MV DEFL 11
+OK DEFL 12
+QT DEFL 13
+INF DEFL 14
+DEF DEFL 15
+EXTB DEFL 16
+SC DEFL 17
+PU DEFL 18
+CR DEFL 19
+DES DEFL 20
+FLIP DEFL 21
+LA DEFL 22
+SMA DEFL 23
+SMB DEFL 24
+WT DEFL 25
+PF DEFL 26
+ATF DEFL 27
+SFF DEFL 28
+GRUN DEFL 29
+OBJLOC: DEFB STATUE, 4
+ DEFB KEY, 8
+ DEFB MATCH, 5
+ DEFB LAMP, 252
+ DEFB ULAMP, 11
+ DEFB 00,00
+OBJDES: DEFB KEY, 1
+ DEFB MATCH, 2
+ DEFB LAMP, 3
+ DEFB ULAMP, 4
+ DEFB STATUE, 6
+ DEFB 00,00
+OBPROP: DEFB 00
+ DEFB STATUE,LOOK,LICK
+ DEFB 00
+ DEFB 00,00
+OBJDSK: DEFB 00
+ DEFB KEY,'It`s a shiny brass key%'
+ DEFB 00
+ DEFB MATCH,'an ordinary match&'
+ DEFB 00
+ DEFB LAMP,'looks like a kerosene lamp to me%'
+ DEFB 00
+ DEFB STATUE,'this is a statue of Venus%'
+ DEFB 00
+ DEFB 00,00
+MATCHW: DEFB GET,ANY
+ DEFB OH,INP
+ DEFB 255,TKE,INP,OK,255
+ DEFB GET,NULL
+ DEFB 255,PRM,39,EXTB,255
+ DEFB GET,ANY
+ DEFB OWC,INP
+ DEFB 255,PRM,44,EXTB,255
+ DEFB INVEN,NULL
+ DEFB 255,INV,EXTB,255
+ DEFB LOOK,AROUND
+ DEFB 255,GRUN,255
+ DEFB DROP,ANY
+ DEFB OWC,INP
+ DEFB 255,DR,INP,OK,255
+ DEFB DROP,ANY
+ DEFB 255,PRM,35,EXTB,255
+ DEFB LOOK,NULL
+ DEFB 255,LA,EXTB,255
+ DEFB LOOK,ANY
+ DEFB OP,INP
+ DEFB 255,DSCOB,INP,EXTB,255
+ DEFB QUIT,ANY
+ DEFB 255,QT,255
+ DEFB HELP,ANY
+ DEFB 255,PRM,40,EXTB,255
+ DEFB WHO,ANY
+ DEFB 255,PRM,41,EXTB,255
+ DEFB ON,LAMP
+ DEFB OC,ULAMP,OC,MATCH
+ DEFB 255,SWP,LAMP,FLIP,17,OK,255
+ DEFB ON,LAMP
+ DEFB OC,ULAMP
+ DEFB 255,PR,05,EXTB,255
+ DEFB OFF,LAMP
+ DEFB OC,LAMP
+ DEFB 255,SWP,LAMP,FLIP,17,OK,255
+ DEFB ON,LAMP
+ DEFB OC,LAMP
+ DEFB 255,PRM,42,EXTB,255
+ DEFB OFF,LAMP
+ DEFB OC,ULAMP
+ DEFB 255,PRM,42,EXTB,255
+ DEFB UNLOCK,ANY
+ DEFB TF,23,01,OC,KEY,CL,9
+ DEFB 255,SF,23,00,OK,255
+ DEFB LOCK,ANY
+ DEFB TF,23,00,OC,KEY,CL,9
+ DEFB 255,SF,23,01,OK,255
+ DEFB INTO,ANY
+ DEFB TF,23,00,CL,9
+ DEFB 255,MV,11,255
+ DEFB YES,ANY
+ DEFB 255,PRM,43,255
+ DEFB SCORE,ANY
+ DEFB 255,SC,EXTB,255
+ DEFB 255,255
+ DEFB 255,PRM,37,255
+ DEFB 00,00
+MSG: DEFB 00
+ DEFB  '>That means nothing to me{@, I`m afraid}{?.} !!%'
+ DEFB 00
+ DEFB ' North'
+ DEFB 00
+ DEFB ' South'
+ DEFB 00
+ DEFB ' East'
+ DEFB 00
+ DEFB ' West'
+ DEFB 00
+ DEFB ' Northeast'
+ DEFB 00
+ DEFB ' Northwest'
+ DEFB 00
+ DEFB ' Southeast'
+ DEFB 00
+ DEFB ' Southwest'
+ DEFB 00
+ DEFB ' Up'
+ DEFB 00
+ DEFB ' Down'
+ DEFB 00
+ DEFB ' In'
+ DEFB 00
+ DEFB ' Out'
+ DEFB 00
+ DEFB 'Visible exits are '
+ DEFB 00
+ DEFB '>It`s dark, I can`t see anything{? at all}.'
+ DEFB ' It is {@very }dangerous to move in the dark.%'
+ DEFB 00
+ DEFB 'I am {@presently }carrying '
+ DEFB 00
+ DEFB 'I am wearing '
+ DEFB 00
+ DEFB 'I can see '
+ DEFB 00
+ DEFB 'nothing special'
+ DEFB 00
+ DEFB '>I don`t {@quite }follow you. Could you try '
+ DEFB 're-phraseing that....%'
+ DEFB 00
+ DEFB '>I can{@no}{?`}t go {@in that direction.}{?there.}%'
+ DEFB 00
+ DEFB ' right'
+ DEFB 00
+ DEFB ' left'
+ DEFB 00
+ DEFB '>{Ehh!! }That doesn`t make sense{@, buddy} !%'
+ DEFB 00
+ DEFB '>{@I`m sorry, but }I can see no such object here.%'
+ DEFB 00
+ DEFB '>PROGRAM ERROR :-INVALID CONDITION ;;;; %'
+ DEFB 00
+ DEFB '>Quitting with '
+ DEFB 00
+ DEFB ' points.%'
+ DEFB 00
+ DEFB 'Ok.%'
+ DEFB 00
+ DEFB 'Your{@ present } score is '
+ DEFB 00
+ DEFB '>PROGRAM ERROR :-CANT FIND OBJECT FOR ACTION ;;;; %'
+ DEFB 00
+ DEFB '>PROGRAM ERROR :-INVALID CONDITION %'
+ DEFB 00
+ DEFB '>Try again...I`m not sure which object you mean.%'
+ DEFB 00
+ DEFB '>I am not wearing this item.%'
+ DEFB 00
+ DEFB '>This is not among the items I am carrying.%'
+ DEFB 00
+ DEFB '>I can`t see the object {@you mean }here...%'
+ DEFB 00
+ DEFB '>{?Huh}{@Ehh} !%'
+ DEFB 00
+ DEFB '>Sorry, I can`t {@possibly } carry anything else.%'
+ DEFB 00
+ DEFB '>{?Sorry, I`m not sure from that what '
+ DEFB 'you want me to get}{@You want what} !%'
+ DEFB 00
+ DEFB 'I can`t help you {?at this time}{@I`m afraid}%'
+ DEFB 00
+ DEFB '>Don`t ask silly questions{@, please} !&'
+ DEFB 00
+ DEFB '>{@I believe I already did that !!%}'
+ DEFB '{?It is already !!!!%}'
+ DEFB 00
+ DEFB '>Sorry, no chance!%'
+ DEFB 00
+ DEFB 'But this is something I`m already carrying!%'
+ DEFB 00
+ DEFB 'Looks {@distinctly }ordinary to me!%'
+ DEFB 00
+ DEFB '{?Sorry, that`s quite impossible.}'
+ DEFB '{@I`m sorry but I can`t do that.}%'
+ DEFB 00,00
+UMESS: DEFB 00
+ DEFB 'a set of keys'
+ DEFB 00
+ DEFB 'some matches'
+ DEFB 00
+ DEFB 'an old kerosene lamp'
+ DEFB 00
+ DEFB 'old worn out lamp'
+ DEFB 00
+ DEFB 'What with..{@ my fingernails??}'
+ DEFB '{? I`m not carrying any matches!}%'
+ DEFB 00
+ DEFB 'an old dirty statue'
+ DEFB 00,00
+LOC: DEFB 00
+ DEFB NORMAL,2,N,2,3,S,10,255
+ DEFB 'I am in the grounds of a mansion.%'
+ DEFB 00
+ DEFB NORMAL,12,INTO,3,3,S,1,5,W,9,255
+ DEFB 'I am at the front of the mansion.%'
+ DEFB 00
+ DEFB NORMAL,22,RI,4,23,L,5,10,U,6,13,EXIT,2,255
+ DEFB 'I am in a long Hallway. The light is dim here as there'
+ DEFB ' has been no power here for a long time.%'
+ DEFB 00
+ DEFB NOEXIT,13,EXIT,RTN,255
+ DEFB 'I am in an old study. There are cobwebs all around.%'
+ DEFB 00
+ DEFB NOEXIT,13,EXIT,RTN,255
+ DEFB 'I`ve entered some sort of kitchen, by the looks of it. '
+ DEFB 'There`s a cooker of some kind, and a sink, but everything '
+ DEFB 'is broken and decayed.%'
+ DEFB 00
+ DEFB NORMAL,11,DO,3,3,S,8,22,RI,7,23,L,7,2,N,7,6,NOE,7,255
+ DEFB 'I am on a wierd sort of landing, with exits in many '
+ DEFB 'directions. The floor doesn`t look too safe to me!!%'
+ DEFB 00
+ DEFB NOEXIT,13,EXIT,RTN,255
+ DEFB 'I am facing a boarded-up door.%'
+ DEFB 00
+ DEFB NOEXIT,13,EXIT,RTN,255
+ DEFB 'I am in a pink bathroom. The bath has a big crack in it'
+ DEFB ' and all the pipes are disconnected and rusted.%'
+ DEFB 00
+ DEFB NORMAL,4,EA,2,5,W,10,255
+ DEFB 'I am standing outside an old {Alocked-up }wooden '
+ DEFB 'shed. {AThe windows have been boarded-up.}%'
+ DEFB 00
+ DEFB NORMAL,2,N,1,4,EA,9,11,DO,12,255
+ DEFB 'I am standing in front of an old well.  It looks like '
+ DEFB 'I could go down there perhaps.%'
+ DEFB 00
+ DEFB NORMAL,13,EXIT,RTN,255
+ DEFB 'I am inside an old wooden shed.%'
+ DEFB 00
+ DEFB DARK,4,W,13,5,EA,14,10,U,10,255
+ DEFB 'I am standing in a low, damp passageway.%'
+ DEFB 00
+ DEFB DARK,5,EA,12,2,N,15,255
+ DEFB 'I am in a narrow passage. To the North is a dead end.%'
+ DEFB 00,00
+TABKEY:
+N EQU  1 
+  DEFB  1 
+  DEFM 'N   NOR'
+  DEFB 'T'+80H
+S EQU  2 
+  DEFB  2 
+  DEFM 'S   SOU'
+  DEFB 'T'+80H
+EA EQU  3 
+  DEFB  3 
+  DEFM 'E   EAS'
+  DEFB 'T'+80H
+W EQU  4 
+  DEFB  4 
+  DEFM 'W   WES'
+  DEFB 'T'+80H
+NOE EQU  5 
+  DEFB  5 
+  DEFM 'NE '
+  DEFB ' '+80H
+SE EQU  6 
+  DEFB  6 
+  DEFM 'SE '
+  DEFB ' '+80H
+NW EQU  7 
+  DEFB  7 
+  DEFM 'NW '
+  DEFB ' '+80H
+SW EQU  8 
+  DEFB  8 
+  DEFM 'SW '
+  DEFB ' '+80H
+U EQU  9 
+  DEFB  9 
+  DEFM 'U   UP '
+  DEFB ' '+80H
+DO EQU  10 
+  DEFB  10 
+  DEFM 'D   DOW'
+  DEFB 'N'+80H
+L EQU  11 
+  DEFB  11 
+  DEFM 'L   LEF'
+  DEFB 'T'+80H
+RI EQU  12 
+  DEFB  12 
+  DEFM 'R   RIG'
+  DEFB 'H'+80H
+INTO EQU  13 
+  DEFB  13 
+  DEFM 'IN  INTOENT'
+  DEFB 'E'+80H
+EXIT EQU  14 
+  DEFB  14 
+  DEFM 'EXITLEAVOUT'
+  DEFB ' '+80H
+LOOK EQU  15 
+  DEFB  15 
+  DEFM 'LOOKPERUEXA'
+  DEFB 'M'+80H
+INVEN EQU  16 
+  DEFB  16 
+  DEFM 'INV'
+  DEFB 'E'+80H
+QUIT EQU  17 
+  DEFB  17 
+  DEFM 'QUITEND STOPBYE ABO'
+  DEFB 'R'+80H
+GET EQU  18 
+  DEFB  18 
+  DEFM 'GET GRABTAKECARRPIC'
+  DEFB 'K'+80H
+DROP EQU  19 
+  DEFB  19 
+  DEFM 'DROPREM'
+  DEFB 'O'+80H
+OPEN EQU  20 
+  DEFB  20 
+  DEFM 'OPE'
+  DEFB 'N'+80H
+LAMP EQU  21 
+  DEFB  21 
+  DEFM 'LAM'
+  DEFB 'P'+80H
+ULAMP EQU  22 
+WEAR EQU  23 
+  DEFB  23 
+  DEFM 'WEA'
+  DEFB 'R'+80H
+LIFT EQU  24 
+  DEFB  24 
+  DEFM 'LIFTPUSHMOVEPULLYAN'
+  DEFB 'K'+80H
+MATCH EQU  25 
+  DEFB  25 
+  DEFM 'MAT'
+  DEFB 'C'+80H
+SCORE EQU  26 
+  DEFB  26 
+  DEFM 'SCO'
+  DEFB 'R'+80H
+AROUND EQU  27 
+  DEFB  27 
+  DEFM 'AROUHER'
+  DEFB 'E'+80H
+SAY EQU  28 
+  DEFB  28 
+  DEFM 'SAY YELLSHOUCALLSCR'
+  DEFB 'E'+80H
+OFF EQU  29 
+  DEFB  29 
+  DEFM 'OFF UNL'
+  DEFB 'I'+80H
+ON EQU  30 
+  DEFB  30 
+  DEFM 'ON  LIGHSTRIBURNALIGFIR'
+  DEFB 'E'+80H
+HELP EQU  31 
+  DEFB  31 
+  DEFM 'HELPASS'
+  DEFB 'I'+80H
+BEGIN EQU  32 
+  DEFB  32 
+  DEFM 'BEGISTA'
+  DEFB 'R'+80H
+CLOSE EQU  33 
+  DEFB  33 
+  DEFM 'CLOSSHU'
+  DEFB 'T'+80H
+DOOR EQU  34 
+  DEFB  34 
+  DEFM 'DOO'
+  DEFB 'R'+80H
+READ EQU  35 
+  DEFB  35 
+  DEFM 'REA'
+  DEFB 'D'+80H
+THROW EQU  36 
+  DEFB  36 
+  DEFM 'THROHURLCHU'
+  DEFB 'C'+80H
+LOCK EQU  37 
+  DEFB  37 
+  DEFM 'LOC'
+  DEFB 'K'+80H
+UNLOCK EQU  38 
+  DEFB  38 
+  DEFM 'UNL'
+  DEFB 'O'+80H
+JUMP EQU  39 
+  DEFB  39 
+  DEFM 'JUM'
+  DEFB 'P'+80H
+FORWARD EQU  40 
+  DEFB  40 
+  DEFM 'FOR'
+  DEFB 'W'+80H
+BACKWARD EQU  41 
+  DEFB  41 
+  DEFM 'BAC'
+  DEFB 'K'+80H
+BOARD EQU  42 
+  DEFB  42 
+  DEFM 'NOTIBOARSIG'
+  DEFB 'N'+80H
+WHO EQU  43 
+  DEFB  43 
+  DEFM 'WHO WHENWHATIS  WHERHOW WHY'
+  DEFB ' '+80H
+LISTEN EQU  44 
+  DEFB  44 
+  DEFM 'LISTHEA'
+  DEFB 'R'+80H
+NOTE EQU  45 
+  DEFB  45 
+  DEFM 'NOT'
+  DEFB 'E'+80H
+STUDY EQU  46 
+  DEFB  46 
+  DEFM 'STU'
+  DEFB 'D'+80H
+KITCHEN EQU  47 
+  DEFB  47 
+  DEFM 'KIT'
+  DEFB 'C'+80H
+STAIRS EQU  48 
+  DEFB  48 
+  DEFM 'UPSTSTA'
+  DEFB 'I'+80H
+ROOM EQU  49 
+  DEFB  49 
+  DEFM 'ROO'
+  DEFB 'M'+80H
+BATH EQU  50 
+  DEFB  50 
+  DEFM 'BAT'
+  DEFB 'H'+80H
+KEY EQU  51 
+  DEFB  51 
+  DEFM 'KEY KEY'
+  DEFB 'S'+80H
+SHED EQU  52 
+  DEFB  52 
+  DEFM 'HUT SHE'
+  DEFB 'D'+80H
+FRONT EQU  53 
+  DEFB  53 
+  DEFM 'FRO'
+  DEFB 'N'+80H
+GROUNDS EQU  54 
+  DEFB  54 
+  DEFM 'GRO'
+  DEFB 'U'+80H
+WELL EQU  55 
+  DEFB  55 
+  DEFM 'WEL'
+  DEFB 'L'+80H
+YES EQU  56 
+  DEFB  56 
+  DEFM 'YES'
+  DEFB ' '+80H
+CARE EQU  57 
+  DEFB  57 
+  DEFM 'CAREQUIECLO'
+  DEFB 'S'+80H
+STATUE EQU  58 
+  DEFB  58 
+  DEFM 'STATFIG'
+  DEFB 'U'+80H
+THEN DEFL 250
+ DEFB 250
+ DEFM 'THENAND ALS'
+ DEFB 'O'+80H
+IT DEFL 251
+ DEFB 251
+ DEFM 'IT  THE'
+ DEFB 'M'+80H
+AGAIN DEFL 252
+ DEFB 252
+ DEFM 'AGAIREP'
+ DEFB 'E'+80H
+ DEFB 00,00
+TITL1: DEFB 26
+ DEFB 'Welcome to ADVEN-80, a new type of Adventure%'
+ DEFB 'game. I will be your eyes and ears in this game as we travel together%'
+ DEFB 'through this journey. If you have problems, please re-phrase%'
+ DEFB 'your sentence. Try asking for help if you like.%'
+ DEFB ' %'
+ DEFB 'Use the RUBOUT or DEL key to backspace over mistakes%'
+ DEFB 'or use Control-U to delete your entire input line%'
+ DEFB 'Hit any key to begin... good luck!'
+ DEFB 00,00
+FLAG: DEFB 00
+ DEFB      01
+ DEFB      00
+ DEFB      02
+ DEFB      00
+ DEFB      00
+ DEFB      00
+ DEFB      00
+ DEFB      00
+ DEFB      00
+ DEFB     80
+ DEFB     00
+ DEFB     00
+ DEFB     00
+FL14: DEFB     01
+ DEFB     00
+ DEFB     00
+ DEFB     01
+ DEFB     00
+ DEFB     00
+FL20: DEFB     01
+FL21: DEFB     00
+ DEFB     00
+ DEFB     01
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB 00,00
+    END
+   00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     00
+ DEFB     0

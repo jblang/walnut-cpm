@@ -1,0 +1,97 @@
+here is a list of changes i made since using the sb180.
+
+1. i re-designed the board to bring out the full potential of the hitach part.
+   my new board utilizes a fully buffered buss, with enough drive ability
+   to support 2 meg worth of ram.
+   this ram is configured as one "fixed" block of 256k with seven blocks
+   of mapped 256kb. I did it like this to allow easy control by a ram disc
+   driver. the code for implementing this consists of very minor mods
+   to Joe Wright's bios code. by the way, it is zero-wait state memory and
+   removing the one hardware-forced wait in the SB180 yields a %25 speed
+   improvement. I also made use of all the available 232 terms so that
+   DCD and CTS arent sharing chips. oh yes, the board is one inch wider
+   then the original sb180 pca and only the first 512kb is on the board.
+   those new 256k dram in "zip packs" would allow 1 meg on the pca.
+
+2. on screen clock, updated every sec. does not interfere with graphics/
+   windowing software. this was a pain to set up and hogged up some space! 
+3. on screen modem status. (i often forgot to disc. the modem, my wife
+   didnt like it when the modem answered the in-law's calls).
+
+Tcap support for the "host message line" provided by terminals would make
+ the implementation of these features (2,3) terminal independant. Oh well.
+
+
+4. Separate recv,send,disc, status test, port-setup, and terminal routines.
+   no dialer cause i dont have an autodialer. Standard Christenson
+   protocol (CRC+CSUM) supported. Interrupt driven recv buffering.
+5. mappable rom space. boot rom mapped out after boot load (even .5meg
+   system has 448kb ram disc). secondary romspace mappable on 16k bounds
+   throughout first 128k. rom is directly accessable as disk file.
+6. recorder iop implemented. I just couldnt see paying $40.
+   the actual code for this is already on this system as DISCIOP.Z80.
+   you can "plug this code segment into EDI CRAMP's sysiop and your all set!
+7. hardware rtc (nat 58274) utilized. TIMESTMP program used to timestamp
+   source files with yr/mo/da  hh/mm/ss am/pm rev. (battery backed too)
+8. modified config to allow parity control on async ports.
+9. modified bios to support illegal op trap.
+10.added parallel modem/console for remote use
+11.warm boots are now done out of ram disc. this costs 2k and another
+   revision to mdsk.*****this mod is really the hot setup!*****************
+12. i also altered the "break fix" so the console buffer is flushed. ever
+   get stuck with a buffer full of commands? with this they can be flushed. 
+.
+.
+along the line ive had to rewrite or modify:
+config
+sysgen
+bios, lots of changes, lots. I dont, and never will, use 8 inch discs
+ so i deleted the code supporting them. there is also other extraneous
+ code that serves no purpose. the space gained made room for the clock code
+ and all the other changes i had to make. realize that you dont HAVE to
+ strip this code to set up the warmboot mod, but to get the on screen clock
+ youll need some space.
+fcp (due to ~error in test polarity)
+rcp (needed REG)
+iop (to support TANDEM 6530 and recorder)
+ports.lib
+mdsk, to support the added ram space and warm booting from ramdisc
+hboot, to support loading into different ram space
+the monitor rom, again to support loading the system into a diff area.
+time, it still does all it did but now is used with the rtc chip. the
+ main use it gets is setting the software clock from the RTC chip at boot.
+fvc, which now can learn various formats, perform real diagnostic tests,
+     assist in alignment (using an alignment disc), and generally
+     do a few more items. also i fixed the problem with the copy routine.
+.
+most were only small mods, and some were substantial changes.
+.
+ive replaced my dos once and my assembler 3 times.
+its getting better all the time.
+.
+for those of you who have implemented the mods to bring the system up to 
+512 kb i would reccomend setting up the ramdisc as drive A and putting a
+copy of the CCP immediatly after the directory space. setting one more
+bit in the initial allocation vector will protect the 2k CCP from ERA's and
+cleandir.
+the code in wboot is then modified to dma the CCP at warm boot. this
+saves a lot of time. warm boots are instantaneous! the startup alias is
+modified to establish B15: as the root directory. and mdsk is also 
+modified to copy the real ccp into the ramdisk at coldstart. in this setup
+ramdisc is A, physical drive 0 is B and so on.
+
+i dont know if any of you out there will be interested in any of the mods ive
+made, but if you would like to talk to me about them, or maybe tell me about
+some of the mods youve done, i can be reached at 916 925 6089.
+
+maybe naog would be interested in some of this? i am not willing to pay 35$
+for access to liliput z-node though. it aggravates me to spend 15 bucks
+for a news letter then have to pay more to get on a bbs to share with fellow
+members. any comments about this?
+
+
+
+jeff herr, sacto,ca.
+
+r then have to pay more to get on a bbs to share with fellow
+members. any com

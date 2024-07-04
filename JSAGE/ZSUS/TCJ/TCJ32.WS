@@ -1,0 +1,885 @@
+                               Z-System CorneÚ (c)
+                                 by Jay Sage
+                        The Computer Journal, Issue 32
+                          Reproduced with permission
+                           of author and publisher
+
+     As usual, I find myself with the deadline for this TCJ column fastç
+approaching, wondering how two months have passed so quickly.  And, asç
+usual, I have far more material that I would like to talk about than I willç
+have time to put down on paper (or, should I say, disk).  This column isç
+probably going to be shorter than average, just as the previous one was muchç
+longer, and some of the promised discussions will be deferred still further. ç
+Given the reasons, you will be understanding I hope: Joe Wright and I are inç
+the process of putting the final touches on the new releases of ZCOM andç
+ZCPR34!  By the time you read this, they will definitely be available.  Evenç
+if you usually find my columns a bit too technical for your tastes, I hopeç
+you will read on as I describe these two exciting developments.
+
+     I will not describe it here this time, but Bridger Mitchell has veryç
+nearly completed code similar to NZCOM that will run on CP/M-Plus systems. ç
+At last people with newer CP/M machines for which CP/M 2.2 is not availableç
+will also be able to run Z System.  And they will be able to do it whileç
+retaining almost all of the good features of CP/M-Plus!
+
+
+                                The New ZCOM
+
+     Two issues ago (TCJ #30) I described the status of the nascent NZCOM. ç
+Things have developed considerably since then, and I can now provide someç
+specific details.
+
+     First some philosophical comments.  This may sound rather strong, butç
+Joe and I both firmly believe that NZCOM is one of the most exciting andç
+remarkable developments in the history of microcomputer operating systems. ç
+With all the computers we have had experience with, the operating system hasç
+been a static entity.  You 'boot' up the computer, and there you have theç
+operating system, fixed and immutable.  Few computers offer more than oneç
+operating system.  With those that do, the only way you can get a differentç
+operating system is to 'reboot', which generally involves inserting a newç
+boot diskette and pressing the reset button.  And never do you get to defineç
+the characteristics of that operating system.  You just take what theç
+manufacturer deigns to let you use.
+
+     With NZCOM the operating system becomes a flexible tool just like anç
+application program.  You can change operating systems at any time, evenç
+right in the middle of a multiple command line sequence.  You can do itç
+manually, or alias scripts can do it automatically, in response toç
+conditions in the system!  And you can determine which Z System features areç
+supported.
+
+     You can change the whole operating system or just a part of it.  Wouldç
+you like a new command processor?  No problem.  With a simple command, NZCOMçäwill load it.  No assembly or configuration required.  One file fits all! ç
+That new CCP will continue to run until you load another one.  Want toç
+experiment with a new disk operating system (we are playing with severalç
+exciting new ones)?  Again, no problem.  NZCOM can load them in a jiffy. ç
+This makes for a whole new world of flexibility and adaptability,ç
+experimentation and education.
+
+     Need more memory to run a big application program?  Fine.  Just load aç
+small operating system while that application is running.  When it isç
+finished, go back to the big system with bells and whistles like namedç
+directories, lots of resident commands, or special input/output facilitiesç
+(such as keyboard redefiners or redirection of screen or printer output toç
+disk).
+
+     Until you try this system, it is hard to imagine how easy it is to doç
+these things.  Gone are the days of taking source code (no source code isç
+needed), editing configuration files (you don't need an editor), assemblingç
+(you don't need an assembler), and patching (you don't have to know how toç
+use the arcane SYSGEN and DDT).  Simple REL files for a particular moduleç
+can be used by anyone on any system.  Of course, if you want to createç
+custom modules of your own special design, you can still do it, but this isç
+no longer required, as it used to be.  Hackers can hack, but users canç
+simply use!
+
+     Joe and I are really hoping that NZCOM will open the world of Z Systemç
+to the general community, to those who have no interest in learning toç
+assemble their own operating system or do not have the tools or skills.  Ifç
+you have been at all intrigued by the Z System (how could you not haveç
+been?), now is your chance to experiment.
+
+     Getting NZCOM running is basically a two-step process, with each stepç
+remarkably easy to perform.  First you define the system or systems youç
+want.  This is done with the program MKNZC (MaKe NZ-Com).  Then you load theç
+Z System you want using the program NZCOM.  The details are explained below. ç
+Some comments of interest to the technically inclined are enclosed inç
+brackets.  Feel free to skip over them.
+
+
+Defining NZCOM Systems
+
+     Here is how a person with a stock CP/M computer would go about gettingç
+NZCOM going.  [First technical aside: Ironically, those of us who, withç
+great skill and hard work, created manually installed Z Systems have a muchç
+harder job ahead of us.  To use NZCOM effectively, we must first strip outç
+all the ZCPR3 code in our fancy BIOSs and get back to a lean, Z-less system. ç
+I just spent the good part of an evening doing that for my BigBoard Iç
+computer (though, to be fair to my programming expertise, I should add thatç
+the hardest part was finding where I had stashed the BIOS source code).] ç
+For the discussion that follows, we will assume that the files in the NZCOMç
+package have been copied onto a working disk in drive A.
+
+     As we said earlier, the first step is to use MKNZC, an easy menu-drivençäprogram, to specify the characteristics of our Z Systems.  Its output is aç
+descriptor file that is used later to load the system.  What if you don'tç
+know enough yet about the Z System to make those choices?  Again, noç
+problem.  There is a standard (or, in computer language, 'default') systemç
+defined for you already, and we will start by making it.  We do that byç
+entering the command line
+
+	A>mknzc nzcom
+
+This will bring up a menu screen like the one shown in Fig. 1.  The onlyç
+difference on your system will be in the actual addresses for the modules,ç
+since they vary from computer to computer.  Press the 'S' key to save theç
+configuration.  MKNZC displays a message to the effect that it is writingç
+out the file NZCOM.NZC.
+
+     [Technical aside: Files of type NZC are NZCOM descriptor files.  Theyç
+are simple text files, as shown in Fig. 2.  For those of you who write yourç
+own assembly language programs, you may notice a strong similarity to theç
+symbol or SYM file produced by an assembler or linker (yep, identical).  Theç
+symbols in this file define all the necessary parameters of the system to beç
+created.]
+
+     From the values in Fig. 1, you can see that the default Z System offersç
+every feature available.  When this system is running later, the TPAç
+(transient program area, the memory available for the application programsç
+that do your real work) will be 49.0k bytes.  This value, of course, is forç
+my computer; as they say, "yours may vary."  A 'k' or kilobyte is actuallyç
+1024 bytes, so this is really 50,176 bytes or characters.  The original CP/Mç
+system, by the way, had a TPA of 54.25k bytes, so we are paying a cost ofç
+5.25k bytes for this spare-no-expense Z System.  As luxurious and opulent asç
+this system is, it still leaves plenty of TPA for most application programs.
+
+     Sometimes, however, we have an application program that is reallyç
+hungry for memory.  Database managers, spread sheets, and C compilers oftenç
+fall into this category.  So does the new WordStar Release 4.  We will nowç
+use MKNZC to define a minimum Z System for when we run those applications. ç
+To give this version the name MINIMUM, enter the command
+
+	A>mknzc minimum
+
+When the menu comes up, press key '4'.  You will be asked to define theç
+number of records (128-byte blocks) to allocate to the input/output packageç
+or IOP.  Enter '0' and press return.  Similarly reduce to zero theç
+allocations for the resident command package (RCP), flow command packageç
+(FCP), and named directories register (NDR).  You will be left with theç
+screen shown in Fig. 3.  Press the 'S' key to save the definition of thisç
+minimal Z System in the descriptor file MINIMUM.NZC [shown in Fig. 4 for theç
+technically inclined].
+
+     Notice that the TPA has grown to 53.25k, only 1k less than the originalç
+miserable CP/M system.  Even with this meagre Z System, costing only 1k ofç
+TPA, you get the following features (and more):ä
+	multiple commands on a line
+	the alias facility that provides automatic command sequence
+		generation
+	automatic, user-defined search path for COM files
+	extended command processing (ARUNZ, described in TCJ #31,
+		for example)
+	error handling that tells you what's wrong with a bad command
+		and allows you to correct it
+	shells (menu systems, command history shell for saving and
+		recalling old commands, file-maintenance shells, etc.)
+	terminal-independent full-screen operation via Unix-like
+		TCAP (terminal capabilities descriptor)
+
+     These are only two of a wide variety of possible Z Systems.  As youç
+gain experience with NZCOM, you can fine tune the definitions to meet all ofç
+your needs.  For my BigBoard I computer, I have defined four systems.  Twoç
+of them, called FULL and TINY, have the features shown in the two examplesç
+here.  A third one is called SMALL.  Not quite as diminutive as TINY, itç
+sacrifices an additional 0.5k of TPA to retain the flow command packageç
+(FCP), which is so valuable in providing high levels of command automation. ç
+Even my voracious application programs can usually get by under this system.
+
+     Finally, I have a system called NORMAL, which, as the name implies, isç
+the one I use most of the time.  It is the same as FULL but without an IOP. ç
+The most common use for an IOP is to run keyboard redefiners like NuKey. ç
+Most people like this feature, but splendid as NuKey is, for some reason myç
+style does not find much use for keyboard macros (I've become a ratherç
+skillful typist and can generally type faster than I can think of moving myç
+finger to a special key), so I generally omit the IOP and gain 1.5k of TPA.
+
+
+Loading the NZCOM Systems
+
+     Having defined the systems above, we can now fire them up even moreç
+easily.  For the default NZCOM system, just enter the following simpleç
+command:
+
+	A>nzcom
+
+With no argument after the command name, NZCOM will load the system definedç
+with the name NZCOM.  As it does this, you will see a signon message on theç
+screen, followed by a series of dots, each one indicating that anotherç
+module has been loaded.  [Technical aside:  If you want to see moreç
+precisely what is going on, just add the option "/v" to the command toç
+select verbose mode.  You will then get a screen display something like thatç
+shown in Fig. 5.  I'll have more to say about what all this means a littleç
+later.]
+
+     After NZCOM starts running, it executes a program called START.COM. ç
+This is usually an alias command, a program that simply passes another moreç
+complex command line on to the command processor.  I will not explain theçädetails of START here, but after it finishes, Z System will be up andç
+running, waiting for your commands.
+
+
+How NZCOM Works
+
+     This section is for the technically inclined, so if that's not you,ç
+pretend there are square brackets around this whole section and skip aheadç
+to the next section.  Here we are going to explain what some of thoseç
+verbose-mode messages mean and what NZCOM is doing to create the system onç
+the fly.
+
+     First NZCOM loads the descriptor file into memory.  Among other things,ç
+this file has the information about which system modules to load and to whatç
+starting addresses.  The first module loaded is the command processor.  Itç
+is loaded from the file NZCPR.REL, which has the code for the commandç
+processor (ZCPR34) in so-called relocatable form.
+
+     There is some very interesting assembly/linkage razzle-dazzle that goesç
+on here.  With the REL files one usually plays with, only the run-timeç
+execution address of the code is unknown at assembly time and must beç
+resolved by the linker.  Things are much trickier here.  When the commandç
+processor code was assembled, not only was its own run-time starting addressç
+unknown, but the addresses of various other system components, such as theç
+message buffer and multiple command line, to which it refers in countlessç
+places, are also unknown.  Since there is no fixed relationship between theç
+addresses of the CCP and these other modules, there is no way to define theç
+addresses using equates in the code.
+
+     Put another way, when NZCOM converts NZCPR.REL into actual object code,ç
+it must resolve not only the calls and jumps and data loads that refer toç
+other locations in the command processor but also those that refer to theç
+other system modules.  Fortunately, advanced assemblers and linkers --ç
+including those from SLR Systems and a ZAS follow-on under development byç
+Echelon -- already have a mechanism to handle this problem.  It was Bridgerç
+Mitchell who recognized how this mechanism, called named common, couldç
+accomplish what was needed here.
+
+     When code with symbols in named common is assembled, the correspondingç
+bytes in the resulting REL file are marked not only for relocation but forç
+relocation with respect to a specific common block.  The SLR assemblersç
+support up to 12 named common blocks.  NZCOM contains very sophisticatedç
+linking code that resolves the references to data items in the commonç
+blocks, the addresses of which it gets, naturally, from the NZC descriptorç
+file.
+
+     Fig. 6 shows a partial listing of the file NZCMN.LIB, which isç
+referenced in a MACLIB statement in each module assembled for use by NZCOM. ç
+Seven named common blocks are defined: _BIOS_, _ENV_, _SSTK_, _MSG_, _FCB_,ç
+_MCL_, and _XSTK_ for the CBIOS, environment descriptor, shell stack,ç
+message buffer, external file control block, multiple command line buffer,ç
+and external stack, respectively.  Note that no common blocks are definedçäfor the RCP, FCP, or NDR.  References to these package must be madeç
+indirectly at run time, using data obtained from the environment descriptorç
+in memory.
+
+     How does the NZCOM loader figure out that the file NZCPR.REL is theç
+command processor?  You might think that it uses the name of the file, but,ç
+in fact even if you had a copy of it called MYNEWCP.REL, NZCOM would be ableç
+to load it just as well.  The answer is that the source code contains theç
+directive
+
+		NAME ('CCP')
+
+which gives the REL file an internal module name.  It is this name thatç
+NZCOM uses to determine what kind of module the code represents.
+
+     After the command processor is loaded, the other modules are loaded inç
+succession in similar fashion, except for two.  The named directory fileç
+NZCOM.NDR is a file that you can make or change with the standard utilityç
+programs MKDIR or EDITNDR/SAVENDR.  There is nothing in an NDR file thatç
+requires relocation at all.  The same is true for the Z3T terminalç
+descriptor (TCAP) file.  It can be created using the TCSELECT utility.
+
+     When all the loading is done, a copy of the command processor objectç
+code is written out to a file called NZCOM.CCP.  This file is used forç
+subsequent warm boots, since we obviously cannot warm boot from what is onç
+the system tracks of the disk (the Digital Research command processor isç
+still there, after all).  At this point we can resume the non-technicalç
+discussion.
+
+
+Changing NZCOM Systems
+
+     Now that you have Z System running, you can start to work with it andç
+learn about it.  I am not going to discuss Z System in general here; theç
+subject is much too extensive.  One thing you can do is to get out your backç
+issues of TCJ and experiment with the programs described there.  Another isç
+to buy the "Z System User Guide" published by Echelon.  That book describesç
+the Z System from a less technical point of view than Richard Conn's "ZCPR3,ç
+The Manual," also published by Echelon.
+
+     What I would like to discuss now is some of the ways you can use the dynamic capabilities of NZCOM.  First we will describe how you change theç
+entire operating system.  For these examples we will assume that you haveç
+been doing work in various directory areas on your system and that you haveç
+set up named directories.  Let's say you are in your dBase II area now. ç
+Since you know that dBase II needs a lot of memory to run efficiently (orç
+should I say 'tolerably,' since it never runs efficiently!) and sinceç
+(unlike WordStar 4, for example) it cannot make use of any Z System featuresç
+anyway, you want to load the minimum system we created earlier.  You canç
+probably guess what the command is:
+
+	B2:DBASE>nzcom minimum
+ä     [More technical stuff: Fig. 7 shows the screen display you would getç
+with the "/v" verbose option on this command.]   For the minimum systemç
+NZCOM loads only a command processor, disk operating system, and virtualç
+BIOS.  The other system segments disappear.  This includes the NDR or namedç
+directory register, so the prompt changes to
+
+	B2>
+
+The START alias does not run this time.  It runs only when NZCOM is loadedç
+from a non-NZCOM system (such as CP/M).
+
+     In general, when loading a new version of the operating system fromç
+another that is currently running, NZCOM loads only the modules that must beç
+loaded, either (1) because they did not exist before or (2) because they areç
+now at a different address or have a different size.  For example, when Iç
+load my FULL system from the NORMAL system to add an IOP, only the CCP, DOS,ç
+BIOS, and IOP are loaded, since the RCP, FCP, and NDR are in the same placeç
+as before and have the same size.  When modules do have to be loaded, filesç
+with the default names shown in Fig. 5 are used.  Later we will discuss howç
+you can load modules with other names.
+
+     There are a number of system modules that never change in the presentç
+version of NZCOM.  (Yes, like the famous Al Jolson lines, you ain't seenç
+nothin' yet!)  These include the environment descriptor, message buffer,ç
+shell stack, path, wheel byte, and multiple command line buffer.  With theç
+exception of module addresses in the environment descriptor, data in theseç
+fixed system modules remain unaffected.  This means that if you had selectedç
+an error handler, for example, or a shell such as a command history shell,ç
+they will still be in effect after a change of system.
+
+     Because the multiple command line buffer is preserved through the loadç
+of a new system, you can include NZCOM commands as part of multiple commandç
+sequences, alias scripts, and shell (MENU, VMENU, or ZFILER) macros.  Thus,ç
+for example, you could have entered the command
+
+	B2:DBASE>nzcom minimum;dbase etc.
+
+In this case the operating system would have changed, and then DBASE wouldç
+have started running.  I will not go into the technical details here, butç
+there are ways to write an alias script, which might be called DB, thatç
+would check to see if the minimum system was already running and, if not,ç
+automatically load it before invoking DBASE.
+
+     Nothing says the operating system can change only once in the course ofç
+a multiple command line.  You might have alias scripts that change to aç
+minimum system, run a specific command, and then reload the normal systemç
+again.  There is a time penalty associated with this (though very little ifç
+you have the NZCOM files on a RAM disk), but the result is that theç
+application program sees a big TPA while it is running, but you always see aç
+nice, full-featured Z System.
+
+     NZCOM does not even insist that you stay in Z System.  On the contrary. çäOn a cold load from CP/M it will build (if it does not exist already) aç
+program called NZCPM that, when run from Z System, will restore the originalç
+CP/M system.
+
+     [Technical aside: Even if you need absolutely every available byte ofç
+TPA, you can still automate the process.  You can use the submit facility toç
+run a batch job that exits from Z System entirely, runs an application underç
+plain CP/M, and then returns to Z System.  You do have to observe someç
+precautions.  For example, you have to make sure that all command lines inç
+the batch file that will execute while Z System is not in effect are validç
+CP/M commands.  Once the batch script has reloaded Z System using the NZCOMç
+command, it can resume using appropriate Z System commands, includingç
+multiple commands on a line.
+
+     Another factor to bear in mind is that NZCPM returns you to CP/M inç
+drive A user 0 no matter where you were when it executed.  Since ZCPR3ç
+(starting with version 3.3) writes its submit file to directory A0 ratherç
+than the current directory, there is no problem with continuing operation ofç
+the batch file under CP/M.  However, when you reload NZCOM (it will be aç
+cold load, including execution of START), you will not automatically be backç
+in your original directory.  End aside.]
+
+
+Changing Parts of the System
+
+     The NZCOM command is not limited to loading whole new operatingç
+systems; with a slightly different syntax it can also load individual systemç
+modules, rather like the LDR program in a manually installed Z System. ç
+There are two important differences, however.
+
+     The first is that NZCOM loads code modules (IOP, RCP, and FCP) from RELç
+files rather than from absolute files such as SYS.FCP or DEBUG.RCP. ç
+Absolute files can still be loaded using LDR, but this is undesirable underç
+NZCOM, since the addresses of the modules may change as different systemsç
+are loaded.  NZCOM has the advantage of using a single REL file no matterç
+which system it is being loaded into.  In the future, RCPs, FCPs, and IOPsç
+will be distributed in REL form instead of (or in addition to) source codeç
+form.  The REL file is much smaller and can be used without knowing how toç
+assemble the code.
+
+     The second difference is that NZCOM can load command processors andç
+disk operating systems as well.  This makes it very easy to change versionsç
+of the command processor (with or without security or named directory orç
+submit support, for example) or to experiment with alternative DOSs, such asç
+Z80DOS or P2DOS.  This will be a real boon to the development of newç
+operating system components, since one can test new versions so easily andç
+quickly.
+
+     For convenience, NZCOM can also load named directory files (of typeç
+NDR) and terminal descriptor files (of type Z3T).  This is so that you doç
+not have to have LDR.COM on your disk.  On an NZCOM system, LDR is aç
+dangerous command, since it does not have safeguards against loadingçäabsolute system components to addresses for which they were not assembled. ç
+With an NZCOM system, you should remove LDR.COM from your disk.
+
+
+Other NZCOM Features
+
+     There are many more things that could be said about NZCOM that I willç
+save for another time.  There is just one more that I want to mention now,ç
+and that is the extra "Custom Patch Area" that can be defined with MKNZCç
+(see Fig. 1).  This option in MKNZC allows one to establish an area inç
+protected memory just below the CBIOS (custom BIOS or real BIOS).  This areaç
+can be used by various operating system extensions that one wants toç
+preserve from one NZCOM system to another.
+
+     Because of the techniques it uses for patching the Z System onto CP/M,ç
+NZCOM will not work when a resident system extension (RSX) is present. ç
+Thus, for example, you cannot run NZCOM from inside a ZEX script or ifç
+DateStamper or BYE is active in low memory (if they are loaded above theç
+CBIOS, there is no problem).  I am presently using the patch area forç
+DateStamper.  With NZCOM you can effectively have an above-BIOS version ofç
+DateStamper without having to move your BIOS down.
+
+     I am also planning to experiment with putting BYE in the custom patchç
+area.  I think this can be made to work, and it would permit NZCOM to beç
+used on my Z-Node (and I mean used actively -- so that the NZCOM system canç
+be changed even from a remote terminal!).
+
+     There are special facilities in NZCOM that I do not have the energy toç
+explain now whereby information about a currently running system can beç
+extracted before the new system has been loaded and used to initialize theç
+new system just before NZCOM turns over control to it.  This allows an RSX'sç
+hooks into the operating system to be maintained.
+
+
+                             ZCPR Version 3.4
+
+     Now let's turn to the subject of ZCPR version 3.4, which will beç
+released along with NZCOM.  Z34, as I will refer to it, is much more anç
+evolutionary step from Z33 than Z33 was from Z30.  There are four newç
+features worth pointing out.
+
+
+Type-4 Programs
+
+     The most important and exciting enhancement is the introduction of whatç
+is called the type-4 program.
+
+     With Z33 I added support for a new kind of program to run under ZCPR3. ç
+Programs designed to take advantage of the special features of the Z Systemç
+have at the beginning of the code a special block of data called the Z3ENVç
+header.  This header identifies the program as a ZCPR3 program and containsç
+the address of the ZCPR3 environment descriptor, where all the informationçänecessary to find out about the Z System facilities is available.  It alsoç
+contains a type byte.  Conventional Z System programs were of type 1. ç
+(Type-2 programs are similar but actually have the entire environmentç
+desciptor in the header.  Programs of this type are extremely rare.  In someç
+senses they are a holdover from ZCPR2 and now obsolete.)
+
+     For the new type-3 program I added an additional datum in the Z3ENVç
+header: the starting address for which the code had been assembled orç
+linked.  The command processor automatically loads the file to that addressç
+before transferring control to it.
+
+     Type-3 programs are usually linked to run in high memory (for example,ç
+8000H or 32K decimal) where they do not interfere with most data or code inç
+the TPA.  Programs that run as extensions of the operating system (viz.ç
+history shells, extended command processors, transient IF processor) or asç
+the equivalents of resident programs (viz. ERA.COM, REN.COM, SAVE.COM) areç
+particularly suitable for implementation as type-3 programs.  One cannotç
+always foresee when these programs will be invoked, and it is nice if theç
+contents of memory at the bottom of the TPA are not affected when they doç
+run.
+
+     With type-3 programs one must choose in advance the address at whichç
+they will run.  If the address is too high, there may not be enough room forç
+them to load, and if too low, they are more likely to interfere withç
+valuable TPA contents.  In most situations it would clearly be preferable ifç
+the program could be loaded automatically as high as possible in memory.  Iç
+thought of this from the beginning but compromised on the type-3 constructç
+because it was so easy to code.
+
+     Joe Wright was not satisfied with this compromise.  He soon wrote anç
+initial version of the type-4 program, which does relocate automatically toç
+the top of memory.  With a lot of cooperation between us, we have honed itç
+to the point where it functions very nicely and does not add very much codeç
+to the command processor.
+
+     Because type-3 programs run at a fixed address, albeit not necessarilyç
+100H, they can be assembled and linked in the usual fashion, and the programç
+files contain actual binary object code.  Type-4 programs, on the otherç
+hand, must be relocatable by the command processor at run time.  Thus objectç
+code alone is not sufficient.
+
+     One possibility would be to use a REL file directly.  This would haveç
+been very convenient, but the code required to load a REL file is far tooç
+complex to include in a command processor running in a 64K memory segment. ç
+There is a less familiar relocatable type file known as a PRL (Pageç
+ReLocatable) file that, because it restricts the relocation to pageç
+boundaries (and other reasons), is much easier to relocate.
+
+     A PRL file consists of three parts.  The middle part is a standard codeç
+image for execution at 100H.  After this comes what is called a bit map,ç
+where, for each byte in the code image, there is a bit of 0 or 1 to tellç
+whether that byte must be offset for execution at a different page.  The bitçämap is one eighth the length of the code image.  Finally, one page (256ç
+bytes) at the beginning of the file serves as a header.  This headerç
+contains information about the size of the program so that the code thatç
+loads it can figure out where the object code ends and the bit map begins.
+
+     In the type-4 program, this header is extended to include the codeç
+necessary (1) to calculate the highest address in memory at which theç
+program can be loaded and (2) to perform the code relocation to that addressç
+using the bit map.  The way this is accomplished is somewhat intricate.
+
+     The command processor loads the first record of the type-4 file intoç
+the temporary buffer at 80H as usual to determine the program type.  If itç
+is type 4, the CCP then calls the code in the header.  That code calculatesç
+the load address and then (this clever idea was Joe's) calls the commandç
+processor back to load the program code and bit map into memory at theç
+proper address.  When this call is complete and control returns to theç
+header code, it then performs the relocation of the code image at theç
+execution address in memory.  Only then is control returned to the commandç
+processor for initialization and execution of the program.
+
+     The result of this tricky scheme is that most of the type-4 supportç
+code that would otherwise have been required in the command processor is inç
+the header instead (this was my contribution to the type-4 concept).  Sinceç
+a PRL file has a two record header anyway (almost all of which is otherwiseç
+empty), you get to add this code for free.
+
+     Joe pointed out to me some dangers with my type-3 construct.  Suppose aç
+type-3 program designed to run at 8000H is somehow loaded to 100H instead. ç
+Any attempt to execute it is likely to have less than desirableç
+consequences, to put it mildly.  This was not a serious problem with aç
+normal (at the time) ZCPR33 system.  Since the command processor wouldç
+automatically load the type-3 program to the correct address, it took someç
+deliberate action by the user to create the dangerous situation described. ç
+Of course, the poor fellow still running ZCPR30 who decided to try out aç
+type-3 program...
+
+     However, now that NZCOM is here, the user may very well decide to dropç
+back into CP/M from Z System to perform some tasks.  In this situation, aç
+type-3 program is a live weapon, just waiting to blow up the system.  Theç
+type-4 program poses a similar danger.
+
+     We have come up with two defense strategies.  One can be implemented inç
+the program itself.  There is code (TYP3HDR1.Z80) that can be placed at theç
+beginning of a type-3 program (based on ideas conceived independently by Bobç
+Freed and Joe Wright) that will verify that the code is running at theç
+proper address.  This part of the code is, as it must be, addressç
+independent (it uses only relative jumps).  If the load address is found toç
+be wrong, a warning message is displayed and control is returned to theç
+command processor before any damage can be done.  This is the friendlierç
+method, but it makes the programs longer.
+
+     The second defense method does not impose any overhead on the programçäcode.  It is easier to use than the other method, and it can generally beç
+patched into existing type-3 programs in object form.  It can also beç
+applied with type-4 programs, for which the first method cannot be usedç
+(type-4 files begin with a relocation header and not with program code, andç
+the system must be prevented from trying to execute the header when theç
+program is invoked under CP/M).
+
+     With this method, one places a byte of C7H, the RST 0 instructionç
+opcode, at the beginning of the file.  Execution of this instruction causesç
+a call to address 0, which induces a warm boot.  This behavior may beç
+puzzling to the user, but at least it does no damage.  How, then, will suchç
+a program ever execute?  The answer is that ZCPR34 checks the first byte ofç
+a type-3 program to see if it is a C7H.  If it is, the command processorç
+replaces it with a C3H, the JP instruction opcode.  To take advantage ofç
+this method, the program code must begin with a "JP START" instruction inç
+which the JP is replaced by RST 0 (note: you cannot use JR START instead). ç
+The proper assembly language source code is illustrated in Fig. 8.  Noteç
+that the replacement of the RST 0 by a JP is not required with a type-4ç
+program since the header (which is where this construct appears) is neverç
+intended to be executed as a standard program, even under Z34.
+
+
+The Extended Environment Descriptor and the Drive Vector
+
+     The definition of the ZCPR3 environment descriptor has been modifiedç
+and extended.  I will not go into all the details here, but I will describeç
+the main changes.
+
+     First, to make some space available for additional importantç
+information, the extended ENV eliminates definitions for all but one consoleç
+and one printer.  Eventually there will be a tool (utility program) thatç
+allows interactive or command-line redefinition of the characteristics ofç
+these single devices so that you will actually have more rather than lessç
+flexibility.
+
+     The extended ENV will now contain the addresses and sizes in records ofç
+the CCP, DOS, and BIOS (actually, the size of the BIOS is not included). ç
+This information has been added to deal with problems in some specialç
+operating system versions where the CCP and/or DOS do not have theirç
+standard sizes of 16 and 28 records respectively, such as in the Echelonç
+Hyperspace DOS for the DT-42 computer.  Future versions of NZCOM, which willç
+support variable CCP, DOS, and BIOS modules, will also need this.
+
+     Finally, a long needed feature has at last been implemented; a driveç
+vector.  The maximum-drive value in the ENV was not adequate in a systemç
+with non-contiguous drives (A, B, and F, for example).  Now you can tell theç
+system exactly which drives you have on the system, and the commandç
+processor will do its best to prevent references to nonexistent drives.
+
+
+Ever More Sensible Named Directory Security
+ä     With Z33 I made it possible to refer by drive/user (DU) to directoriesç
+beyond the range specified by the maximum drive and maximum user values inç
+the environment provided the directory area had a name with no password.  Itç
+seemed only reasonable that if a user could access the drive by name, heç
+should be allowed to access it by its equivalent DU as well.
+
+     The converse situation, however, was not handled according to similarç
+logic.  Suppose the maximum user was 7 but there was a password-protectedç
+named directory for user 6.  Under Z33 one had the anomalous situation thatç
+the user could refer freely to the directory using the DU form but would beç
+pestered for the password if he used the named-directory (DIR) form.  Thisç
+just didn't seem reasonable, and Z34 has corrected this.
+
+
+Extended ECP Interface
+
+     With Z34 I have added an additional option along the lines of BADDUECP. ç
+The BADDUECP option allows directory-change commands of the form NAME: orç
+DU: that refer to illegal directories to be passed on to the extendedç
+command processor (ECP) instead of directly to the error handler.  On my Z-Node, for example, I use the ARUNZ extended command processor to permitç
+references to reasonable facsimiles to the actual directory names to workç
+via alias scripts.
+
+     With Z33 attempts to execute a command containing an illegal wildcardç
+character or with an explicit file type would be flagged as errors andç
+passed directly to the error handler.  With Z34 one has the option (via theç
+option BADCMDECP) to pass these forms of bad command to the extended commandç
+processor as well.
+
+     Here are a couple of examples of how this feature can be used with theç
+ARUNZ extended command processor.  First, one can enter the following scriptç
+into the alias definition file ALIAS.CMD:
+
+	?  help $*
+
+Now when a user enters the command "?", he will get the help system insteadç
+of an error message telling him that he entered a bad command.
+
+     You can also use this facility to allow further shorthand commands. ç
+With the script definition
+
+	DIM.Z3T   ldr dim.z3t   (or nzcom dim.z3t)
+
+Now you can load the dim-video TCAP for your system simply by just enteringç
+the name of the TCAP file.  Using wildcard specifiers in the name of theç
+alias script, you can make any command with a type of Z3T load theç
+corresponding TCAP file.  Similarly, entering the name of a library (forç
+example, LBRNAME.LBR) on the command line could automatically invoke VLU onç
+that library.  The same concept would allow one to enter the name of aç
+source-code file (for example, THISPROG.Z80 or THATPROG.MAC) toç
+automatically invoke the appropriate assembler (Z80ASM/ZAS or SLRMAC/M80 forç
+these two examples).ä
+     This feature opens another whole dimension for experimentation, and Iç
+am sure that users will come up with all kinds of new ways to use it. ç
+PLEASE NOTE: if this feature is implemented, you cannot use the old versionç
+of ARUNZ that I so painstakingly documented in my last column (alas, barelyç
+born and already obsolete).  Previous versions of ARUNZ used '?' and '.' forç
+special purposes.  Those characters were carefully chosen because they couldç
+never appear in command names passed to ARUNZ, but now they can!  Therefore,ç
+in version 0.9H of ARUNZ I have changed these characters to '_' (underscore)ç
+instead of '?' and ',' (comma) instead of '.'.
+
+     That's it for this issue, I'm afraid.  I still didn't get to aç
+discussion of defects in the shell coding for WordStar 4 (I hope these willç
+be corrected in version 5, which is apparently really in the works at thisç
+time).  My discussion of the ZEX in-memory batch processor and theç
+improvements I have been making to it will also have to wait still longer.
+
+------------------------------------------------------------------------------
+
+	1.*	Command Processor	CCP	BD00		16 Records
+	2.*	Disk Operating System	DOS	C500		28 Records
+	3.*	NZ-COM Bios		BIO	D300		 2 Records
+
+	4.	In/Output Processor	IOP	D400		12 Records
+	5.	Resident Command Proc	RCP	DA00		16 Records
+	6.	Flow Control Processor	FCP	E200		 4 Records
+	7.	Named Directory Reg	NDR	E400		14 Names
+
+	8.*	Environment Descriptor	ENV	E500		 2 Records
+	9.*	Shell Stack		SHS	E600		 4 Entries
+
+	P.	Custom Patch Area	PAT	0000		 0 Records
+		Customer's CBIOS	TOP	E800
+
+			Effective TPA size 49.0k
+
+	* Items 1, 2, 3, 8 and 9 are not changeable in this version.
+
+	Selection: (or <S>ave or <Q>uit) _
+
+
+Figure 1.  Screen displayed by the MKNZC program when run under CP/M.  Thisç
+is the standard or default system definition.
+
+------------------------------------------------------------------------------
+
+E806 CBIOS	0080 ENVTYP	E6F4 EXPATH	0005 EXPATHS	DA00 RCP
+0010 RCPS	D400 IOP	000C IOPS	E200 FCP	0004 FCPS
+E400 Z3NDIR	000E Z3NDIRS	E700 Z3CL	00CB Z3CLS	E500 Z3ENV
+0002 Z3ENVS	E600 SHSTK	0004 SHSTKS	0020 SHSIZE	E680 Z3MSG
+E6D0 EXTFCB	E7D0 EXTSTK	0000 QUIET	E6FF Z3WHL	0004 SPEED
+0010 MAXDRV	001F MAXUSR	0001 DUOK	0000 CRT	0000 PRTä0050 COLS	0018 ROWS	0016 LINS	FFFF DRVEC	0000 SPAR1
+0050 PCOL	0042 PROW	003A PLIN	0001 FORM	0066 SPAR2
+0042 SPAR3	003A SPAR4	0001 SPAR5	BD00 CCP	0010 CCPS
+C500 DOS	001C DOSS	D300 BIO	0000 PUBDRV	0000 PUBUSR
+
+Figure 2.  For the technically inclined, this is a listing of the contentsç
+of the NZCOM.NZC system descriptor file produced by MKNZC.
+
+------------------------------------------------------------------------------
+
+	1.*	Command Processor	CCP	CE00		16 Records
+	2.*	Disk Operating System	DOS	D600		28 Records
+	3.*	NZ-COM Bios		BIO	E400		 2 Records
+
+	4.	In/Output Processor	IOP	0000		 0 Records
+	5.	Resident Command Proc	RCP	0000		 0 Records
+	6.	Flow Control Processor	FCP	0000		 0 Records
+	7.	Named Directory Reg	NDR	0000		 0 Names
+
+	8.*	Environment Descriptor	ENV	E500		 2 Records
+	9.*	Shell Stack		SHS	E600		 4 Entries
+
+	P.	Custom Patch Area	PAT	0000		 0 Records
+		Customer's CBIOS	TOP	E800
+
+			Effective TPA size 53.25k
+
+	* Items 1, 2, 3, 8 and 9 are not changeable in this version.
+
+	Selection: (or <S>ave or <Q>uit) _
+
+
+Figure 3.  Screen displayed by the MKNZC program after eliminating the IOP,ç
+RCP, FCP, and NDR modules in order to define a minimal Z System.
+
+------------------------------------------------------------------------------
+
+E806 CBIOS	0080 ENVTYP	E6F4 EXPATH	0005 EXPATHS	0000 RCP
+0000 RCPS	0000 IOP	0000 IOPS	0000 FCP	0000 FCPS
+0000 Z3NDIR	0000 Z3NDIRS	E700 Z3CL	00CB Z3CLS	E500 Z3ENV
+0002 Z3ENVS	E600 SHSTK	0004 SHSTKS	0020 SHSIZE	E680 Z3MSG
+E6D0 EXTFCB	E7D0 EXTSTK	0000 QUIET	E6FF Z3WHL	0004 SPEED
+0010 MAXDRV	001F MAXUSR	0001 DUOK	0000 CRT	0000 PRT
+0050 COLS	0018 ROWS	0016 LINS	FFFF DRVEC	0000 SPAR1
+0050 PCOL	0042 PROW	003A PLIN	0001 FORM	0066 SPAR2
+0042 SPAR3	003A SPAR4	0001 SPAR5	CE00 CCP	0010 CCPS
+D600 DOS	001C DOSS	E400 BIO	0000 PUBDRV	0000 PUBUSR
+
+Figure 4.  For the technically inclined, this is a listing of the fileç
+MINIMUM.NZC, which describes a minimum-size version of an NZCOM system forç
+the computer in Figs. 1 and 2.
+ä------------------------------------------------------------------------------
+
+	A>nzcom /v
+	NZCOM Ver 2.0 Copyright (C) 1987-88 Alpha Systems Corp. 21 Jan 88
+	 Input buffer start 1C00
+	 Read  buffer start 1D00
+	 Write buffer start 3D00
+	 Loading A0:NZCOM.NZC
+	 Loading A0:NZCPR.REL for BD00 at 3D00
+	 Loading A0:NZDOS.REL for C500 at 4500
+	 Loading A0:NZBIO.REL for D300 at 5300
+	 Loading A0:NZIOP.REL for D400 at 5400
+	 Loading A0:NZRCP.REL for DA00 at 5A00
+	 Loading A0:NZFCP.REL for E200 at 6200
+	 Loading A0:NZCOM.NDR for E400 at 6400
+	 Loading A0:NZCOM.Z3T for E580 at 6580
+	 Writing A15:NZCOM.CCP
+	 Booting NZ-COM...
+
+Figure 5.  This is the screen display produced by NZCOM as it loads theç
+default system definition NZCOM.NZC with the verbose option.
+
+------------------------------------------------------------------------------
+
+; Named COMMON declarations start here
+; For compatibility, these are the same names used by Bridger Mitchell's
+; JetLDR
+
+	common	/_BIOS_/
+cbios:				; Customer's bios address
+
+	common	/_ENV_/
+z3env:				; Z3 Environment descriptor
+z3envs	equ	2		; Size (records)
+rcp	equ	z3env+12
+rcps	equ	yes		; Used as existence test, not size
+fcp	equ	z3env+18
+fcps	equ	yes		; Used as existence test, not size
+z3ndir	equ	z3env+21
+z3ndirs	equ	yes		; Used as existence test, not size
+
+drvec	equ	z3env+52	; Valid drive vector
+
+ccp	equ	z3env+63	; CCP entry
+ccps	equ	z3env+65	; Size
+
+dos	equ	z3env+66	; DOS entry (+6)
+doss	equ	z3env+68	; Size
+
+bio	equ	z3env+69	; BIO entry
+
+	common	/_SSTK_/äshstk:				; Top of Shell stack
+shstks	equ	4		; 4 entries
+shsize	equ	32		; 32 bytes each
+
+	common	/_MSG_/
+z3msg:				; Message buffer
+z3msgs	equ	80		; 80 bytes long
+
+	common	/_FCB_/
+extfcb:				; External file control block
+extfcbs	equ	36		; 36 bytes long
+expath	equ	extfcb+extfcbs	; External path
+expaths	equ	5		; 5 elements
+z3whl	equ	expath+(expaths*2)+1 ; The wheel byte
+z3whls	equ	1		; 1 byte
+
+	common	/_MCL_/
+z3cl:				; Multiple command line
+z3cls	equ	203		; Maximum command length
+nzpat	equ	z3cl+256	; Potential User patch area
+
+	common	/_XSTK_/
+extstk:				; External stack
+extstks	equ	48		; Size (bytes)
+
+	cseg			; Select Code Segment
+
+; End of NZCMN.LIB
+
+Figure 6.  This is a partial listing of the file NZCMN.LIB, which definesç
+the named common blocks used during assembly of modules for use by NZCOM.
+
+------------------------------------------------------------------------------
+
+	B2:DBASE>nzcom minimum /v
+	NZCOM Ver 2.0 Copyright (C) 1987-88 Alpha Systems Corp. 21 Jan 88
+	 Input buffer start 1C00
+	 Read  buffer start 1D00
+	 Write buffer start 3D00
+	 Loading A0:MINIMUM.NZC
+	 Loading A0:NZCPR.REL for CE00 at 3D00
+	 Loading A0:NZDOS.REL for D600 at 4500
+	 Loading A0:NZBIO.REL for E400 at 5300
+	 Loading A0:NZCOM.Z3T for E580 at 5480
+	 Writing A15:NZCOM.CCP
+	 Booting NZ-COM...
+
+Figure 7.  This is the screen display when NZCOM loads the minimum systemç
+from a running default system.
+
+------------------------------------------------------------------------------
+ä	ENTRY:				; Beginning of program
+		DB	0C7H		; RST 0 opcode, will become JP
+		DW	START
+		DB	'Z3ENV'		; ZCPR3 program ID
+		DB	3		; Type 3
+	ENVADR:	DW	0		; ENV address filled in by Z34
+		DW	ENTRY		; Execution address
+	START:				; Beginning of main program
+
+Figure 8.  Form of the Z3ENV header code in a protected type-3 program.  Anç
+attempt to execute this code under CP/M will result in a warm boot.
+
+[This article was originally published in issue 32 of The Computer Journal,
+P.O. Box 12, South Plainfield, NJ 07080-0012 and is reproduced with the
+permission of the author and the publisher. Further reproduction for non-
+commercial purposes is authorized. This copyright notice must be retained.
+(c) Copyright 1988, 1991 Socrates Press and respective authors]
+

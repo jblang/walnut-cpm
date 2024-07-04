@@ -1,0 +1,89 @@
+;---------------------------------------------------------------------------
+;
+;                              WSCURKEY.Z80
+;
+;                     Date:   May 28, 1990
+;                   Author:  Joseph I. Mortensen
+;
+; patch to WordStar 4.0 to change cursor keys from conventional Kaypro CBIOS
+; values to those used by WordStar.  Restores original values on exit.
+; Adapted for '83 Kaypros from WSKEYPAD.AZM, (C) 1989 by Dale H. Cook
+; 
+; There are several possible locations for the main body of this patch
+; within WS.COM 4.0;  For this short patch (and since the space is not needed 
+; for anything else) I used the CRTPAT area.
+;
+; Set the equate for curkey to suit your system.  Examples:
+;       64K system -- curkey = 0fa35h
+;       63K system -- curkey = 0f635h
+;       62.75K system -- curkey = 0f535h
+;       62.5K system -- curkey = 0f435h
+;       62.25K system -- curkey = 0f335h
+;
+; Assemble this file (HEX option).
+; Use MLOAD to patch WS.COM:  mload ws.com,wscurkey.hex   
+;
+;---------------------------equates-------------------------------------
+ctrld	equ	04h		;ws right arrow
+ctrle	equ 	05h		;ws up arrow
+ctrlh	equ	08h		;kp left arrow
+ctrlj	equ	0ah		;kp down arrow
+ctrlk	equ	0bh		;kp up arrow
+ctrll	equ	0ch		;kp right arrow
+ctrls	equ	13h		;ws left arrow
+ctrlx	equ 	18h		;ws down arrow
+
+inisub	equ	03bbh           ;init subroutine loc in WS.COM
+unisub	equ	03beh           ;uninit subroutine loc in WS.COM
+crtpat	equ	04dbh           ;location of this patch
+
+curkey	equ	0f335h		;bios address for cursor keys (62.25K system)
+
+	org	inisub
+	jp	myini
+
+	org	unisub
+	jp	myuni
+
+	org 	crtpat
+
+myini:	
+	ld	hl,wskeys
+	ld	de,curkey
+	ld	b,4
+	call	swap
+	db	0,0,0c9h
+
+myuni:	ld	hl,kpkeys
+	ld	de,curkey
+	ld 	b,4
+	call	swap
+	db	0,0,0c9h
+	
+swap:	
+	ld	c,(hl)
+	ld	a,(de)
+	ld	(hl),a
+	ld	a,c
+	ld	(de),a
+	inc	hl
+	inc	de
+	dec	b
+	jp	nz,swap
+
+	ret		
+
+wskeys:
+	db	ctrle
+	db	ctrlx
+	db	ctrls
+	db	ctrld
+
+kpkeys:
+	db	ctrlk
+	db	ctrlj
+	db	ctrlh
+	db	ctrll
+
+	end
+

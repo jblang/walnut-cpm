@@ -1,0 +1,1384 @@
+Introduction.
+Squeezing, and Huffman Code.
+FYNDE.A86 - FYNDE.ASM  -  Description
+FYNDE.A86 - FYNDE.ASM  -  Tutorial Message
+HJELP.A86 - HJELP.ASM  -  Description
+HJELP.A86 - HJELP.ASM  -  Tutorial Message
+TYSQ.A86 - TYSQ.ASM  -  Description
+TYSQ.A86 - TYSQ.ASM  -  Tutorial Message
+UNSQ.A86 - UNSQ.ASM  -  Description
+UNSQ.A86 - UNSQ.ASM  -  Tutorial Message
+UNSQ80.LIB
+UNSQ86.LIB
+Bibliography.
+:Introduction.
+
+ICUAP9 responds to the SIG/M Disk Editor's column in the June, 1984 issue of
+the ACG/NJ Newsletter, which requested a synthesis of USQ.COM and FIND.COM.
+
+We have had a variant of FIND, namely FYNDE (SIG/M 165.09,10,11,12), which
+resembles the UNIX "grep" for some time; but SQ and USQ were vaguely known
+by reputation since we have not used them. Since it is only a question of
+opening the pipeline between the disk input and the application program, it
+did not seem to be an exceptional challenge to generate this synthesis. The
+question of locating a copy of SQ.COM and USQ.COM was solved by locating
+them in SIG/M 58.26 and SIG/M 58.27. The ensuing disassembly revealed the
+fact that they had been compiled from BDS "C" but comments embedded in the
+object code, some computer science references, and several experiments in
+squeezing known text finally showed how these two programs worked.
+
+A scan of the SIG/M software guide reveals quite a few squeeze and unsqueeze
+programs, aside from the fact that it is now an announced policy of the SIG/M
+Disk Editor to include a copy of an unsqueezer on each disk bearing squeezed
+files. Some are long, some are short - no doubt due to the fact that compiling
+a program from source code written in a higher level language will result in
+voluminous code - perhaps 20 times more than equivalent assembly language.
+-
+SIG/M disk libraries seem to contain the following programs:
+
+	SIG/M 48.13	SQ.COM		14K	pack ASCII file
+	SIG/M 48.14	USQ.COM		10K	unpack ASCII file
+	SIG/M 58.26	SQ.COM		14K	SQueeze compress program
+	SIG/M 58.27	USQ.COM		10K	UnSQueeze expans program
+	SIG/M 60.18	SQ-15.COM	14K	Updated Squeeze
+	SIG/M 60.21	USQ-15.COM	10K	Updated Unsqueeze
+	(and related prog's & doc)
+	SIG/M 144.19	SQ.OBJ		17K	Update to squeeze
+	(other related prog's & doc)
+   ->	SIG/M 152.13	USQ.COM		 2K	Wildcard unsqueeze
+	SIG/M 152.14	USQ.DOC		 3K	/
+	SIG/M 156.07	SQ-17.LBR	24K	Updated squeeze program
+	SIG/M 158.20	USQ.CMD		18K	wildcard unsq for CP/M86
+	SIG/M 175.15	SQ.CMD		20K	squeeze - CP/M-86
+	SIG/M 175.18	USQ.CMD		18K	unsqueeze files
+	SIG/M 176.06	UNSQ12.LBR	16K	Z80 unsqueeze
+	SIG/M 176.07	USQ119.AQM	 9K	USQ source code
+
+	PC-Blue 057.08	SQ.EXE		20K	squeeze
+	PC-Blue 057.09	USQ.EXE		27K	unsqueeze
+-
+A similar survey could be made of FIND programs, but they generally appear
+to have been coded in assembly language. Anyway our intention was to use
+FYNDE, so the matter was not pursued further.
+
+The essence of USQ.COM seems to fit in 256 bytes. An envoironment in which
+disk files can be opened and read, and the unsqueezed text displayed at the
+console or deposited on a disk, brings the program up to 1K or 2K, which is
+consistent with the size of the program marked with an arrow in the previous
+panel.
+
+The files UNSQ80.LIB and UNSQ86.LIB contain this 256 byte nucleus, in a form
+that can be used by ED.COM or ED.CMD to insert it into any program which has
+to deal with a squeezed input file. If the remainder of the program has been
+structured so that a call to a certain subroutine will deliver a new byte,
+with user-transparent refreshment of the input buffer from disk when exhausted,
+it is only necessary to interpose the decoding subroutine between the two. An
+initialization subroutine is also required, to separate the dictionary from
+the text, record the checksum, and recover the original file name.
+
+A compact unsqueezing program should have various applications. The simplest
+is to restore a squeezed program to its natural state. Beyond this, there are
+many programs which could take their data directly from a squeezed file.
+-
+This disk contains four programs that can handle squeezed data files. They
+have been coded for the Intel 8080 using ASM.COM, and the Intel 8086 using
+ASM86.CMD. They are included on the disk with both source and binary code.
+
+	UNSQ	Unsqueeze a squeezed file. This is the basic program for
+		recovering a squeezed file. It will unsqueeze only a single
+		named file (no wildcards) and will check that it does not
+		overwrite another program of that name already on the disk.
+
+	TYSQ	Examine a squeezed file. If the file is an ASCII file,it
+		will be passed to the console according to the style of
+		the CP/M utility TYPE. If it is a binary file (original
+		extension .COM or .CMD, according to the version) it will
+		be presented in the style of DUMMP (SIG/M 165.05 - 08).
+
+	FYNDE	Search through a family of files on the given disk to find a
+		keyword. In contrast to the original FIND, the keyword may be
+		a regular expression (as in the UNIX "grep"); the line number
+		may also be reported relative to a regular expression label.
+
+	HJELP	Display squeezed HELP files just as HELP displays normal files.
+
+-
+:Squeezing, and Huffman Code.
+
+A Huffman code is a variable length code in which the most frequent symbols
+are represented by the shortest binary numbers. In this it is reminiscent
+of the Morse code used in telegraphy, by which a few dots and dashes are used
+for frequent letters like e or s, and longer sequences for rarer letters like
+q. Since it is based on a mathematically rigorous optimization procedure, it
+can be used to get the code of shortest average length for a given message.
+
+It is easy enough to see how it works, without having to go through the formal
+mathematics.  Suppose you have two symbols; then, no matter whether one is
+used much more ofter than the other, you need a bit to distinguish them. 0 for
+one, 1 for the other. If you have three symbols, you need two bits, but some
+of the capacity of two bits is going to waste because they could represent as
+many as four symbols.
+
+Suppose that in a message of a thousand symbols, 700 are A's, 200 are B's, and
+the remaining 100 are C's. If we assign A = 00, B = 01, C = 10 and leave 11
+unused, the message will require 1000*2 or 2000 bits for its representation by
+binary numbers. If we assign A = 0, B = 10, C = 11, the message will require
+700*1 + 200*2 + 100*2 or 1300 bits if they are strung out in sequence. The
+variable length code saves us 700/2000 or 35% in the length of the message.
+-
+Furthermore, the message can be decoded, because a 1 stands alone, but a 0
+requires us to take the next bit too. In general, none of the three codes can
+be part of the beginning of any of the others.
+
+In the last example, suppose that there were a fourth symbol, D, and that in
+a thousand symbols the frequencies were now 700 A's, 200 B's, 80 C's and 20
+D's. Always using two bits to distinguish A, B, C, D would still require a
+total of 2000 bits. Even though four symbols fills out two bits exactly, the
+assignment of 0 for A, 1xxx for the rest will shift the average number of bits
+per symbol towards 1. If we use 10 for B, 11 will be the prefix for C and D
+These two can be given 0 or 1 indifferently, so we finally have the assignment
+A = 0, B = 10, C = 110, D = 111. That A is coded in one bit is compensated by
+the three bit codes. The average is still around 2, but exactly : 700*1 + 200*2
++ 80*3 + 20*3 = 1420. The shortening is 29%, the average number of bits per
+symbol 1.42.
+
+This scheme is essentially the Huffman code, but it is usually carried out in
+reverse. Here the short code is given to the most common symbol, but it might
+be that all the rest combined were even more numerous and deserve the short
+symbol as a class. Instead, we assign 0 and 1 arbitrarily to the two rarest
+symbols as the last bit of the code. They are then pooled into a common class
+for the next competition for rarest and the assignment of the penultimate bit.
+-
+Repeating this procedure, the number of classes is eventually reduced to two,
+for which the final assignment of bits is made.
+
+It is not entirely facetious to ask what to do when there is only one class,
+or more likely, just one single symbol. The only thing that can be done with
+it is to repeat it several times, and surely it would be more economical to
+state how many times to repeat it - as a binary number - than to actually
+repeat it that many times. Rather than n symbols, we need log(2) n symbols.
+
+This idea is likely to be the first one to occur to someone interested in
+reducing the size of a file of data, and is akin to the idea of replacing
+multiple spaces by a single tab character. It is especially valuable in data
+with many characters repeated in sequence, such as spaces or dashes.
+
+SQ.COM combines the two ideas - replacing repeated symbols by their count,
+and compressing text using a Huffman code - to produce a squeezed file. Any
+combination of diverse compression strategies can show inconsistencies, so
+care has to be exercised to show that the effect of one scheme does not
+negate the benefits of the other. In this combination, the symbol marking a
+repetition, and the individual repetition counts are new, hopefully themselves
+rare, symbols to contend with.
+
+-
+The question to be asked, is, how much is to be gained by squeezing files?
+Empirically, many squeezed files end up at 60% of their original size. It is
+known that Huffman codes work best when there is a great disparity in the
+frequencies of individual symbols; if the frequencies are approximately the
+same, the result is simply a binary enumeration of them all, and the Huffman
+code is simply binary code.
+
+ASCII text files waste a bit because the parity bit is generally ignored. Any
+scheme that dropped the parity bit and encoded the ASCII file into a bit stream
+would compress the text by 1/8, or 12.5% without any further effort. If the
+text were mostly lower case, six-bit ASCII would be appropriate, and another
+12.5% realized. If the text were representable in 5-bit ASCII, that is if it
+were mostly letter text with few numbers, upper case letters and graphical
+symbols, we would be up to 37.5%, which is the empirical factor. One wonders
+whether the Huffman code isn't just showing up this structure of the majority
+of ASCII files, and whether a uniform coding scheme wouldn't give pretty much
+the same results as creating a specially tailored code for each file?
+
+In this respect, it is worth noting that ASCII files of numerical data can
+be squeezed by better than 50%, because the digits, commas and spaces form
+a set that can be represented in four bits. If some digits - zero say - are
+quite numerous, the squeezing can be somewhat better still.
+-
+SQ.COM generates a Huffman code by using single bytes as symbols - with the
+exception of the repeated strings which it encodes as a preliminary - which
+is a procedure that is bound to miss out on the structure that a given kind
+of file may possess. For example, an .ASM file is several times longer than
+its .COM file, even when it has no comments. This is due to the fact that
+Intel mnemonics typically use three characters to describe a single byte of
+operation code. Two byte addresses rarely have labels with as few as two
+bytes. If mnemonics and addresses were treated as individual entities, the
+squeezed file could be much shorter. Admittedly such encoding would be very
+specialized, and worthless when applied to something which was not an Intel
+8080 assembly listing.
+
+File squeezing, to be effective, must take into account the structures
+existing in the file under consideration.
+
+
+
+
+
+
+
+
+-
+:FYNDE.A86 - FYNDE.ASM  -  Description
+
+FIND, in our experience, dates back to the CBBS (R) disk which we obtained
+from Ward Christensen and Randy Suess. It was included as a utility with
+the explanation that it was useful for tracing errors in their long linked
+assemblies, as well as for reconstructing damaged message disks. In this
+original form, an ambiguous file reference could be searched for several
+alternative phrases, all of which were specified on the command line.
+
+It is not hard to see that such a utility has many applications, or that
+we had considerable curiosity to disassemble it to see how it worked. We
+had also recently acquired MicroShell(R) and found that the vertical bar
+which separated alternatives in the FIND command line conflicted with the
+pipe symbol from UNIX. If some changes were to be made, others could be
+made also. First, the set of alternatives XXX|YYY|XXX|ETC which FIND used
+could be broadened to include wildcard symbols - @ for alphanumeric, ? for
+any single character - and a symbol for repetition.
+
+The application at the moment was tracing symbols in a disassembly listing,
+for which a line number from the beginning of a long listing was not very
+useful. Thus a "label" field was added - literally labels in the listing -
+and line numbers were rendered relative to the nearest label.
+-
+With the final step of enclosing alternatives within square brackets - the
+example above became [XXX!YYY!ZZZ!ETC] - and allowing subexpressions inside
+expressions, all the machinery existed to recognize any phrase defined as
+a regular expression. Thus a typical label might be X{?}: and would match
+X:, X0005:, X37A:, or whatnot - anything beginning with X and ending with
+a colon.
+
+The result of all this rearrangement became the first version of FYNDE.
+FIND was already a well written program, which we streamlined somewhat.
+Thus, bytes were transferred from an input buffer to a line buffer in a
+very orderly manner, by calling a subroutine. This is what makes it very
+simple to interpose a subroutine to decode the Huffman code for squeezed
+text, after converting the byte stream into a bit stream.
+
+FYNDE also includes some statistics missing from FIND - the number of lines
+on which the specified phrase was found (not counting repetitions on the
+same line) - and a grand total throughout the disk.
+
+In the new version the rest of an unwanted file can be skipped rather than
+terminate the session. Files recognized as binary (extension .COM or .CMD)
+are ignored. This is appreciated when an overly generous file specification
+has picked up some .BAK files or the binary files of the program under study.
+-
+The following panel gives an example of the use of FYNDE. The command line
+given was
+
+		fynde tysq.* {?}:!xchg
+
+applied to this same disk, ICUAP9. There are several TYSQ files present,
+.COM, .CQM, and .CMD, in addition to .ASM, .AQM, and .A86. In the interest
+of obtaining a short result, the rare 8080 instruction xchg was requested,
+identified with respect to the last label preceding it. Labels are at the
+beginning of a line and terminated by a colon, but FYNDE would also pick
+up spurious labels if there were a colon in a comment, or a <cpi ':'>.
+False matches of this sort are rare, and do not diminish the usefulness
+of FYNDE very much.
+
+Note that when the squeezed file was scanned, its original name was shown,
+so that the original file could be consulted if need be. Also, no file was
+abandoned, and the scan was allowed to procede to completion. Thus complete
+frequency counts are shown.
+
+In the second panel following, both kinds of interrupts were carried out,
+to show their effect on the console display.
+
+-
+
+fynde tysq.* {?}:!xchg
+
+FYNDE.COM 04/01/84 ICUAP
+------> File TYSQ    .ASM
+ chek:+   1     	xchg
+   1  lines found
+.COM file disregarded.
+------> File TYSQ    .AQM
+[original] : TYSQ    .ASM
+ chek:+   1     	xchg
+   1  lines found
+.COM file disregarded.
+------> File TYSQ    .A86
+   0  lines found
+.COM file disregarded.
+   2  instances in the entire disk
+
+
+
+
+
+-
+
+fynde tysq.* roco
+
+FYNDE.COM 04/01/84 ICUAP
+------> File TYSQ    .ASM
+      +  77     	sta	roco		;bit rotation counter
+      + 428     	lxi	h,roco		;bit rotation counter
+      + 504     roco:	ds	1		;rotating bit counter
+   3  lines found
+.COM file disregarded.
+------> File TYSQ    .AQM
+[original] : TYSQ    .ASM
+      +  77     	sta	roco		;bit rotation counter
+ -- Remainder of File Skipped --
+.COM file disregarded.
+------> File TYSQ    .A86
+      +  65     	mov	roco,1		;bit rotation counter
+      + 263     	dec	roco		;bit rotation counter
+      + 265     	mov	roco,8		;bit rotation counter
+
+-- Search Terminated --
+
+-
+In this panel, the command line
+
+fynde tysq.asm [jp!j[z!nc]]
+
+was given to show how alternatives can be nested. <no label> gives
+absolute line numbers.
+
+
+FYNDE.COM 04/01/84 ICUAP
+------> File TYSQ    .ASM
+      +  56     	jz	tuto		;type tutorial message
+      +  60     	jz	yext
+      +  92     	jz	rchk		;read checksum
+      + 111     	jz	ldic		;load code dictionary
+      + 205     	jnc	dncs		;skip for 1, stay for 0
+      + 213     	jz	dnct
+      + 215     	jp	dncu		;p means new offset
+      + 283     	jz	typp
+      + 406     	jz	exit		;return to CP/M
+   9  lines found
+   9  instances in the entire disk
+
+-
+Several error messages can be provoked. One of the more common is for
+the label or pattern not to have its parentheses balanced - either
+square brackets or curly brackets or both. Null alternatives are also
+rejected, but this is not necessary except to keep {} out of a loop.
+
+
+If the command line of the previous panel were erroneously given as
+
+fynde tysq.asm [jp!j[z!nc]
+
+the following reaction would ensue:
+
+FYNDE.COM 04/01/84 ICUAP
+-- Bad Pattern --
+
+
+
+If you want to print the whole file, give the command line
+
+fynde tysq.asm {?}
+
+
+-
+:FYNDE.A86 - FYNDE.ASM  -  The Tutorial Message is the following:
+	The command line
+	     FYNDE D:FILE.EXT EXPRESSION
+	will search through all instances of FILE.EXT
+	(which may be an ambiguous reference) on disk D
+	to find lines containing EXPRESSION. Such lines
+	will be presented on the console preceded by a
+	line number, and classified by file. EXPRESSION
+	may have the form LABEL!PATTERN or simply the
+	form PATTERN. Both may contain:
+	     [p1!p2!...!pn]  alternative strings
+	     {p1!p2!...!pn}  repeated alternatives
+	     ? any single character
+	     @ for any alphanumeric: a-z, A-Z, 0-9
+	     _ in place of horizontal tab
+	When a label is present, lines will be numbered
+	relative to the label.  Example: X{?}:![call!ret]
+	will list calls and returns relative to labels
+	like X0100: or X33:. LABEL begins in column 1,
+	PATTERN can begin in any column. Squeezed files
+	will be searched as well as unsqueezed ones. Use
+	^C to quit, any other key skips rest of file.
+-
+:HJELP.A86 -  HJELP.ASM -  Description.
+
+HJELP was derived from HELP8080.COM (SIG/M 122.04) by disassembling it
+and inserting UNSQ80.LIB according to the procedure described therein.
+80T86.CNV (SIG/M 173.04) was then used to create a version for the Intel
+8086.
+
+HELP loads its HELP file into memory, from which parts of it can be studied
+under control of the program. Sometimes the  file name is saved, and an
+entire new file loaded into memory, for which the same process takes place.
+These supplementary core loads are recursive down to a maximum depth, so
+that the previous file can be replaced at any time, or the original file can
+be recovered to start over again. An alternative to squeezing the HELP file
+is to divide it up into many of these supplementary files, but there is no
+reason that both procedures cannot be used.
+
+Since HELP takes text directly from memory (with <mov a,m>), a subroutine
+had to be introduced to decode the squeezed file. However, the structure
+of a squeezed file is such that it can be loaded whole into memory, and its
+dictionary can be consulted in place. This makes it quite easy to retain the
+overlay structure which HELP uses. Thus <call rbyt> replaces <mov a,m>
+throughout HJELP; a lookahead <call abyt> is sometimes needed.
+-
+It was another matter to mark the beginning of the panels with a sign bit,
+because this would destroy the coding in a squeezed file. The solution was
+to scan each file as it is loaded and construct a dictionary showing the
+beginning of each information section. As the information section is being
+read, a pushdown list of pointers is kept to mark the panel breaks. At the
+price of a slight delay for the original scan just after the file has been
+loaded, access to any of the information sections or backing up panels will
+be quite instantaneous.
+
+Further modification included scanning for HQP files as well as HLP files
+when HJELP is called with a null command line, accepting a given extension
+when it is given rather than forcing .HLP, and trying .HLP, then .HQP, in
+order when a HELP file name is given without an extension.
+
+Aside from its ability to handle .HQP files, HJELP appears to the user pretty
+much as though it were HELP. Thus, HELP2.HLP (SIG/M 103.04) and HELP.HLP
+(SIG/M 103.03) continue to be valid sources of information for constructing
+HELP files and using HJELP.
+
+
+-
+:HJELP.A86 - HJELP.ASM  -  Sample Tutorial Message. The real tutorial is
+in HELP.HLP, or whatever the user chooses to put in its place. If ZCPR
+is not in use and the system is fixed, this is a convenient place to put
+a menu of the HELP files in the system and to load any of them as overlays.
+
+
+
+	HELP (from ZCPR) Modified for squeezed HELP files.
+	
+	Default HELP Facility Invoked
+	 - Available HELP Files are -
+	
+	HELP       REC        ICUAP9     
+	
+	 - Squeezed HELP Files -
+	
+	REC        XXX        
+	
+	  Type Any Character for Default Info (^C to Quit) - 
+
+
+
+-
+:TYSQ.A86 - TYSQ.ASM  -  Description.
+
+TYSQ is a program which allows examination of squeezed files from the
+console. Unless the file is recognized as a binary file because its
+original extension was .COM (or .CMD), TYSQ resembles TYPE. In the other
+case, it gives a DDT-like hexadecimal dump with a marginal attempt to
+interpret each byte as an ASCII character. The two examples below show this.
+
+    tysq tysq.aqm
+
+    TYSQ.ASM
+    
+    ;	-----------------------------------------------------------
+    ;
+    ;	"Squeezed" files can be generated by the program SQ.COM,
+    ;	(SIG/M 58.26) and then restored by the program USQ.COM
+    ;	(SIG/M 58.27), both of which appear to have been compiled
+    ;	from BDS "C". The scheme is to generate a Huffman code,
+    ;	after a preliminary pass which replaces all characters
+    ;	repeated 
+    Dump interrupted.
+
+-
+
+    tysq	tysq.cqm
+
+
+    TYSQ.COM
+    0000  31 FB 04 3A 5D 00 FE 20 CA A7 03 21 66 00 7E FE    1..:].. ...!f.~.
+    0010  51 CA 1D 01 11 E2 03 CD 16 03 C3 32 03 CD 38 03    Q..........2..8.
+    0020  21 00 00 22 00 05 22 06 05 22 0A 05 21 0F 05 22    !.."..".."..!.."
+    0030  0D 05 3E 00 32 08 05 3E 01 32 FE 04 3E 10 32 0C    ..>.2..>.2..>.2.
+    0040  05 32 09 05 01 00 00 CD 73 03 FE 76 C2 57 01 CD    .2......s..v.W..
+    0050  73 03 FE FF CA 60 01 11 E2 03 CD 16 03 C3 32 03    s....`........2.
+    0060  CD 68 03 22 04 05 CD 73 03 B7 CA AD 01 FE 2E C2    .h."...s........
+
+    Dump interrupted.
+
+
+
+
+
+
+
+
+
+-
+:TYSQ.A86 - TYSQ.ASM  -  Tutorial Message.
+
+
+
+	Type Squeezed File/ICUAP/July 1, 1984.
+
+		TYSQ [D:]FILE.EXT
+
+	will unsqueeze FILE.EXT and type it at the
+	console. The convention for squeezed files
+	is that EXT has the form ?Q?. Press any key
+	to stop the display.
+
+
+
+
+
+
+
+
+
+
+-
+:UNSQ.A86 - UNSQ.ASM  -  Description.
+
+UNSQ, in its versions for the Intel 8080 and the Intel 8086, was constructed
+to see how small USQ.COM could really be, if it were not compiled from "C"
+source code. It serves to restore a squeezed file to its original state, and
+will work for binary files as well as for ASCII files.
+
+As it happens, no doubt deliberately, the dictionary prefixed to the squeezed
+file can be used directly to decode the latter. Bits are shifted out of the
+squeezed data to the right, byte by byte. When one byte is exhausted the next
+is picked up, and so on. Rightshifting has its inconveniences (it complicates
+ordering squeezed data) but given the Intel byte order for double registers
+(low byte, high byte) which is also not lexcographic, byte pairs can be fetched
+with standard procedures to be rightshifted through a 16-bit register. This is
+no doubt an artifact of the "C" compiler.
+
+The dictionary consists of a series of pairs of byte pairs. The first is to be
+used if the incoming bit is 0, the second if it is 1. The use of each pair will
+depend on whether it is positive or negative. If negative, the low order byte
+is the complement of the coded character. If positive, it is the index of the
+next pair-pair to be consulted, using the next incoming bit.
+
+-
+SQ.COM seems to code a single byte, although not all possible bytes usually
+occur in a given file. In particular, it seems to code files as binary files
+even though they are really ASCII files. Thus terminal ^Z's are coded along
+with the rest of the file, when they are present. In order to know where the
+squeezed file ends, 100H is encoded as a special end-of-file symbol. Since it
+occurs only once an a given file, it will have one of the lowest frequencies.
+
+Since runs of bytes are replaced by a counter and a marker indicating that a
+run is present, this configuration has to be recognized when the file is
+unsqueezed. The byte 90H is used to mark repetition, the exact configuration
+being <byte><90H><count>. When 90H was actually part of the source file, as
+it often is in binary files, the count is zero. Runs of three or more are
+coded with 90H, <count> includes the byte which forms part of this triple.
+Thus, if bytes are dispatched as they are decoded, <count> has to be reduced
+by 1 for the run generator.
+
+Since no code for one byte in a Huffman code is the prefix for any other code,
+we know that the decoding for each byte has finished when we encounter it in
+the dictionary. The next incoming bit must belong to the next character, so
+that the correct decoding of one byte is essential for the decoding of all that
+follow. Erroneous bits can readily disrupt the decoding sequence.
+
+-
+The structure of a squeezed file seems to be:
+
+		<FF76H>		signal that the file is squeezed
+		<checksum>	two byte sum of all single bytes
+		<filename>	filename.ext of source file
+		<00H>		end of filename
+		<dsize>		number of bytes coded by SQ.COM
+		<squeezed>	the squeezed data
+		<trash>		to fill out the last record
+
+UNSQ.ASM will not overwrite another file of the same name as the source
+file, and it will erase the unsqueezed file that it is producing if the
+checksum cannot be verified. This avoids leaving a possibly defective
+unsqueezed file on the disk.
+
+-
+:UNSQ.A86 - UNSQ.ASM  -  Tutorial Message.
+
+
+	UNSQ.ASM will restore files which have been squeezed
+	by SQ.COM or some similar program.
+
+	    UNSQ [X:]FILE[.QQQ]
+
+	will read [X:]FILE.SQZ to produce [X:]FILE.UNS.
+
+
+
+
+
+
+
+
+
+
+
+
+
+-
+:UNSQ80.LIB
+
+;	-------------------------------------------------------------
+;	UNSQ.LIB is a library file to be used with Digital Research's
+;	ED.COM to insert the set of subroutines which it contains
+;	into another program. The purpose of these subroutines is to
+;	read text from a file which has been squeezed by a program
+;	such as SQ.COM (SIG/M 58.26).
+;
+;	UNSQ.LIB is divided into several sections, which can be left
+;	as they are, or integrated into the host program, according
+;	to your sense of orderliness. There are two subroutines that
+;	will be most likely to be called upon - unii and onsq. The
+;	first should be called for initialization, because it reads
+;	in the code directory and sets it up. It also separates out
+;	the file's checksum and the unsqueezed file name. The second
+;	is to be called each time that a character is to be taken out
+;	of the squeezed file.
+;
+;	UNSQ.LIB assumes that the host program contains the following
+;	three subroutines:
+;
+;		ibyt - which will deliver one character from an
+;		       external input stream each time it is called.
+;		       the external stream can be taken from memory,
+;		       from a buffer that is periodically replenished
+;		       from disk, or whatever.
+;
+;		ufil - which will dispose of the characters forming
+;		       the unsqueezed file name one by one. It might
+;		       ignore them, store them in some file control
+;		       block, or make some other use of them.
+;
+;		ferm - which will type a fatal error message on the
+;		       console and then return to CP/M - or take any
+;		       other action which is desired.
+;
+;		     UNSQ.LIB  Copyright (C) 1984
+;		    Universidad Autonoma de Puebla
+;			    July 14, 1984
+;
+;	[Harold V. McIntosh, 14 July 1984]
+;	-------------------------------------------------------------
+
+;	-------------------------------------------------------------
+;	Section 1.  Equivalences defining constants.
+;
+;			CR, LF are used in the messages, and are
+;			traditionally defined in each program. 
+;
+;			csiz is the expected maximum number of
+;			characters which have been coded; 256
+;			is appropriate if all possible bytes may
+;			have been encoded.
+;
+;			<idhi,idlo> = <FF76> but some other pair
+;			might sometimes be used to mark a squeezed
+;			file
+
+CR	equ	0DH
+LF	equ	0AH
+
+csiz	equ	256
+idhi	equ	0FFH
+idlo	equ	076H
+
+;	-----------------------------------------------------------
+;	Section 2.  Initialization.
+;
+;		<call unii> will initialize two necessary variables
+;		(rcnt, roco), then start reading the squeezed file.
+;		This file must previously have been opened, and its
+;		suitability checked - eg that it has extension ?Q?.
+;		It may even have already been loaded into memory.
+;		All interaction with it is through <call ibyt>, and
+;		the only requirement is that ibyt start reading the
+;		file from the beginning.
+;
+;		unii goes through the following sequence:
+;
+;			check squeezed marker <FF76>
+;			read and store checksum
+;			read, make available name for original file
+;			check the length of the code dictionary
+;			load and store the code dictionary
+;
+;		unii will offer a fatal error message if
+;
+;			the marker <idhi,idlo> is not present
+;			space will not accomodate the code table
+;
+;		unii requires two host subroutines:
+;
+;			ibyt returns the next byte from the source
+;			ufil disposes of the original file name
+;
+;		No assumptions should be made concerning conservation
+;		of the 8080 registers by unii.
+;
+;		unii will alter the following memory registers:
+;
+;			rcnt - repeated character - set to 0
+;			roco - count bits/byte - set to 1
+;			cksm - checksum - set to file's checksum
+;			dode - code table - loaded with dictionary
+
+;	Initializations.
+
+unii:	mvi	a,0
+	sta	rcnt		;repetition count
+	mvi	a,1
+	sta	roco		;bit rotation counter
+
+;	Set up code table. Squeezed files seem to begin with the
+;	hexadecimal word (FF76) stored in Intel byte order, which
+;	would not be likely to start an unsqueezed file.
+
+cota:	call	ibyt		;fetch one byte from input stream
+	cpi	idlo
+	jnz	cote		;mssg: 'not squeezed file'
+	call	ibyt		;fetch one byte from input stream
+	cpi	idhi
+	jz	rchk		;read checksum
+cote:	lxi	d,nsqz		;'not a squeezed file'
+	jmp	ferm		;fatal error message
+
+;	The "squeezed" marker is followed by a two-byte checksum,
+;	which is the simple sum of all the one-byte characters in
+;	the source file, carried as a two byte sum modulo 2**16.
+
+rchk:	call	iwor		;fetch two bytes from input stream
+	shld	cksm		;checksum
+
+;	Unsqueezed file name. It is an ASCII sequence, may be lower
+;	case if SQ.COM received it in response to a prompt, ending
+;	with a zero byte. Some trash may be present if SQ.COM wasn't
+;	used correctly. If the file name is to be used for something,
+;	such as defining an output file or checking the file type,
+;	this is the place to insert the appropriate code.
+
+luup:	call	ibyt		;fetch one byte from input stream
+	push	psw
+	call	ufil		;process unsqueezed filename
+	pop	psw
+	ora	a
+	jnz	luup
+
+;	Load code dictionary. It is preceded by its two-byte length,
+;	and consists of a series of pairs of two-byte addresses. For
+;	each bit in the code, select the first element (0) or the
+;	second (1) element of the pair. If the pair is positive, it
+;	is the table entry (code + 4*index) at which to continue with
+;	the next bit. If the pair is negative, it is the complement
+;	of the coded ASCII character (low order byte except for [end]).
+
+ldic:	call	iwor		;fetch two bytes from input stream
+	dad	h
+	dad	h
+	mov	c,l
+	mov	b,h
+	lxi	h,csiz
+	mov	a,l
+	sub	c
+	mov	a,h
+	sbb	b
+	jnc	ldii
+	lxi	d,ntab		;'insufficient dictionary'
+	jmp	ferm		;fatal error message
+
+ldii:	lxi	h,code		;decoding table
+ldij:	push	b
+	push	h
+	call	ibyt		;fetch one byte from input stream
+	pop	h
+	pop	b
+	mov	m,a
+	inx	h
+	dcx	b
+	mov	a,c
+	ora	b
+	jnz	ldij
+	ret
+
+;	----------------------------------------------------------
+;	Section 3.  Read next unsqueezed byte.
+;
+;			<call onby> will withdraw a sufficient
+;			number of bits from the source file to
+;			generate one byte, returning it in the
+;			accumulator. The end of the source file
+;			will be signified by c = 1; otherwise
+;			c = 0 will prevail. Reading of the source
+;			file may terminate before this condition
+;			is reached, for example if the source
+;			was an ASCII file terminating with ^Z,
+;			or a HEX file terminated by a final line.
+;
+;			The preservation of registers cannot be
+;			guaranteed; surround <call onby> with
+;			pushes and pops is such continuity is
+;			required.
+;
+;			onby will solicit the fatal error message
+;			subroutine if the [eof] marker signified
+;			by c = 1 has been reached without the
+;			checksum having balanced. This protection
+;			can be secured for files that were not
+;			read in their entirity by reading out the
+;			remaining bytes in a dummy loop.
+;
+;			onby alters the following memory registers:
+;
+;				lach - last character deposited
+;				rcnt - repetition count
+;				roco - rotating bit counter
+;				roby - rotating byte
+;				cksm - checksum
+
+;	Type unsqueezed code. Beware of the [end] marker,
+;	and also the repeat marker 90H which occurs in the
+;	combination <char><90H><count>. When count is zero,
+;	90H itself is intended; otherwise <char> is to be
+;	repeated <count> times, including the occurrence just
+;	before 90H was seen.
+
+onsq:	lda	rcnt		;repetition count
+	ora	a
+	jnz	onsr
+	call	dnch		;decode next character
+	jc	vchk		;verify the checksum
+	cpi	090H		;repeat last character
+	jnz	onsu		;normal character
+	call	dnch		;decode next character
+	ora	a
+	jz	onss
+	dcr	a
+onsr:	dcr	a
+	sta	rcnt		;repetition count
+	lda	lach
+	jmp	achk
+
+onss:	mvi	a,090H
+	jmp	achk
+
+onsu:	sta	lach		;last character typed
+	jmp	achk
+
+;	Decode next character.
+
+dnch:	lxi	h,code		;decoding table
+dncr:	call	ibit		;read next bit
+	jnc	dncs		;skip for 1, stay for 0
+	inx	h
+	inx	h
+dncs:	mov	e,m		;get next offset
+	inx	h
+	mov	d,m
+	mov	a,d
+	cpi	0FEH		;FEFF means [end]
+	jz	dnct
+	ora	a
+	jp	dncu		;p means new offset
+	mov	a,e		;m means complemented char
+	cma
+	stc
+	cmc
+	ret
+
+dnct:	stc			;flag [end] with carry bit
+	ret
+
+;	Calculate <code>+4*<offset>.
+
+dncu:	lxi	h,code		;decoding table
+	dad	d
+	dad	d
+	dad	d
+	dad	d
+	jmp	dncr
+
+;	Read one bit at a time.
+
+ibit:	push	h
+	lxi	h,roco		;bit rotation counter
+	dcr	m
+	jnz	ibiu
+	mvi	m,8
+	call	ibyt		;fetch one byte from input stream
+	sta	roby		;rotating byte
+ibiu:	lda	roby		;rotating byte
+	rar
+	sta	roby		;rotating byte
+	pop	h
+	ret
+
+;	Read one word.
+
+iwor:	call	ibyt		;fetch one byte from input stream
+	mov	l,a
+	push	h
+	call	ibyt		;fetch one byte from input stream
+	pop	h
+	mov	h,a
+	ret
+
+;	Accumulate checksum.
+
+achk:	lxi	h,cksm
+	mov	b,a
+	mov	a,m
+	sub	b
+	mov	m,a
+	inx	h
+	mov	a,m
+	sbi	0
+	mov	m,a
+	mov	a,b
+	stc
+	cmc
+	ret
+
+;	Verify the checksum.
+
+vchk:	lhld	cksm		;checksum
+	mov	a,l
+	ora	h
+	stc
+	rz			;return to CP/M
+	lxi	d,chno		;'Checksum failure.'
+	jmp	ferm		;fatal error message
+
+;	-----------------------------------------------------------
+;	Section 4.  Host subroutines.
+;
+;			The following subroutines must be provided
+;			by the host program:
+;
+;				ibyt - deliver the next byte from
+;				the source program, in register A,
+;				on each call. Need not preserve any
+;				8080 registers.
+;
+;				ufil - must absorb one byte from
+;				register A on each call. These bytes
+;				will be the information that is
+;				nominally the name of the source
+;				file, SOURCE.EXT, including the dot.
+;				ufil should be prepared for possible
+;				variants, however. ufil will be given
+;				final zero byte to signal the end of
+;				the bytestream it will receive. Of
+;				course, ufil could be imbedded in
+;				place of a call to it.
+;
+;				ferm - send a fatal error message to
+;				the console. Normally control would
+;				return to CP/M, but some other action
+;				may be taken.
+
+ibyt:	ret			;fetch byte from the input stream
+ufil:	ret			;process unsqueezed filename
+ferm:	ret			;fatal error message
+
+;	-------------------------------------------------------------
+;	Section 5.  Messages and memory locations used by the program.
+
+ntab:	db	CR,LF,'Insufficient dictionary space.$'
+nsqz:	db	CR,LF,'Not a squeezed file.$'
+chno:	db	CR,LF,'Checksum failure.$'
+
+lach:	ds	1		;last character typed
+rcnt:	ds	1		;repetition count
+roco:	ds	1		;rotating bit counter
+roby:	ds	1		;rotating byte
+cksm:	ds	2		;checksum
+code:	ds	4*csiz		;decoding table
+
+	end
+-
+:UNSQ86.LIB
+
+;	-------------------------------------------------------------
+;	UNSQ.LIB is a library file to be used with Digital Research's
+;	ED.CMD to insert the set of subroutines which it contains
+;	into another program. The purpose of these subroutines is to
+;	read text from a file which has been squeezed by a program
+;	such as SQ.COM (SIG/M 58.26).
+;
+;	UNSQ.LIB is divided into several sections, which can be left
+;	as they are, or integrated into the host program, according
+;	to your sense of orderliness. There are two subroutines that
+;	will be most likely to be called upon - unii and onsq. The
+;	first should be called for initialization, because it reads
+;	in the code directory and sets it up. It also separates out
+;	the file's checksum and the unsqueezed file name. The second
+;	is to be called each time that a character is to be taken out
+;	of the squeezed file.
+;
+;	UNSQ.LIB assumes that the host program contains the following
+;	three subroutines:
+;
+;		ibyt - which will deliver one character from an
+;		       external input stream each time it is called.
+;		       the external stream can be taken from memory,
+;		       from a buffer that is periodically replenished
+;		       from disk, or whatever.
+;
+;		ufil - which will dispose of the characters forming
+;		       the unsqueezed file name one by one. It might
+;		       ignore them, store them in some file control
+;		       block, or make some other use of them.
+;
+;		ferm - which will type a fatal error message on the
+;		       console and then return to CP/M - or take any
+;		       other action which is desired.
+;
+;		     UNSQ.LIB  Copyright (C) 1984
+;		    Universidad Autonoma de Puebla
+;			    July 14, 1984
+;
+;	[Harold V. McIntosh, 14 July 1984]
+;	-------------------------------------------------------------
+
+;	-------------------------------------------------------------
+;	Section 1.  Equivalences defining constants.
+;
+;			CR, LF are used in the messages, and are
+;			traditionally defined in each program. 
+;
+;			csiz is the expected maximum number of
+;			characters which have been coded; 256
+;			is appropriate if all possible bytes may
+;			have been encoded.
+;
+;			<iden> = <FF76> but some other pair
+;			might sometimes be used to mark a squeezed
+;			file
+
+CR	equ	0DH
+LF	equ	0AH
+
+csiz	equ	256
+iden	equ	0FF76H
+
+;	-----------------------------------------------------------
+;	Section 2.  Initialization.
+;
+;		<call unii> will initialize two necessary variables
+;		(rcnt, roco), then start reading the squeezed file.
+;		This file must previously have been opened, and its
+;		suitability checked - eg that it has extension ?Q?.
+;		It may even have already been loaded into memory.
+;		All interaction with it is through <call ibyt>, and
+;		the only requirement is that ibyt start reading the
+;		file from the beginning.
+;
+;		unii goes through the following sequence:
+;
+;			check squeezed marker <FF76>
+;			read and store checksum
+;			read, make available name for original file
+;			check the length of the code dictionary
+;			load and store the code dictionary
+;
+;		unii will offer a fatal error message if
+;
+;			the marker <iden> is not present
+;			space will not accomodate the code table
+;
+;		unii requires two host subroutines:
+;
+;			ibyt returns the next byte from the source
+;			ufil disposes of the original file name
+;
+;		No assumptions should be made concerning conservation
+;		of the 8080 registers by unii.
+;
+;		unii will alter the following memory registers:
+;
+;			rcnt - repeated character - set to 0
+;			roco - count bits/byte - set to 1
+;			cksm - checksum - set to file's checksum
+;			dode - code table - loaded with dictionary
+
+;	Initializations.
+
+unii:	mov	rcnt,0			;repetition count
+	mov	roco,1			;bit rotation counter
+
+;	Set up code table. Squeezed files seem to begin with the
+;	hexadecimal word (FF76) stored in Intel byte order, which
+;	would not be likely to start an unsqueezed file.
+
+cota:	call	iwor			;fetch one byte from input stream
+	cmp	bx,iden
+	jz	rchk			;mssg: 'not squeezed file'
+	mov	dx,(offset nsqz)	;'not a squeezed file'
+	jmp	ferm			;fatal error message
+
+;	The "squeezed" marker is followed by a two-byte checksum,
+;	which is the simple sum of all the one-byte characters in
+;	the source file, carried as a two byte sum modulo 2**16.
+
+rchk:	call	iwor			;fetch two bytes from input stream
+	mov	cksm,bx			;checksum
+
+;	Unsqueezed file name. It is an ASCII sequence, may be lower
+;	case if SQ.COM received it in response to a prompt, ending
+;	with a zero byte. Some trash may be present if SQ.COM wasn't
+;	used correctly. If the file name is to be used for something,
+;	such as defining an output file or checking the file type,
+;	this is the place to insert the appropriate code.
+
+luup:	call	ibyt			;fetch one byte from input stream
+	push	ax
+	call	ufil			;process unsqueezed filename
+	pop	ax
+	or	al,al
+	jnz	luup
+
+;	Load code dictionary. It is preceded by its two-byte length,
+;	and consists of a series of pairs of two-byte addresses. For
+;	each bit in the code, select the first element (0) or the
+;	second (1) element of the pair. If the pair is positive, it
+;	is the table entry (code + 4*index) at which to continue with
+;	the next bit. If the pair is negative, it is the complement
+;	of the coded ASCII character (low order byte except for [end]).
+
+ldic:	call	iwor			;fetch two bytes from input stream
+	cmp	bx,(offset csiz)
+	jc	ldii
+	jz	ldii
+	mov	dx,(offset ntab)	;'insufficient dictionary'
+	jmp	ferm			;fatal error message
+
+ldii:	add	bx,bx
+	add	bx,bx
+	mov	cx,bx
+	mov	si,(offset code)	;decoding table
+ldij:	push	cx
+	push	si
+	call	ibyt			;fetch one byte from input stream
+	mov	[si],al
+	pop	si
+	pop	cx
+	inc	si
+	loop	ldij
+	ret
+
+;	----------------------------------------------------------
+;	Section 3.  Read next unsqueezed byte.
+;
+;			<call onby> will withdraw a sufficient
+;			number of bits from the source file to
+;			generate one byte, returning it in the
+;			accumulator. The end of the source file
+;			will be signified by c = 1; otherwise
+;			c = 0 will prevail. Reading of the source
+;			file may terminate before this condition
+;			is reached, for example if the source
+;			was an ASCII file terminating with ^Z,
+;			or a HEX file terminated by a final line.
+;
+;			The preservation of registers cannot be
+;			guaranteed; surround <call onby> with
+;			pushes and pops is such continuity is
+;			required.
+;
+;			onby will solicit the fatal error message
+;			subroutine if the [eof] marker signified
+;			by c = 1 has been reached without the
+;			checksum having balanced. This protection
+;			can be secured for files that were not
+;			read in their entirity by reading out the
+;			remaining bytes in a dummy loop.
+;
+;			onby alters the following memory registers:
+;
+;				lach - last character deposited
+;				rcnt - repetition count
+;				roco - rotating bit counter
+;				roby - rotating byte
+;				cksm - checksum
+
+;	Type unsqueezed code. Beware of the [end] marker,
+;	and also the repeat marker 90H which occurs in the
+;	combination <char><90H><count>. When count is zero,
+;	90H itself is intended; otherwise <char> is to be
+;	repeated <count> times, including the occurrence just
+;	before 90H was seen.
+
+onsq:	mov	al,rcnt			;repetition count
+	or	al,al
+	jnz	onsr
+	call	dnch			;decode next character
+	jc	vchk			;verify the checksum
+	cmp	al,090H			;repeat last character
+	jnz	onsu			;normal character
+	call	dnch			;decode next character
+	or	al,al
+	jz	onss
+	dec	al
+onsr:	dec	al
+	mov	rcnt,al			;repetition count
+	mov	al,lach
+	jmp	achk
+
+onss:	mov	al,090H
+	jmp	achk
+
+onsu:	mov	lach,al			;last character typed
+;	jmp	achk
+
+;	Accumulate checksum.
+
+achk:	mov	ah,0
+	sub	cksm,ax
+	stc
+	cmc
+achr:	ret
+
+;	Verify the checksum.
+
+vchk:	cmp	cksm,0000		;checksum
+	stc
+	jz	achr
+	mov	dx,(offset chno)	;'Checksum failure.'
+	jmp	ferm			;fatal error message
+
+;	Decode next character.
+
+dnch:	mov	bx,(offset code)	;decoding table
+dncr:	call	ibit			;read next bit
+	jnc	dncs			;skip for 1, stay for 0
+	inc	bx
+	inc	bx
+dncs:	mov	ax,[bx]			;get next offset
+	cmp	ax,0FEFFH		;FEFF means [end]
+	jz	dnct
+	or	ax,ax
+	jns	dncu			;p means new offset
+	not	al			;m means complemented char
+	stc
+	cmc
+	ret
+
+dnct:	stc				;flag [end] with carry bit
+	ret
+
+;	Calculate <code>+4*<offset>.
+
+dncu:	mov	bx,(offset code)	;decoding table
+	add	ax,ax
+	add	ax,ax
+	add	bx,ax
+	jmp	dncr
+
+;	Read one bit at a time.
+
+ibit:	dec	roco			;bit rotation counter
+	jnz	ibiu
+	mov	roco,8
+	call	ibyt			;fetch one byte from input stream
+	mov	roby,al			;rotating byte
+ibiu:	rcr	roby,1			;rotating byte
+	ret
+
+;	Read one word.
+
+iwor:	call	ibyt			;fetch one byte from input stream
+	mov	bl,al
+	push	bx
+	call	ibyt			;fetch one byte from input stream
+	pop	bx
+	mov	bh,al
+	ret
+
+;	-----------------------------------------------------------
+;	Section 4.  Host subroutines.
+;
+;			The following subroutines must be provided
+;			by the host program:
+;
+;				ibyt - deliver the next byte from
+;				the source program, in register A,
+;				on each call. Need not preserve any
+;				8080 registers.
+;
+;				ufil - must absorb one byte from
+;				register A on each call. These bytes
+;				will be the information that is
+;				nominally the name of the source
+;				file, SOURCE.EXT, including the dot.
+;				ufil should be prepared for possible
+;				variants, however. ufil will be given
+;				final zero byte to signal the end of
+;				the bytestream it will receive. Of
+;				course, ufil could be imbedded in
+;				place of a call to it.
+;
+;				ferm - send a fatal error message to
+;				the console. Normally control would
+;				return to CP/M, but some other action
+;				may be taken.
+
+ibyt:	ret		;fetch byte from the input stream
+ufil:	ret		;process unsqueezed filename
+ferm:	ret		;fatal error message
+
+;	-------------------------------------------------------------
+;	Section 5.  Messages and memory locations used by the program.
+
+ntab	db	CR,LF,'Insufficient dictionary space.$'
+nsqz	db	CR,LF,'Not a squeezed file.$'
+chno	db	CR,LF,'Checksum failure.$'
+
+lach	rb	1			;last character typed
+rcnt	rb	1			;repetition count
+roco	rb	1			;rotating bit counter
+roby	rb	1			;rotating byte
+cksm	rw	1			;checksum
+code	rb	4*csiz			;decoding table
+
+	end
+-
+:Bibliography.
+
+
+	"Dr. Electric"
+	RCPM and RPC Systems: An Overview
+	Microsystems, v.5, #6 (June 1984)
+	(ISSN #0199-7955)
+
+	Donald E. Knuth
+	The Art of Computer Programming
+	Volume 1 / Fundamental Algorithms
+	Addison-Wesley Publishing Company
+	Reading Massachussetts - 1973 (2 ed)
+	ISBN 0-201-03809-9
+
+	Donald E. Knuth
+	The Art of Computer Programming
+	Volume 3 / Sorting and Searching
+	Addison Wesley Publishing Company
+	Reading Massachussetts - 1973
+
+
+-
+
+	J.P. Tremblay and P.G. Sorenson
+	An Introduction to Data Structures with Applications
+	McGraw-Hill Book Company
+	New York New York - 1976
+
+-
+:[end]
+[Harold V. McIntosh, 24 July 1984]
+

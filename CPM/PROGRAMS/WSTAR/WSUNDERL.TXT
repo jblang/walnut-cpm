@@ -1,0 +1,161 @@
+           Underlining in WordStar with a Dot Matrix Printer
+
+Here's how to set WordStar up so that it will give you continuous
+underlining (rather than the broken dash kind) whenever you want it.  I
+shall use WordStar 3.3 as the example (the drill for version 3.0 is
+somewhat different).  What you have to do is pick out one of the Printer
+Codes for which you have no use and redefine it so that it will toggle
+continuous underlining on and off.  A suitable one is the ^PY that
+WordStar provides for changing your ribbon color, which you are unlikely
+to mind giving up.  And you can make the change, by running either
+WINSTALL or DDT.  I'll describe the former method, because most people
+probably have some acquaintance with it.  <CR> means: enter a Return.
+
+As a safety precaution make a copy of your present WordStar file, and
+then work on that copy.  Then, if things go wrong, you still have your
+original WordStar file safe and sound.  A simple way to do that is to
+rename the file with:
+
+A>ren oldws.com=ws.com  <CR>
+A>pip ws.com=oldws.com  <CR>
+
+Now work exclusively with WS.COM.  Start by passing through the early
+screens of WINSTALL until you reach the Installation Menu, where you
+again choose between two methods of achieving your goal.  I shall
+describe the shorter and quicker one.
+
+At the Installation Menu you are invited to select one of several
+letters.  Don't take any of them.  Instead do something that you are not
+told about at all - hit the "+" key.
+
+1. This will bring up a screen called "Custom Modification routine".
+Hit <CR>.
+
+2. You will be asked for a starting address.  Reply by entering the
+label:
+
+        :RIBBON     [You must start with that colon]
+
+3. You will be told you are at address 6E3h.  ["h" is not part of the
+address; it indicates that the numerals, like all the numerals in this
+operation, are in hexadecimal notation.]  And below will be a row of 16
+numerals.  You will be asked if this is OK.  It is, so enter Y.
+
+4. The next screen may look terrifying, if you have not been in this
+sort of country before.  Not to worry.  Just follow these instructions
+blindly - but with your eyes wide open, to make sure that you enter
+things exactly as below.
+
+Where the cursor is flashing enter:
+
+        ,03   <CR>   [Put that comma in each time]
+        ,1B   <CR>
+        ,2D   <CR>
+        ,31   <CR>
+        .     <CR>   [No comma that time.  Just the period]
+
+5. Then enter <CR> to continue, and repeat the pattern of 2.- 4. above,
+but entering different values.  This time give as your starting address:
+
+        :RIBOFF           [Don't forget that colon]
+
+6. You will be told you are at address 6E8h.  That is OK, so type Y.
+
+7. Now the values to be entered at the cursor are:
+
+        ,03   <CR>
+        ,1B   <CR>
+        ,2D   <CR>
+        ,30   <CR>
+        .     <CR>
+
+8. Next type X to leave the Modification routine.
+
+   Then type X again to leave the Installation Menu.
+   Then type A to save the changes you have made.
+
+** NOTE **  The hexadecimal values given in 4. and 7. above are those
+for Epson printers, for which the Underline Mode ON command is: <ESC>-1,
+and for OFF is: <ESC>-0.  If you have a printer with different ON and
+OFF commands, the hexadecimal values will have to be changed
+correspondingly.
+
+The job is almost done, and you are now back at the A> or B>, or
+wherever you started.  From now on, when writing a file use ^PY in the
+way that you previously used ^PS, and in the printed version of what you
+have written the expressions that you marked will have continuous
+underlining below them.  At the same time, you can go on using ^PS just
+as you do now whenever you want to produce the broken dash kind of
+underlining.
+
+There is just one more thing you have to remember when you are using
+this method of underlining.  Dot matrix printers are very literal
+creatures, and when they are in Underline Mode they underline
+everything, including spaces between words, and also the blank space in
+the left margin.  If you want "The Wind in the Willows" (the whole title
+continuously underlined), "^PYThe Wind in the Willows^PY" will give it
+to you.  If you want "The Wind in the Willows" (each word separately
+underlined), you will have to write it as "^PYThe^PY ^PYWind^PY ^PYin^PY
+^PYthe^PY ^PYWillows^PY".
+
+And if, when you are using the first way, the book title happens to run
+over from the end of one line on your screen to the beginning of the
+next, in the printed version the blank space in the left margin of that
+second line will get underlined too.  You can prevent that by putting in
+a closing ^PY at the end of the first line and a new opening ^PY at the
+beginning of the next.  But it is a nuisance to have to remember that on
+each occasion, and there is a cleaner way that I have been using for a
+long time, that I recommend.  It consists simply of telling WordStar
+that you are not going to have any left margin at all, and then secretly
+telling your printer to put it back again.
+
+1. You remove the margin from WordStar by reducing the Page Offset to
+zero with the dot command: .PO 0.  If it is worth your while, you could
+change your default Page Offset to that; and then you wouldn't have to
+think about it each time.
+
+2. To get the printer to put the margin back again you have to run a
+very short file in Basic before giving the command to print.  I call the
+file LMARG.BAS; and this is all it consists of:
+
+10 LPRINT CHR$(27)"l"CHR$(10)
+20 SYSTEM
+
+If you don't know what that means, it doesn't matter.  It tells the
+printer to put in a left margin of 10 characters.  And if you don't know
+how to write and save that to disk in Basic, get a friend who does know
+to do it for you.
+
+Make sure that you have MBASIC.COM and LMARG.BAS on the same disk as
+your WordStar files.  Now, when you have finished writing your file in
+WordStar and are ready to print it, first turn on the printer and then
+from the Opening Menu choose:
+
+"R Run a program" and enter: "mbasic lmarg  <CR>".  The Basic program
+will run, set the margin on the printer and return you to the Opening
+Screen where you give the command P and start printing as usual.
+
+That may all sound very complicated.  But remember that you have to do
+it only once.  Thereafter, whenever you want to print anything and have
+the underlining (or some of it) continuous, all you have to do is: (i)
+to insert the .PO 0 command at the beginning of your file.
+
+  (ii) to enclose the expressions to be continuously underlined within a
+^PY . . . .^PY command.
+
+  (iii) when you are ready to print, to give those final R and P
+commands.
+
+If you are satisfied with the results, you can delete your old WordStar
+file (OLDWS.COM).  If you are not satisfied delete the one you have been
+playing around with (WS.COM), and rename OLDWS.COM as WS.COM.  You will
+have lost nothing but some time and trouble.
+
+Postscript.  To any of you who are using one of those new-fangled MS-DOS
+Kaypros: the WINSTALL procedure for you is exactly the same as that I
+have described for the CP/M version, except that the starting addresses
+you will be given for RIBBON and RIBOFF are different (they are 793h and
+798h).  All the steps you have to take are just as I have given them.
+
+- Tony Woozley
+

@@ -1,0 +1,322 @@
+
+; B5NS-6.INS - BYE5 insert for North Star Horizon or Advantage	01/30/86
+;
+;			 Uses 8251 I/O
+;
+;		Note:  This is an insert, not an overlay
+;  This version is for the North Star Horizon and Advantage computers.
+;  
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+; 01/30/86  Inserted extra code in LOADBD to change the baud rate
+;           of the 8251 on the NorthStar Horizon standart serial
+;           port. This is acomplished by reseting and telling
+;           the 8251 to use x64 clock rate (for 300) or x16 clock   
+;           rate (for 1200). This is done automatically when the
+;           desired port is straped for 1200 baud operation at the
+;           dip hedder.  Also added equates HORSTAN in order to use
+;           the Horizon stadart serial port and MD300 to select
+;           the x64 mode in the 8251            - Eddy Salvador
+;
+; 11/09/85  Made BDPORT relative to PORT for when PORT is changed to
+;	    one of the other 3 HSIO-4 ports.  Changed a typo from "0" to
+;	    "-" which calculates PORT for Advantage.  Added some explan-
+;	    atory comments.			- Don Appleby
+;
+; 10/10/85  Written for use with BYE5.	Excerpts from I2NA-1, I2NS-2 and
+;	    work done by Don Appleby.		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;-----------------------------------------------------------------------
+;
+; Equates
+;
+NO	EQU	0
+YES	EQU	NOT NO
+;
+HORSTAN EQU     YES             ; Yes for North Star Horizon standart serial
+                                ; port
+HORIZON	EQU	NO		; Yes for North Star Horizon with 4-HSIO
+ADVANTG	EQU	NO		; Yes for North Star Advantage
+;
+; (Be sure clock header in locaton 3A is configured with pins connected
+; 1-2, 3-4, 5-6, 7-10, 8-9, 11-12, 13-14 & 15-16 and remove header at
+; location 1A on the selected SIO board for terminal configuraton if
+; ADVANTG is YES.)
+;-----------------------------------------------------------------------
+;-----------------------------------------------------------------------
+; If HORSTAN = YES strap the baud rate dip hedder for 1200 baud operation
+; on the desired port
+;-----------------------------------------------------------------------
+;***********************************************************************  
+;
+; Baud rate port equates for NorthStar HSIO-4 board
+;
+	 IF	HORIZONŠPORT	EQU	012H		; Here are the HSIO-4 (12H,16H,1AH or 1EH)
+MDCTL1	EQU	PORT+1		; Control port
+BDPORT	EQU	PORT-2		; Baudrate port (change PORT as appropriate)
+;
+;
+; Baudrates for North Star Horizon with HSIO-4 serial board
+;
+BD300	EQU	6		; 300 bps setting
+BD1200	EQU	4		; 1200 bps setting
+BD2400	EQU	3		; 2400 bps setting
+BD9600	EQU	1		; 9600 bps setting
+BD19200	EQU	0		; 19200 bps setting
+	 ENDIF			; HORIZON
+;
+; Baud rate port equates for NorthStar Standart serial port
+; Change the port equate as required.
+
+	 IF	HORSTAN
+PORT	EQU	012H		; Data port 
+MDCTL1	EQU	PORT+1		; Control port
+BDPORT  EQU     PORT-2          ; There isn't one but we need the equate so
+                                ; tha we won't get an error while compiling
+;
+; Baudrates for North Star Horizon, Only 1200 and 300 are used the rest
+; is ignored because the 8251 can not be made to make miracles.
+;
+BD300	EQU	6		; 300 bps setting
+BD1200	EQU	4		; 1200 bps setting
+BD2400	EQU	3		; 2400 bps setting
+BD9600	EQU	1		; 9600 bps setting
+BD19200	EQU	0		; 19200 bps setting
+	 ENDIF			; HORIZON
+;
+;
+; Baud rate port equates for NorthStar Advantage SIO boards
+;
+	 IF	ADVANTG
+PORT	EQU	60H-(10H*SLOT)	; Modem data port (1,2,3,4,5 or 6 for SLOT)
+MDCTL1	EQU	PORT+1		; Modem control port
+BDPORT	EQU	PORT+8		; Modem baudrate port
+;
+;
+; Baudrates for North Star Advantage
+;
+BD300	EQU	040H		; 300 bps setting
+BD1200	EQU	070H		; 1200 bps setting
+BD2400	EQU	078H		; 2400 bps setting
+BD9600	EQU	07EH		; 9600 bps setting
+BD19200	EQU	07FH		; 19200 bps setting
+	 ENDIF			; ADVANTG
+;
+;
+MDRCV	EQU	02H		; Modem receive ready bit
+MDSND	EQU	01H		; Modem send ready bit
+RESET	EQU	40H		; Framing, overrun and parity errorsŠ;
+MDCOM	EQU	37H		; RTS, reset flags, RCV, TX, set DTR
+MDMODE	EQU	80H		; Insures 8251 is out of mode, DTR
+MDRSET	EQU	42H		; Resets USART for additional commands
+MDSET1	EQU	4EH		; 1 stop bit, no parity, 8 bits, x16
+MD300  	EQU     4FH             ; 1 stop bit, no parity, 8 bits, x64
+;-----------------------------------------------------------------------
+;***********************************************************************
+;
+;                          END OF CONFIG
+;***********************************************************************
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Get status
+	ANI	80H		; Check if carrier is on
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	MDCTL1		; To insure phone is disconnected
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until 2 seconds is up
+;
+	POP	B		; Restore the 'BC' register values
+	MVI	A,MDMODE	; Insure 8251 is out of mode, DTR on
+	OUT	MDCTL1
+	XTHL			; Small delay to complete command
+	XTHL
+	MVI	A,MDRSET	; Reset the 8251 for new command
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,MDSET1	; Set stop pulse, no parity, 8 bits, x16
+	OUT	MDCTL1
+	XTHL			; Small delay to complete command
+	XTHL
+	MVI	A,MDCOM		; Error reset, RCV, DTR, TX ready
+	OUT	MDCTL1
+	XTHL			; Small delay to complete command
+	XTHL
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize modem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;Š;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	MDRCV		; Got a character?
+	RZ			; Return if none
+;
+	IN	MDCTL1		; Get status again
+	ANI	RESET		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,17H		; Reset error flags
+	OUT	MDCTL1
+	XRA	A		; Return false
+	RET
+;...
+;
+;
+MDINST1:ORI	0FFH		; We have a character
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTST:IN	MDCTL1
+	ANI	MDSND
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;ŠMDSTOP:	MVI	A,10H		; DTR low hangs up phone, keep DTR low
+	OUT	MDCTL1		;   so will not auto-answer at any time
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,BD300		; Setup for 300 bps
+	JMP	LOADBD
+;.....
+;
+;
+SET1200:MVI	A,BD1200	; Setup for 1200 bps
+	JMP	LOADBD
+;.....
+;
+;
+SET2400:MVI	A,BD2400	; Setup for 2400 bps
+;
+
+LOADBD:	
+        IF      HORSTAN
+       
+        CPI     BD300
+        JZ      BPS2            ; If 300 goto BPS2
+        CPI     BD1200
+        JZ      BPS1            ; If 1200 goto BPS1
+
+; If the required baud rate change was not for 1200 or 300
+; leave the baud rate as it was and
+; just exit gracefully.......
+;                |
+;                V
+
+GETOUT:
+        IN      PORT
+        IN      PORT            ; Clear any garbage left
+        XRA     A               ; Show change
+        RET                     ; Exit 
+
+BPS1:                           ; Entry point for 1200 baud
+        MVI     A,MDMODE        ; Insures 8251 is out of mode	       
+        OUT     MDCTL1          ; Out with it				
+        XTHL
+        XTHL                    ; Small wait
+        MVI     A,MDRSET        ; Resets USART for additional commands
+	OUT     MDCTL1Š	XTHL
+	XTHL
+	MVI  	A,MDSET1	;1 Stop	bit, no parity, 8 bits, x16
+	OUT     MDCTL1		
+	XTHL
+	XTHL
+	MVI     A,MDCOM    	; RTS, Reset flgs, RCV, TX, set DTR
+        OUT	MDCTL1       
+        XTHL
+        XTHL
+        JMP 	GETOUT
+BPS2: 				; Entry point for 300
+	MVI	A,MDMODE
+        OUT     MDCTL1
+        XTHL
+   	XTHL
+	MVI	A,MDRSET
+	OUT     MDCTL1
+	XTHL
+	XTHL
+	MVI	A,MD300       	; 1 stop bit, no parity, 8 bits, x64
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,MDCOM
+	OUT     MDCTL1
+	XTHL	
+	XTHL
+	JMP     GETOUT
+       
+        ENDIF                  ; Final resting place of this rutine
+
+
+
+; This one is used by equates HORIZON and ADVANTG
+
+        OUT	BDPORT
+	XTHL
+	XTHL
+	MVI	A,MDCOM		; Reset RTS, flags, DTR, enable R/T
+	OUT	MDCTL1
+	XTHL			; Small delay to complete command
+	XTHL
+	IN	PORT		; Clear decks for action
+	IN	PORT
+	XRA	A		; Show baudrate change was successful
+	RET
+;.....
+;
+;			       end B5NS-6.INS
+;-----------------------------------------------------------------------
+

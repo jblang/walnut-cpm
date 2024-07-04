@@ -1,0 +1,57 @@
+                   Secure Systems under NZ-COM
+                          by Joe Wright
+                            13 Jul 88
+
+NZCPR.ZRL  is a version of ZCPR34 with an extended  and  somewhat 
+elaborate  security system built in.  It works around the  states 
+of DRVEC, MAXDRV, MAXUSR, WHEEL, Z3NDIR and PASSWORD.
+
+A secure system under Z34 will usually have some directory  areas 
+'open' to the user and others not.  Try to think of the system as 
+a  big  box  of secure directories with a  smaller  box  of  open 
+directories inside it.
+
+User #
+
+15
+...
+ 5
+ 4
+___________________
+                  |
+ 3                |
+ 2                |
+ 1   The Box      |
+ 0                |
+                  |
+Drive     A    B  |  C    D    E    F    ...
+
+By setting MAXDRV to B (2) and MAXUSR to 3 we allow  unrestricted 
+access  from  A0  through B3.  Either DIR or  DU  references  are 
+permitted within the box.  All others are somehow protected.  The 
+DRVEC  word 'protects' any drive with its associated  bit  clear, 
+even if it is within the 'box'.  
+
+All directories outside the box are inaccessable unless they have 
+a name in the current Z3NDIR.  With the WHEEL off, the user  must 
+specify the directory by NAME.  DU reference is not allowed.   If 
+the  NAME  has an associated PASSWORD, the user  must  type  this 
+correctly as well to gain any access to the directory.
+
+With  the WHEEL on, we are still restricted to those  directories 
+with NAMES although DU reference to NAMED directories is  allowed 
+and no password checking is required.
+
+You can create a very secure system by reducing the 'box' to  A0:  
+The  user  has access to all NAMED directories outside  the  box, 
+unless they are passworded and he doesn't know the password.
+
+You  may  give  certain users special access to  other  areas  by 
+allowing CD to change the current Z3NDIR.  You can allow 'almost' 
+anything  without  giving him the WHEEL (Don't  give  anyone  the 
+WHEEL. That belongs to you).
+
+I hope that Jay Sage is able to give a more coherent  explanation 
+of  all  this  in the up-coming  ZCPR34  documentation.   In  the 
+meantime, simply try it out.
+

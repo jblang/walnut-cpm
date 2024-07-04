@@ -1,0 +1,568 @@
+
+=================================================================
+                          MEX-EZ2.DOC
+
+                            09/03/84
+
+                         STEVE SANDERS
+
+PRO-COM DATABASE (813) 937-3608  PRO-COM TECH RCPM (813) 937-6829
+
+=================================================================
+
+NOTE: This is MEX-EZ1 & MEX-EZ2.DOC plus some new stuff in 1 file.
+
+-->   MEX111 requires a new on-line help file called MEX.HLP, the
+old HELP.MEX file will not work with the new version and a lot of
+new commands  have been added  that were  not covered  in the old
+help file.
+
+So  you  got MEX111  and can't quite figure out  what  steps  are 
+necessary to input the phone numbers and such...
+
+Well,  you are not alone!   I have most of it figured out after a 
+month of playing with it and will pass on what little I do know.
+
+ENTRY OF PHONE LIBRARY
+======================
+
+From  the  MEX prompt enter "PHONE  id=number", like this:
+
+          [MEX] A0>>phone a=1-555-111-1111
+
+                       or
+
+          [MEX] A0>>phone alan=997-0020
+
+The "id" string may be up to twelve characters or as few as one.
+
+By entering "PHONE" now, the following will be displayed:
+
+          [MEX] A0>>phone
+
+          A       = 1-555-111-1111
+          ALAN    = 997-0020
+
+You may also put an optional baudrate value behind the phone # if
+different than the default value.
+
+PHONE A=1-555-111-1111 1200
+PHONE ALAN=997-0020 300
+
+The simplest way to enter a pre-done library is to make up a file 
+to be "READ" in by MEX.   Use Wordstar in non-doc mode and edit a 
+file called PHONE.PHN, enter the following:
+
+PHONE A=1-555-111-1111
+PHONE ALAN=997-0020
+PHONE 3=555-1212
+PHONE JOE=1-212-999-0000
+
+Fill in as many as you want up to a maximum of 30 numbers.   Then 
+bring up MEX and enter:
+
+          [MEX] A0>>read phone.phn
+
+You  will then see MEX "read" in each of the phone command  lines 
+until  it  reaches the end of the phone.phn file.   You  may  now 
+check the newly installed phone library by entering:
+
+          [MEX] A0>>phone
+
+To make this new library a permanent part of your MEX,  just  use 
+the  CLONE  command now to copy an image of MEX from memory  with 
+the library installed:
+
+          [MEX] A0>>clone mex1.com
+
+You will now have a new file called MEX1.COM which will have  the 
+phone library already in it.  
+
+SAVING PHONE .PHN FILES
+=======================
+
+You may save a file containing your phone library and use it to
+load a new copy of MEX.COM by:
+
+	  [MEX] A0>>save phone.phn
+
+----------------------------------------------------------------
+This file MUST have the extent .PHN or it will not be accepted.
+----------------------------------------------------------------
+
+To LOAD a .PHN file into MEX.COM, just enter:
+
+	  [MEX] A0>>load phone.phn
+
+DISPLAY OF PHONE LIBRARY
+========================
+
+By use of the STAT command, you can set the phone display for
+single column ("split") or double column.  Note that the new MEX
+version 1.11 has been set for an extra-wide CRT so the double
+column display no longer is appropriate with Kaypros.
+
+SPLIT OFF: Double column display - shows 2 entries per line 
+
+GARY         =1-212-555-1212        |GEORGE           =929-9800
+
+	  [MEX] A0>>stat split on
+
+GARY         =1-212-555-1212
+GEORGE       =929-9800
+
+USE OF CAL OPTION
+=================
+
+The  CAL  option  will dial the number requested and  then  enter 
+terminal mode after modem connection is made.  MEX is like MDM740 
+in that you can specify several numbers to alternately dial until 
+a  connection is established.   In the following example we  will 
+assume that the phone library has valid entries for A, B, and C.
+
+   [MEX] A0>>cal a          auto-dial number associated with "A"
+
+   [MEX] A0>>cal a #10      auto-dial number 10 times before quit
+
+   [MEX] A0>>cal a b c      begin dialing A, then B, then C, and
+                            quit after 1 attempt at each number.
+
+   [MEX] A0>>cal a b c #20   same as before but try the sequence
+                             20 times before quitting.
+
+Any  valid phone id's may be strung together on the command  line 
+and each will be tried in sequence until a connection is made.
+
+ALTERNATE LONG DISTANCE DIALING
+===============================
+
+MEX allows for use of two alternate dialing routines, they can be
+defined using the "<" and ">" characters like so:
+
+    [MEX] A0>>phone <=5818080,,11456       example MCI
+    [MEX] A0>>phone >=9371200,,,87921      example Sprint
+
+MCI access telephone number = 581-8080 <4 sec delay> User ID# 11456
+
+The "," commas are used for time delays between dialing the number
+and accessing the ready-to-enter-ID#-tone from the computer.
+
+These may now be used together with another defined number like:
+
+    [MEX] A0>>cal <alan       use MCI to call ALAN
+    [MEX] A0>>cal >alan       use Sprint to call ALAN
+
+
+USE OF DIAL COMMAND OPTION
+==========================
+
+The DIAL command works basically the same as the CAL command, but 
+you  are  left  at  the  MEX  prompt  after  the  connection   is 
+established rather than entering terminal mode automatically.
+
+The  DIAL  command  would be used when booting  another  type  of 
+program after connection is made with a host system.
+
+
+WHAT IS  INI.MEX ??
+===================
+
+When MEX is first brought up,  it is pre-set to look for the file 
+called INI.MEX.  This file contains commands to be READ in to MEX 
+when  it  is  first initialized.   This is very  similar  to  the 
+STARTUP  command  under  ZCPR2 which also holds  a  multi-command 
+statement  to  be executed after a cold  boot.   You  may  create 
+INI.MEX  with  Wordstar in non-doc mode and include  any  "legal" 
+MEX10 command line.  Such as:
+
+          GLOBAL T;ID "[ MY-MEX ] ";CAL A
+
+The form of the file is:   command;command;command
+
+Each "legal" MEX command MUST BE seperated by semicolons.
+
+This  would make the return to terminal (T) mode default after  a 
+file "R"eceive or "S"end operation;  change the ID string to read 
+"[ MY-MEX ]"  rather  than "[MEX]";  and automatically  dial  the 
+number associated with the id "A".
+
+... Or,  you can  forget  INI.MEX  altogether and  just receive a 
+"Can't find INI.MEX" error message on initialization.  Which does 
+not hurt anything,  it just indicates that the file is not on the 
+current drive/user if SEARCH = 0.
+
+Or you can use STAT and turn it OFF with:
+
+		[MEX] A0>>stat initfile off
+
+MEX will no longer look for INI.MEX after being STAT'd to OFF.
+
+
+INSTALLING "KEY" STRINGS
+========================
+
+Just as MDM7xx has a CTRL-L logon, you can set one up in MEX much 
+the same way.   Once in "T"erminal mode,  the only escape back to 
+command  state is with a CTRL-J followed by an "E".   A  complete 
+menu  of  escape "CTRL-J" functions is seen by entering a  CTRL-J 
+followed by a "?" from Terminal mode.
+
+Any other ASCII key character is a "legal" definable key that can 
+be  used in Terminal mode for special functions.   To set up  the 
+"L" key the same as the logon key in MDM7xx, enter:
+
+          [MEX] A0>>key l="firstname;lastname^M"
+
+NOTE:  The carat "^" indicates a CTRL key and ^M is the same as a 
+       carriage return.   It MUST be inside the quote marks  that 
+       define the keystring entered.
+
+Now  once  you are connected with the remote system and  wish  to 
+send your logon in, simply enter a CTRL-J followed by an "L".
+
+If  you attempt to specify one of the characters that is  already 
+used as a Terminal mode command an error is returned.   Also note 
+that  MEX will always prompt you with a "Syntax error" message if 
+the command you are trying to enter is illegal.
+
+SAVING KEYSTRING FILES
+======================
+
+Just as you use the SAVE command for saving phone entries, you can
+also save your keystring definitions for later re-loading.
+
+	  [MEX] A0>>save keys.key
+
+The file MUST have the extent .KEY or an error will result.
+
+You may re-load the key definitions into MEX.COM with:
+
+	  [MEX] A0>>load keys.key
+
+
+USING THE HELP COMMAND
+======================
+
+MEX has an extensive on-line HELP facility if the MEX.HLP  is  on 
+the  current drive/user along with your MEX.COM file.   From  the 
+MEX prompt enter:
+
+          [MEX] A0>>help ?
+
+The  complete  list of help files available is  displayed.   Then 
+just enter HELP followed by the command name desired:
+
+          [MEX] A0>>help call
+
+This would list the help info for the auto-dial command CAL
+
+SET COMMAND
+===========
+
+Depending on  the overlay used,  the  SET command is a multi-use
+type of command.   Unlike  MDM740 where only the baudrate may be
+SET, MEX users can use SET for many different functions.
+
+To change baudrates use the form:
+
+		[MEX] A0>>SET BAUD xxx
+
+To see a listing of available SET command options, enter:
+
+		[MEX] A0>>SET ?
+
+You will usually get a listing of available baudrates like:
+
+	300, 1200, 2400, 4800, 9600
+
+NOTE: The new Kaypro overlay (MXO-KP28.AQM) from the SET command
+      with a "smart" type modem can:
+
+		SET INTERNAL    -Use internal modem (4-84)
+		SET EXTERNAL    -Use external modem
+		SET ORIG        -Put modem into originate mode
+		SET ANSWER      -Put modem into Auto Answer mode
+		SET TONE        -Use tone dialing
+		SET PULSE       -Use pulse dialing
+		SET QUIET       -Turn off modem speaker
+		SET MONITOR     -Turn speaker on
+		SET BAUD <rate>
+                    rate choices: 110, 300, 600, 1200, 2400, 4800
+		SET DELAY <n>
+		    n is number of seconds to wait for answer
+
+		SET PARITY
+		SET STOP BITS
+		SET WORD LENGTH
+
+The default values can be displayed with:
+
+	  [MEX] A0>>set
+
+
+USING THE SENDOUT COMMAND
+=========================
+
+The SENDOUT command is used in .MEX files for automatic operation 
+of MEX.COM with the remote host system.  The SENDOUT command will 
+send a string out the modem port (hence the name  SENDOUT).   
+
+You can specify a PREFIX and a SUFFIX  for  all  SENDOUT  strings 
+allowing  real flexibility.   Most commonly used would be a  null 
+string for the prefix and a "^M" (carriage return) as the suffix.
+The prefix and suffix can be set by INI.MEX at startup or defined 
+by  you  after MEX is up and running.   Type HELP PREFIX or  HELP 
+SUFFIX for full info on this.
+
+   [MEX] A0>>stat suffix "^M"
+
+Now all sendout strings will automatically include a C/R as the
+last character sent out.  You need not add the "^M" to the string.
+
+If  you  know the DIRectory of the system you  are  calling,  you 
+can build a file like this:
+
+SENDOUT "XMODEM S B5:SD-88.LBR^M";R SD-88.LBR
+SENDOUT "XMODEM S B1:MEXNEWS.0Q2^M";R MEXNEWS.0Q2
+SENDOUT "XMODEM S A0:RCPM-049.LQT^M";R RCPM-049.LQT
+DSC;EXIT
+
+After connecting with the host system,  signing in,  and entering 
+the CP/M system - use CTRL-J then E to get to command prompt.
+Let's say this file is called AUTO.MEX, use the following:
+
+          [MEX] A0>>read auto.mex
+
+MEX  will now send the commands to the host system to XMODEM  the 
+three  files  listed  above  in the  SENDOUT  commands  and  then 
+initiates  the "R"eceive mode and save all 3  files.   When  it's 
+done,  MEX  will disconnect from the host (DSC),  and exit MEX to 
+your CP/M operating system.
+
+I  think  you can see the possibilities here  are  endless.   The 
+above  sequence could have been performed UNATTENDED.   This  can 
+save  you a lot of $$$ on long distance charges if you know  what 
+files you want in advance.
+
+
+STAT Command
+============
+
+The STAT command allows changing MEX switches for:
+
+BAKFILE  - If "ON" then same name files will be called .BAK
+BELL     - Turn your console bell on/off
+CIS      - Enables/disables CIS protocol
+INITFILE - This will stop MEX from looking for INI.MEX if "OFF"
+WTECHO   - This is the "wait for echo" switch, it is used with the 
+           SENDOUT command, toggle on/off.
+PAGE     - Sets TYPE command to page/no-page
+RUB      - Set backspace function to rub-out
+
+useage:  [MEX] A0>>stat wtecho on    turn wait-for-echo ON
+
+Tired of MEX always saying "++ NO INI.MEX file found ++" ??
+Then try this:
+
+                    [MEX} A0>>stat initfile off
+
+other switches available, enter " [MEX] A0>>STAT ?"  for listing.
+
+  ///////////////////////////////////////////////////////////
+
+The STAT command also sets the values for:
+
+ALERT    - The  number  of  times console bell  will  ring  upon 
+           connection to remote from CAL dialing function
+CLOCK    - This is your CPU speed (4mhz=40 etc) for timing
+RETRY    - Number of times to try SENDOUT command before aborting
+SEARCH   - Sets the "search" path for files from the command line
+           0 = current drive/user only (do HELP SEARCH for info)
+
+useage:  [MEX] A0>>stat clock 50     set CPU speed to 5.0mhz
+
+other values can also be changed, enter  "[MEX] A0>>stat val"
+
+   //////////////////////////////////////////////////////////
+
+The STAT command can also show the "status" of:
+
+BUFFERS  - Display current buffer status (sizes)
+TERM     - Display current terminal escape sequences and keys
+SWITCH   - Display current switch settings (on/off)
+VAL      - List current values 
+?        - Displays complete list of STAT commands available
+
+useage:  [MEX] A0>>stat buffers      display buffers/sizes
+
+   /////////////////////////////////////////////////////////
+
+The STAT command can set the characters for:
+
+ESC      - Don't like CTRL-J as the main terminal  mode  escape 
+           character, then change it with
+
+               [MEX] A0>>stat esc "^I"      now use TAB key instead
+
+NOTE: MEX looks for the carat ^ chr to indicate CTRL in a string
+
+TRIGGER  - This  is used by the SENDOUT command to identify  the 
+           character used to "trigger" the SENDOUT string.
+
+               [MEX] A0>>stat trigger     display trigger chr
+
+This  should be  3eh which is the ">" CP/M prompt character  used 
+by most all remote CP/M systems.   This would cause SENDOUT to be 
+triggered  when  it received this  character.   After  an  XMODEM 
+transfer  is completed,  MEX "senses" the CP/M prompt and  begins 
+the next SENDOUT operation.
+
+               [MEX] A0>>stat trigger ">"
+
+This will set the trigger character to be the CP/M prompt ">" chr
+
+other changeable values, characters, switches, and misc displayed 
+by entering:
+
+               [MEX] A0>>stat ? <cr>
+
+
+STAT FILTER
+===========
+
+By doing a STAT FILTER OFF, all control codes will be passed to
+your local CRT.  Handy if the host system is the same type of
+computer as yours and you wish to pass CRT codes for programs
+like WORDSTAR or any screen-oriented sequence.
+
+The normal default is FILTER ON (trap control characters)
+
+
+LOG-ON KEYSTRINGS
+=================
+
+Want to set up a logon keystring?  Try this:
+
+     [MEX] A0>>KEY L="firstname;lastname;xxxx-xxxx^M"
+
+This would send:  firstname;lastname;user ID# <cr>
+
+If you have set a suffix of "^M" you do not enter a "^M" on the
+end of the string being defined.
+
+Remember  MEX strings "see" the ^M as a carriage return and  must 
+be used UNLESS you have set the SUFFIX = ^M.  This SUFFIX is part 
+of  the  keystring  sent  after the string  associated  with  the 
+special KEY.  Do HELP STRINGS for more info on this.
+
+NOTE:   NON  of  the  currently  defined  terminal  mode   escape 
+        characters may be defined as KEYS, an error message would 
+        be  the  result.   EXAMPLE:  CTRL-J/E  is now  return  to 
+        command  mode from terminal mode,  therefore the "E"  key 
+        cannot  be  used as a KEY unless re-defined  in  terminal 
+        mode.
+
+
+TERMINAL MODE - CONTROL SEQUENCES
+=================================
+
+Terminal mode sequences are only active while you are in terminal
+mode, they allow you to do things locally while still in terminal
+mode.  Most importantly is the "E" key to exit terminal mode and
+return to MEX command prompt.
+
+CTRL-J is the master key from terminal mode, the next character
+entered will be assumed to be a defined keystring and an error
+will result if the specified character has not been defined.
+
+
+You first enter a CTRL-J, then enter an "E"
+
+
+The currently defined terminal mode escape keys can be  displayed 
+with entry of:
+
+               [MEX] A0>>^J?      Enter CTRL-J followed by "?"
+
+(actual display)
+Terminal Control Sequences:
+
+CTL-J
++
+E:       Exit terminal mode
+?:       Print help message
+@:       Send BREAK to remote
+N:       Disconnect modem
+P:       Toggle printer on/off
+S:       Memory-save ON
+T:       Transmit ASCII file
+U:       Memory-save OFF
+
+Keystrings:
+1="XMODEM S "
+2="XMODEM R "    <-- note the extra space before quote mark, and 
+3="STAT^M"           no ^M, this allows you to enter filename
+4="WHATSNEW^M"
+5="RBBS^M"
+L="firstname;lastname;user-id#^M"
+
+  and whatever other strings that have been defined
+
+
+CLONE command
+-------------
+After  you  have  spent  an hour or so setting  all  the  various 
+switches and escape characters and keystrings, BE SURE TO CLONE A 
+NEW COPY BEFORE EXITING TO CP/M.   Once you exit to CP/M all  the 
+values and settings will return to their original settings.
+
+               [MEX] A0>>clone mex1.com
+
+This  would make a new copy of MEX with all the current  settings 
+as  default.   Check this new copy for correct operation and then 
+REName it to MEX.COM
+
+NOTE:  There seems to be a bug with the "COLD" command to  return 
+MEX to it's default parameters - DO NOT USE THE COLD COMMAND !!
+
+MEX may be 'cloned' as many times as you like with no problems...
+
+The current clone level is indicated just below the MEX 1.0C sign
+on banner when you first bring up the program.
+
+CUSTOM PATCHING
+===============
+
+Some of the features can be patched via MEXPAT10.ASM for the stock
+version of MEX10c.COM  or try MXKPHACK.ASM for special patching of
+the MEX-KP.COM file containing MXO-KP26 patch.
+
+You simply edit these files and then re-assemble and generate a
+.HEX file which will be loading into the .COM file with MLOAD or
+MDMLNK.COM
+
+
+FINAL NOTE
+==========
+
+IF  YOU  HAVE A KAYPRO 10 OR NEW 2 OR 4 OR ROBIE,  TRY USING  THE 
+FOLLOWING COMMAND ON YOUR COPY OF MEX-KP.COM
+
+                    [MEX-KP] A0>>stat filter off
+
+This  will allow MEX to pass ALL the special escape  and  control 
+codes  to your computer.   When you sign-on the PRO-COM  DATABASE 
+you will see your 25th line get written with your name, location, 
+and time of log on.  The screen is also cleared by any of the DIR 
+programs when doing a directory of an area.
+
+For those of you running RCP/Ms,  this will allow you to pass the 
+codes needed for turning your inverse video on/off,  clear to end 
+of line, clear screen, home cursor, and any other Kaypro-specific 
+CRT control codes.   Note however,  Wordstar even speeded-up is a 
+real  pain at 1200 baud due to it's screen refreshes and clear to 
+the end of line sequences.   Remember your CRT works at 19.2kbaud 
+normally and 1200 baud is very slow in comparison.
+
+                       - Steve
+

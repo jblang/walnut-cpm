@@ -1,0 +1,111 @@
+      10/15/87 -- WORDSTAR 4.0 -- after working with it for a few weeks!
+
+    My first impressions were mixed -- the editor had more nice features; but,
+the  printer drivers didn't!  WS4 refused to default to ".LQ OFF" and  printer
+redirection appeared to be a 128 byte patch area with scanty documentation.
+    I got a call from MicroPro a couple of days ago to inform me that WSCHANGE
+had  a "bug" in it and that the ".LQ" and ".BP" flags had switched places.   A
+little further checking showed me that WSCHANGE program and the PATCH.LST file
+both  agreed but WS4 was looking in the wrong place!  (Or maybe WS4 knew  what
+it was looking for, but nobody else did)  Anyhow; in the WS.COM file the ".LQ"
+toggle	really	lives at 0812H and ".BP" at 0813H (switch those  addresses  in
+your  PATCH.LST  file).  And, when using WSCHANGE, ".BP" is really  ".LQ"  and
+vice  versa.   I still haven't figured out why the auto page  numbers  at  the
+bottom of the page sometimes are it the opposite .LQ mode than the body of the
+text!
+    My	second	problem  was  that I have  an  Olivetti  PRAXIS  serial  input
+typewriter that I use as my daisy wheel printer.  I am using an MSC-ICO  C/PM+
+computer board, and with WS 3.3 I would exit WS and use DEVICE to redirect the
+LST:  output  to  a  serial port and then go back  into  WS  and  print.   WS4
+suggested that printer output redirection could be done from within WS4.   For
+my C/PM+, at least, that means here's a 128 byte patch area -- go for it!   So
+I  did.  I spent an hour or so using SID to find the SCB byte in  high	memory
+that  redirected  the  LST: output and the values for the  devices  my	system
+supports.
+    Following is my assembly language solution:
+
+;--------------------------------------------------------------------------
+;ULPORT.MAC
+
+	.Z80
+
+;"ULPORT" SUBROUTINE COMPARES WS4 PRINTER DRIVER TO "PRAXIS,0" DRIVER NAME,
+;IF A MATCH IS FOUND THEN LOAD "RS2" (08H) USING "OUTRS2" TO SCB AND RETURN,
+;ELSE THEN LOAD "CEN" (40H) USING "OUTCEN" TO SCB AND RETURN,
+;IF "PRAXIS" IS USED TO PRINT THEN USE "RETCEN" TO LOAD "CEN" TO
+;REINITIALIZE SYSTEM "LST:" OUTPUT
+;
+;THIS OUTPUT REDIRECTION IS FOR USE ON AN MSC-ICO Z-80 COMPUTER BOARD
+;FOR WHICH THE SECOND SERIAL PORT (RS2) HAS BEEN INITIALIZED TO 300 BAUD,
+;8 BIT WORD, 2 BIT STOP AND NO PARITY FOR MY OLIVETTI PRAXIX P-41 TYPEWRITER
+;BY REWRITING "CPM3.SYS" (CPM3.SYS HAS ALSO BEEN CHANGED TO DEFAULT TO
+;1200 BAUD FOR THE FIRST SERIAL PORT -- SO THERE IS NO NEED TO RUN "DEVICE"
+;IN "PROFILE.SUB" TO SET UP THE SYSTEM)
+
+
+SCBLST	EQU 0F5C7H	;SYSTEM CONTROL BLOCK LST: REDIRECTION VECTOR ADDRESS
+			;THIS JRDII'S CP/M+ --- SO DON'T HOLD YOUR BREATH!!
+CEN	EQU 40H 	;LST: VALUE FOR SCB CENTRONICS REDIRECTION
+RS2	EQU 08H 	;LST: VALUE FOR SCB 2ND SERIAL PORT REDIRECTION
+
+	ASEG		;ABSOLUTE TO GET THE ADDRESSES
+ULPORT: ORG	063BH	;WS4 "PRNPAT" BEGINNING ULPORT:: CALLS THIS
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+START:	LD	DE,DRIVER
+NEXT:	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,OUTCEN
+	CP	0
+	JR	Z,OUTRS2
+	INC	DE
+	INC	HL
+	JR	NEXT
+
+OUTRS2: LD	A,RS2
+	LD	(SCBLST),A
+	POP	DE
+	POP	BC
+	POP	AF
+	RET
+
+RETCEN: PUSH	AF   ;ULUNPT:: CALLS THIS
+	PUSH	BC
+	PUSH	DE
+OUTCEN: LD	A,CEN
+	LD	(SCBLST),A
+	POP	DE
+	POP	BC
+	POP	AF
+	RET
+
+DRIVER: DEFM  'PRAXIS',00
+
+	END
+;--------------------------------------------------------------------------
+
+    The  ULPORT::  patch address should "CALL 06B3H" (PRNPAT::)  and  ULUNPT::
+should "CALL" the address that RETCEN: assembles to on your system.
+    I  have  learned to routinely use many of the "new" features,  although  I
+have not had a chance to use them all, and have usually been sucessful.  Print
+time  formatting (.PF) looks like it could be a super tool.  My wife writes  a
+lot  of  documets that will be printed single spaced, but she likes  to  proof
+then  on a double spaced draft print.  Simple, just put ".PF" and ".LS	2"  at
+the  top of the document before it is printed (comment out the ".LS  2"  while
+editing).   This idea sort of works, the document prints double  spaced;  BUT,
+WS4 will not recognize the ".LM x" commands she has put in the text to	indent
+paragraphs and phrases.  WS4 blithly prints using the page setup defaults  and
+everything comes out printed flush left -- I don't know whether the problem is
+mine or WORDSTAR's!
+    The  new  dictionary supplied with THE WORD PLUS is larger;  however,  its
+vocabulary for "real writers" has diminished while its knowledge of words used
+by  "computer review writers" has been enhanced.  No thanks, I'll stick to  my
+old KAYPRO version!
+    Except  for the few problems that I have run into, I've been pretty  happy
+with  WS4.   Some  of the features that are on the  IBM-PC  version  (such  as
+selective  page printing) would be nice, but probably make it even more  of  a
+memory	hog and slower yet.  There are still some serious "bugs" to be	worked
+out yet, and I hope the solutions will be coming from MicroPro.
+
+

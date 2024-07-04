@@ -1,0 +1,1896 @@
+20-Aug-82 11:25:00,650;000000000000
+Date: 20 Aug 1982 1025-PDT
+From: Tom Wadlow <TAW@S1-A>
+To:   RConn at BRL, INFO-CPM at Mit-Ai
+Via:  Mit-Ai; 20 Aug 82 18:06-EDT
+Via:  Brl; 20 Aug 82 18:18-EDT
+Via:  Brl-Bmd; 20 Aug 82 18:21-EDT
+
+    Date:     20 Aug 82 4:24:31-EDT (Fri)
+    From:     Rick Conn <rconn@BRL>
+
+                                                              The reason
+    for the upper case input is that CP/M 2.2 expects it (and the utilities
+    which run under CP/M 2.2 as well).  
+
+[Why isn't it possible to accept both upper and lower cases, and fold them
+to upper??  This seems to be a trivial fix, but one that would make many
+users happy. --Tom]
+20-Aug-82 19:13:00,359;000000000000
+Date:  20 August 1982 19:13 edt
+From:  Boebert.SCOMP at Mit-Multics
+Subject:  PLINK
+To:  info-cpm at BRL
+Via:  Mit-Multics; 20 Aug 82 19:11-EDT
+Via:  Brl; 20 Aug 82 19:26-EDT
+Via:  Brl-Bmd; 20 Aug 82 19:27-EDT
+
+Does anybody have the conditional assembly settings to make this work on an
+apple?  Setting DCHayes to TRUE doesn't seem to work.
+
+Earl
+20-Aug-82 19:28:02,2388;000000000000
+Date:     20 Aug 82 21:28:02-EDT (Fri)
+From:     Rick Conn <rconn@BRL>
+To:       Tom Wadlow <TAW@S1-A>
+cc:       RConn at BRL, INFO-CPM at Mit-Ai
+Via:  Mit-Ai; 20 Aug 82 23:04-EDT
+Via:  Brl; 20 Aug 82 23:06-EDT
+Via:  Brl-Bmd; 20 Aug 82 23:18-EDT
+
+        Let's clarify a little  on  what's  going  on  with  case
+conversion re CP/M (with or without ZCPR).
+
+        First of all, the command line typed by the user  may  be
+either  upper  or lower case.  Both the CP/M CCP and ZCPR convert
+any lower-case input to upper case, and they use the  BDOS  read-
+line function (10) to obtain user input.  The BDOS readline func-
+tion accepts both upper and lower case.
+
+        After accepting a command line and realizing that  it  is
+asking  for  a  transient command, the CCP (also ZCPR) places the
+capitalized command line in the buffer at 80H, extracts the first
+two  filename  tokens and places them (also capitalized) into the
+buffers at 5CH and 6CH, and loads the COM file specified  by  the
+first  token in the line (the CCP and ZCPR have different ways of
+searching for the COM file, however, but that's beside the point)
+[this  was  not  the  exact order of the events].  Some transient
+programs use the passed parameters in the 5C and 6C  buffers  and
+at  80  as-is, and if only one parameter is passed, they may even
+chose to open the file using the buffer at 5C as an FCB.
+
+        If we do not capitalize in ZCPR, then when the user types
+in  lower  case, most of such transients will look for lower-case
+file names and not  find  them.   Other  problems  are  possible,
+depending  upon  how  the  transient evaluates the file names and
+command line (if it does at all).
+
+        Offhand, two solutions seem reasonable if one insists  on
+allowing lower-case.  The first is to modify the BDOS so that all
+routines which use the FCB capitalize the file name and type part
+before  acting on it.  This is reasonable, but CCP-GROUP does not
+intend to publically address the BDOS at all for  political  rea-
+sons;  however, this does not stop anyone else from doing this if
+they wish.  The other solution involves letting the  user  accept
+the  lower-case  input (simply remove the case conversion routine
+from ZCPR) and simply not use any transients that can't work with
+this new environment.
+
+                                        Rick
+22-Aug-82 00:11:00,11571;000000000000
+Date: 22 August 1982 02:11-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: COPYRITE.TXT
+To: INFO-CPM at BRL
+Via:  Mit-Mc; 22 Aug 82 2:07-EDT
+Via:  Brl; 22 Aug 82 2:18-EDT
+Via:  Brl-Bmd; 22 Aug 82 2:29-EDT
+
+Forwarded from my RCPM system:
+
+----
+
+                        COPYRITE.TXT
+                        August, 1982
+
+            Copyrighting Public Domain Programs
+                             by
+                      June B. Moore, JD
+                Member, California State Bar
+                      32 Salinas Avenue
+                    San Anselmo CA 94960
+                        (415) 456-5889
+                       Also: Marin RBBS
+                        (415) 383-0473
+
+There is concern about the copyright status of the programs
+provided by innovative and diligent members of the CP/M Users Group
+to the Group with the understanding, explicitly stated or otherwise,
+that the programs were contributed to the "public domain."
+
+The term "public domain" means, from a legal point of view, a program
+or other work that does not have copyright protection.  The indis-
+criminate use of the word confuses the copyright issues.  A work dis-
+closed to a specific group of people for a limited purpose is not 
+necessarily "public domain" software. 
+
+A new federal copyright law went into effect on January 1, 1978, which 
+complicates the following discussion for that software written and/or 
+contributed prior to that date.  I will start with a discussion of the 
+law as it applies now and to programs written after January 1, 1978.
+The new law is Title 17, U.S. Code.
+ 
+Any written material (including computer programs) fixed in a tangible
+form (written somewhere, ie a printout) is considered copyrighted with-
+out any additional action on the part of the author.  Thus, it is not 
+necessary that a copy of the program be deposited with the Copyright
+Office in Washington for the program to be protected as copyrighted.
+
+A contribution of a program to the members of the public (CP/M Users
+Group) for their noncommercial use constitutes a license for that 
+purpose and that purpose only.  It does not destroy the programmers
+rights in the copyright to the program.  HOWEVER, the government does
+not enforce the programmers rights.  A copyright is a property right, 
+just like the right you have in the house you own.  If someone tres-
+passes on your property, the cops may come and put the fellow in jail,
+but they will not stop him from doing it again nor will they procure
+compensation for any damage the intruder may have done to your prop-
+erty.  You have to do that yourself by going to court.  So it is with 
+copyrights.  In order to prevent anyone from selling your programs you
+must ask a court (federal) to stop him by an injunction and to give 
+you damages for the injury he has done to you by selling the program.
+
+Going to court requires that the program be registered with the Copy-
+right Office in Washington,D.C.  The fee is $10.
+
+The government will prosecute CRIMINAL copyright infringements, such as
+where someone simply copies (as in copying an audio or videotape) for
+profit, and when the government can show criminal intent (ie, knowing
+violation of the law or fraud in the acts of the copier).  This is 
+not done very frequently except in the case of wholesale audio and
+video taping pirates.
+
+The copyright law has a concept known as a "derivative work."  A 
+derivative work is one which is based on a work already entitled to
+and protected by copyright.  The original author of a work has the
+sole rights to "derivative" works derived from his work.  He can
+authorize (license) others to prepare derivative works from his
+work, as in the case of a programmer of a Users Group program who
+says "If anyone fixes this for a DCHayes MM-100, let me know."
+I suspect that many of the programs contributed to the Group and
+their modifications fall within this category of license - that is,
+users have been allowed to prepare derivative works.  However, the
+original author does not lose his original copyright!  And all the
+derivative works made using the original are dependent on the con-
+tinuation of the license except as to the parts added by the author
+of the derivative works.  A simple explanation might help: A pro-
+gram provides for generating data showing ratios for sales to in-
+ventory turnovers (I know the example is silly), and the output is 
+simply a bunch of numbers.  The second programmer decides to enhance
+the program by turning the numbers into some kind of chart or graph.
+The program that generated the numbers is protected as to the original
+author.  The output formatting ONLY is protected as a license derivative
+work to the second programmer.
+
+The restriction placed on the programs in recent years limiting use to
+individuals on their personal machines and denying use of a program for
+commercial purposes is probably a valid restriction of the license
+granted in the CP/M Users Group Library.  It constitutes fair warning
+to all who would lift the program and attempt to convert it to com-
+mercial purposes that such use is not licensed.  It is not clear that
+such restriction applies automatically to earlier donations to the
+Group, unless there is something explicit in the documentation that
+accompanies the work itself when it is distributed.  
+
+In many instances, the programs donated prior to 1978 were not copy-
+righted (that is, contained no copyright notice and were not regis-
+tered with the Copyright Office).  The status of these programs is
+not clear, although a case can be made that they were initially
+distributed only to paid-up members of the CP/M Users Group. My
+documentation from the Users Group, which is undated but which is
+postmarked June 13, 1978, states "The material [donations of programs]
+is received by the Group with the understanding that the contributor
+is authorized to make it available to hobbiests for their individual
+non-commercial use.....Members receiving material are free and en-
+couraged to share it with other hobbiests for their individual non-
+commercial  use."  The membership information included a  request 
+for any member's knowledge of persons violating the non-commercial 
+restriction on the programs distributed. A membership fee of $4 was 
+charged for 1978 as a prerequisite to receiving material.
+
+This limitation on the prospective use of a program obtained from the
+group indicates that the distribution was limited to non-commercial
+users.  Pre-1/1/78 software that was not automatically copyrighted
+and did not contain a copyright notice could be protected only under
+state laws in existence at that time.  The state laws varied con-
+siderably but generally the rule is that, if the work was not dis-
+tributed willy-nilly to the public without restriction, the state
+law protected the work even if the federal law niceties were not
+complied with.  The problem is whether the restrictions of the
+CP/Users Group distribution were sufficient limitations on the
+"publication" of the program.  Publication destroys a state law
+copyright, making the work free to all. "Publication" here means
+making it available to the public at large, even though restrictions
+were placed on the initial disclosure of the program.  That is something
+only the court or jury actually hearing the case can decide and may 
+well turn on facts not available to me.  For example, was any real
+effort made to prevent computer stores from distributing the programs
+to their customers who were not members of the Group?  Were the
+non-commercial use limitations explained to those customers?  To 
+the computer stores?
+
+One  other  concern has been expressed by some  program  authors, 
+those authors who have desired not to have their programs modified 
+but whose programs have nonetheless been modified.  Referring to the
+discussion above about the limitations on use of contributed programs, 
+if the limitation did not authorize anything but "use" of the program,
+then the modifications constituted "derivative" works that were not
+authorized.  This, unfortunately, would be a very tricky thing to 
+prove, and it would have to be proved - how did the parties understand
+the authorization to use the programs (ie, was modification prevented
+but noncommercial use allowed?).  If there was an implied license to
+modify (for example, because the program was included with other pro-
+grams in which modifications were explicitly authorized), it might be
+very difficult to prove infringement under either the state or federal
+law, depending on which was applicable.  
+
+It should be clear from the above, however, that modifications of programs
+entitled to copyright protection are infringements if they are not
+authorized by the owner of the copyright in the original program.  The
+problem is in the proof of lack of authorization.
+
+Since January 1, 1978, all programs are protected by federal copyright
+laws without regard to copyright notice or registration with the Copy-
+right Office and the state laws no longer apply.  The federal law "pre-
+empted" the state laws on that date.  But the federal rules apply across
+the board ONLY to works first "fixed" or "written" after that date. How-
+ever, improvements or modifications in one's own program can qualify for
+federal copyright protection under the new law and perhaps those interested
+or affected by the problem should make formal registration of their works
+as well as including the copyright notice somewhere in the program.
+
+               ----------------------------------
+
+It is obvious that most volunteer programmers do not have the finances
+or time, or inclination for that matter, to pursue a legal remedy in the 
+courts.  At the same time, they do not want the software they authored
+to be used by others for commercial gain without some control over its
+use.
+
+I suggest that microcomputer software authors nation-wide form an organi-
+zation similar to that of ASCAP or BMI, although on a smaller scale, to
+monitor improper uses of software donated to the hobbiest for personal
+use.  Only through concentrating the efforts and power of all authors
+can real protection be obtained.  Otherwise, the unscrupulous vendor is
+going to take his chances that the individual programmer will not or can
+not defend his copyright.  
+
+Such a group might be formed with the support of an active computer group 
+like the NJ Amateur Computer Group or the Homebrew Computer Club in
+California .  Or it could be established independently if there were
+sufficient interest and an organizer could be found to do the necessary
+paperwork, collect the dues needed to provide a war chest, and hire the
+attorneys and other persons necessary.  It wouldn't have to be a full
+time job for anyone but it would have to be more than volunteer activity.
+
+My suggestion appeared (anonymously) in an article in the July 1982
+Microcomputing.  I am not interested in doing it, although I would 
+cooperate with any efforts along these lines with counsel and advice.
+ 
+I suggest, however, that an early attack, which might include programmers
+for profit whose programs are slightly modified by fly-by-night vendors
+without compensation, will establish the principles necessary to deter
+future invasions of your copyrights.
+
+                                        June B. Moore, JD
+                                        Member, California State Bar
+22-Aug-82 04:40:00,618;000000000000
+Date: 22 August 1982 06:40-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: Terminal program update
+To: Info-Cpm at BRL
+cc: INFO-APPLE at Mit-Mc
+Via:  Mit-Mc; 22 Aug 82 6:42-EDT
+Via:  Brl; 22 Aug 82 6:48-EDT
+Via:  Brl-Bmd; 22 Aug 82 6:52-EDT
+
+PLINK, the terminal program for use with many types of modems,
+has been updated to version 6.6A, and is available on MIT-MC
+as AR64:CPM;PLINK 66AASM  the .DOC file hasn't changed, is
+still available as PLINK 65DOC, same archive.  The new version
+now correctly supports CP/M on Apple, using the DC Hayes MMII,
+CCS serial board, and others plugged into slot #2.
+22-Aug-82 04:54:00,394;000000000000
+Date: 22 August 1982 06:54-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: WordStar 3.0 enhancements/fixes
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 22 Aug 82 6:50-EDT
+Via:  Brl; 22 Aug 82 6:58-EDT
+Via:  Brl-Bmd; 22 Aug 82 7:04-EDT
+
+A DOC file of enhancements and fixes for version 3.0 of WordStar
+has been provided by MicroPro International and is available on MIT-MC
+as AR10:CPM;WS30 DOC
+22-Aug-82 06:41:00,932;000000000000
+Date: 22 August 1982 08:41-EDT
+From: Charlie Strom <CSTROM@Mit-Mc>
+Subject:  reasons for considering Ithaca systems
+To: LIN at Mit-Mc
+cc: Info-CPM at BRL
+Via:  Mit-Mc; 22 Aug 82 8:43-EDT
+Via:  Brl; 22 Aug 82 8:49-EDT
+Via:  Brl-Bmd; 22 Aug 82 8:53-EDT
+
+Herb, there is a company in Ca. that markets a program called Cache/Q
+that will also buffer the disk in RAM and optionally will use extended
+memory (up to 32 banks of 48K each!) for a buffer. They claim that a
+number of options can be specified, including atomatically writing any
+updates to the disk. This software is installable in any 2.2
+installation according to the literature. I have the software on order
+and if you (or anyone else on the net) is interested, I'll be happy to
+report my experiences with it on a Godbout system. I have 20K of
+extended memory, so I intend to use it as a buffer. It will be nice to
+finally have some use for it!			Charlie.
+22-Aug-82 11:39:00,1142;000000000000
+Date: 22 August 1982 13:39-EDT
+From: Roger L Long <BYTE@Mit-Mc>
+Subject: problem with MODEM221
+To: INFO-CPM at Mit-Mc
+Via:  Mit-Mc; 22 Aug 82 13:35-EDT
+Via:  Brl; 22 Aug 82 13:48-EDT
+Via:  Brl-Bmd; 22 Aug 82 13:54-EDT
+
+Does anyone know what's happening to me in the following situation?  I
+was trying to download a semi-large file this morning, and the MODEM
+program (on my end) kept cancelling out.  This happened to me three
+times, and I finally gave up.
+
+And it always seemed to happen in the same place: I would transfer the
+first 128 blocks correctly, and MODEM221 would write them to disk.
+In the meantime, LMODEM would time out  and start sending the last
+block again (I assume), which would cause an overrun error when MODEM221
+started looking at the modem line again.  MODEM221 would successfully
+recover, but after another 128 blocks, would again start writing to
+disk, and LMODEM would again time-out and start sending the block
+again, which would again cause  an overrun error.  This time, however,
+MODEM221 wouldn't recover, and announced that it had been canceled.
+
+Any idea what's happening?
+
+	-roger
+22-Aug-82 16:10:00,2504;000000000000
+Date: 22 August 1982 18:10-EDT
+From: Ronald G Fowler <RGF@Mit-Mc>
+Subject: Problem with MODEM221
+To: BYTE at Mit-Mc
+cc: INFO-CPM at Mit-Mc
+Via:  Mit-Mc; 22 Aug 82 18:13-EDT
+Via:  Brl; 22 Aug 82 18:18-EDT
+Via:  Brl-Bmd; 22 Aug 82 18:29-EDT
+
+Roger,
+  I've had a very similar problem with LMODEM (using various versions
+of the modem program on the micro end).  I believe that what is happening
+is that LMODEM is misinterpreting the NAK from the micro modem program,
+thus considering the record as successfully transfered.  LMODEM then 
+transmits the following sector.  Since the micro modem program missed
+the overrun sector, and the new sector number being transmitted is one
+greater than the one it expects, it aborts (this is to be expected, since
+the protocol doesn't provide for requesting the sender to back up a record).
+  I've noticed that this problem almost never occurs when MC is lightly
+loaded.  Since the problem is related to the actual number of transmission
+errors occuring, I suspect that a heavily loaded MC yields more errors.
+This might be due to inter-byte time delays occuring when the load is
+heavy; I seem to recall that the modem program allows a rather tight time
+delay between bytes when receiving a record (one second as I recall).  Ob-
+viously, when the load is heavy, the odds of this timeout occurring are
+higher.  This would seem to be confirmed by 230K+ of files I downloaded
+today: all transfers occured while MC had 4-8 users, and in all cases, the
+LMODEM log showed no retranssions necessary.
+  In your case, I suspect the errors might be caused by your BIOS; some
+BIOS implementations will flush the internal disk buffer when the console
+output routine is entered; in that case, the flush occurs after the ACK is
+sent to MC, causing a delay while the CPU writes the buffer; in the mean-
+time LMODEM sends the next record, which causes an overrun, since your CPU
+is too busy writing to disk to receive another record. (Note that the char-
+acter output routine is entered when you're in the "view" mode, or when
+the modem program puts up the expected sector number).
+  The bottom line here would seem to be the problem of LMODEM treating a
+NAK as an ACK; I have no idea why this would happen, but all of the symtoms
+seem to point to that.
+  It would be helpful if anyone reading this could confirm these symtoms
+(I think I remember Bill Blue as well as a couple of others describing
+essentially the same problem).			--Ron Fowler
+22-Aug-82 18:42:00,2003;000000000000
+Date: 22 Aug 1982 1742-PDT
+Sender: BILLW at Sri-Kl
+Subject: Another lesson learned with MODEM 2
+From: William "Chops" Westfield <BillW@Sri-Kl>
+To: info-cpm at Mit-Mc, ProtocolS at Rutgers
+Cc: billw at Sri-Kl
+Message-ID: <[SRI-KL]22-Aug-82 17:42:23.BILLW>
+Via:  Mit-Mc; 22 Aug 82 20:46-EDT
+Via:  Brl; 22 Aug 82 21:07-EDT
+Via:  Brl-Bmd; 22 Aug 82 21:09-EDT
+
+If your computer buffers input on an interupt basis, you must be
+carefull to flush your buffers.  Consider the following Scenario:
+
+An IBM PC as the local host, with its BASIC interupt driven COM: port.
+A Tops-20 system on the other end with short timeouts.  For some
+reason the tops-20 system times out twice (in my particular situation,
+there was the initial NAK, plus a NAK from a timeout (BASIC is slow)).
+There are now 2 NAKs in the buffer.  The IBM PC see the first NAK, and
+transmits the first block.  Tops-20 responds with an ACK.  The IBM's
+buffer now contains a NAK and an ACK.  The IBM see the NAK, and
+retransmitts the first block.  Tops-20, already having received the
+block, sends an ACK.  Because of the buffering, the IBM is responding
+to ACK and NAKs that actually refer to ONE BLOCK EARLIER than the
+current block.  As long as no further errors occur, everything works
+out fine. If however, another error DOES occur, the IBM retransmitts
+the WRONG BLOCK. Depending on how the tops-20 system handles this,
+various things can happen (my tops-20 program sent an ACK and
+discarded the block, since it was an unexpected block, casusing
+the block to be lost from the destination file.  If your proram
+checks to make sure that blocks arrive in uniformly ascending order, it will
+probably abort).  The solution is to make sure the input buffer is
+empty after each ACK or NAK is received.  PCNet and other protocols handle
+this better by saying WHICH block they are acknowledging.
+
+This sounds very much like the problem that RGF and BYTE describe.
+Does LMODEM clear out its buffers ?
+
+Enjoy
+BillW
+22-Aug-82 22:33:23,4223;000000000000
+Date:     23 Aug 82 0:33:23-EDT (Mon)
+From:     Rick Conn <rconn@BRL>
+To:       info-cpm at BRL
+Subject:  chdir.c
+Via:  Brl; 23 Aug 82 0:37-EDT
+Via:  Brl-Bmd; 23 Aug 82 0:40-EDT
+
+        I've recently finished designing and uploading a new pro-
+gram  called  CHDIR  to MIT-MC.  CHDIR is an extrapolation of the
+CDIR concept to cover all disks with a named directory  structure
+which supports priveledged users.  The files for this are:
+
+                CHDIR C in AR36:CPM
+                CHDIR COM in AR22:CPM
+
+        Documentation is sketchy right now ... I plan to come out with
+a HLP file on it soon.  Here is the current documentation:
+
+        CHDIR is a program which places onto a CP/M or CP/ZM sys-
+tem  a  mnemonic hierarchial directory structure.  Via CHDIR, the
+user can create named directories, each such directory supporting
+up to 64 named subdirectories accessible under it.  The subdirec-
+tory is just another directory, and, hence,  a  subdirectory  can
+have  up to 64 named subdirectories under it also.  The result is
+a hierarchial type of directory structure.
+
+        Each directory is the form of a user area on a particular
+disk.   One of the many advantages of CHDIR is that it merges all
+of the disks of a microcomputer into one logical file system.  If
+the  user, say, has a 20M byte Winchester which is divided into 4
+logical drives of 5M byte each (named C, D, E,  and  F),  and  he
+also  has  two  floppy  disks (8", 600K each) named A and B, then
+this entire system of disks and user areas can  be  placed  under
+one  file  directory  system  via CHDIR.  An example based on the
+hardware configuration above:
+
+        A0: named ROOT
+        C0: named HD-ROOT
+        D0: named SRC-PAS
+        D1: named SRC-C
+        D2: named SRC-BAS
+        D3: named SRC-ASM
+        B0: named SCRATCH
+        E0: named DEV1
+        F0: named DEV2
+
+        The user comes in on A0:, the ROOT.  He then issues CHDIR
+HD-ROOT and finds himself on C0:; he can then switch to any named
+directory accordingly, regardless of what disk or user number  it
+is in.
+
+        A second advantage is that CHDIR  provides  a  definition
+for  a  System,  or Priveledged, set of directories.  This set is
+currently defined to be any reference to a  user  number  greater
+than  9.   Whenever  a  user  in a user number 9 or less tries to
+display all the directories, all he will see is those directories
+in  user  numbers  9 or less.  He may note by the directory count
+that more directories exist.  If he knows  the  name  of  one  of
+these hidden System directories, he may issue a CHDIR to the sys-
+tem directory, at which point CHDIR will see he is coming from  a
+non-system directory and ask him for the password.  He must issue
+the correct password to enter any system directory.   Once  in  a
+system  directory,  the  user  is  priveledged  and may enter any
+directory on the machine.
+
+        Note that, with the ZCPR USER  command  removed,  leaving
+only CHDIR as a medium for changing user numbers, this provides a
+way of creating a set of relatively secure directories on a  pub-
+lic system, such as an RBBS.
+
+        Note the further documentation below, extracted from  the
+source to CHDIR.
+
+CHDIR performs three functions:
+
+                1) CHDIR allows the user to enter one of the  de-
+fined directories; this form of the CHDIR command is
+
+                        CHDIR dirname
+
+where 'dirname' is the name of the directory (up to 8 characters)
+
+                2) CHDIR allows the user to define a new directo-
+ry on the fly; this form of the command is
+
+                        CHDIR dirname du
+
+where 'dirname' is the name of the directory (up to 8 characters)
+and 'du' is a disk/user designator, like A10
+
+                   Along the same lines, the CHDIR  Setup  option
+allows  the  user  to  define or redefine a number of directories
+without invoking CHDIR a number of times; this command is of  the
+form
+
+                        CHDIR /SETUP
+
+                3) CHDIR displays the names of the  known  direc-
+tories to the user; this form of the command is
+
+                        CHDIR /DISPLAY
+22-Aug-82 22:37:22,1591;000000000000
+Date:     23 Aug 82 0:37:22-EDT (Mon)
+From:     Rick Conn <rconn@BRL>
+To:       info-cpm at BRL
+Subject:  device.c
+Via:  Brl; 23 Aug 82 0:47-EDT
+Via:  Brl-Bmd; 23 Aug 82 0:52-EDT
+
+        I've also completed and uploaded a program called DEVICE,
+which allows the CP/M or CP/ZM user to reference (and rename) his
+physical devices with mnemonics.  For instance, if  UL1:  of  the
+LST:  device is a XEROX 1750, then you can name this device XEROX
+and select it by the command:
+
+                DEVICE LST: XEROX
+
+        The files are:
+
+                DEVICE C in AR36:CPM
+                DEVICE COM in AR12:CPM
+
+        Documentation extracted from the source program follows:
+
+	DEVICE -- a program for assigning mnemonic names to the
+CP/M physical devices and allowing these devices to be selected
+by the assigned names
+
+	Command Forms:
+
+		DEV CON: USERNAME	<-- Select Device
+		    LST: USERNAME
+		    RDR: USERNAME
+		    PUN: USERNAME
+
+		DEV //			<-- HELP
+
+		DEV /DISPLAY		<-- Display USERNAMEs and
+						current settings
+
+		DEV /SET		<-- Define USERNAMEs and
+						comments
+
+	Concept and Examples:
+
+		DEV CON: REMOTE		<-- Select Remote Console
+		DEV LST: MODEM		<-- Select Modem Output
+		DEV /D			<-- Display UNs and Settings
+			CON: Mnemonic Devices --
+				TTY	CRT	MODEM	CRT/MODEM
+			LST: Mnemonic Devices --
+				TTY	CRT	REMOTE	MODEM
+			RDR: Mnemonic Devices --
+				TTY	CRT	CLOCK	MODEM
+			PUN: Mnemonic Devices --
+				TTY	CRT	CLOCK	MODEM
+
+			Current Settings --
+				CON: = CRT
+				LST: = MODEM
+				RDR: = CLOCK
+				PUN: = CLOCK
+23-Aug-82 06:13:00,709;000000000000
+Date: 23 Aug 1982 0813-EDT
+From: EGK.MIT-OZ at BRL (Edjik)
+Subject: Re: Another lesson learned with MODEM 2
+To: info-cpm at Mit-Mc, protocolS at Rutgers
+cc: EGK.MIT-OZ at BRL
+In-Reply-To: Your message of 22-Aug-82 2138-EDT
+Via:  Mit-Mc; 23 Aug 82 8:14-EDT
+Via:  Brl; 23 Aug 82 8:48-EDT
+Via:  Brl-Bmd; 23 Aug 82 9:07-EDT
+
+Sigh, the problem looks like the protocol is to stupid.  The nak and
+acks should say what packet they are acking and naking.  the problem
+with silly timeouts from slow basics and other timing problems would be
+easier to deal with.  people who use simple minded protocols designed
+for single user systems on timesharing machines should be very careful.
+
+-- Edjik
+-------
+23-Aug-82 06:32:00,1555;000000000000
+Date: 23 August 1982 08:32-EDT
+From: Michael C Adler <MADLER@Mit-Mc>
+Subject: SPELL V1.0
+To: INFO-CPM at Mit-Mc
+cc: WBA at Mit-Mc
+Via:  Mit-Mc; 23 Aug 82 8:28-EDT
+Via:  Brl; 23 Aug 82 8:48-EDT
+Via:  Brl-Bmd; 23 Aug 82 9:09-EDT
+
+My program to check for spelling errors in WordStar document files has been
+loaded to MC.  This program will compare each word in a text file to the
+dictionary (dictionary was compiled by William Ackerman (WBA@XX)) and
+mark unfound words with a null character.  This character is recognized
+by WS.  I suppose that it could be modified to mark with whatever character
+you want to make SPELL compatible with other editors.
+
+WARNING!!!  SPELL WILL ONLY RUN ON THE Z80.
+
+The files are as follows:
+
+AR59:CPM;SPELL  DOC	<-- Documentation for SPELL
+         SPELL  MAC	<-- Spelling checker
+	 SPELL  COM
+	 SPELL  HEX	<-- All hex files created with the HEXIFY program on
+			    MC.  According to Keith, they run correctly.
+	 DICCRE MAC	<-- Creates new dictionaries (not necessary for you)
+	 DICCRE COM
+	 DICCRE HEX
+	 DICT   DIC	<-- This is the dictionary.
+
+To run spell, you ONLY need the files SPELL COM and DICT DIC.  The dictionary
+is about 56K with 39,000 words.  For more details, see the DOC file.
+Because of the decoding necessary to read the dictionary, the faster the CPU
+you have, the better the results.  Although my 2mhz plods at times, it is not
+all that bad (2.5 minutes for 6 pages.  probably won't increase too much more.)
+
+-Michael
+
+P.S.  Bug reports/suggestions gladly accepted.
+23-Aug-82 19:49:00,905;000000000000
+Date: 23 August 1982 21:49-EDT
+From: Charlie Strom <CSTROM@Mit-Mc>
+Subject: Updated SUBMIT replacement
+To: INFO-CPM at BRL
+Via:  Mit-Mc; 24 Aug 82 8:00-EDT
+Via:  Brl; 24 Aug 82 8:24-EDT
+Via:  Brl-Bmd; 24 Aug 82 18:14-EDT
+
+I have uploaded the following files to MC, comprising an update to EX,
+a RAM-resident substitute for the CP/M SUBMIT facility:
+
+	AR11:CPM;EX 12ASM	The source code
+	AR11:CPM;EX 12COM	Object code
+	AR11:CPM;EX 12HEX	For those who cannot transfer binary
+	AR11:CPM;EX 12DOC	Documentation
+	AR11:CPM;EX 12SUB	SUBMIT file used for assembly
+	AR11:CPM;EX 12TST	A SUBMIT file demonstrating enhancements
+	AR11:CPM;RELS UTL	Code relocator used to assemble EX; note
+				this is a BINARY file!
+	AR11:CPM;RELS HEX	For those who cannot transfer binary
+
+Note RELS.UTL is loaded with SID or an equivalent debugger and is
+self-prompting.
+				Regards, Charlie Strom <CSTROM @ MC>
+23-Aug-82 23:18:00,1404;000000000000
+Date: 24 August 1982 01:18-EDT
+From: Frank J Wancho <FJW@Mit-Mc>
+Subject:  Mainly for N* Users
+To: INFO-CPM at Mit-Mc
+Via:  Mit-Mc; 24 Aug 82 8:01-EDT
+Via:  Brl; 24 Aug 82 8:24-EDT
+Via:  Brl-Bmd; 24 Aug 82 18:16-EDT
+
+There is a rather clever release of N* CP/M 1.1.0QD, which allows you
+to define a "64K" environment and split the CP/M so that the BIOS can
+be located above the disk controller PROM.  Unfortunately, it is too
+clever:
+
+Suppose you take the default 64K configuration.  This puts the BIOS at
+F300H, and the BDOS is located from D900H to E6FFH.  The coldboot
+loader (in your SYSGEN image at 1400H to 14FFH, and loaded at F200H)
+copies the jump table from F300H to F332H to E700H.  Note that it does
+not copy the extra entry in the BIOS which is described in
+DIRDUMP.ASM.
+
+The result of all of this is that BDOS uses the jump table at E700H,
+and other programs like EX, BYE, UNSPOOL, and a few others, redirect
+I/O by overlaying the jump table at F300H - which is bypassed by the
+BDOS!
+
+One solution is to post-patch the jump table at E700H with jumps to
+consecutive addresses starting with F300H and incrementing by 3.
+
+Another solution is to patch the coldboot loader - but be careful: the
+first byte of the coldboot loader (at SYSGEN 1400H) is the page
+address (F2H) of where the coldboot image is to be loaded...
+
+Thought you'd like to know...
+
+--Frank
+24-Aug-82 00:06:00,1874;000000000000
+Date: 24 August 1982 02:06-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: Getting MODEM going on Keycomp
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 24 Aug 82 8:02-EDT
+Via:  Brl; 24 Aug 82 8:24-EDT
+Via:  Brl-Bmd; 24 Aug 82 18:18-EDT
+
+The following is forwarded from my RCPM system:
+
+---
+
+
+KPROMDM7.DOC  NON-LINEAR KAYCOMP KAYPRO II DOC FOR MODEM7.
+
+AS OF 08/21/82.      Tom McCormick.  Houston, Tx.
+
+
+This portable CP/M micro comes with an RS232c serial port,
+a BAUD.COM utility to set the baud rates on that port, and
+the SELECT editor with which to make the following changes
+to MBOOT.ASM.
+
+MBOOT.ASM is a minimal subset of MODEM7: all it will do is
+operate in terminal mode, and then receive one file at a time
+using the Christensen protocol of MODEM7.  It will not send,
+auto dial, send/receive without handshaking, transfer multiple
+files from a single command (wildcards), etc. like the full
+MODEM7 program will do.   BUT...it is much much shorter to
+key in the first time if you do not know anyone with MODEM7
+on a KAYPRO II compatable 5" diskette.
+
+Obtain a printed copy of MBOOT.ASM (free, public-domain), and
+make the following changes.  You can then use MBOOT to transfer
+the full MODEM7 program to yourself, and make the same changes
+to it.
+
+----------------------------------------------
+
+Here are the MODEM7 values to patch for KCOMP.
+
+04H   MODEM DATA PORT
+
+06H   MODEM STATUS PORT
+
+04H   BIT MASK: READY TO SEND
+
+01H   BIT MASK: READY TO RECEIVE
+
+----------------------------------------------
+
+We connected the KAYPRO serial port directly to
+an H-89 serial port as follows:
+
+	KAYPRO	  H-89
+
+	     2 to 3
+
+	     3 to 2
+
+	     5 to 4
+
+	20-6-8
+  (JUMP ALL 3) to 20
+
+ ...and transferred several files at 9600 baud.
+We did not try 19200, might work OK.
+
+----------------------------------------------
+24-Aug-82 11:13:17,2708;000000000000
+Date:     24 Aug 82 13:13:17-EDT (Tue)
+From:     Keith Petersen <w8sdz@BRL>
+To:       Info-Cpm at BRL
+Subject:  Concurrent CP/M and CP/M 3.0
+Via:  Brl; 24 Aug 82 13:19-EDT
+Via:  Brl-Bmd; 24 Aug 82 18:22-EDT
+
+
+I've heard recently that CP/M 3.0 is VERY close to being
+released.  Several people have asked what new features it
+will have, so I thought a review of a previous message on
+the subject was in order.  My appologies to those who have
+seen this before.
+
+---
+
+ #: 9043      Sec. 1 - Members
+Sb: #Concurrent CP/M
+    15-Mar-82  23:05:45
+Fm: Digital Research 70007,1001
+To: Sysop Charlie Strom 70210,104 (X)
+
+Well, Charlie, this is going to take several answers, no doubt. RE: 8080 vs
+8088, there are certain things that 8 bit machines make to difficult to
+implement due to their 64k addressing limit.  Bank select is only a partial
+answer to this, as inter-segment communication is still difficult.  Concurrent
+CP/M is basically MP/M aimed at a single user, multi tasking.  The main
+difference between reg. MP/M-86 and Concurrent CP/M is the virtual terminal
+support. Our primary market place is not the enduser, as they are largely
+incapable of interfacing complex interrupt driven systems (with the notable
+exception of the "hacker" and systems programmer types, like myself...), but
+rather is the OEM who sells systems.  Most of them are only interested in 16
+bit systems for new products.  It is much easier to program an 8086 than a z80.
+Have you ever tried to run something like WS under MP/M-80?  There is simply
+too much overhead on an 8-bit system to do more than one job effieciently, most
+programs are already CPU bound.
+
+        The virtual console support allows one terminal to emulate several
+(typically four).  If your actual console is memory mapped, something that is
+easy to do on a system with a one megabyte address space, it will swap screens.
+It can direct console input and output at disk files.  We are implementing it
+on the IBM PC and the DisplayWriter initially (both systemsng memory mapped
+video.)
+
+        CP/M-80 Version 3 can be configured for bank select systems, giving a
+63k TPA. It will support multiple sector/track buffers in the system bank, and
+is generated by LINK-80, allowing the BIOS to be comprised of modules. 
+Physical sector blocking and deblocking is handled by the BDOS, and the BIOS
+may optionally implement multiple sector transfers, allowing consequitive
+record transfers.  Perhaps even consequitive tracks.  It also supports bigger
+disks (512 meg), faster directory access, optional date/time stamping... 
+Etcetra.
+
+                Type at you next conference...
+
+                        -jrp
+24-Aug-82 22:00:24,1726;000000000000
+Date:     25 Aug 82 0:00:24-EDT (Wed)
+From:     Keith Petersen <w8sdz@BRL>
+To:       Info-Cpm at BRL
+Subject:  [Ted Shapin:  MODEM221 Overrun Problems]
+Via:  Brl; 25 Aug 82 0:07-EDT
+Via:  Brl-Bmd; 25 Aug 82 0:14-EDT
+
+This was sent to Info-Micro instead of Info-Cpm.  I am forwarding
+it to save Ted the trouble of retyping the message.  Replies to
+address below, please...
+
+
+----- Forwarded message # 1:
+
+Mail-from: DECNET site ECLD rcvd at 24-Aug-82 1840-PDT
+Date: 24 Aug 1982 1837-PDT
+From:  Ted Shapin <BEC.SHAPIN.USC-ECLD@Usc-Ecl>
+Subject: MODEM221 Overrun Problems
+To: info-micro at Brl
+cc: BEC.SHAPIN.USC-ECLD at Usc-Ecl
+Mail-Address: 2500 Harbor Blvd., Fullerton, CA 92634
+Phone: (714) 970-3393
+Via:  Usc-Ecl; 24 Aug 82 21:44-EDT
+Via:  Brl; 24 Aug 82 21:49-EDT
+Via:  Brl-Bmd; 24 Aug 82 21:56-EDT
+
+I have been fixing some things in MODEM TOPS20 and experienced the same
+inability of MODEM221 to recover after receiving 80H sectors and giving
+an overrun message.  That is 16K on the CP/M disk and CP/M BDOS needs to
+get another extent and takes more time before it is ready to receive.
+
+Operating at 1200 baud, I get this error every time regardless of how
+lightly or heavily my DEC system is loaded.  MODEM221 doesn't recover;
+but an earlier MODEM207 does - - it gives one error message and gets
+back in sync.
+
+Ted.
+
+P.S.  On MODEM TOPS20 it is necessary to turn off pause on command and
+pause on end of page, otherwise block 13H is treated as an X-OFF and will
+stop transmission from the TOPS system.  One of the mods I made is to set
+this automatically on entry if the logged terminal is the one that is
+connected to the modem.
+-------
+
+
+
+----- End of forwarded messages
+24-Aug-82 22:13:01,1720;000000000000
+Date:     25 Aug 82 0:13:01-EDT (Wed)
+From:     Keith Petersen <w8sdz@BRL>
+To:       Ted Shapin <BEC.SHAPIN.USC-ECLD@Usc-Ecl>
+cc:       Info-Cpm at BRL
+Subject:  Re:  MODEM221 Overrun Problems
+Via:  Brl; 25 Aug 82 0:16-EDT
+Via:  Brl-Bmd; 25 Aug 82 0:26-EDT
+
+Many MANY revisions back in "MODEM2xx" I changed the old original time-out
+values to 10 seconds to allow for slow disk systems.  I have a Micropolis
+Mod II mini-floppy that has a 30 millisecond track-to-track seek time and
+it was constantly screwing up everytime it crossed a 16k extent boundry
+because it had to seek back to the directory and then back to the data
+area again, and by that time the sender was already sending the next
+sector.  Somewhere along the line someone thought they "knew better"
+and changed my 10 second values to much lower values.  I have seen
+them as low as 3 and as high as 7.  My experience is that 10 was the
+minimum reliable value for very slow disk systems and since the time-out
+loop includes the input and it does not slow down the program to have it
+set for 10 seconds, I see no reason to have it be less than that!
+
+There are two timings involved in MODEM2xx.  1) the timing between
+received bytes, which is set for one second maximum, and 2) the
+timeout value between sectors, which as I said above should be 10
+seconds.
+
+There has been some discussion lately about some between-byte delays]
+caused by heavy system load, which caused the 1-second byte timeout
+to cause problems.  It would probably be a good idea to consider
+changing that to 3 seconds, but I wouldn't increase it too much more
+because it might cause problems getting back into "sync" after some
+line disturbance or over-run.
+25-Aug-82 04:33:59,417;000000000000
+Date:     25 Aug 82 5:33:59-EST (Wed)
+From:     Ben Goldfarb <goldfarb.ucf-cs@Udel-Relay>
+To:       Keith Petersen <w8sdz@BRL>
+cc:       Info-Cpm at BRL
+Subject:  Re:  Concurrent CP/M and CP/M 3.0
+Via:  UCF-CS; 25 Aug 82 7:56-EDT
+Via:  Udel-Relay; 25 Aug 82 8:09-EDT
+Via:  Brl; 25 Aug 82 8:17-EDT
+Via:  Brl-Bmd; 25 Aug 82 8:23-EDT
+
+I hope that fellow at Digital Research writes code better than he spells.
+25-Aug-82 09:29:00,927;000000000000
+Date:  25 August 1982 09:29 edt
+From:  Boebert.SCOMP at Mit-Multics
+Subject:  Applicard
+To:  info-apple at Mit-Mc, info-cpm at BRL
+Via:  Mit-Multics; 25 Aug 82 9:29-EDT
+Via:  Brl; 25 Aug 82 9:37-EDT
+Via:  Brl-Bmd; 25 Aug 82 9:44-EDT
+
+There is a new way for Apple owners to join the real world of CPM: an
+outfit called Personal Computer Products is putting out a single-board
+CPM system that plugs into an Apple.  The board has a 4 or 6 mhz z80 (2x
+or 3x the Softcard speed), 64k of memory, a built-in 80-column
+capability, 2k of prom, a clock, and an expansion interface.  Only takes
+up one slot, and the 6502 runs full speed in parallel.
+
+I have no address for the outfit, because I got notified by Lifeboat. 
+No prices on the notice.  Call Lynette Spano at Lifeboat (212) 860-0300
+for more info.
+
+Anybody out there work on/seen one of these things?  How would MODEM
+work in such an environment??
+
+Earl
+25-Aug-82 13:20:00,997;000000000000
+Mail-from: DECNET site ECLD rcvd at 25-Aug-82 1223-PDT
+Date: 25 Aug 1982 1220-PDT
+From:  Ted Shapin <BEC.SHAPIN.USC-ECLD@Usc-Ecl>
+Subject: MODEM221 Overrun Problems
+To: info-cpm at BRL
+cc: BEC.SHAPIN.USC-ECLD at Usc-Ecl
+Mail-Address: 2500 Harbor Blvd., Fullerton, CA 92634
+Phone: (714) 970-3393
+Via:  Usc-Ecl; 25 Aug 82 15:27-EDT
+Via:  Brl; 25 Aug 82 15:36-EDT
+Via:  Brl-Bmd; 25 Aug 82 15:41-EDT
+
+I still think there is a bug in MODEM221 and it is not the timing.
+Looking in my assembly listing, I see 3 secs set, waiting for a character
+and 10 seconds for a long wait.  These are at labels RCVSQ+ 8 lines and
+RCVSQ2 respectively.  MODEM20x also loses the start of sector 81H because
+of the long time for BDOS to create another extent, and it prints
+an error message and sends a NAK, but it RECOVERS.  MODEM221 does not,
+but continues to get OVERRUN errors.
+
+[Thanks for forwarding yesterday's message.  I meant to send it here
+but typed I-MICRO by mistake]
+
+Ted.
+-------
+27-Aug-82 00:15:28,837;000000000000
+Date:     27 Aug 82 2:15:28-EDT (Fri)
+From:     Rick Conn <rconn@BRL>
+To:       info-cpm at BRL
+Subject:  Slight Mod to CHDIR C and DEVICE C
+Via:  Brl; 27 Aug 82 2:26-EDT
+Via:  Brl-Bmd; 27 Aug 82 2:36-EDT
+
+        Some users have mentioned that they have had trouble com-
+piling the uploaded CHDIR.C and DEVICE.C sources.  In writing the
+original programs, I used a '\8' (8  decimal)  as  opposed  to  a
+'\010' (8 octal) to represent the backspace char, and this worked
+fine under my V1.42 BDS C compiler but has trouble under V1.46 of
+BDS C.
+
+        To correct this non-standard, I've uploaded new copies of
+CHDIR.C  and  DEVICE.C to AR36:CPM.  Version numbers are the same
+as before since exactly the same code is generated (the  COM  and
+HEX files were not changed).
+
+                                        Rick
+27-Aug-82 21:31:00,675;000000000000
+Date: 27 August 1982 23:31-EDT
+From: Michael C Adler <MADLER@Mit-Ml>
+Subject: WS 3.0 R command error
+To: Info-cpm at BRL
+Via:  Mit-Ml; 27 Aug 82 23:30-EDT
+Via:  Brl; 30 Aug 82 10:10-EDT
+Via:  Brl-Bmd; 30 Aug 82 10:38-EDT
+
+For some reason, the WS R(un program) command initializes the filename
+buffers at 5CH and 6CH with the value of the default drive instead of 0's.
+I can't understand why this was done since it makes the system incompatible
+with the CCP (or ZCPR).  Because of it, I can no longer assume that a
+person specified a drive name if the bytes are values other than 0.
+
+Does anybody know of a patch to make WS initialize with 0 instead?
+-Michael
+28-Aug-82 00:56:00,359;000000000000
+Date: 27 Aug 1982 2356-PDT
+Sender: BILLW at Sri-Kl
+Subject: Modem2 for PR1ME
+From: William "Chops" Westfield <BillW@Sri-Kl>
+To: info-cpm at BRL
+Message-ID: <[SRI-KL]27-Aug-82 23:56:21.BILLW>
+Via:  Sri-Kl; 30 Aug 82 7:57-EDT
+Via:  Brl-Bmd; 30 Aug 82 8:09-EDT
+
+It can't hurt to ask.  Has anyone implemented modem2 for a PR1ME
+minicomputer ?
+
+BillW
+28-Aug-82 13:19:00,528;000000000000
+Date: 28 August 1982 15:19-EDT
+From: Michael C Adler <MADLER@Mit-Ml>
+Subject: SPELL V1.1
+To: Info-cpm at BRL
+cc: MADLER at Mit-Ml
+Via:  Mit-Ml; 28 Aug 82 15:17-EDT
+Via:  Brl; 30 Aug 82 11:07-EDT
+Via:  Brl-Bmd; 30 Aug 82 11:28-EDT
+
+Spell version 1.1 has replaced version 1.0 in MC:AR59;CPM.  Thanks to
+Bob Bloom for pointing out a few bugs that caused it to miss words stored
+by WS in a user dictionary file.  If you downloaded version 1.0, I strongly
+recommend that you switch to 1.1 because of the bugs.
+-Michael
+28-Aug-82 15:07:00,1908;000000000000
+Date: 28 August 1982 17:07-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: Godbout Z80 modifications
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 28 Aug 82 17:09-EDT
+Via:  Brl; 30 Aug 82 11:13-EDT
+Via:  Brl-Bmd; 30 Aug 82 11:33-EDT
+
+The following is relayed from my RCPM system.  Replies to author,
+please, not me.  Thanks.
+
+---
+
+S. Kluger              El Paso RCPM (915) 598-1668 
+
+El Paso, TX, 08-27-82
+
+The following is a modification to the GODBOUT Z-80 CPU board to enhance
+it's reliability and is applicable for all boards REV J or earlier. I was
+given this mod by CompuPro today, did the changes and it works great.....
+
+The Z-80 CPU may have a problem addressing the on-board sockets if they
+hold HM6116-compatible RAMs. The problem I encountered and fixed with this
+mod was the following:
+
+I am using an old Hayes 80-103A modem card with a hardware modification 
+to decode the lower 8 address bits. The port is 90H. When addressing the
+board using Z-80 I/O instructions (LXI B,9090H, COUT A), everything worked
+fine. Using 8080 I/O, it did the following: It deposited (read closely)
+the RAM page number (F8 or above) at PAGE+PORT. Example: at F890H it wrote
+a F8, at F990H it wrote a F9, at FA90H it wrote a FA, and so on. It did that
+only on RAM chips plugged into the CPU board socket.
+
+This is what you'll have to do to make your board work:
+1. Connect a jumper wire from U15 pin 1 to U14 pin 1. U14-1 may be connected
+   to Vcc. If so, remove the short to Vcc.
+2. Connect a jumper wire from U14 pin 2 to "A" of J2.
+3. Break trace going TO "A" of J2.
+
+Please note that "A" of J2 is wrong in the schematic but right on the board.
+In the schematic, "A" is "B" and "B" is "A". 
+
+This mod removes "pwr" as write strobe for the 6116 and replaces it
+with "mwrite".
+
+I was also told that REV J and earlier boards MAY not work right when converted
+to 6MHz operation.
+28-Aug-82 15:11:00,2259;000000000000
+Date: 28 August 1982 17:11-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: Undocumented CP/M trap
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 28 Aug 82 17:27-EDT
+Via:  Brl; 30 Aug 82 11:14-EDT
+Via:  Brl-Bmd; 30 Aug 82 11:37-EDT
+
+---forwarded from my RCPM system, please reply to address below---
+
+August 12, 1982
+
+TO: All CP/M assembly programmers
+FROM: Thomas Hill
+      200 Oklahoma
+      Anchorage, Ak.  99504
+      (907) - 337-1984
+
+   SUBJECT: Undocumented CP/M BDOS Features
+
+Just a short note to aquaint you with an "undocumented feature" I have 
+encountered in the CP/M 2.2 BDOS.  While developing an assembly program 
+which read and wrote disk files, an early version did not open the 
+output file before writing to it.  Oddly enough, the BDOS accepted the 
+write and did not return an error condition.  Being a curious soul
+(and cautious), I sidetracked to investigate this effect.  A call to 
+Digital Research resulted in a letter informing me that they knew of the 
+effect and told me it was an "undocumented feature" of CP/M.  They also 
+told me that it was the programmer's responsibility to open and close 
+his files properly, to which a heartily agree.
+However.  I wrote some test programs to determine WHERE on the disk the 
+information was going, and WHAT happened to the valid data on the disk.
+Writing to an unopened file apparently writes information beginning at 
+Group 0, sector 1 and continues in a sequential manner thru the 
+allocation map.  (I lost three directories that way).  No change is made 
+in the allocation map, however, and the only change in the File Control 
+Block is the Current Record and Next Record fields are incremented.  NO
+CHANGE occurs in the FCB allocation map.
+
+While it is, of course, the programmer's responsibility to control the 
+file accesses, and proper opening and closing is mandatory, in some 
+cases (particularly during program development), proper file access may 
+not take place.  If this occurs, a possible loss of data may result.
+There may be a BDOS patch which will clear this up, or someone out there 
+may already have one.  If anyone knows more about this, I would 
+appreciate it if you would drop me a line at the above address.
+
+Thanks,
+Thomas Hill
+29-Aug-82 00:29:00,334;000000000000
+Date: 29 August 1982 02:29-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: SD-45.ASM release
+To: INFO-CPM at BRL
+Via:  Mit-Mc; 29 Aug 82 2:32-EDT
+Via:  Brl; 30 Aug 82 11:30-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:19-EDT
+
+Now available on MIT-MC, SD-45.ASM - an update by the
+author, Bruce Ratoff.  The file is in AR22:CPM;SD 45ASM
+29-Aug-82 13:34:00,810;000000000000
+Date: 29 August 1982 15:34-EDT
+From: Robert J Mathias <RJM@Mit-Mc>
+Subject: WILDEX.C Fix
+To: info-cpm at BRL
+Via:  Mit-Mc; 29 Aug 82 15:46-EDT
+Via:  Brl; 30 Aug 82 11:48-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:24-EDT
+
+I have uploaded CPM;AR34:WILDEX 15C.  This version corrects a serious bug
+in the command-line wild-card expansion utility.  Prior to this version,
+WILDEX would clobber pointers upon encountering more files than
+MAXITEMS (200).   Since most floppy-based systems do not have 200 or
+more files on a disk, the ugly bug did not appear until users began running
+programs which used WILDEX on hard-disk systems.
+
+This bug directly affects TYPE14.COM, SQ-16.COM, USQ-19.COM, and possibly 
+other utilities.  These programs should be re-linked with the new
+version of WILDEX.C.
+
+
+					Bob
+29-Aug-82 16:12:00,1070;000000000000
+Date: 29 August 1982 18:12-EDT
+From: Dan Blumenfeld <DAN@Mit-Ml>
+Subject: S-100 Floppy Disk Controller Survey Results
+To: Info-MICRO at BRL, Info-CPM at BRL
+Via:  Mit-Ml; 29 Aug 82 18:11-EDT
+Via:  Brl; 30 Aug 82 11:52-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:33-EDT
+
+
+The initial FDC survey responses have been tabulated and are available in
+the file MC:CPM;S100DC SURVEY.  If anyone finds any errors in the FDC specs,
+please send me a note so that I can correct it.  Also, if you're using an
+S-100 FDC which has NOT been included in the survey, I'd be interested
+in hearing about it.  So far, no information has been collected on
+Cromemco's 4FDC and 16FDC, Micromation's Disk Controller, or Wameco's FDC-1.
+
+The information concerning reliability and documentation quality, etc .
+was taken from comments included in the FDC responses.  The "Integration"
+entry indicates the relative complexity of initially bringing-up the
+FDC in an S-100 system.
+
+I'd also like to express my thanks and appreciation to all the people
+who responded to this survey.
+
+Dan
+29-Aug-82 17:34:00,1823;000000000000
+Date: 29 August 1982 19:34-EDT
+From: Paul L Kelley <PLK@Mit-Mc>
+Subject: DEC Rainbow-100 for MIT People
+To: INFO-MICRO at Mit-Mc, INFO-CPM at Mit-Mc
+Via:  Mit-Mc; 29 Aug 82 19:37-EDT
+Via:  Brl; 30 Aug 82 11:52-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:39-EDT
+
+	Although this message might seem to be appropriate for the
+MIT micro community alone, perhaps other academic institutions can
+make similar arrangements.
+--------------------------------------------------------------------
+
+	I talked to a local DEC person who deals with MIT yesterday.
+He says that MIT and DEC are trying to work out an agreement whereby
+members of the MIT community will be able to purchase the Rainbow-100
+and similar DEC products at the MIT discount rate (34-40%). The main
+hangup seems to revolve around how MIT, a nonprofit institution, remits
+the Massachusetts sales tax. He says DEC is very eager to see this happen.
+
+	The cost of the standardly configured Rainbow-100 at the discount
+rate would be in the $2100-2300 range. Briefly, the standard Rainbow-100
+has (as much as I can recollect):
+
+	o 8088 and Z80 CPUs; CP/M-86 and -80
+	o 64K RAM plus system software in ROM
+	o keyboard and display
+	o 2 5.25" drives; 400K/drive
+	o 2 serial ports (printer and communications)
+
+So, if the salesperon is correct about the MIT/DEC deal, the whole
+thing sounds like a fabulous boon. First deliveries of the Rainbow-100
+should be in October/November.
+
+	Btw, there will be a display for MIT/Harvard people of the new
+DEC PC line at the Hyatt Regency Cambridge this Tuesday and Wednesday
+(31 August and 1 September). This includes the Rainbow-100, Decmate II
+(PDP-8) and Professional 3xx Series (PDP-11) systems. Why the VT-180 or
+the rumored VT-185 (125+180) are not included is a mystery to me.
+
+cheers,
+	Paul Kelley
+29-Aug-82 23:04:00,2163;000000000000
+Date: 29-Aug-82 22:04:00-PDT (Sun)
+From:  (BAD ADDRESS)ucbvax (BAD ADDRESS), ARPAVAX <dag (David Gewirtz)
+Subject: HELP WANTED: ZCPR and Direct Disk Access
+Message-Id: <8207300504.13742.ARPAVAX@Berkeley>
+Received: by UCBARPA (3.177 [8/27/82]) id a13742; 29-Aug-82 22:04:01-PDT (Sun)
+Received: from UCBARPA by UCB-UCBVAX (3.177 [8/27/82]) id a05951; 29-Aug-82 22:15:19-PDT (Sun)
+To: info-cpm at BRL
+Cc: DAG at Mit-Ai
+Via:  Ucb-C70; 30 Aug 82 1:20-EDT
+Via:  Brl; 30 Aug 82 11:53-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:44-EDT
+
+
+Hi,
+
+I am trying to build a controller-independent CCP-Sysgen program 
+in C.
+
+That is, I would like to take an image of a ZCPR-like program,
+relocated for the current system size, and directly install it
+into the CCP reserved sectors on the system track.  The purpose of
+this is to bypass the need to load in a CP/M image with sysgen,
+jump into SID or DDT, load in ZCPR at an offset, exit SID, and
+then sysgen.  I would prefer to have a program called CCPGEN that
+is passed an argument of the image file.  This program should also
+be controller independent.  It is only needed to run for CP/M 2.2.
+
+According to the CP/M 2.2 Guide, the CCP is kept on Track 0,
+Sectors 2 through 17.  Are these physical or logical locations?
+I wrote a trial program that looked something like this:
+
+		SetDsk(1)
+		SetTrk(0)
+		SetSect(2)
+		SetDma(buff)
+		While NOT-FINISHED
+		{
+			WriteSect()
+			buff = buff + 128
+		}
+
+which did not work.  For some reason, I can't get DU (v75) to 
+examine track 0 sector 2 of the disk, but do know that the image
+was loaded in the wrong place.
+
+I know about sector skewing and the sector translation bios call,
+but am unsure whether I need it on track 0.  Is there any way
+to make this work on most any drive (like DU), perhaps by
+using the disk parameter block and sector translation table.
+How would I be able to do this.  Are there any C programs that
+will work on multiple controllers and access tracks 0 and 1?
+
+Help!!!
+
+Thanks in advance,
+David
+
+PS: I've been using the Morrow DJ2D with double density.  Track
+zero is reputed to be single density.
+
+Thanks again.
+29-Aug-82 23:08:24,2144;000000000000
+Date: 29-Aug-82 22:08:24-PDT (Sun)
+From:  (BAD ADDRESS)ucbvax (BAD ADDRESS), ARPAVAX <dag (David Gewirtz)
+Subject: HELP WANTED: ZCPR and Direct Disk Access
+Message-Id: <8207300508.13794.ARPAVAX@Berkeley>
+Received: by UCBARPA (3.177 [8/27/82]) id a13794; 29-Aug-82 22:08:26-PDT (Sun)
+Received: from UCBARPA by UCB-UCBVAX (3.177 [8/27/82]) id a05931; 29-Aug-82 22:14:52-PDT (Sun)
+To: info-cpm at BRL
+Via:  Ucb-C70; 30 Aug 82 1:17-EDT
+Via:  Brl; 30 Aug 82 11:54-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:44-EDT
+
+
+Hi,
+
+I am trying to build a controller-independent CCP-Sysgen program 
+in C.
+
+That is, I would like to take an image of a ZCPR-like program,
+relocated for the current system size, and directly install it
+into the CCP reserved sectors on the system track.  The purpose of
+this is to bypass the need to load in a CP/M image with sysgen,
+jump into SID or DDT, load in ZCPR at an offset, exit SID, and
+then sysgen.  I would prefer to have a program called CCPGEN that
+is passed an argument of the image file.  This program should also
+be controller independent.  It is only needed to run for CP/M 2.2.
+
+According to the CP/M 2.2 Guide, the CCP is kept on Track 0,
+Sectors 2 through 17.  Are these physical or logical locations?
+I wrote a trial program that looked something like this:
+
+		SetDsk(1)
+		SetTrk(0)
+		SetSect(2)
+		SetDma(buff)
+		While NOT-FINISHED
+		{
+			WriteSect()
+			buff = buff + 128
+		}
+
+which did not work.  For some reason, I can't get DU (v75) to 
+examine track 0 sector 2 of the disk, but do know that the image
+was loaded in the wrong place.
+
+I know about sector skewing and the sector translation bios call,
+but am unsure whether I need it on track 0.  Is there any way
+to make this work on most any drive (like DU), perhaps by
+using the disk parameter block and sector translation table.
+How would I be able to do this.  Are there any C programs that
+will work on multiple controllers and access tracks 0 and 1?
+
+Help!!!
+
+Thanks in advance,
+David
+
+PS: I've been using the Morrow DJ2D with double density.  Track
+zero is reputed to be single density.
+
+Thanks again.
+30-Aug-82 01:45:00,1096;000000000000
+Date: 30 August 1982 03:45-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: AR24:CPM; RT11 programs
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 30 Aug 82 3:56-EDT
+Via:  Brl; 30 Aug 82 11:54-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:48-EDT
+
+These files apparently were uploaded directly to the ARchive files at
+MC, which caused them to have three ASCII "null" characters at the
+end.  Thanks to Charlie Strom who pointed out that this causes some
+versions of the BDS-C compiler to bomb while compiling these files.
+They have all been fixed as of today.  No changes in the content
+except for the deletion of the offending null characters at the end.
+
+Please remember when uploading files to MC - ALWAYS upload to the main
+CPM directory (or your own if you have an account here) and then use
+the MOVE program to put them where they need to be.  If you're not
+sure where the files go, or there isn't enough room for them,
+(ARchives should never be allowed to exceed about 54-55 units in size
+as shown by the LISTF command), leave a message for FJW or myself and
+we'll see to it that they are moved.
+30-Aug-82 08:39:00,1100;000000000000
+Date: 30 Aug 1982 0739-PDT
+From: Jeffrey at Office-2
+Subject: letter quality printer query
+To:   info-cpm at BRL
+Via:  Office-2; 30 Aug 82 10:43-EDT
+Via:  Brl; 30 Aug 82 11:56-EDT
+Via:  Brl-Bmd; 30 Aug 82 12:53-EDT
+
+
+My old HYTYPE-1 based printer needs repairs again.
+
+I think its time to invest in a new correspondence printer.
+I use an Epson MX80 for drafts and such and would like
+to have a high [print] quality device mostly for letters.
+I like the look of proportional spacing.
+
+I would appreciate recommendations for reliable high
+quality printers.  The speed of the printer and its
+price are less important to me than the appearance of
+the printed results and the reliability of the device.
+
+Please reply directly to jeffrey@office since I'm temporarily
+off of the info-cpm list.   If there are interesting
+answers, I'll collect them and send to the group.
+
+thanks,
+
+Jeffrey Stone
+Menlo Park, CA
+
+p.s. would someone please add me to the info-cpm list again.
+My name must have been removed when I was having some problems
+with my mail account.  Thanks
+-------
+30-Aug-82 16:52:00,1294;000000000000
+Mail-from: DECNET site ECLD rcvd at 30-Aug-82 1554-PDT
+Date: 30 Aug 1982 1552-PDT
+From:  Ted Shapin <BEC.SHAPIN.USC-ECLD@Usc-Ecl>
+Subject: New MODEM TOPS20
+To: INFO-CPM at BRL
+cc: BEC.SHAPIN.USC-ECLD at Usc-Ecl
+Mail-Address: 2500 Harbor Blvd., Fullerton, CA 92634
+Phone: (714) 970-3393
+Via:  Usc-Ecl; 30 Aug 82 19:04-EDT
+Via:  Brl; 30 Aug 82 19:20-EDT
+Via:  Brl-Bmd; 30 Aug 82 19:26-EDT
+
+
+I have modified MODEM TOPS20 extensively.  It can be FTP'd from
+USC-ECLA::<JSOL>MODEM.MAC.
+
+I had a version of MODEM221A that did not have Dave Mabry's reset
+for 8251 overrun in it.  On the other hand, it had a mod by James
+Underwood dated 5/6/82 that fixed bugs in the capture routine
+when memory buffer overflowed.  There may be a version conflict
+on certain RCPM systems.  I have a version that I think combines
+all the mods and also has labels unique in the first 6 chars
+(which my cross assembler requires).  I would like to call this
+version MODEM222 and will upload it shortly.
+
+MODEM TOPS20 now works very well and seems to handle heavily loaded
+systems as well as line hits since I took Keith's advice and use
+a one second delay waiting for characters and a ten second delay
+waiting for ACKs.  I also added code to print the file size on
+open, etc.
+
+Ted.
+-------
+30-Aug-82 17:36:57,1790;000000000000
+Date:     30 Aug 82 19:36:57-EDT (Mon)
+From:     Keith Petersen <w8sdz@BRL>
+To:       Info-Cpm at BRL
+Subject:  [Mike Meyer:  Re: ithaca stuff..]
+Via:  Brl; 30 Aug 82 19:49-EDT
+Via:  Brl-Bmd; 30 Aug 82 19:58-EDT
+
+This probably should have gone to Info-Cpm instead of Info-Micro,
+so I am forwarding it.  Replies to address below please.
+
+----- Forwarded message # 1:
+
+Date: 27 Aug 1982 11:19:41 EST (Friday)
+From: Mike Meyer <mwm@Okc-Unix>
+Subject: Re: ithaca stuff..
+In-Reply-to: Your message of 27 Aug 1982 02:22 EDT
+To: Herb Lin <LIN@Mit-Mc>
+Cc: info-micro at Brl, mwm at Okc-Unix
+Via:  Okc-Unix; 27 Aug 82 12:26-EDT
+Via:  Brl; 30 Aug 82 8:15-EDT
+Via:  Brl-Bmd; 30 Aug 82 8:52-EDT
+
+This problem is not something that can be patched in the BIOS. Here is what is
+going on:
+
+        Normally, all goes well & I can boot the caching BIOS with typeahead
+
+        Sometimes, that BIOS won't boot. Everything else does: the
+        caching BIOS without typeahead, the non-caching BIOS with typeahead,
+        and the normal BIOS
+
+       I open the box, push in the USARTS on the I/O card, and all will be
+       well again (for a while). It will flake out the same way later.
+
+I haven't found a solution (if somebody out there has one, let me know!), but
+I haven't been looking to hard - I spend most of my time doing things where
+I don't want caching (they do exist!), or I don't want typeahead.
+
+This is the ONLY problem I've had with their stuff in over 2 years of work on
+this machine, and casual use of about 30 others. The only other major problem
+I've seen with Ithaca h'ware was a flakey power supply in a beta test site of
+their z8000 system. They eventually flew somebody out to look at that.
+
+	mike
+
+
+
+
+----- End of forwarded messages
+30-Aug-82 17:59:00,575;000000000000
+Date: 30 August 1982 19:59-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject:  WordStar overlay file default patch
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 30 Aug 82 20:02-EDT
+Via:  Brl; 30 Aug 82 20:10-EDT
+Via:  Brl-Bmd; 30 Aug 82 20:20-EDT
+
+Thanks to Charlie Strom <Cstrom@MC) for this information:
+
+Wordstar - changing default drive of overlay files - location 02dch,
+defdsk:, can be patched to change the default. I have hopes that there is
+a patch or location (more likely the former) to search a different
+user number, and my buddies at MPro are checking into it.
+30-Aug-82 18:41:00,589;000000000000
+Date: 30 August 1982 20:41-EDT
+From: Michael C Adler <MADLER@Mit-Ml>
+Subject:  SPELL V1.1
+To: info-cpm at BRL
+Via:  Mit-Ml; 30 Aug 82 20:40-EDT
+Via:  Brl; 30 Aug 82 20:49-EDT
+Via:  Brl-Bmd; 31 Aug 82 22:51-EDT
+
+Here is another attempt at sending the message.  Sorry if you get more than 1.
+
+Spell version 1.1 has replaced version 1.0 in MC:AR59;CPM.  Thanks to
+Bob Bloom for pointing out a few bugs that caused it to miss words stored
+by WS in a user dictionary file.  If you downloaded version 1.0, I strongly
+recommend that you switch to 1.1 because of the bugs.
+-Michael
+30-Aug-82 18:44:00,456;000000000000
+Date: Monday, 30 Aug 1982 17:44-PDT
+Ao: Charlie Strom <CSTROM at MIT-MC>
+Cc: INFO-CPM at BRL
+Subject: Re: Updated SUBMIT replacement
+In-reply-to: Your message of 23 August 1982 21:49-EDT.
+From: bridger at Rand-Unix
+Via:  Rand-Unix; 30 Aug 82 20:46-EDT
+Via:  Brl; 30 Aug 82 20:57-EDT
+Via:  Brl-Bmd; 31 Aug 82 22:55-EDT
+
+	Can the EX  Hex files be loaded with DDT or LOAD?  SID isn't available
+and we are unable to FTP .com files reliably here.  
+30-Aug-82 21:46:57,505;000000000000
+Date:     30 Aug 82 23:46:57-EDT (Mon)
+From:     Keith Petersen <w8sdz@BRL>
+To:       Benjamin Britt <BRITT@Usc-Isib>
+cc:       Info-Cpm at BRL
+Subject:  Need info on floppy
+Via:  Brl; 30 Aug 82 23:57-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:00-EDT
+
+Try Dave Hardy at CDP Corporation in Dearborn, MI.
+(313)-846-8004 during normal business hours.  This
+company runs the largest floppy disk repair depot
+in the midwest.
+
+They have manuals and data sheets for a wide variety of
+drives and controllers.
+30-Aug-82 22:57:00,321;000000000000
+Date: 31 August 1982 00:57-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: CHDIR.HEX
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 31 Aug 82 1:23-EDT
+Via:  Brl; 31 Aug 82 1:31-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:04-EDT
+
+For those who cannot FTP .COM files from MIT-MC, there is now a .HEX
+file available in AR13:CPM;CHDIR HEX
+30-Aug-82 23:44:00,327;000000000000
+Date: 31 August 1982 01:44-EDT
+From: Keith Petersen <W8SDZ@Mit-Mc>
+Subject: S100 disk controller survey moved
+To: Info-Cpm at BRL
+Via:  Mit-Mc; 31 Aug 82 1:49-EDT
+Via:  Brl; 31 Aug 82 2:00-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:05-EDT
+
+CPM;S100DC SURVEY has been moved to AR10:CPM;S100DC SURVEY to
+conserve directory space.
+31-Aug-82 00:47:00,2068;000000000000
+Date: 31 August 1982 02:47-EDT
+From: Robert J Mathias <RJM@Mit-Mc>
+Subject: New TYPE15.C
+To: info-cpm at BRL
+cc: RJM at Mit-Mc
+Via:  Mit-Mc; 31 Aug 82 2:51-EDT
+Via:  Brl; 31 Aug 82 2:58-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:06-EDT
+
+
+
+Date: 08/30/82
+From: Bob Mathias
+To:   All
+Re:   TYPE.C version 1.5 
+
+TYPE15 is a  program for listing a  normal  or squeezed file  to 
+the console.  TYPE15  uses  WILDEX15.C  which permits  ambiguous
+file names to  appear  on the  command line. Thus the  following 
+example would list all .AQM  and .ASM files on drive b:
+
+	A>TYPE15 B:*.AQM B:*.ASM
+
+An afn preceded by a "!" causes all names matching the given afn
+to be excluded from being  listed.   Thus,  to  list  all  files    
+except .MAC files, one enters:
+
+	A>TYPE15 !*.MAC			
+
+Another example: to get all files on D: except .C files, type:
+
+	A>TYPE15 D:*.* !D:*.C      
+
+
+TYPE15 will not list files with the follow extentions:
+
+	.COM, .OBJ, .BAD, .LOG, .OV?, .REL, .CRL, .IRL
+
+Also system files will not be listed.  TYPE15 can be  recompiled
+to permit system files.  Just comment out the #define NOSYS.
+
+TYPE15 should be linked with WILDEX15  (or any  version  greater
+than version 1.5 of WILDEX).
+
+TYPE15  uses direct  CBIOS console I/O to get around the problem
+of echoing line noise garbage on remote CP/M systems.   Also,  a
+special version, XTYPE   does  not  expand TABs.  This is useful
+for those  systems which would like to allow non-CP/M callers to
+"TYPE"  files without taking up an undo amount of time expanding
+tabs.
+
+Since TYPE15 performs all the functions of TYPESQ, plus it lists
+non-squeezed  files and handles  wildcard options, TYPESQ should	
+now be considered retired.
+
+The new files are:
+
+--> FILE:  CPM;AR51: TYPE   15COM       CRC = CD 60
+
+--> FILE:  CPM;AR51: TYPE   15C	 	CRC = 81 CC
+
+--> FILE:  CPM;AR51: XTYPE  15COM	CRC = A0 4E  <--no tab expansion
+
+--> FILE:  CPM;AR51: TYPE80 15COM	CRC = 4C F8  <--80 lines maximum
+
+--> FILE:  CPM;AR51: TYPE40 15COM	CRC = 91 F4  <--40 lines maximum
+31-Aug-82 04:04:00,908;000000000000
+Date: 31 August 1982 0304-PDT (Tuesday)
+From: lauren at Ucla-Security (Lauren Weinstein)
+Subject: undocumented CP/M "feature"
+To: INFO-CPM at Mit-Mc
+Via:  Mit-Mc; 31 Aug 82 6:13-EDT
+Via:  Brl; 31 Aug 82 6:17-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:09-EDT
+
+Not only does the "feature" of being able to write files before
+opening them exist, but there are actually programs which apparently
+use this capability!  We discovered this accidently while building
+the MARC CP/M emulator -- a test program failed for no reasonable
+reason and it was only after a great deal of searching that the
+truth was uncovered.  (Needless to say, we don't support such
+a "feature" in the emulator.)
+
+There are programs that are "sloppy" in other ways too, of course.
+One very popular CP/M utility has a habit of closing files that
+haven't been opened, or closing files more than once.
+
+Jolly good fun.
+
+--Lauren--
+31-Aug-82 05:34:00,490;000000000000
+Date: 31 August 1982 07:34-EDT
+From: Roger L Long <BYTE@Mit-Mc>
+Subject: Spell V1.1
+To: madler at Mit-Ml
+cc: info-cpm at BRL
+Via:  Mit-Mc; 31 Aug 82 7:37-EDT
+Via:  Brl; 31 Aug 82 7:48-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:18-EDT
+
+Which files were changed?  SPELL.ASM, SPELL.HEX and SPELL.COM?  It would
+be nice to include the version number in the extensions so that it is more
+evident which files I need to re-download (i.e. SPELL 11ASM, SPELL 11HEX,
+etc.).
+
+  Thanks.
+
+	-roger
+31-Aug-82 06:47:00,153;000000000000
+Date: 31 August 1982 08:47-EDT
+Via:  Brl; 31 Aug 82 8:58-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:22-EDT
+
+
+*** Problem during mail receipt from Arpanet ***
+31-Aug-82 06:47:00,446;000000000000
+Date: 31 August 1982 08:47-EDT
+From: Michael C Adler <MADLER@Mit-Ml>
+Subject:  Spell V1.1
+To: BYTE at Mit-Mc
+cc: Info-cpm at BRL
+Via:  Mit-Ml; 31 Aug 82 8:46-EDT
+Via:  Brl; 31 Aug 82 9:18-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:24-EDT
+
+The files in AR59 have been renamed to reflect version number (10 is version
+1.0, 11 is 1.1).  ONLY version 1.1 files have been changed since the initial
+announcement.
+
+Sorry for the confusion.
+-Michael
+31-Aug-82 06:47:00,446;000000000000
+Date: 31 August 1982 08:47-EDT
+From: Michael C Adler <MADLER@Mit-Ml>
+Subject:  Spell V1.1
+To: BYTE at Mit-Mc
+cc: Info-cpm at BRL
+Via:  Mit-Ml; 31 Aug 82 8:46-EDT
+Via:  Brl; 31 Aug 82 9:18-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:24-EDT
+
+The files in AR59 have been renamed to reflect version number (10 is version
+1.0, 11 is 1.1).  ONLY version 1.1 files have been changed since the initial
+announcement.
+
+Sorry for the confusion.
+-Michael
+31-Aug-82 10:46:00,1020;000000000000
+Date: 31 Aug 1982 10:46:00 EST (Tuesday)
+From: Mike Meyer <mwm@Okc-Unix>
+Subject: System utilities in C
+To: info-cpm at BRL
+Cc: mwm at Okc-Unix
+Via:  Okc-Unix; 31 Aug 82 11:51-EDT
+Via:  Brl; 31 Aug 82 11:57-EDT
+Via:  Brl-Bmd; 31 Aug 82 23:30-EDT
+
+Someone locally has written a utility to replace the DR sysgen program.
+The thing is called SYSCOPY, and works like so:
+
+	syscopy	from to
+
+where from is either a disk or a file, and to is either a disk or a file
+[I don't think that it has been tested in copy a system image from a file
+to a file]
+
+The result of doing a syscopy from a disk to a file is to create a system
+image at 0x980 in the file. Running the other way copies system images
+from a file to disk.
+
+This may be available from the CUG on the misc. I disk. If enough people ask,
+I can upload a copy to mc.
+
+	mike
+
+P.S. - this is in response to somebody working on a similar utility. I
+couldn't respond directly due to a lot of `BAD ADDRESS' messages in the
+From field.
+
+	mike
+31-Aug-82 11:20:00,1725;000000000000
+Date: 31 Aug 1982 at 1020-PDT
+To: INFO-CPM at Mit-Mc
+Subject: Find pattern utility
+From: chesley.tsca at Sri-Unix
+Via:  Sri-Tsca; 31 Aug 82 10:16-PDT
+Via:  Mit-Mc; 31 Aug 82 13:49-EDT
+Via:  Brl; 31 Aug 82 13:58-EDT
+Via:  Brl-Bmd; 1 Sep 82 7:57-EDT
+
+	I've uploaded a find pattern utility to MC.  It will print out all
+lines in a set of files containing a given pattern (similar to, but
+simpler than Unix grep).
+	There is complete documentation in the source, but in summary:
+
+	It's called with:
+
+		fp <pattern> <file(s)>
+
+	It uses wildexp to expand the file names, so wildcards etc. can be
+used.  <pattern> is a string of characters which must match some character
+string in the line if that line is to be printed.  Most characters just
+match themselves (ignoring case); the following have special meaning:
+
+		? - match any single character.
+		* - match zero or more of any character.
+		[<char-set>] - match any character in the set.
+		[-<char-set>] - match any character not in the set.
+
+	<char-set>s can be any string of characters.  Ranges can be
+specified by "<char>-<char>".  E.g., [a-z0-9_] will match any letter,
+number, or underscore.
+	Backslash (\) can be used to quote characters (i.e., keep them
+from being interpreted specially).
+
+	The program can be conditionally compiled for either CP/M or
+Unix, but I don't expect people to use it on Unix (grep is better).
+
+	The following files are included:
+
+	ar36:cpm;fp c	-- Find pattern main program.
+	ar36:cpm;pat h	-- Header file for general pattern search utility.
+	ar36:cpm;pat c	-- General pattern search utility.
+
+	pat.h/pat.c are a more general pattern search utility, which could
+be used in other areas.
+
+	--Harry...
+31-Aug-82 15:26:00,989;000000000000
+Mail-from: DECNET site ECLD rcvd at 31-Aug-82 1429-PDT
+Date: 31 Aug 1982 1426-PDT
+From:  Ted Shapin <BEC.SHAPIN.USC-ECLD@Usc-Ecl>
+Subject: MODEM TOPS20 Correction
+To: INFO-CPM at BRL
+Mail-Address: 2500 Harbor Blvd., Fullerton, CA 92634
+Phone: (714) 970-3393
+Via:  Usc-Ecl; 31 Aug 82 20:43-EDT
+Via:  Brl; 31 Aug 82 20:45-EDT
+Via:  Brl-Bmd; 1 Sep 82 9:49-EDT
+
+Sorry, I have a bug in USC-ECLA::<JSOL>MODEM.MAC
+
+The two instructions marked with an asterisk in this subroutine
+should be changed as follows:
+GETACK:
+	movei	1,^D10000		; wait 10 seconds for ack
+	call	SETTIM			; and get something
+	 jrst	CPOPJ			; non-skip return on timeout
+	call	GETCHR
+	cain	2,6
+	 jrst	CPOPJ1			;all OK, skip return
+	cain	2,"U"-100		; oh dear, a NAK... **
+	%IF
+	movei	1,.priou
+	camn	1,OUTJFN		;are we using control terminal **
+	%IF
+	move	3,[NO%LFL+NO%ZRO+<2,,20>]
+	nout				;display the unexpected character
+	 trn
+	hrroi	1,[asciz/H rec'd, not ACK
+/]
+	psout
+	%END
+	%END
+-------
+31-Aug-82 19:09:00,462;000000000000
+Date: 31 August 1982 21:09-EDT
+From: Dan Blumenfeld <DAN@Mit-Ml>
+Subject: S-100 FDC Survey Results
+To: Info-MICRO at BRL, Info-CPM at BRL
+Via:  Mit-Ml; 31 Aug 82 21:09-EDT
+Via:  Brl; 31 Aug 82 21:15-EDT
+Via:  Brl-Bmd; 1 Sep 82 9:51-EDT
+
+The file containing the S-100 Floppy Disk Controller Survey Results is now:
+
+	MC:CPM;AR10:S100DC SURVEY
+
+If, for some reason, you can't FTP the file to your site, drop me a note and
+I'll mail you a copy.
+
+Dan

@@ -1,0 +1,164 @@
+                            Commodore 128 CP/M 3.0
+                                BIOS revision 5
+                            6 December 1985 version
+                            Modified 7 May 1989 by
+                               Randy Winchester
+
+    LEGAL STUFF & DISCLAIMER:  I'm claiming no copyright on any of this 
+    material.  I didn't write any of it myself, this is just my 
+    implimentation.  Copyrights are held by Commodore and James Waltrip IV. 
+    The user of this code assumes all responsibility for all damages or 
+    losses, bla bla bla.
+
+    This version of a BIOS for the Commodore 128 is based on BIOSR4.ARK 
+    from James Waltrip IV.  Mr. Waltrip took care of many of the essentials 
+    a couple of years ago.  He slashed out a lot of unneeded code and added 
+    a great screen dump.  My revisions were to add back some of the things 
+    I've wanted or needed.
+
+    I made modifications to the following:
+
+         CXIO    .ASM			CXDISK  .ASM
+         CXKEY   .ASM			CXRAMDSK.ASM
+         CXPRINTE.ASM			CXEXT   .ASM
+
+    All other files in this library are unmodified from the version in 
+    BIOSR4.ARK.
+
+    Most of my additions are to support additional hardware.
+
+    * Drive D: is available (it was taken out in BIOSR4).
+
+    * A Drive E: has been added.  This isn't to be confused with the 
+    virtual disk drive in the official Commodore releases of CP/M.  The 
+    intended purpose of this drive E: is to make an entry in the drive 
+    table that can be used by QD.COM for an entry for the Quick Brown Box.  
+    The Quick Brown Box is a 64K battery backed-up RAM cartridge.  QD is a 
+    product of Herne Data Systems, Ltd.  QD installs a driver for the Quick 
+    Brown Box that allows it to be used as a RAM disk.  By entering the 
+    command: QD F/F, the Quick Brown Box is set up as Drive F:.  I keep my 
+    favorite utilities stored there so I can have them as soon as the 
+    system boots up.
+
+    * Definitions have been added to the disk parameter table for two of my 
+    favorite disk formats, 'Maxi 71' and '1581 GP'.  Maxi 71 is from Miklos 
+    Garamszeghy's article in 'The Transactor' on adding support for more 
+    foreign disk formats.  Maxi 71 offers an incredible 398K.  Disks can be 
+    formatted using Garamszeghy's public domain FORMAT22 or his 
+    commercially available package, Jugg'ler.  The latest version of 
+    Jugg'ler supports over 130 CP/M disk formats.
+
+    * 1581 GP is a 796K format for 3.5 inch disks.  Gene Pizzetta wrote 
+    FORMAT81 for adding 1581 disk support before the 1581 Commodore version 
+    was released.  He did a good job.  Not does his format hold more than 
+    Commodore's, it also seems faster than Commodore's format.  I haven't 
+    taken the time to verify this - just try it out and see what you think. 
+    Disks for 1581 GP can be formatted using Gene's public domain FORMAT81.
+
+    * The default LST device is now an ASCII printer, device 4.  The 
+    secondary address has been changed to 5.  This allows for transparent 
+    mode with the Xetec SuperGraphix interface without added line feeds.  
+    If you need to use a Commodore printer, replace FAST8502.ASM with the 
+    version found in BIOS4MOD.LBR, and replace CXPRINTE.ASM with the 
+    original version found on the DRI Source Code/Utilities disks.
+
+    Here's the nitty-gritty, file by file:
+
+--------------------------------------------------------------------------
+                                 CXIO.ASM
+--------------------------------------------------------------------------
+ *ADDITIONS BY Randy Winchester, 5/6/89
+
+ Default printer is device 4.
+
+ Set up for non-flashing block cursor
+
+ Search chain/temp drive:  M:,*,F: [TEMP=M:]
+ Drive F: is reserved for the Quick Brown Box battery powered RAM cartridge.
+ The QBB is initialized with QD.COM from Herne Data Systems, Ltd.
+
+ No password protection for booting the system.
+
+ Colors set in sign-on message.  Background=lt. gray, character=blue
+
+ Default system baud rate set for 75 baud.  This speeds up normal operation
+ considerably.
+
+ Printer names set to PRT-D4 and PRT-D5 (devices 4 and 5)
+--------------------------------------------------------------------------
+
+--------------------------------------------------------------------------
+                                 CXKEY.ASM
+--------------------------------------------------------------------------
+ * ADDITIONS by Randy Winchester, 5/3/89
+
+ Added drive D: to MFM unlock routine.
+--------------------------------------------------------------------------
+
+--------------------------------------------------------------------------
+                               CXPRINTE.ASM
+--------------------------------------------------------------------------
+ Set the secondary address to 5 to work properly with the Xetec
+ SuperGraphix in transparent mode.  -RW, 5/6/89
+--------------------------------------------------------------------------
+
+--------------------------------------------------------------------------
+                               CXRAMDSK.ASM
+--------------------------------------------------------------------------
+ CHANGES by Randy Winchester, 6 May 89
+
+ RAM disk is now drive M: again.
+
+ Disk Label for the RAM disk has been changed back to ERTWINE VON from
+   RAMDISK RAM.  Not only do I believe in honoring programmers rather
+   than hardware, there was no need to fuss with it in the first place.
+   No need to tempt fate.
+--------------------------------------------------------------------------
+
+--------------------------------------------------------------------------
+                                 CXEXT.ASM
+--------------------------------------------------------------------------
+ CHANGES by Randy Winchester, 6 May 89
+
+ Drive D: returned to active duty.
+
+ RAM disk set back to drive M:
+
+ Table entry made for Drive E:, used by Quick Brown Box.
+--------------------------------------------------------------------------
+
+    Notes:
+
+    I think the CXKYCODE.ASM file that is included with the ARKhive is 
+    lacking in many ways.  Rather than edit the file, there are easier ways 
+    to include key definitions in a CPM+.SYS file.  I highly recommend 
+    KEYFIG from the original Commodore system disk for defining the 
+    keyboard layout.  Once you have the keyboard configured the way you 
+    like it, you can use KEYFIG to save the layout in your new CPM+.SYS.  
+    Other tools that are helpful in this regard are the public domain 
+    SAVEKEY and LOADKEY by Gene Pizzetta.  These programs save or load 
+    keyboard definitions in files, and can be used to transfer custom key 
+    layouts from an old CPM+.SYS to a new CPM+.SYS.
+
+    I'd love to add support for Commodore's "official" 1581 disk format.  
+    I've hacked most of it out of a copy of the 28 May 87 release, but I 
+    haven't been able to make it work.  If anyone can show me the code to 
+    support the 1581, or a Disk Parameter Table entry for Commodore's 
+    format, please pass it along.
+
+    Please make sure to read all of the documentation in this archive.
+
+    If you have hints, tips, bug reports, suggestions, I'd like to hear 
+    them.  Please write me.
+
+                   Randy Winchester
+                   P.O. Box 1074
+                   Cambridge, MA  02142
+
+                   or on The Castle, 617/825-3135
+                   or the BCS/KUG Zitel board, 617/965-7046
+
+                   or the Internet:  randy@athena.mit.edu
+                   or UUCP:  randy@athena%mit-eddie (taking your chances)
+
+

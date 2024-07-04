@@ -1,0 +1,271 @@
+;			"Compare"
+;
+;		 File comparison utility
+;
+;		   (C) P.F.Ridler 1983
+;
+;
+;	Original	 5 Apr 83
+;			11 Oct 83  for Decision Mate
+;
+;
+;
+warm	equ	0000H
+bdos	equ	0005H
+dfcb1	equ	005CH
+dfcb2	equ	006CH
+;
+lf	equ	10
+cr	equ	13
+esc	equ	27
+del	equ	127
+;
+errmax	equ	20
+;
+	org	100H
+;
+cmp	ld	sp,stack
+	call	clrscr
+	call	dspnxt
+	db	esc,'=',8+32,25+32,'File comparison utility'
+	db	esc,'=',10+32,26+32,'(C)  P.F.Ridler  1983',0
+	call	row22
+	ld	hl,dfcb1
+	ld	de,fcb1
+	ld	bc,16
+	ldir
+	xor	a,a
+	ld	(fcb1+32),a
+	;
+	ld	hl,dfcb2
+	ld	de,fcb2
+	ld	bc,16
+	ldir
+	xor	a,a
+	ld	(fcb2+32),a
+	;
+	ld	de,fcb1
+	call	exist
+	jr	nz,cmp3
+	call	crlf
+	call	doesnt
+	jp	warm
+cmp3	ld	de,fcb2
+	call	exist
+	jr	nz,cmp4
+	call	crlf
+	call	doesnt
+	jp	warm
+cmp4	ld	hl,100H			;address
+cmp5	call	read1
+	call	read2
+	ld	a,(flag1)
+	or	a,a
+	jr	nz,exit1
+	ld	a,(flag2)
+	or	a,a
+	jr	nz,exit2
+	ld	b,128
+	ld	ix,buff1
+	ld	iy,buff2
+cmp6	ld	a,(ix)
+	cp	a,(iy)
+	jr	z,cmp9
+	call	dspadd
+	call	space
+	ld	a,(ix)
+	call	dsphex
+	call	space
+	call	dspasc
+	call	space
+	call	space
+	ld	a,(iy)
+	call	dsphex
+	call	space
+	call	dspasc
+	call	incerr
+	ld	a,(nerrs)
+	cp	a,errmax
+	jr	z,exit4
+cmp9	inc	ix
+	inc	iy
+	inc	hl
+	djnz	cmp6
+	jr	cmp5
+;
+;
+exit1	ld	a,(nerrs)
+	or	a,a
+	jr	nz,exit4
+	ld	a,(flag2)		;file1 at eof
+	or	a,a
+	jr	nz,exit3		;file2 too
+	call	dspnxt			;file1 finished but not file2
+	db	cr,lf,'File1 < file2',0
+	jr	exit4
+exit2	ld	a,(nerrs)
+	or	a,a
+	jr	nz,exit4
+	ld	a,(flag1)		;file2 finished, test file1
+	or	a,a
+	jr	nz,exit3		;file1 at eof
+	call	dspnxt
+	db	cr,lf,'File2 < file1',0
+	jr	exit4
+exit3	call	dspnxt
+	db	cr,lf,'Files are identical',0
+exit4	jp	warm
+;
+;
+incerr	push	hl
+	ld	hl,nerrs
+	inc	(hl)
+	pop	hl
+	ret
+;
+;
+read1	push	af
+	exx
+;	call	dspnxt
+;	db	cr,lf,'reading file1',0
+	ld	de,buff1		;set transfer address
+	ld	c,26
+	call	bdos
+	ld	de,fcb1			;read next sector
+	ld	c,20
+	call	bdos
+	ld	(flag1),a
+	exx
+	pop	af
+	ret
+;
+;
+read2	push	af
+	exx
+;	call	dspnxt
+;	db	cr,lf,'reading file2',0
+	ld	de,buff2
+	ld	c,26
+	call	bdos
+	ld	de,fcb2
+	ld	c,20
+	call	bdos
+	ld	(flag2),a
+	exx
+	pop	af
+	ret
+;
+;
+dspadd	call	crlf
+	ld	a,h
+	call	dsphex
+	ld	a,l
+	call	dsphex
+	ret
+;
+;
+dsphex	push	af
+	push	af		;needed later
+	srl	a		;high nibble
+	srl	a
+	srl	a
+	srl	a
+	cp	a,10
+	jp	p,dsphx1
+	add	a,30H		;0..9
+	jr	dsphx2
+dsphx1	add	a,37H		;A..F
+dsphx2	call	conout
+	pop	af
+	and	a,0FH		;low nibble
+	cp	a,10
+	jp	p,dsphx3
+	add	a,30H
+	jr	dsphx4
+dsphx3	add	a,37H
+dsphx4	call	conout
+	pop	af
+	ret
+;
+;
+exist	push	hl		;DE holds fcb
+	push	de
+	push	bc
+	ld	c,15
+	call	bdos
+	inc	a		;holds 0 if nbg
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+conout	exx
+	ld	e,a
+	ld	c,2
+	call	bdos
+	exx
+	ret
+;
+;
+dspasc	push	af
+	cp	a,del
+	jp	p,dspsc1
+	cp	a,' '
+	jp	p,dspsc2
+dspsc1	ld	a,'.'
+dspsc2	call	conout
+	pop	af
+	ret
+;
+;
+space	call	dspnxt
+	db	'  ',0
+	ret
+;
+;
+crlf	call	dspnxt
+	db	cr,lf,0
+	ret
+;
+;
+doesnt	call	dspnxt
+	db	cr,lf,'File doesn''t exist',0
+	ret
+;
+;
+row22	call	dspnxt			;position cursor at row=22, col=0
+	db	esc,'=',22+32,0+32,0
+	ret
+;
+;
+clrscr	call	dspnxt			;for Decision Mate
+	db	esc,':',0
+	ret
+;
+;
+dspnxt	ex	(sp),hl
+	push	af
+dspnx1	ld	a,(hl)
+	inc	hl
+	or	a,a
+	jr	z,dspnx2
+	call	conout
+	jr	dspnx1
+dspnx2	pop	af
+	ex	(sp),hl
+	ret
+;
+;
+nerrs	db	0
+flag1	db	0
+flag2	db	0
+addrss	dw	100H
+fcb1	ds	35
+fcb2	ds	35
+buff1	ds	128
+buff2	ds	128
+stack	equ	$+100H
+;
+	end	cmp
+		

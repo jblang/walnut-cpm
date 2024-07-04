@@ -1,0 +1,282 @@
+; DELALL - delete all (junk) files
+;
+; this program has two modes:
+; 1. NO ARGUMENT:
+;    deletes all *.BAK, *.$$$ and -PRINT-?.??? files on current drive
+; 2. FILENAME ARGUMENT:
+;    deletes all files matching filespec, ignoring drive/user
+;
+; N_O_T_E
+;
+; THIS PROGRAM ACTS ON ALL USER AREAS AT ONCE AND MAY ONLY BE RUN
+; BY A PRIVILEGED USER!
+; DUE TO THE NATURE OF THE PROGRAM, I SPECIFICALLY DISCLAIM *ANYTHING*
+; INCLUDING USABILITY OF THE PROGRAM.  THE AUTHOR MUST NOT BE HELD
+; RESPONSIBLE FOR THE USE OF OR BUGS IN THE PROGRAM.  IT IS THUS THE
+; OPERATOR'S SOLE RESPONSIBILITY TO MAKE SURE THE PROGRAM REALLY
+; WORKS AS CLAIMED.
+; SOURCE IS PROVIDED FOR THE KNOWLEDGEABLE USER TO BE ABLE TO SEE THAT
+; THERE REALLY ARE NO BOOBY TRAPS IN THIS CODE.
+; ESKAY SOFTWARE, S. KLUGER, 7120 SKILLMAN #2104, DALLAS TX 75231
+; PHONE (214) 553-1363
+;
+cr	equ	0dh
+lf	equ	0ah
+sfirst	equ	17
+snext	equ	18
+delete	equ	19
+getdr	equ	25
+gsusr	equ	32
+priv	equ	12
+cfunc	equ	5
+tfunc	equ	50h
+;
+; syslib calls are used throughout and denoted by "##"
+;
+.request syslib
+.z80
+;
+; data section
+;
+	dseg
+;
+bakfn:	db	'????????BAK'
+dolfn:	db	'????????$$$'
+prtfn:	db	'-PRINT-????'
+cusfn:	db	'           '			; custom filename
+;
+cusflg:	db	0				; custom file flag
+countd:	dw	0				; count of deleted files
+countt:	dw	0				; count of attempts
+;
+delfcb:	db	0,'           ',0,0,0,0		; delete file fcb
+	ds	22
+;
+srhfcb:	db	'?'				; dummy search fcb
+	ds	100
+stack	equ	$
+;
+; code section
+;
+	cseg
+;
+start:	ld	sp,stack
+	ld	c,priv			; check if privileged
+	call	tfunc
+	bit	7,b
+	jr	nz,..isp
+	call	print##
+	cr,lf,lf,7
+	'ERROR: non-privileged user',cr,lf,lf,0
+	rst	0
+;
+..isp:	ld	hl,5dh			; point to possible argument
+	ld	a,(hl)
+	cp	' '			; no arg?
+	jr	z,..narg
+	ld	de,cusfn
+	ld	bc,11
+	ldir
+	ld	a,0ffh
+	ld	(cusflg),a
+..narg:	call	print##
+	cr,lf
+	'                   ---------------------------------'
+	cr,lf
+	'                  | DELALL v1.10           by ESKAY |'
+	cr,lf,0
+	ld	a,(cusflg)
+	or	a
+	jr	z,..na1
+	call	print##
+	'                  | Deletes specified  files in all |',cr,lf
+	'                  |   user areas on current drive   |',cr,lf,0
+	jr	..na2
+;
+..na1:	call	print##
+	'                  | Deletes BAK,$$$ and PRINT files |',cr,lf
+	'                  | in all user areas on this drive |',cr,lf,0
+..na2:	call	print##
+	'                   ---------------------------------'
+	cr,lf,lf,0
+	ld	hl,5dh			; point to argument
+	ld	a,(cusflg)		; custom filename?
+	or	a
+	jp	z,..na3			;   no, continue normally
+	ld	b,11			; 11 chars to check
+	ld	a,'?'			; see if *.*
+..nacl:	cp	(hl)
+	jp	nz,..na3		; no match, must not be *.*
+	inc	hl
+	djnz	..nacl
+	call	print
+	'WARNING: you are about to erase everything in sight!',cr,lf
+	'Is this REALLY what you wish to do? (Say YES or NO) ',0
+	ld	a,1			; set for caps
+	call	bbline##		; get input line
+	or	a
+	jp	z,exit			; nothing typed - quit
+	ld	a,(hl)
+	cp	'Y'			; first char a "Y"?
+	jp	nz,exit			;   no, get out
+	call	print
+	cr,lf,lf,0
+..na3:	ld	de,srhfcb		; point to search fcb
+	ld	c,sfirst		; search first
+	call	cfunc			; turn up disk label
+srhlp:	ld	de,srhfcb		; point to search fcb
+	ld	c,snext			; get next dir entry
+	call	cfunc
+	cp	0ffh			; end of directory
+	jp	z,exit			;   yes, quit
+	call	moven			; move name if match and delete
+	call	condin##		; see if console abort
+	cp	3
+	jp	z,exit
+	jr	srhlp			; get next
+;
+; move name if it matches
+; enter with A=0,1,2,3
+; delete if we can
+;
+moven:	ld	c,a			; move count to c
+	ld	a,80h
+..gal:	dec	c
+	jp	m,..gad
+	add	a,20h
+	jr	..gal
+;
+..gad:	ld	l,a
+	ld	h,0			; hl now points to filename
+	ld	a,(hl)			; get first byte
+	cp	0e5h			; deleted file?
+	ret	z			; yes, return to get next
+	ld	a,(cusflg)		; custom fn specified?
+	or	a
+	jr	z,..ncs			; no, skip
+	ld	de,cusfn		; get custom fn
+	call	test			; test against match fn
+	call	z,delet			;   delete if match
+	ret
+;
+..ncs:	ld	de,bakfn		; check .BAK
+	call	test
+	jr	nz,..nbk
+	jp	delet
+;
+..nbk:	ld	de,dolfn		; check .$$$
+	call	test
+	jr	nz,..ndo
+	jp	delet
+;
+..ndo:	ld	de,prtfn		; check -PRINT-
+	call	test
+	ret	nz
+;
+; delete filename at HL
+;
+delet:	ld	d,h
+	ld	e,l
+	push	de			; save fn pointer
+	call	print##
+	cr,lf
+	'File:  [',0
+	ld	a,(hl)			; get user number
+	cp	10			; 10 or more
+	jr	nc,..ov9
+	call	print##
+	' ',0
+..ov9:	call	pafdc##			; print user number
+	push	de
+	ld	c,getdr
+	call	cfunc
+	add	a,'A'
+	call	cout
+	pop	de
+	ld	a,':'			; colon
+	call	cout##
+	inc	de			; point to filename
+	call	pfn1##			; print it
+	pop	de			; get fn pointer
+	ld	a,(de)			; get user area
+	push	de			; save fn pointer again
+	ld	e,a			; user into e
+	ld	c,gsusr			; set user
+	call	cfunc			; do it
+	ld	hl,(countt)		; increment total file match count
+	inc	hl
+	ld	(countt),hl
+	pop	de			; get fn ptr
+	ld	hl,9			; offset to RO tag
+	add	hl,de
+	bit	7,(hl)			; RO?
+	jr	z,notro
+	call	print
+	'] not deleted, Read Only',7,0
+	ret
+;
+notro:	ld	hl,1			; offset to FIFO tag
+	add	hl,de
+	bit	7,(hl)
+	jr	z,notff
+	call	print
+	'] not deleted, FIFO',7,0
+	ret
+;
+notff:	ld	c,delete
+	xor	a
+	ld	(de),a
+	call	cfunc
+	or	a
+	jr	z,deltok
+	call	print
+	'] not deleted',7,0
+	ret
+;
+deltok:	call	print
+	'] deleted',0
+	ld	hl,(countd)
+	inc	hl
+	ld	(countd),hl
+	ret
+;
+; test filename:
+; HL = pointer to found filename
+; DE = pointer to match filename
+; return with HL intact, Z=match, NZ=no match
+;
+test:	push	hl			; save hl
+	inc	hl			; point to first character
+	ld	b,11			; 11 chars to check
+..tstl:	ld	a,(de)			; get match byte
+	cp	'?'			; a wildcard character?
+	jr	z,..autm		;   yes, automatic match
+	ld	c,(hl)			; get target byte
+	res	7,c			; strip high bit
+	cp	c			; matching target?
+	jr	nz,..noma		;   no match!
+..autm:	inc	hl
+	inc	de
+	djnz	..tstl
+..noma:	pop	hl			; all set
+	ret				;   to ret	
+;
+exit:	call	print##
+	cr,lf,lf
+	'[END OF EXECUTION - DELETED ',0
+	ld	hl,(countd)
+	call	phlfdc##
+	call	print##
+	' OF ',0
+	ld	hl,(countt)
+	call	phlfdc##
+	call	print##
+	' FILES]',cr,lf,lf,0
+	rst	0
+	end
+
+	call	print
+	'] not deleted, FIFO',7,0
+	ret
+;
+notff:	ld

@@ -1,0 +1,71 @@
+;
+; B3C-BBII.INS	A TIME insert for BYE335 and up
+;  07/15/85	Note: This is an insert--not an overlay
+;
+; Adapted from:
+; MBC-BBII.ASM -- Version 1.0 -- 10/31/84 -- by Mark A. Matthews
+;
+;	TIME routine for BYE3 running on BigBoard_II
+;
+;	This overlay is designed to work on a BIGBOARD_II running BYE3.
+;	(Find your own clock set program...I use DDT myself and stuff
+;	 the current time/date in by hand...works pretty good)
+;
+;	When called this routine will check the RTCBUF. If a '99H'
+;	is in the first byte, the clock is initialized. Next the
+;	seconds are checked, and if changed since last update of
+;	RTC buffer, the clock is stopped, data copied to RTCBUF and
+;	the clock is restarted. (If no change in seconds, the
+;	routine returns immediately.)
+;
+;**********************************************************************
+;
+; Real-Time clock buffer - is organized as HH:MM:SS YYYY/MM/DD
+;
+;RTCBUF:
+;	DB	99H,99H,99H	;HH:MM:SS (BCD 24HR TIME) 00:00:00-23:59:59
+;	DB	19H,84H,01H,31H ;YYYY/MM/DD (BCD ISO DATE)
+;
+;
+; BYE3 saves and restores registers before/after calling TIME.
+;
+BB2CLK	EQU	0FF7DH		; Address of BigBoard_II's own clock
+				; Registers (in SS:MM:HH/DD-MM-YY format)
+				; Backwards from what we want.
+	 IF	RTC
+TIME:	LXI	H, BB2CLK	; HL points to BB_II array
+	LDA	RTCBUF+2	; Get old secs
+	XRA	M		; Compared to current secs
+	ANI	0FH
+	JZ	CLKEXIT		; If no change, skip update
+	MOV	A, M		; Start with seconds
+	STA	RTCBUF+2	; And copy to RTCBUF (secs)
+	INX	H		; Now minutes
+	MOV	A, M
+	STA	RTCBUF+1	; Copy into RTCBUF (mins)
+	INX	H		; Now hours
+	MOV	A, M
+	STA	RTCBUF+0	; Copy into RTCBUF (hours)
+	INX	H		; Days
+	MOV	A, M
+	STA	RTCBUF+6	; Copy into RTCBUF (days)
+	INX	H		; Now do months
+	MOV	A, M
+	STA	RTCBUF+5	; Copy into RTCBUF (months)
+	INX	H		; And finally, years
+	MOV	A, M
+	STA	RTCBUF+4	; Copy it into RTCBUF (years)
+;
+CLKEXIT:
+	LDA	RTCBUF		; Pick up BCD HH
+	CALL	BCDBIN		; Convert to binary
+	STA	CCHOUR		; For BYE3
+	LDA	RTCBUF+1	; Pick up BCD MM
+	CALL	BCDBIN		; Convert to binary
+	STA	CCMIN		; For BYE
+	RET			; And return (for now..)
+	 ENDIF	;RTC
+;
+;**********************************************************************
+;
+

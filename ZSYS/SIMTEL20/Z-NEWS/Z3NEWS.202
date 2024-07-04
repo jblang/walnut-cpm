@@ -1,0 +1,199 @@
+                                                                    6 May 1985
+                                  Z-NEWS 202
+
+Z  TIPS:   Eagerly awaiting completion of VFILER Version 3.5,  upgrade  by  Al 
+Dunsmuir  (Scarborough,  Ontario,  Canada),  we submit here what we think  are 
+useful  VFILER  notes.   But  first,  we show VFILER built-in  help  (menu  of 
+commands using screen highlighting),  obtained by typing "?" or "/" (unshifted 
+?)  toggle at VFILER Files display command prompt.   Last of three displays is 
+Macro Menu (VFILER.CMD file).
+
+ B0:WORK1            VFILER, Version 3.4 [Z-80 Code]            Fn.FT
+
+  -- Tagging Commands --     --------- File Operations ----------
+     T - Tag File              C - Copy File     D - Delete File
+     U - Untag File            F - File Size     R - Rename File
+     W - Wildcard T/U          Q - usQ File
+                           G - Group Copy/Delete/FSize/usQ/Tag/Untag
+
+  -- Cursor --      -- File Print & View --   --- User  Functions ---   
+      ^E            P - Print      V - View   0-9 - Execute  # - HELP  
+       ^                                                               
+  ^S <-+-> ^D       -- Movement Commands --     --- Miscellaneous ---  
+       v            <SP> - File Forward         A - Toggle Alpha Sort  
+      ^X            <BS> - File Backward        H - Help File          
+                       + - Screen Forward       N - New DIRectory      
+  -- Screen --         - - Screen Backward      S - Disk Status        
+    ^A Left            J - Jump to a File       Z - ZC
+    ^F Right           E - Refresh Screen    ^C,X - Exit      
+                    
+ Command (? = Files): X
+
+When  in Files display,  command line shows as:   Command (?  =  Help):.   The 
+drive/user  area (directory name) is shown in upper left corner;  current-file 
+cursor  points to,  at upper right.   Commands may be executed from three  (3) 
+user interface displays:   files, built-in help and macro menus.  Current File 
+shows from all displays, even Macro Menu.
+     Instead of 6 or 7 seconds, VFILER 3.5 loads in about 3 seconds (thanks to 
+Z-Noder  Jay Sage,  Newton Centre,  MA),  using 8" DSDD drives,  indicating  a 
+really useful,  little noticed utility.   Observe internal macro command  menu 
+(User  Functions) is obtained by typing "#",  fully releaving any necessity to 
+remember the ten (10) custom commands.
+     VFILER  does  things  you want it to do:   unsqueeze  files  to  printer, 
+console  or  to  another file,  or unsqueeze on a wildcard  and  group  basis. 
+Single or group tagging/untagging,  copying,  renaming, deleting, viewing, and 
+paginated with-header printing.   Also wildcard tagging/untagging of files for 
+further  processing--nothing is as quick and as simple as VFILER  for  general 
+disk  and  file housekeeping,  and as macro-command main entry  into  turn-key 
+menu/command-line drive computer system!
+     Now  we  design  an example CMD macro command file (with Macro  Menu)  to 
+manage  ZCPR3 source files,  by keeping them in a squeezed library called  (by 
+Charles  McManis,  Sunnyvale,  CA)  SOURCES.   Z-News 201 showed  how  library 
+automation is realized from ZCPR3 command line using aliases PUT,  GET, INSERT 
+and EXRACT.  We use two of these in our design and VFILER current-file pointer 
+to  insert/extract  files  into/from  SOURCES,  plus  additional  aliases  and 
+commands assisting other activities.
+     Remember, several CMD files may be used in your system by placing each in 
+a  different  directory,  using current directory and search  path  to  access 
+desired  one.   The command lines of CMD are separated from Macro Menu by  the 
+"#"  symbol,  the  same  symbol used to  display  menu.   VFILER.HLP  contains 
+information necessary to write custom CMD files.   While in VFILER,  type H to 
+access  this  documentation;  outside,  use command HELP ZCPR3 with HLP  files 
+along your path.
+
+ ; TITLE:  Source Code Library (SOURCES) Manager
+ 0 xdir %d%u:*.* ogoh'Attributes (p=to printer): '
+ 1 get 100 ws.com;poke 392 ff;go %d:%f
+ 2 putit %$
+ 3 extract 'File name to extract (<filename>.MQC): '.mqc
+ 4 lu -o SOURCES -m
+ 5 CAT:;catscan 'Master Catalog Search (e.g. *.doc): ' *.*;WORK1:
+ 6 tmaker get income10.ei e;ac BACKUP:=%d:income10.ei /a
+ 7 modem7
+ 8 mb %d:dims
+ 9 protect %$ 'Attribute (r=r/o, s=system, a=archive): '
+ #
+         >>> Z-System Source File LIBRARY Management Menu <<<
+                Files Squeezed/Unsqueezed On Entry/Exit
+
+  ------------------------------------------------------------------
+   0 - Directory of Current Disk                         (XDIR) - 0
+   1 - EDIT Current File (non-document mode)         (WordStar) - 1
+   2 - Put MAC file into SOURCES Library                (PUTIT) - 2
+   3 - Extract MQC file from SOURCES Library          (EXTRACT) - 3
+   4 - Enter SOURCES Library (LBR)                       (NULU) - 4
+   5 - Scan Master CATALOG from Console        (Discat CATSCAN) - 5
+   6 - Financial Tally                                (T/MAKER) - 6
+   7 - Telecommunicate via modem                       (Modem7) - 7
+   8 - Database Management System               (MBasic + DIMS) - 8
+   9 - Set Current File Attribute (R/O, R/W, Archive) (PROTECT) - 9
+  ------------------------------------------------------------------
+
+XDIR  is  set  here to give a display horizontally sorted by  file  name  (not 
+vertically by file type,  the defaults for XDIR) of all files on current disk. 
+Notice how trailing command attributes are easily added to CMD command text to 
+bring out features desired.  Text between apostrophes (prompts to user) may be 
+nested, to be answered by user, one following another!
+     WordStar 3.0 is poked at location 392H (a byte altered) to make sure non-
+document  mode is used for program source code editing function (no high  bit-
+7's  set  that  way).   GO executes WS at standard  Z  (CP/M)  location  100H. 
+Program file is pointed to with VFILER cursor arrow,  passed to WS as %f file. 
+Your ZCPR3 CCP must be assembled to have GET and GO active.
+     Library  program NULU (Martin Murray's replacement for LU and LSWEEP) has 
+been renamed to LU.   PUTIT alias is:   sq $1;era $1;insert *.mqc.  INSERT and 
+EXTRACT aliases are from Z-News 201;  sq is SQUEEZE program.   (We learned GET 
+alias name conflicts with ZCPR3 resident,  intrinsic GET,  which loads a  file 
+without   execution  at  a  specified  memory  location--JUMP  intrinsic  runs 
+program.)
+     Using 3 to extract a file from SOURCES library results in prompt for file 
+name of MAC file desired.   Only file name is entered without file type.  File 
+copy is automatically unsqueezed exiting SOURCES library,  details in  EXTRACT 
+alias.
+     Master disk and file catalog is scanned using Rick Conn's DISCAT (Echelon 
+proprietary)  program (see Newsletter 008,  page 2).   Here's a case of shell-
+menu controlled directory (CAT) being entered from shell VFILER.   The  DISCAT 
+menu permits running VFILER and chaining back when finished.  Of course, going 
+to  HELP directory from VFILER results in nested shells also.   Where does  it 
+end--it doesn't!  Disk B0: is directory WORK1 (see Newsletter 104, page 1).
+     Study  the newsletters and HLP files and your ability to create macro CMD 
+files  increases quickly.   Try some--start slow and debug each  command  line 
+before  going to the next--learn a little,  do,  learn more.   Aliases and Zex 
+file  in  Z-News  109 and 201 set the mood!   (Next  newsletter  covers  Files 
+display and adds more notes.)
+
+Z-COM is big success!  Now you can install Z-System on your computer in a  few 
+minutes, with I/O Package Segment ready to use PKey and other I/O packages you 
+or we develop.  You have all the functions of full-up Z without modifying your 
+BIOS.   Z-Com  cold  boots  as your operating system by using CP/M  CCP  patch 
+technique  described in Newsletter 009,  but ZC is used as command instead  of 
+Z3.
+     Licensed users of Z3-Dot-Com may upgrade to Z-Com (with I/OP) for  $40.95 
+plus  tax  (if  any)  and shipping and handling of  $3.00  (a  $99.00  value). 
+Included  is rose-pink two-sided command and installation card,  two disks  of 
+latest  ZCPR3 utilities,  along with six (6) special ZRDOS utilities and  full 
+online  HLP  documentation.   Notice command 6 in above CMD  file,  how  auto-
+archiving  (backup)  of edited (changed) file occurs using ZRDOS Archive  Copy 
+utility!
+
+Z-Node Network nears completion in United States--need several nodes in Europe 
+and Asia.   These apparently won't come automatically to us, so we will search 
+them out!
+
+   25. Douglas Thom - San Jose, CA 95129 - 408/253-1309 (number correction!)
+   34. Rod L. Blackman - Visalia, CA  93291 -
+   35. Norman Beeler - Sunnyvale, CA  94086 - 408/245-1420
+
+Z-Node #15 needs more callers!   Those  in  Chicago  area can have access to a
+super Kaypro BBS and Z-Node run by Sysop Richard Jacobson.   Try it--dial 312/
+649-1730 and behold treasures offered your modem port.
+
+Amateur_Z_User's_Corner:   Where to go to efficiently obtain  more  knowledge, 
+understanding  of computer operations and usage--try your public library!   We 
+know our writings don't completely cover your needs, but there's lots of books 
+and magazines we recommend reading and studying that will:
+
+1. Soul of CP/M:  Using and Modifying CP/M's Internal Features, Mitchell Waite
+2. The Programmer's CP/M Handbook, Andy Johnson-Laird, Osborne/McGraw-Hill
+3. Inside CP/M, Dave Cortesi of Dr. Dobb's Journal
+4. User's Guide, P.O. Box 5245, Redwood City, CA  94063, 415/364-0108
+5. The Computer Journal, P.O. Box 1697, Kalispell, MT  59903, 406/257-9119
+6. Micro Cornucopia, P.O. Box 223, Bend, OR,  97709, 503/382-5060
+7. Micro/Systems Journal, P.O. Box 1192, Mountainside, NJ  07092, 201/522-9347
+
+     First seven issues of User's Guide are great for learning CP/M, WordStar, 
+MailMerge,  SuperCalc,  Modem7,  dBASE II, T/Maker III and other popular 8-bit 
+programs.   These back issues are sold for $6.00 each.   Exorbitant,  you say; 
+yes, but worth it!
+     It'll take approximately two (2) years of study and computer operation to 
+feel  you know what's happening.   After 1000 hours of activity you are  above 
+average in capability to understand the new and to do,  way ahead of  majority 
+in these days of computer literacy--you know-you-know what's going on.  Wonder 
+what a "power user" feels?   Study no more than two (2) hours per day.   Facts 
+need  to  settle into your bones,  soul before more is laid on,  a basic  homo 
+sapient learning characteristic.
+
+Digital Research (Pacific Grove,  CA) continues to demonstrate truth of  harsh 
+words  used  (see  15  October 1984 Newsletter  007,  page  4,  next  to  last 
+paragraph) to describe their understanding of customers, of business, of life. 
+(Yuppies and MBA's do not make a business.)  Their Unix activity is dissolved, 
+as  is their languages division;  neither 8 nor 16-bit CP/M activity  remains. 
+All  eggs  are in GEM (Graphics Environment Manager) basket...but  will  Apple 
+Computers  sue?   We  expect  them to see really hard times in less  than  six 
+months (DRI founder Gary Kildall deserves better;  Gordon Eubanks,  author  of 
+EBasic and CBasic,  would agree),  unless a miracle!  May their new Concurrent 
+DOS-286 take off.  See you down the lines...
+				                                 Echelon, Inc.
+				                              101 First Street
+			                                  Los Altos, CA  94022
+				                       Telephone: 415/948-3820
+				                  Z-Node Central: 415/489-9005
+
+Trademarks:   HD64180,  Hitachi; Z80/800, Zilog; WY-50/75/85, Wyse; Model 955, 
+TeleVideo; Z-System, Z-Tools, ZCPR3, ZRDOS, Z-Com, Zas, Zlink, DSD, ZDM, ITOZ, 
+Z-Msg,  Lasting-Value  Software,  Echelon  and  their  respective  owners  and 
+authors; Unix, AT&T; CP/M, GEM, Digital Research.
+
+Z-News 202 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon.
+

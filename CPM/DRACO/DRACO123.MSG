@@ -1,0 +1,251 @@
+Date: Thursday, 13 November 1986
+From: seismo!ubc-vision!alberta!myrias!cg (Chris Gray)
+To:   Keith Petersen, W8SDZ
+Re:   DRACO CP/M-80 software suite uploaded
+
+The following files are the complete DRACO software suite:
+
+--> FILE:  DRACO-1 .ARC		CRC = 0B B6
+--> FILE:  DRACO-2 .ARC		CRC = B8 3C
+--> FILE:  DRACO-3 .ARC		CRC = 6A 97
+
+DRACO-1.ARC - documentation - writeups on the language, tools, programs,
+etc.  Also contains lots of sample Draco sources.
+
+DRACO-2.ARC - compiler - contains the compiler, linker, assembler,
+disassembler, librarian, cross-referencer, libraries and include files.
+
+DRACO-3.ARC - programs - contains programs which must be configured using
+the CONFIG program: several games and the editor.
+
+
+    What is Draco, Why Did I Write It and Why Is It Like It Is?
+
+    I usually describe Draco (pronounced Dray-ko) as a "systems
+programming language". That means that it is a language which is
+suitable for what I think of as systems programming - writing
+operating systems, compilers, editors, databases, etc. This doesn't
+mean that it isn't suitable for other applications such as writing
+games, graphics programs, numerical programs, etc. It does mean that
+the language has all of the facilities needed for the former type of
+programming, such as bit operators, pointer manipulation, support for
+complex data structures, etc.
+
+    What is different about Draco? I won't try to compare it with
+every other programming language in the world; instead I'll stick to
+two of the most popular ones for micros nowadays - C and Pascal. Draco
+has all of the facilities of C, except for bitfields and the macro
+preprocessor. Unlike C, and like Pascal, it is a strongly typed
+language. This means that it won't let you assign an integer to a
+pointer (unless you really insist). It is also not an expression
+language like C, thus it makes a quite strict distinction between
+statements like "a := 27" and expressions like "a + 27". Pascal is
+strongly typed, but lacks many of C's facilities - pointer
+manipulation, bit manipulation, standard separate compilation,
+conditional compilation, etc. I like to think that Draco combines the
+best features of both languages.
+
+    Visually, Draco doesn't really resemble either language closely,
+but is a little closer to Pascal than C. It uses ':=' for assignment
+and '=' for comparison, like Pascal and unlike C. It's structure and
+union declarations are like those of C, however. As a simple
+comparison, here follows the same program, written in Pascal, C, and
+Draco:
+
+Pascal:
+
+    PROGRAM test(INPUT, OUTPUT);
+    VAR
+        i, j : INTEGER;
+
+    BEGIN
+        FOR i := 0 TO 10 DO BEGIN
+            FOR j := 0 TO i DO
+                WRITE(j : 2, ' ');
+            WRITELN
+        END;
+        WRITELN("All done.")
+    END.
+
+C:
+
+    #include <stdio.h>
+
+    main(argc, argv)
+    int argc;
+    char *argv[];
+    {
+        int i, j;
+
+        for (i = 0; i <= 10; ++i) {
+            for (j = 0; j <= i; ++j)
+                printf("%2d ", j);
+            printf("\n");
+        }
+        printf("All done.\n");
+    }
+
+Draco:
+
+    proc main()void:
+        int i, j;
+
+        for i from 0 upto 10 do
+            for j from 0 upto i do
+                write(j : 2, ' ');
+            od;
+            writeln();
+        od;
+        writeln("All done.");
+    corp;
+
+    First, it's clear that the C program has lots of brackets, while
+the Pascal and Draco programs have lots of keywords. A significant
+difference, not very clear in this small example, is that Draco uses
+different keywords for each job, rather than relying on a single
+construct (the BEGIN - END or '{' - '}' block). I greatly prefer
+keywords, finding them easier on the eye. I also prefer languages in
+which the use of case (UPPER v.s. lower) is available for my own
+purposes, rather than having them equivalent as in most Pascals. Also,
+note that the Draco program uses 'upto' in the 'for' loops - this
+tells the compiler that the loop will be counting upwards; 'downto' is
+used for downward counting loops. C doesn't really have a semantically
+different 'for' loop - it's is just a kind of shorthand for a 'while'
+loop.
+
+    Some of the inadequacies of Pascal from my point of view are as follows:
+
+    - no standard separate compilation
+    - no conditional compilation
+    - no general string mechanism
+    - no pointer manipulation
+    - no bit manipulation
+    - I HATE BEGIN and END!
+    - no signed/unsigned types
+    - limitations on function and argument types
+    - procedure calls don't use '()' - they look like variables
+    - no typed, named, constants
+    - no available, decent implementations (fast compilation, good code,
+        nice libraries, good error reporting)
+    - I/O semantics that are poor for interactive programs
+    - no file inclusion or module specification facility
+
+    Some of the inadequacies of C from my point of view:
+
+    - too many bloody brackets!
+    - horrible declaration syntax (just what is "char *(*p[])()"?)
+    - error prone conventions (how many times have YOU written '=' when
+        you meant '=='?)
+    - non-portable I/O (if you don't believe this, take a look at the
+        open calls on CP/M or MS-DOS versions of C, where you get to tell
+        it what it's supposed to do with '\n')
+    - potential for extremely unreadable code (misuse of macros, etc.)
+    - slow compilers (as I've heard it, the reason that the original UNIX C
+        compiler for the PDP-11 generated assembler source was so that the
+        compiler writers didn't have to worry about long/short branch
+        optimization, since that was done by the assembler. Producing
+        assembler source is just plain slow. Those who argue that they want
+        to hand edit it to improve it are crazy!)
+    - lack of much type checking (I prefer compilers that tell me about my
+        dumb mistakes. This a lot better in the ANSI draft version.)
+    - inefficient standard setup - passing everything as 16 bits on an 8
+        bit CPU isn't so hot
+    - stupid linkers - why add all that code I'm never calling?
+    - no built-in I/O - this makes even the simplest programs large
+    - no typed, named constants
+
+    All of these issues have been addressed in the Draco language and
+tools.  Just as important to me is the quality of the tools (compiler,
+linker, etc.)  The Draco compiler goes from source code to
+relocatable, optimized machine code at a rate of about 2000 lines per
+minute on a 5 MHz 8085. Working from one 8" floppy disk, the entire
+compiler (about 10,000 lines) can be rebuilt in under 10 minutes. No
+other compiler I've heard of for CP/M can do this (at least not and
+produce good code). The linker will link small programs in one quick
+pass, and won't load any code that isn't referenced by the program. A
+simple "hello there world" program is under 1000 bytes.
+
+    Another reason that these programs exist is that I LIKE writing
+compilers and stuff. I'm up to about seven compilers now, the latest
+of which is a C compiler that should meet the ANSI draft standard
+(it's a huge monster written in C, but at least I was paid to write
+it!)
+
+    So I've written my very own personal compiler, that does things
+just the way I want; why should anyone else want to use it? Put
+simply, the Draco package (which includes the various libraries I've
+built up) is possibly the most effective way to produce compact,
+efficient code for CP/M systems. In the past couple of years, asside
+from fine tuning the compiler, I've written somewhere around 20,000
+lines of Draco code, including the screen editor I'm typing this into,
+a complex graphic role-playing game, several CRT-oriented games for
+CP/M, ranging from the trivial to the quite complex, a database
+package, a text processor (with a friend), a modem program, etc. If
+you want to program a CP/M system, whether for fun, profit or
+whatever, and are willing to learn another language, then I feel that
+Draco is a valid choice.
+
+    To be fair, I will end this intro with a list of things that I
+find are lacking in the this version of Draco:
+
+    - essentially non-existant floating point support
+    - no proper modules (although Draco goes about half way to providing a
+        usable kind of module)
+    - no bit oriented type (I haven't yet fully convinced myself that this
+        is needed)
+    - error handling is considerably better than most C compilers I've
+        heard of, but it could still use some improvement
+    - object code can ALWAYS use improvement, but the improvements that are
+        left would either be difficult or of little actual benefit and
+        would probably make the compiler too big to fit on standard CP/M
+        systems
+
+and, of course
+
+    - Draco is supported only by me, and available only on the systems that
+        I choose to put it on (currently CP/M-80 and Commodore Amiga,
+        although the Amiga version hasn't been widely released yet)
+
+			About the Draco Disks
+
+There are 3 disks in this set:
+
+1 - documentation - writeups on the language, tools, programs, etc.
+	Also contains lots of sample Draco sources.
+
+2 - compiler - contains the compiler, linker, assembler, disassembler,
+	librarian, cross-referencer, libraries and include files
+
+3 - programs - contains programs which must be configured using the CONFIG
+	program: several games and the editor
+
+
+All material on these disks are supplied "as is" with no warrantees or
+guarantees of any kind. The tools, especially the compiler and linker, have
+been heavily used and should be fairly bug free. Some of the games have
+known glitches.
+
+All material on these disks is supplied as "copyrighted shareware". This
+means that you can use the supplied material as you see fit, and you can
+give away copies of the disks to anyone, so long as this file, named
+"README.TXT" is included on each disk. The author retains all other rights
+to the software.
+
+This software was originally intended as commercial software, and some of
+the writeups reflect this orientation. Due to the lack of a viable market
+for CP/M-80, character based software, this software is now being
+distributed as "shareware", in which user's are requested to send a suitable
+donation to the author if they feel the software merits it. Such
+contributions can be thought of as encouragement to the author to create
+and release more software and more versions of the current software.
+Currently under way is a conversion of the compiler to generate MC68000
+code. The immediate target machine is the Commodore Amiga. Soon to follow
+that is a comprehensive graphics adventure system originally written for
+CP/M-80 using the Compupro "Spectrum" graphics board.
+
+Contributions can be sent to:
+
+	Chris Gray
+	Apt. #1612, 8515 112 Street,
+	Edmonton, Alberta, CANADA. T6G 1K7
+

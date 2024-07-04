@@ -1,0 +1,86 @@
+; Mex patches for ATR8000 with MDM7 overlay
+; These patches allow MEX to test the atr's
+; Parelell port status - Select a baud rate
+; Automatically from MEX's PHONE library.
+;
+; To install, use DDT and overlay the .HEX files over MEX.
+;
+;
+; Ex. DDT MEX112.COM
+;     -IMXO-ATR1.HEX
+;     -R
+;     -IMXO-SM13.HEX
+;     -R
+;     -S0D11
+;     -94 D5(<- YOU TYPE D5)
+;     -46 1D(<- YOU TYPE 1D) - - - You just installed the printer!
+;     -G0
+;
+; DDT Will return to the logged drive at which time type SAVE 95 ATRMEX.COM
+; at cp/m's comand prompt.
+;
+;
+;          My thanks to the author of M7ATR
+;
+;                       also
+;
+;            to Ron Fowler author of MEX
+;
+;
+;                      PATCHES
+;         Authored by Rich Gortatowsky  [72376,2153]
+;
+;                     (12/22/84)
+;
+       .Z80
+       ORG     01D5H         ;Place printer status routine in LOGON
+                             ;as MEX does'nt use that area.
+PSTAT: IN      A,(20H)       ;Get printer status
+       RLCA                  ;If busy = 0BFH.. Carry set on busy
+       JR      NC,PRED       ;If 3FH, printers ready
+       LD      A,00H         ;A REAL busy code back to MEX.
+       RET
+PRED:  LD      A,0FFH        ;A REAL ready status back to MEX.
+;
+; This next routine allows for auto-baud selection from the PHONE command
+; This has only been tested in MEX112.COM, Mex passes a value from 0 to 9
+; to the routine in the A register, 0 corresponding to 110 baud and 9
+; corresponding to 19.2k baud.
+;
+; * HOW CONVIENIENT! considering the ATR's SETCMD: routine uses these   *
+; *                       same values!                                  *
+;
+NBAUD: ORG     06ADH         ;Right after physical modem ovly
+       PUSH    HL
+       PUSH    DE            ;Save all regs.
+       PUSH    BC
+       LD      HL,03F0H      ;Time values for CTC (baud values)
+       PUSH    AF            ;Save the Baud select value passed from MEX
+       ADD     A,L           ;Add to get offset to baud rate.
+       LD      L,A           ;Store back to L.
+       LD      B,(HL)        ;B now contains the Baud value
+       LD      HL,06AAH      ;Parity values? HA! CTC init bytes!
+       LD      A,(0683H)     ;Index from SETCMD.
+       ADD     A,L           ;Must keep parity (?) the same
+       LD      L,A           ;HL now points to it.
+       LD      C,(HL)        ;C contains ctc control.
+       POP     AF            ;Get Baud select value (from MEX)
+       CP      06H           ;greater than 1200 bps?
+       JR      NC,GRTR       ;If > 1200
+       SET     5,C           ;Pre-scale of 256, not 16.
+GRTR:  LD      (02BAH),BC    ;Set up parameter for use by COMINIT
+       LD      (0398H),A     ;Set SETCMD:'s counter.
+       LD      (0107H),A     ;Set MSPEED in modem ovly (MEX looks at it).
+       CALL    02BCH         ;Call COMINIT, will init CTC.
+       POP     BC
+       POP     DE            ;Restore regs (DE used by COMINIT)
+       POP     HL
+       RET                   ;All DONE!
+ 
+;
+;
+;
+       ORG     0107H         ;Newbaud vector.
+       DW      NBAUD
+;
+       END

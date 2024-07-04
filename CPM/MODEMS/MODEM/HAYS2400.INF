@@ -1,0 +1,180 @@
+        FROM FidoNews, Volume 2, Number 11, 29 April 1985
+
+        Tom Jennings
+        Fido #1
+        27 Apr 85
+
+                        HAYES SMARTMODEM 2400 REVIEW
+
+                This is sort of a review of the Hayes Smartmodem 
+        2400. I say sort of because it's more or less documentation 
+        on what I went through to make it work with Fido/FidoNet and 
+        other things.  
+
+                The Hayes 2400 supports 300, 600, 1200 and 2400 
+        baud, and Bell 103A, 212A, and CCITT modes. I won't even 
+        bother to mention all the permutations. It has a much 
+        extended command set, and is supposed to be compatible with 
+        the "old" 1200 baud Hayes. It almost is.  
+
+                This modem has many problems. Most are plain old 
+        "bugs" that will probably get fixed, others are just design 
+        problems. I don't think Hayes is going to be prepared for 
+        the flak they will get on the changes they made. They might 
+        have thought them inconsequential.  
+
+                They did a good job with the extended command set.  
+        Old commands haven't been changed, they added new ones or 
+        expanded existing ones. So far, so good.  
+
+                Most of the problems are caused by optionitis. There 
+        are just too many useless commands. Luckily, most can be 
+        ignored. Two that cannot be are &D and &C. These are "one 
+        time" initialization commands the control how CD (Carrier 
+        Detect) and DTR (Data Terminal Ready) work.  
+
+                There are many non-obvious subtlies in getting the 
+        damn thing to answer the phone at 2400 baud. It won't just 
+        do it, you have to initialize it in a very special way. The 
+        problem is this non volatile RAM used instead of the DIP 
+        switches. You will soon wish you had DIP switches again. The 
+        NVRAM saves just about everything, including the last used 
+        baud rate. Hayes went crazy saving things in this RAM, and 
+        to show how much they like it they keep reading things back 
+        from it even after you have changed things.  
+
+                For instance, to get the modem to autoanswer at 2400 
+        baud, you have to send AT commands to it at 2400 baud. Not 
+        1200. Then, save the state of things with &W, so it will 
+        remember that you used 2400. Whenever DTR is dropped and 
+        raised, it will "remember" these settings, even if you don't 
+        want to. Fido 10H does this automatically, but for other 
+        programs you will probably have to go in with Minitel or 
+        something at 2400 baud and do it yourself.  
+
+                An annoyance, though I see why they did it, is that 
+        the numeric result code for "CONNECT 2400" is "10". The old 
+        Hayes had single digit result codes, like "1" meant 
+        "CONNECT" (300), "5" means "CONNECT 1200", etc. Programs 
+        that look for a single digit will think the "10" is "1".  
+
+                The &D3 command looks useful, but is not. It causes 
+        the modem to go onhook and disable when DTR is dropped, and 
+        reload all settings from NVRAM. This is fine, except that in 
+        this modem, when DTR is held low, CD is set true even if 
+        there is no carrier. Not very useful on a Fido or other BBS 
+        environment.  
+
+                There is no way to support DTR properly, and NOT 
+        have the modem autoanswer. In my application, I run a Fido 
+        only for outgoing mail on my home phone; I do not want the 
+        modem to autoanswer! As soon as DTR is lowered and raised, 
+        it goes into autoanswer, even if I set ATS0=0 and save it 
+        with &W. It insists on always setting ATS0=1.  
+
+                Since the 2400 supports 1200 in either CCITT or Bell 
+        modes, there has to be some way to tell the modem which to 
+        use. Enter the B command. However, it doesn't seem to work, 
+        and certainly doesnt work like they say, though the "bug" is 
+        actually an improvement. Calling another 2400 Smartmodem 
+        always connects, so I cannot tell which mode it's using.  
+
+                ATB0 is supposed to be CCITT mode. The manual says 
+        you will get an ERROR if you try to dial, etc at 300 baud in 
+        CCITT mode. This is not true, it will connect as Bell 103A.  
+        This is an improvement over what is in the manual. Same is 
+        true in Bell mode, ABT1. Supposedly, it won't let you dial 
+        in Bell mode at 2400; not true, it switches to CCITT and 
+        works fine. net result: ATBx is a no-op.  
+
+                600 baud is a total failure in the model I have. It 
+        connects OK, but it drops characters and bits. Presumably 
+        this is just a bug that will get fixed.  
+
+                Two of us had a similar, non-repeatable problem at 
+        2400 baud; the modem "locked up" and went into one of its 
+        Test Modes, with the MR light blinking. Disconnecting seemed 
+        to cure it. It only happened once to each of us.  
+
+                The manual, while about as clear as the old one, is 
+        many revisions behind the software actually in the modem.  
+        (The product code from my modem, returned by ATI, is 242) It 
+        does not even mention the side effects and interactions of 
+        DTR, NVRAM, and baud rate. Some things, like ATBx, are just 
+        plain wrong. Be prepared to experiment.  
+
+        SUMMARY:
+
+                Overall, once you figure out how to operate the damn 
+        thing, it works quite well, the 2400 baud problem 
+        notwithstanding. In autoanswer mode, once properly set up, 
+        it will receive calls at 2400 CCITT, 1200 CCITT, 1200 Bell 
+        212A, 600 CCITT (maybe) and 300 Bell 103A. Not too shabby.  
+        You just have to be very careful as to how you issue 
+        commands, and remember to do it at the right baud rates. For 
+        a more or less unattended operation such as Fido and 
+        FidoNet, there is no problem, since Fido will do the work 
+        for you.  
+
+                Assuming they fix the small bugs, this should be an 
+        excellent modem. The only drawback is the complexity coupled 
+        with the strange side effects such as not answering at 2400 
+        as mentioned above. Most users won't want to pay for all the 
+        unneccessary goodies such as synchronuous mode, and there 
+        may be other modems out that have less features but cost a 
+        lot less. Time will tell. It works quite well.  
+
+        OTHER STUFF:
+
+                There may be a special deal from Hayes for FidoNet 
+        sysops. Don't ask yet, it will get announced if true. There 
+        are also U.S. Robotics 2400 baud jobs coming too, supposedly 
+        for $350.00. It supports 2400 CCITT, 1200 Bell 212A, and 300 
+        Bell 103A. Basically, a Hayes 1200 with 2400 added. This may 
+        end up being the hot modem, if it works as advertised. In 
+        any case, don't expect all these things to be compatible 
+        with each other; I already know of differences between the 
+        Hayes and USR 2400 models, though the differences shouldn't 
+        be fatal.  
+
+        FIDO SPECIFIC ISSUES:
+
+                Fido 10H supports 300, 600, 1200 and 2400 baud. You 
+        have to hit CR twice for all baud rates. There is a problem 
+        at 2400 though. Sometimes the first CR doesnt get noticed; 
+        its not a modem problem, it's just a side effect of how 
+        UARTs work, and there is such a pressing need to release 10H 
+        that it will have to go out as is for now.  
+
+                To connect to a Fido with a 2400 baud modem, try the 
+        usual CRs. If no results, try hitting the space bar, then a 
+        CR.  
+
+        HOW TO MAKE IT WORK:
+
+                To make CD and DTR work as in the older Hayes, do 
+        the following: 
+
+        Use a terminal program, at 2400 baud.
+
+        AT&D2           DTR control
+        AT&C1           CD control
+        Other commands as needed; V0, E0, etc
+        AT&W            Save changes in NVRAM
+
+                You have to set &D and &C before you use the modem 
+        with Fido. The problem is that the modem defaults to "fake" 
+        CD, and Fido will think there is an incoming call, and not 
+        initialize the modem. Chicken and egg type problem. Just do: 
+
+        AT&C1&D3&W
+
+                At any baud rate, then Fido will do the rest if you 
+        select the right modem type.  
+
+                Note that if you connect once at, say, 300 baud, in 
+        order for the modem to later connect at 2400 baud you MUST 
+        drop DTR to make the modem reset itself from NVRAM. +++ ATH0 
+        won't do it. This is most annoying. This is only an issue 
+        for other autoanswer situations, not Fido.  
+

@@ -1,0 +1,98 @@
+ESKAY	9/14/85
+
+What a name for a file, you my think...
+
+
+This is a brief rundown of the NEC uPD70116, also known as the V30.
+To my knowledge, most of this also applies to the V20.
+
+
+The V30 is a 16-bit microprocessor in a 40-pin package with the same
+pinout as Intel's 8086.  I see it basically as an enhanced 8086 with
+extended features, but it may also be considered a stripped-down
+80186 with extended features.
+
+The V30's mnemonics are significantly different from Intel's, this is
+probably due to legal considerations.  We users shouldn't get hung up
+on this and simply use Intel's mnemonics...
+
+
+The V30 has three types of instructions:
+
+- 8086-compatible instruction set
+- enhanced instructions (80186 compatible)
+- unique extended instructions.
+
+Note: the data sheet says nothing about 80186 but I found the opcodes for
+      "enhanced" instructions to be identical to those found in the 80186.
+
+Since everyone knows the 8086 instructions, let's look at the "enhanced"
+instructions, which are really the 80186 extensions in disguise:
+
+
+NEC mnemonics	INTEL mnemonics	Example		Function
+
+PUSH imm	PUSH imm	PUSH 77H	Push an immediate value
+PUSH R		PUSHA		PUSHA		Push 8 general-purpose regs
+POP R		POPA		POPA		Pop 8 general-purpose regs
+MUL imm		MUL imm		MUL AX,7	Multiply reg/mem by immediate
+all shift/rotate instructions
+with immediate arguments	SHR AX,3
+CHKIND		BOUND		BOUND		Check array boundary
+INM		INS		INS BYTE	Input string from port DX
+						to [DI]
+OUTM		OUTS		OUTS BYTE	Output string from [SI]
+						to port DX
+PREPARE		ENTER		ENTER 28,3	Allocate stack frame for
+						procedure
+DISPOSE		LEAVE		LEAVE		Deallocate stack frame when
+						leaving procedure
+
+The V30 has the following unique instructions:
+
+INS		Insert bit field
+EXT		Extract bit field
+ADD4S		Add packed BCD strings
+SUB4S		Subtract packed BCD strings
+CMP4S		Compare packed BCD strings
+ROL4		Rotates 1 BCD digit left through AL low nybble
+ROR4		Rotates 1 BCD digit right through AL low nybble
+TEST1		Test a specified bit and set/reset Z flag
+NOT1		Invert a specified bit
+CLR1		Clear a specified bit
+SET1		Set a secified bit
+REPC		Repeat until CY clear
+REPNC		Repeat until CY set
+FPO2		Additional floating point processor call
+
+
+Additionally, the V30 has a mode bit (bit 15 of the flags register)
+which determines whether the chip operates in "native" mode or in
+"8080 emulation" mode. The following instructions control the mode bit:
+
+BRKEM		break for emulation
+RETEM		return from emulation
+CALLN		call native routine
+RETI		return from interrupt/native routine
+
+In 8080 emulation mode, the registers are used as follows:
+A=AL, B=CH, C=CL, D=DH, E=DL, H=BH, L=BL, SP=BP
+
+
+
+
+Due to hardware differences between the Intel 8086 and the V30, the
+V30 executes most instructions faster than the 8086. Thus, even if none of
+the advanced features are used, replacing your existing 8086 with a V30 should
+speed your system up.
+
+As of last week, the V30 was not yet available to the general public.
+The V20, however, (the 8088 replacement) is available and is being offered
+for sale by some local distributors.
+
+For more information, contact your local NEC support office or NEC parts
+dealer (in Dallas, go by "Off the shelf components" at 11441 Stemmons Fwy
+[247-0052] and ask for a spec sheet).
+
+Both the V20 and V30 come in 5MHz and 8MHz clock speeds.  As soon as the
+8MHz V30 becomes available, I'll run some benchmarks on it.

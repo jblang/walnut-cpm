@@ -1,0 +1,117 @@
+;
+
+
+
+	FINDERR - Find Error Condition of Previous Transient
+
+	1 - Summary
+	2 - Using FINDERR
+	3 - Program-Specific Info
+
+			FINDERR 1.1
+
+			Transients Covered by this Version
+			----------------------------------
+			M80 Version 3.44
+			F80 (Version 3.44?)
+
+			Note: See FINDERR.DOC for the original doc
+:1
+
+                                  FINDERR
+
+                               Ted H. Emigh
+                  Departments of Genetics and Statistics
+                      North Carolina State University
+                            Raleigh, NC  27695
+                           usenet: emigh@ecsvax
+
+     One of the major advantages of ZCPR3 is the passing of messages from
+one utility to the next.  Unfortunately, almost all commercial packages do
+not have this mechanism.  This program was developed to help in the passing
+of messages from commercial programs to ZCPR3 utilities.  As an example:
+We may wish to have a compilation/assembly stop if there are errors.
+Otherwise, we may wish to link the program with a library to an executable
+program.  Microsoft's Macro-80 assembler (M80) and FORTRAN-80 compiler
+(F80) give a summary of the number of fatal and warning errors just before
+the assembler/compiler stops execution.  FINDERR looks at the fatal and
+warning errors from M80/F80 and sets the ZCPR3 registers if there have
+been any errors.
+
+
+     Although it was designed for M80/F80, it should be relatively simple
+to add this type of error messages for any program that gives a summary of
+errors (or a total number of errors).
+
+ZCPR3 MESSAGES:
+
+     ZCPR3 allows the passing and testing of messages using the IF #
+construct, where # is a number between 0 and 9.  If a particular register
+is 0, then an error did not occur, if it is nonzero, then an error occured
+during assembly/compilation, and the specific value designates whether the
+error was fatal or a warning error.  In this version of FINDERR, ZCPR3
+Register 0 reflects the error status of a prior M80 assembly, and ZCPR3
+Register 1 reflects the error status of a prior F80 compilation.  FINDERR
+will check memory locations for both M80 and F80 -- but will be valid only
+ONE AT A TIME, and must be executed immediately after M80/F80.
+
+
+
+THE NATURE OF SUMMARY MESSAGES:
+
+     If a program gives a summary message, it must have locations to keep
+track of the errors (or summary data).  As the program exits, it will check
+these locations and print a message if it is appropriate.  You need to find
+these locations in order to make use of the summary information.   To find
+these locations, you need a good disassembler (RES, ZDASM, etc).
+
+     See the file FINDERR.DOC for a tutorial on how to locate summary data
+locations.  This information is outside the scope of this HELP file.
+
+:2
+
+	USING FINDERR
+
+     FINDERR MUST be executed immediately following the termination of the
+program that it is checking, so that no memory locations are changed.  Note
+that this means that FINDERR should lie in the path, don't use CMDRUN to
+get it out of a library, as this may change the memory locations you wish
+to test.  The ZCPR3 registers are set IN CONTEXT WITH the program executed
+prior to FINDERR.  Hence, Register 0 is a valid test with FINDERR after
+M80, but is invalid if FINDERR is executed after F80.  The following ZEX
+file will assemble an M80 file and link/load it if there are no errors.  If
+there are warning errors, it will wait for programmer intervention, and if
+there are any fatal errors it will abort the assembly.
+
+
+
+EXAMPLE:
+
+;   M80.ZEX -- MACRO-80 Assembler and Linker
+;
+if nul $1 ;note Print Error Message
+echo	^G**** No Parameter Specified ****
+else	;note Perform Assembly
+if ~exist $1.MAC ;note Print File Not Found
+echo	**** File Not Found ****
+else
+M80 =$1
+FINDERR
+if 0		;note No errors found, link file
+ < commands to do the link >
+else		;note on IF REG 0
+echo   ^G***FATAL ERROR IN ASSEMBLY***
+fi	  ;note IF REG 0 2
+ERA $1.REL
+fi;fi	   ;note on IF NUL and IF EMPTY
+:3
+
+	PROGRAM-SPECIFIC NOTES
+
+	1. M80
+		A. If Reg 0 = 0, no errors occurred
+		B. If Reg 0 = 2, warning errors were issued
+
+	2. F80
+		No Notes
+

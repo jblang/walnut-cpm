@@ -1,0 +1,36 @@
+        JZ      REDOIT          ; Start over
+        CPI     '1'             ; 300 baud or 2400 bps?
+        JNZ     MDR2            ; No, check for 1200 bps
+;
+;
+; Get next character if first was a '1'
+;
+        CALL    CHECK1          ; Let's see if it's a 1, 10 or 11
+         ENDIF                  ; B5IM
+;
+         IF     B5IM AND PRGRSS
+        CALL    RCDISP          ; Show RC to local terminal
+         ENDIF                  ; B5IM AND PRGRSS
+;
+         IF     B5IM
+	CPI	0FFH		; Error?           <<== INSERT
+	JZ	SET3		; If so, must have been a '1'  <<== INSERT
+        CPI     '0'
+        JZ      SET24           ; For Vadic and Hayes, 10 means 2400 bps
+	CPI	'3'		; For 9600 non-ARQ <<== INSERT
+	JZ	SET96		; Go set baud rate <<== INSERT
+	CPI	'5'		; For 1200 ARQ     <<== INSERT
+	JZ	SET12		;                  <<== INSERT
+	CPI	'6'		; For 2400 ARQ     <<== INSERT
+	JZ	SET24		;                  <<== INSERT
+	CPI	'7'		; For 9600 ARQ     <<== INSERT
+	JZ	SET96		;                  <<== INSERT
+;
+        JMP     SET3            ; Was 1 (300 baud)
+;
+MDR2:   CPI     '5'             ; 1200 bps?
+        JZ      SET12           ; Yes
+        CPI     '6'             ; Some modems use 6
+tion.
+
+

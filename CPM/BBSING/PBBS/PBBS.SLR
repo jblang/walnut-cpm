@@ -1,0 +1,73 @@
+SUBJECT : USING SLR'S Z80ASM AND SLRNK.COM ASSEMBLER/LINKER WITH PBBS
+
+FROM	: IRV HOFF W6FFC
+
+DATE	: 7 SEPT 86
+
+
+
+	Most of the PBBS modules commence with:
+
+
+	.Z80
+	ASEG
+	ORG	0100H
+
+
+	Null out or remove all three lines.  Rename the module so it has
+a .Z80 extent (unless your Z80ASM assembler has been installed to expect
+a .MAC extent.)  Then assemble (when ready):
+
+	B>Z80ASM PBBS/M 	; <== /M for a Microsoft-type .REL file
+
+when finished assembling (under two minutes even on a modest-speed floppy
+system), then ready for linking.  In this case:
+
+	B>SLRNK /P:100,PBBS,PBBSUBS,PBBS/N/E
+
+will generate a PBBS.COM file from the PBBS.REL file you made and the
+PBBSUBS.REL utility section of PBBS.  This will take around 22 seconds.
+(When using M80 it took around 6-1/2 minutes to assemble and L80 took
+around 1:40 to link with the same floppy system.)
+
+		(The /P:100 tells it to establish a
+		base address of 0100H when linking.
+		You could have kept the  ORG  0100H
+		address in the original module, and
+		then used /P:0 instead of /P:100.)
+
+	Then do the other four sections:  PBYE, PBBSMNT, PNOTE1 and
+PCHAT11 in a similar manner.  You can fix the APBBS.SUB submit file in
+an appropriate manner if you want to automate the whole procedure.  (I
+don't use submit files myself, the EX14 and EX15 files always bomb the
+system here when they are finished and are supposed to return to the
+operating system.)
+
+					- Irv
+
+
+   (Note:  The PBBS.MAC v3.0 had one line which causes the Z80ASM
+	   assembler to barf, it looked like this:
+
+------------------------------------------------------------------------
+		    as originally distributed
+
+SCNASK:
+	CALL	PRINT
+	CR,'Message number to begin scan (1-',0
+	 |
+	 \no 'DB' here, Microsoft's M80 will accept this line
+
+------------------------------------------------------------------------
+			    corrected
+SCNASK:
+	CALL	PRINT
+	DB	CR,'Message number to begin scan (1-',0 ; <== 'DB' added
+	 |
+	 \'DB' has been added, SLR's Z80ASM is now happy (so is M80).
+
+------------------------------------------------------------------------
+
+Without that 'DB' ahead of the ASCII string, the SLR assembler thought
+you were redefining the value of 'CR' and would put out about 30-40
+errors saying subsequent 'CR' values were "out of range".

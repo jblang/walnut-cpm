@@ -1,0 +1,246 @@
+	.z80
+	title	character set
+bdos	equ	5
+	dseg
+$memry::defs	2
+	jp	start
+lbuf:	defs	80
+ppos	equ	5
+hpos	equ	12
+opos	equ	19
+dpos	equ	27
+c1	equ	0
+c2	equ	40
+mnem:	defb	'nulsohstxetxeotenqackbel'
+	defb	'bs ht lf vt ff cr so si '
+	defb	'dledc1dc2dc3dc4naksynetb'
+	defb	'canem subescfs gs rs us '
+head:	rept	4
+	defb	' '
+	endm
+	defb	'CHAR    HEX     OCT     DEC'
+	rept	9
+	defb	' '
+	endm
+
+	cseg
+fill	macro	addr,char,len
+	ld	a,char
+	ld	(addr),a
+	ld	bc,len-1
+	ld	hl,addr
+	ld	de,addr+1
+	ldir
+	endm
+
+move	macro	dest,source,len
+	ld	bc,len
+	ld	hl,source
+	ld	de,dest
+	ldir
+	endm
+
+	jp	start
+hdig:	and	15
+	add	a,90h
+	daa
+	add	a,40h
+	daa
+	ret
+
+;
+;	main routine
+;
+;	for char:=0 to 127 do
+;	  begin
+;	    blank-fill half the line
+;	    load character
+;	    load hex equivalent
+;	    load octal equivalent
+;	    load decimal equivalent
+;	    if odd(char) then
+;	      print
+;	  end
+;
+start::	ld	sp,6000
+	xor	a		;start with char=0
+	push	af
+	move	lbuf+c1,head,40
+	move	lbuf+c2,head,40
+	ld	bc,0a0dh
+	ld	(lbuf+78),bc
+	call	writeln
+	fill	lbuf,0,78
+	call	writeln
+
+main:
+	pop	af		;load char
+	push	af
+	push	af
+	and	1		;check if odd
+	jr	nz,odd
+	pop	af
+	sra	a
+	push	af
+	ld	ix,lbuf+c1	;even: first column
+	fill	lbuf+c1,' ',40
+	jr	oe
+odd:	pop	af
+	sra	a
+	add	a,64
+	push	af
+	ld	ix,lbuf+c2	;odd:  second column
+	fill	lbuf+c2,' ',40
+oe:	pop	af
+	push	af
+	cp	' '		;check if  printable character
+	jp	m,unprn
+	cp	127
+	jr	nz,printable
+	ld	(ix+ppos),'d'
+	ld	(ix+ppos+1),'e'
+	ld	(ix+ppos+2),'l'
+	jr	hexx
+printable:
+	ld	(ix+ppos),a	;store printable character
+	jr	hexx
+unprn:	ld	d,0
+	ld	e,a
+	ld	iy,mnem
+	add	iy,de
+	add	iy,de
+	add	iy,de		;IY now points at mnemonic
+	ld	a,(iy+0)
+	ld	(ix+ppos),a
+	ld	a,(iy+1)
+	ld	(ix+ppos+1),a
+	ld	a,(iy+2)
+	ld	(ix+ppos+2),a	;mnemonic loaded for non-printable character
+hexx:
+	pop	af
+	push	af
+	ld	e,a
+	sra	a
+	sra	a
+	sra	a
+	sra	a		;isolate high-order hex digit
+	call	hdig
+	ld	(ix+hpos),a	;store 1st digit
+	ld	a,e		;get low-order hex digit
+	call	hdig
+	ld	(ix+hpos+1),a	;store 2nd digit
+octit:
+	pop	af
+	push	af
+	push	ix
+	ld	de,opos+3
+	add	ix,de
+	ld	c,a		;char to C for conversion
+	ld	de,8		;Base 8
+	xor	a		;clear high byte
+	call	bintobase
+	pop	ix
+	pop	af
+	push	af
+	ld	de,dpos+3
+	add	ix,de
+	ld	c,a
+	ld	de,10		;decimal radix
+	xor	a
+	call	bintobase	;convert char to decimal number
+	pop	af
+	pop	af
+	inc	a
+	push	af
+	and	1
+	jp	nz,main
+	ld	bc,0a0dh
+	ld	(lbuf+78),bc
+	call	writeln
+	pop	af
+	cp	128
+	jp	z,0
+	push	af
+	jp	main
+BINTOBASE:
+	push	iy		;Save this register
+	ld	iy,0		;Count of characters in destination string
+	push	af		;We want to do some arithmetic and checking
+	ld	a,e		;Get base
+	cp	2		;Check that base is at least 2
+	jp	m,badbase
+	cp	38		;Check that base is at most 37
+	jp	p,badbase
+	pop	af		;Restore number
+	push	af
+	or	c		;Check special case where number to be
+	jr	nz,convert	;converted is zero
+	ld	(ix+0),'0'
+	ld	b,1
+	pop	af
+	pop	iy
+	ret
+badbase:
+	ld	c,9		;Print string function
+	ld	de,baserr	;Error message
+	call	5		;Call BDOS
+	jp	0		;Exit program
+baserr: defb	'Base must be in the range 2 - 37$'
+div16:				;16-bit division subroutine
+				;	Dividend in AC, Divisor in DE
+				;	Quotient in AC, Remainder in HL
+	ld	hl,0
+	ld	b,16		;Initialise shift-counter
+loop16:	rl	c		;Rotate dividend left
+	rla
+	adc	hl,hl		;Left shift remainder
+	sbc	hl,de		;Trial subtract of divisor
+	jr	nc,$+3		;Subtract was OK, otherwise...
+	add	hl,de		;Restore remainder to before bad subtract
+	ccf			;Calculation result bit
+	djnz	loop16
+	rl	c		;Shift in last result bit
+	rla
+	ret
+
+convert:
+	pop	af		;Restore dividend
+	call	div16		;Get remainder of number/base
+	push	af		;Want to use A
+	inc	iy		;Count digits converted
+	ld	a,l		;Remainder of division to A
+	cp	10		;See if in the range 0-9
+	jr	c,numd
+	add	a,'A'-10	;not 0-9, store a letter in the string
+	jr	putdigit
+numd:	add	a,'0'
+putdigit:
+	ld	(ix+0),a	;Store digit in output string
+	dec	ix		;Adjust destination pointer
+	pop	af		;Restore number for next division
+	push	af
+	or	c		;Finished if number is zero
+	jr	nz,convert
+	pop	af		;Restore stack
+	inc	ix		;Fix up pointer (we decremented once too often)
+	push	iy		;String length to BC
+	pop	bc
+	pop	iy		;Restore IY entry value
+	ld	b,c		;Return length in B
+	ret
+
+writeln:
+	ld	hl,lbuf
+	ld	b,80
+	ld	c,2
+oc:	push	bc
+	push	hl
+	ld	e,(hl)
+	call	5
+	pop	hl
+	inc	hl
+	pop	bc
+	djnz	oc
+	ret
+	end	start
+

@@ -1,0 +1,23 @@
+I bought iLISP back in late 84 (v-2.0) and have had alot of fun with it
+and hopefully learning something. This version is surprisingly capable.
+Some bugs have shown up that might be useful to report.
+ 
+The function ARCTAN has been found to have a rather sneaky error - with
+arguments of less than 1.0 the answers are half of the correct angles.
+Check this out. If needed the easy patch is to define the function ATN
+as follows:
+      (DEFINE ATN (X) (IF (< x 1) (* 2 (ARCTAN X)) (ARCTAN X)))
+ 
+This definition as well as other common trig functions I put in a file
+used by SETUP to create LISP.COM to make them permanently available.
+ 
+The function LISTFILE has a characteristic which makes the printer spit
+out an initial blank sheet, or formfeed. This can be easilly corrected
+in the DEFINE statement with a conditional -
+          (IF (EQ LF 'CON:) (OUTB 12))
+so that you get CLS initially, but not a printer FF. Similarly, you can
+add an eject FF at the end by putting -
+          (IF (EQ LF 'LST:) (OUTB 12))
+just before the CLOSE statement.
+                                    O.BILHARZ   14/Aug 87
+

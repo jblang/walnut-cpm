@@ -1,0 +1,192 @@
+
+                               CRUNCH.TXT
+
+Background on CRUNCH, from author Steven Greenberg's documentation.
+
+---------
+
+     In order to make a practical stand alone "cruncher" that was easy
+to use, especially for those already familiar with squeezers, some
+header information had to be included in the resulting "crunched" file
+(eg. the filename of the original file, etc.).  I have defined a header
+based on the time tested squeezed file format, with some necessary
+changes and a few additions.  The additions are mostly to insure that
+files crunched now will always be un-crunchable with future versions of
+the uncruncher, no matter what possible enhancements are made.  Those
+familiar with the MS-DOS ARC.xxx program have probably seen this idea in
+action.  More on this later.
+
+     Another slight problem with LZWCOM and LZWUNC had to do with the
+question of termination.  When the input file was exhausted during
+compression, it was unlikely the output file was on a sector boundary.
+No matter what the rest of the final output sector was padded with
+("1A"'s were used), the uncruncher would try to uncrunch those bytes
+(since all data is conceivably valid).  This resulted in occasional
+extra sectors of garbage following an otherwise properly decoded file.
+While this did not usually cause a problem, it was certainly not
+desirable.
+
+     I have chosen to handle the termination problem the same way it
+was handled with squeezed files; by dedicating a unique code to
+represent EOF (End Of Field).  By only allowing 4095 instead of 4096
+different codes (not a major shortcoming), code 000 can become a
+dedicated EOF.  As soon as it is encountered on the input file, the
+decoding process is known to be complete.  For those who are interested,
+the exact code put out by CRUNCH can be duplicated by the "C" program
+LZWCOM if table entry zero "artificially" flagged as "used" (before
+initializing the table).  That insures that the code will never come up,
+except when manually inserted at the end of file.
+
+     The other functional difference from LZWCOM involves repeat byte
+coding.  CRUNCH converts the "physical input stream" into a "logical
+input stream", which is then handed to the cruncher.  The conversion
+takes 3 or more contiguous occurrences of the same byte and encodes them
+as <byte> "90H" <count> where "count" is the number of "additional"
+occurrences of <byte> (ie total occurrences -1).  90H itself is encoded
+as "90H", "00".  This scheme is identical to that used in standard
+squeezing.
+
+     Crunching requires only one pass through the input file, while
+squeezing requires two.  While this is one of its significant
+advantages, it does complicate the problem of including a checksum, if
+one is desired, in the header of the result file (since the value is
+not known until everything is done).  A bad solution is to close the
+finished output file, re-open it, insert the checksum, and close it
+again.  A good solution is to put the checksum at the end of the output
+file right after the EOF.  And that's where it is.  With all this in
+mind, herein follows a specification for the format of a crunched file.
+
+             ---------------------------------------------
+
+     ID FIELD: Bytes 0 and 1 are always 076H and 0FEH, respectively.
+This identifies the file as "crunched".
+
+     FILENAME: The filename field starts at byte 2.  It is a field of
+variable length, terminated by a zero byte.  The field contains the
+filename as ASCII characters, including an ASCII "." immediately
+preceding the filename's extension.  Less than eight characters may
+precede the "."; there is no necessity to pad the filename with blanks.
+Additional characters after the third extension character but before the
+zero byte specifically are allowed and will be ignored by the current
+uncruncher.  This allows an area of unlimited size for date stamping, or
+other miscellaneous information which a future cruncher or application
+program might want to insert, for use or display by some uncrunching
+program.  By skipping over these bytes now, future incompatibilities are
+eliminated.
+
+     Following the zero byte are the following 4 bytes, in order:
+
+     REFERENCE REVISION LEVEL: 1 byte }
+     SIGNIFICANT REVISION LEVEL: 1 byte } described later
+     ERROR DETECTION TYPE: 1 byte }
+     SPARE: 1 byte }
+
+     CRUNCHED OUTPUT: After the SPARE byte, the actual crunched output
+finally begins.  The crunched output is a series of 12-bit codes in
+"natural" order.  (Every other 12-bit code starts on a byte boundary
+and includes the 4 ms bits of the next byte.  The "odd" codes start in
+the middle of a byte and include the whole following byte as the
+remaining 8 ls bits).  A 12-bit code of 000 is an EOF, as explained
+above.  If the EOF code itself ends in the middle of a byte, an
+additional 4 bits of zero are padded on to get back on a byte boundary
+for the checksum.
+
+     CHECKSUM: The next two bytes are the 16-bit checksum, least
+significant byte first.  The checksum is the modula 2^16 sum of all the
+bytes as input from the physical input stream, prior to repeat byte
+encoding (or, in the case of uncrunching, as output to the physical
+output stream, after repeat byte decoding).
+
+     REMAINDER OF THE SECTOR: The remaining bytes in the sector
+following the checksum are irrelevant.  CRUNCH fills them with "1A"'s.
+
+             ---------------------------------------------
+
+     These are the four bytes not fully described above:
+
+     "Reference Revision Level": The program/revision level of the
+program that performed the crunch operation.  This byte is put in for
+general reference only.  The current value is "20" (hex).
+
+     "Significant Revision Level": If the value of this byte in a
+crunched data file exceeds the value contained within the uncrunching
+program, the message "File requires newer revision of program" will be
+displayed.  If changes or enhancements are ever made to CRUNCH which
+are significant enough to actually output an incompatible file, the
+information in this byte will allow a new revision of UNCR to be
+compatible with all existing data files, old or new.  The error message
+gets displayed only if someone tries to uncrunch a new file with an old
+uncruncher which doesn't know about the "future" format yet.  Current
+value is "23" (hex).
+
+     "Error Detection Type":  If this value is non-zero, the current
+uncruncher will not examine the checksum or give an error associated
+with it.  This will permit a CRC type (or no error checking) value to be
+used if circumstances warrant it.  The current UNCR program is always
+checking for "illegal" codes, which are ones which have not been defined
+by previous codes.  If any are encountered, the message "Invalid
+Crunched File" is displayed.  This inherent self-checking probably
+precludes the necessity of more advanced error checking.
+
+     "Spare": The SPARE byte is a spare byte.
+
+     Notes from CRUNCH 2.3.
+
+     CRUNCH 1.x maintained a table representing up to 4096 strings of
+varying lengths using the so called LZW algorithm, which has been
+described in the earlier documentation.  These strings were entered
+into a table in a manner where the strings content was used to
+determine the physical location (hashing), and that location was used
+as the output code.  Hash "collisions" were resolved by maintaining
+another 12 bits of data per entry which was a "link", or pointer to
+another entry.
+
+     In contrast, CRUNCH 2.x uses an "open-addressing, double hashing"
+method similar to that employed in the UNIX COMPRESS.  This method
+involves a table of length 5003, where only 4096 entries are ever made,
+insuring the table never gets much more than about 80% full.  When a
+hash collision occurs, a secondary hash function is used to check a
+series of additional entries until an empty entry is encountered.  This
+method creates a table filled with many criss-crossed "virtual" chains,
+without the use of a "link" entry in the table.
+
+     One reason this is important is that [without using any additional
+memory] the 1 1/2 bytes which were previously allocated as a link can
+now become the [output] code number.  This enables us to assign code
+numbers, which are kept right alongside the entry itself, independently
+of the entry's physical location.  This allows the codes to be assigned
+in order, permitting the use of 9-bit representations until there are
+512 codes in the table, after which 10 bit representations are output,
+etc.
+
+     The variable bit length method has three ramifications.  It is
+particularly helpful when encoding very short files, where the table
+never even fills up.  It also provides a fixed additional savings (not
+insubstantial) even when the table does fill up.  Thirdly, it reduces
+the overhead associated with an "adaptive reset" to the point where it
+becomes a very viable alternative.  "Adaptive reset" simply means
+throwing out the whole table and starting over.  This can be quite
+advantageous when used properly.  CRUNCH v2.x employs this provision,
+which was not incorporated in the V1.x algorithm.
+
+     "Code reassignment" is an advancement the author of CRUNCH, Steven
+Greenberg, has introduced with the release of CRUNCH v2.0 based on
+original work.  It is not used in COMPRESS, any MS-DOS ARC program, or
+any other data compression utility currently available.  There are many
+ways one might go about this (and at least as many possible pitfalls).
+The algorithm selected seemed to represent a good tradeoff between
+speed, memory used, and improved performance, while maintaining
+"soundness of algorithm" (ie it works).
+
+     Briefly, it works as follows: Once the table fills up, the code
+reassignment process begins.  (At this same time, the possibility of
+adaptive reset is also enabled).  Whenever a new code would otherwise
+be made (if the table weren't full), the entries along the hash chain
+which would normally contain the entry are scanned.  The first, if any,
+of those entries which was made but never subsequently referenced is
+bumped in favor of the new entry.  The uncruncher, which would not
+normally need to perform any hash type function, has an auxiliary
+physical to logical translation table, where it simulates the hashing
+going on in the cruncher.  In this fashion it is able to exactly
+reproduce the reassignments made my the cruncher, which is essential.
+

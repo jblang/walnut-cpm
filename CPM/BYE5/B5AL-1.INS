@@ -1,0 +1,197 @@
+
+; B5AL-1.INS - BYE5 insert for ALTOS 5000 and 8000 Systems  12/03/85
+;
+;		  Z80-SIO and 8430 CTC timer
+;
+; This version is for both the Altos 5000 and Altos 8000 computers
+;      Note:  This is an insert, not an overlay.
+;
+;
+;	When used with the Altos 5000 the serial port labeled JA
+;	is used, and with the Altos 8000 the serial port #2 is 
+;	selected.  
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 12/03/85  Written for use with BYE5			- Dennis Recla
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Select one of the following with YES or NO
+;
+ALTOS5	EQU	NO		; Altos 5000 series is selected
+ALTOS8	EQU	YES		; Altos 8000 series is selected
+;
+;
+; Set base port for SIO & CTC chips
+;
+	 IF	ALTOS5
+PORT	EQU	1EH		; Data port
+MDCTL1	EQU	PORT+1		; Modem satus port
+BRPORT	EQU	0EH		; Baud rate generator port (CTC)
+	 ENDIF			; ALTOS5
+;
+	 IF	ALTOS8
+PORT	EQU	28H		; Data port
+MDCTL1	EQU	PORT+1		; Modem status port
+BRPORT	EQU	0EH		; Baud rate generator port (CTC)
+	 ENDIF			; ALTOS8
+;
+MDRCV	EQU	1		; Modem receive ready bit
+MDSND	EQU	4		; Modem send ready bit
+MDDCD	EQU	8		; Data carrier detect
+;
+;
+; First byte of CTC Command:
+;
+; To access CTC baud rate command - Note, the ALTOS uses the timer
+; mode for baud rates less than 1200 baud, and the counter mode for
+; baud rates above 1200 baud.
+;
+BDCMD1	EQU	07H		; Uses a "divide by 16" prescaler
+BDCMD2	EQU	47H		; Uses a "divide by 2" flip-flop
+;
+;
+BD300	EQU	34H		; 300 baud 	Timer mode
+BD1200	EQU	0DH		; 1200 bps	Timer mode
+BD2400	EQU	34H		; 2400 bps	Counter mode
+BD9600	EQU	0DH		; 9600 bps	Counter mode
+;
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	MDDCD		; Check for carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Setup to write register 0
+	OUT	MDCTL1
+	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+	MVI	A,1		; Setup to write register 1
+	OUT 	MDCTL1
+	MVI	A,0		; Turn off all interrupts
+	OUT 	MDCTL1
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,44H		; Set 16x, 1 stop bit, no parity
+	OUT	MDCTL1
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; 8 bits, Rx enable
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; DTR off
+	OUT	MDCTL1
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; Turn DTR back on
+	OUT	MDCTL1
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available. If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	MDRCV		; Got a character
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Get status
+	ANI	MDSND		; Ready for a character?
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Turn off DTR until next time
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	B,BD300		; Set for 300 baud
+	MVI	A,BDCMD1
+	JMP	SETBAUD
+;
+SET1200:MVI	B,BD1200	; Set for 1200 bps
+	MVI	A,BDCMD1
+	JMP	SETBAUD
+;
+SET2400:MVI	B,BD2400	; Set for 2400 bps
+	MVI	A,BDCMD2
+;
+SETBAUD:OUT	BRPORT		; Send first byte of command
+	MOV	A,B		; Restore the rate
+	OUT	BRPORT		; Send rate
+	XRA	A		; Say rate is ok
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

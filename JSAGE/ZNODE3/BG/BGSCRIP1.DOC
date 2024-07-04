@@ -1,0 +1,103 @@
+To:	ZCPR3 users with BackGrounder ii
+From:	Bridger Mitchell and Jay Sage
+Subject: BGii customization scripts
+Date:	4/17/87
+---------
+Jay has contributed some excellent Z-system alias scripts for automating
+the BGii startup and shutdown operations.  In addition, he shows how
+to change the names of BGii built-in commands.  Useful in their own
+right, these scripts are also a model of a well-designed system
+environment.
+
+You will need to modify the scripts to reflect your own system's
+directory names and custom files.  The FIXBG addresses will vary,
+depending on BGii version and the disk parameters of your swap drive.
+And BGHIST and BGERRH require BGHIST.OCP.
+
+---------------------------------
+
+     Here are the ARUNZ (renamed to CMDRUN.COM) scripts I use for
+the various BG-related operations.
+ 
+1. script BG
+ 
+   This script is used to engage BGii.  It goes to the required directory,
+   clears the shell stack if necessary because BGii will invoke BGHIST, and
+   then returns to the directory from which this alias was invoked.  The
+   explicit directory references before some of the commands just speeds
+   things up a little.
+ 
+        SYS:                            ; Go to directory with LOADBG
+        IF SH                           ; If a shell is currently running
+        SYS:SHCTRL C                    ; Clear shell stack
+        FI
+        SYS:LOADBG                      ; Invoke BG (runs alias STARTBG)
+        $D0$U0:                         ; Return to original directory
+ 
+ 
+2. script STARTBG
+ 
+   This script is the BGii startup alias.
+ 
+        TIME ON                         ; Turn on time display in prompt
+        KEYS GLOBAL                     ; Load my global key definitions
+        OCP BGHIST                      ; Load OCP with BGHIST and BGERRH
+         FIXBG (leading space)          ; Script to patch BG swap file
+        BGHIST                          ; Load BG history shell
+        BGERRH                          ; Engage BG error handler
+        CLS                             ; Clear the screen
+ 
+ 
+3. script FIXBG
+ 
+   This script makes the changes to the BG swap file to rename some of the
+   resident commands.  It could be a part of the main STARTBG script, but I
+   prefer to keep this separate.  I change the ECHO command to ECKO so that
+   my transient ECHO.COM, which runs at 8000H, will be used instead.  I also
+   shorten PEEK to P and RESET to R.
+ 
+        SYS:DU GF,+9,CA53 K,W,+,CA5A    ,CA7A     ,W,X
+ 
+   Here are the operations performed by each of the disk utility commands:
+ 
+        GF                      ; Go to disk group 000F (the group
+                                ; ..containing the command dispatch table)
+        +9                      ; Advance 9 records to the one containing
+                                ; ..the entry for the ECHO command
+        CA53 K                  ; Change-Ascii at byte 53H of the record,
+                                ; ..putting in a 'K' in place of the 'H'
+        W                       ; Write the changed record out to the disk
+        +                       ; Advance to the next record on the disk
+        CA5A....                ; Another Change-Ascii (note four spaces,
+                                ; ..one to separate command from argument
+                                ; ..and three to replace 'EEK' in 'PEEK'
+        CA7A.....               ; Another change in same record (five spaces
+                                ; ..in all, four to replace 'ESET' in
+                                ; ..'RESET')
+        W                       ; Write the changed record out to the disk
+        X                       ; Exit from DU3 disk utility
+ 
+   The actual records containg the command dispatch table varies with each
+BGii release.  What has confused me a bit lately is the appearance in the
+swap file of two command lists that each look like a dispatch table.  Only
+one is, and the real table has to be determined by trial and error.
+ 
+ 
+4. script BGOFF=OFF (two alternative names for same alias)
+ 
+   This script exits from BGii and reestablishes the ZCPR system.  Since
+   my configuration of BGii uses the RCP space, I have to restore the
+   environment descriptor and the RCP code.
+ 
+        IF BG                   ; If BG is currently running
+        BG OFF                  ; BGii command to exit
+        SYS:SHCTRL C            ; Clear shell stack (of BGHIST)
+        SYS:LDR SYS.ENV,SYS.RCP ; Restore environment and RCP
+        SYS:ERRSET SYS:VERROR   ; Set up ZCPR error handler
+        ELSE                    ; Else if BG not running
+        ECHO BG NOT RUNNING     ; Tell user
+        FI
+ 
+ 
+---------------------------------
+

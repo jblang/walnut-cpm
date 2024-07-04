@@ -1,0 +1,154 @@
+;
+; B3AD-2.INS - BYE3 insert for AD Super Six CPU board - 07/30/85
+;
+;		Z80 DART and 8116 baudrate generator
+;
+; This routine adapts the Advanced Digital Super Quad and Super Six
+; single board computers to BYE3.  Baudrate is read in off of a parallel
+; port and sent to the baudrate generator upon powerup, from default
+; jumpers.  Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/30/85  Restored to original format		- pst
+; 05/15/85  First version of B3AD		- John Sojak
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+DPORT	EQU	02H		; Data port
+SPORT	EQU	DPORT+1		; Modem control port
+BRPORT	EQU	18H		; Set baud rate generator base port
+JUMPRS	EQU	15H		; Baud rate default jumpers
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00000100B	; Transmit buffer empty
+DCD	EQU	00001000B	; Data carrier detect
+;
+; Divisors for the 8116 baudrate geneator
+;
+BD300	EQU	5		; 300 baud
+BD1200	EQU	7		; 1200 baud
+BD2400	EQU	10		; 2400 baud
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	SPORT
+	IN	SPORT		; Get status
+	ANI	DCD		; Check for carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Setup to write register 0
+	OUT	SPORT
+	MVI	A,18H		; Reset channel
+	OUT	SPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	SPORT
+	MVI	A,44H		; Set 16x, 1 stop bit, no parity
+	OUT	SPORT
+	MVI	A,3		; Setup to write register 3
+	OUT	SPORT
+	MVI	A,0C1H		; 8 bits, Rx enable
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; DTR off
+	OUT	SPORT
+;
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0E8H		; Turn DTR back on
+	OUT	SPORT
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flage set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Got a character
+	RZ			; Return if none
+	ORI	255		; Otherwise set the proper flag
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT		; Get status
+	ANI	TBMT		; Ready for a character?
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Turn off DTR until next time
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	A,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BD1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,BD2400
+;
+; Sets the baudrate
+;
+SETBAUD:RLC			; Shift the nibble over to the LSN
+	RLC			;   (could have been eliminated in the
+	RLC			;   equate but the intent is easier to
+	RLC			;   understand this way.
+	ANI	11110000B	; Mask off bits - intent again
+	PUSH	B
+	MOV	B,A
+	IN	JUMPRS		; Get the console baud jumpers
+	ANI	00001111B	; Mask garbage - 4 bits worth of it
+	ORA	B		;   and make a composite of modem and
+	OUT	BRPORT		;   console then tell the generator
+	POP	B
+	XRA	A		; Say baudrate is ok
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

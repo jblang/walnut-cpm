@@ -1,0 +1,193 @@
+
+; B5MM-1.INS - BYE5 insert for MicroMint SB180 computer - 03/17/86
+;
+;	    Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 03/17/86  Converted to 8080 source code, as BYE5 is not written in
+;	    Zilog Z80 mnemonics.  Can now be assembled with ASM.COM or
+;	    other 8080 assemblers.  Renamed to B5MM for "MicroMint" as
+;	    there is already a B5SB for the Super Brain computer.
+;					- Irv Hoff
+;
+; 10/08/85  Written for use with BYE5.	- Ken Davidson
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; NOTE - There is an anomaly with the HD64180 chip that doesn't allow
+;	 the allow the use of its DCD input in a fashion useful to BYE5.
+;	 When the DCD input is inactive (false) the chip's receive
+;	 register is turned off.  Since the chip cannot receive any
+;	 characters with DCD off, it isn't possible to set up a Hayes
+;	 compatable modem.  A fix for this is to make a special modem
+;	 cable which has pins 5 and 8 reversed.  Assuming the modem's
+;	 CTS signal is always active, the chip's DCD line is always on.
+;	 The modem's DCD signal then enters the chip through CTS0/.
+;	 With CTS off, the chip can send and receive characters, and
+;	 the receive register full status works correctly.  However,
+;	 the transmit buffer empty status is turned off.  Therefore,
+;	 when setting up the modem with DCD off, a delay must be
+;	 inserted after each character is sent to ensure the next
+;	 character doesn't overrun it.	This fix is something of a
+;	 a kludge, but works and is the only way around the problem
+;	 without adding more hardware.	Of course, when a carrier is
+;	 present, the serial port works correctly.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+PORT	EQU	00H		; Modem control port
+MDATIN	EQU	PORT+8		; Data in port
+MDATOUT	EQU	PORT+6		; Data out port
+MDCTL1	EQU	PORT+4		; Modem status port
+;
+MDRCV	EQU	80H		; Modem receive ready bit
+MDSND	EQU	02H		; Modem send ready bit
+MDDCD	EQU	20H		; Data carrier detect
+;
+CDSTAT	EQU	02H		; Carrier detect status
+BRPORT	EQU	02H		; Baud rate generator port
+;
+IN0	EQU	38EDH		; Special Hitachi op code pair
+OUT0	EQU	39EDH		; Special Hitachi op code pair
+;
+;
+; Divisors for the HD64180 baudrate generator
+;
+BD300	EQU	13		; 300 baud
+BD1200	EQU	11		; 1200 bps
+BD2400	EQU	10		; 2400 bps
+BD9600	EQU	8		; 9600 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:DW	IN0		; Get the status
+	DB	CDSTAT
+	CMA
+	ANI	MDDCD		; Check for carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,10H		; Reset channel
+	DW	OUT0
+	DB	PORT
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+	MVI	A,64H		; Turn DTR back on
+	DW	OUT0
+	DB	PORT
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	DW	IN0		; Get the character
+	DB	MDATIN
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	DW	IN0		; Get the status
+	DB	MDCTL1
+	ANI	MDRCV		; Got a character
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	DW	OUT0
+	DB	MDATOUT
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:DW	IN0		; Get the status
+	DB	CDSTAT
+	ANI	MDDCD		; Check for carrier
+	JZ	MDST1		; Jump if present
+	CALL	DELAY
+	ORI	0FFH
+	RET
+;
+MDST1:	DW	IN0		; Get the status
+	DB	MDCTL1
+	ANI	MDSND		; Ready for a character?
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,74H		; Turn off DTR until next time
+	DW	OUT0
+	DB	PORT
+	RET
+;.....
+;
+;
+; The following routine sets the baud rate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BD1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,BD2400
+	JMP	SETBAUD
+;
+SET9600:MVI	A,BD9600
+;.....
+;
+;
+; Sets the baudrate
+;
+SETBAUD:DW	OUT0
+	DB	BRPORT
+	XRA	A		; Say baudrate is ok
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

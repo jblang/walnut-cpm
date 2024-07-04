@@ -1,0 +1,534 @@
+
+                                                                25 March 1985
+                                 Z-NEWS 108
+
+Z  TIPS:  Robert Doolittle,  author of ZDM/ZDMZ and ITOZ and is Z-Team Member 
+(Pacific Palisades,  California),  shows way to reduce BIOS size by over  100 
+bytes.   Always, we suggested full environment descriptor storage be included 
+in  your BIOS implementation.   No,  only a pointer to the descriptor need be 
+implemented!   Bob  has  rightly pointed out that  Newsletter  003,  page  3, 
+listing of buffer space can be changed to indicate two address pointers,  and 
+not include 128-byte environment data.   He reduced existing 14 lines to only 
+7 and completely removed subroutine DEFENV code:
+
+             |   IF    Z3ENV NE 0
+             |   IF    INITENV                     
+             |  LXI    D,DEFENV                   
+             |  LXI    H,Z3ENV                  |   IF     Z3ENV NE 0 
+             |  MVI    B,128                    |  LXI     H,Z3ENV  
+             |  CALL   MOVLOP                   |  MVI     B,128+32
+    from:    |  MVI    B,32              to:    |  CALL    ZEROM 
+             |  CALL   ZEROM                    |  LXI     H,Z3CL
+             |   ELSE                           |  SHLD    Z3ENV+24
+             |  LXI    H,Z3ENV                  |   ENDIF
+             |  MVI    B,128+32
+             |  CALL   ZEROM
+             |   ENDIF
+             |   ENDIF
+
+     Z3 command line buffer pointer is stored 24 bytes higher than Z3ENV base 
+address.   The first command executed after cold boot should be LDR SYS.ENV--
+either  manually or by STARTUP alias--followed by others necessary to set  up 
+computer system for desired initial environment.
+
+VFILER  Update:  Jay Sage and Al Dunsmuir independently upgraded Vfiler  into 
+version 3.3;  yes,  two of them!  Pandora's Box was nearly opened--thankfully 
+not,  though  we are certain Pandora had a nice box,  among other  things--by 
+allowing  more than one programmer to work on a program in parallel.   Al has 
+volunteered to incorporate Jay's changes into version 3.5.  Oh!  we forget to 
+tell  of  Al's  version 3.4--it's  fantastic--presently  on  Z-Node  Central.  
+Features added from 3.2, last version with released source, include wild card 
+tag/untag commands; unsqueeze files, individually sending to file or by group 
+command;  viewing  and  printing squeezed files,  without  unsqueezing;  view 
+command last screen bug fixed; and many suave program improvements.
+     Jay's 3.3 extends screen highlighting,  permits file-mask when  changing 
+directories,  and  most importantly,  is nearly twice as quick when it loads.  
+Last item is accomplished by technique of loading a shell,  which Vfiler  is, 
+only once.  If nothing else, Al must include this feature in 3.5.
+
+New Policy:  Files for enhancement or bug fixing must be "checked out" before 
+changes  can  be considered for acceptance and distribution.   We will  allow 
+only  one  person to be working on a program at any  one  time.   The  effort 
+required  to  merge two versions of same program is significant,  as Al  will 
+find  out  in combining two 3.3's and 3.4 into 3.5.   We can't  do  the  work 
+ourselves:  too extensive for our limited resources!
+     A  procedure is being prepared and should be up on Z-Node Central as you 
+read this.  Simply stated:  you check out file you wish to work on; while you 
+have it,  no one else is permitted to update it.   A log will be kept to show 
+which files are out and ones available for updating.   List consists of about 
+seventy (70) source and twenty (20) support help files.  Obtain "checking out 
+and returning file" procedure from Z-Nodes.   File check out must occur  from 
+Z-Node Central!
+
+PKey is super keyboard enhancer and is shipped with  source  code!   You edit 
+source  for your cpu and terminal speed and maximum number of keys and  their 
+lengths,  assemble using Zas or Mac, load with Mload, then rename object file 
+to  filetype  IOP.   Here's  a good segment from which to  learn  IOP  coding 
+techniques.   Twelve keys of 24-characters each are possible, cleanly fitting 
+standard ZCPR3 IOP 1.5k-byte memory space.
+     Many  such  segments may be created and saved with different file  names 
+and  auto loaded as appropriate within directory being worked;  as Rick  Conn 
+would  say,  "Little  CD (Change Directory) and ST (Start) does  the  trick."  
+(See Newsletter 009, dated 12 November 1984.)
+     Programable  Key  allows creating and saving as many  sets  of  loadable 
+segments as desired.  One for word processor, another for communications, for 
+spreadsheet,  database management,  programming,  you name it.  PKey displays 
+each  key  and  its conversion string,  and prompts for easy  string  change, 
+without  ever  affecting  program in  TPA--an  exceptional  value.   Although 
+designed  to work with ZRDOS and Z-Com,  PKey (along with I/OR and  BPrinter) 
+works perfectly with ZRDOS2 and Z-Com2.
+
+Z-Nodes  swing!  From all over globe come interest in  our  nodes.   Gaffers, 
+gripes,  and gophers make it possible,  make it delightful.  We wait day when 
+sending a message to France is accomplished without direct cost.   Nodes grow 
+until Earth's people fully communicate; add these to list:
+
+ 19. Fred Townsend - San Jose, CA -       20. Dick Driscoll - Phoenix, AZ -
+ 21. Robert Finch - Glendale, CA - ham radio packet 146.745 mHz
+ 22. Thomas R. Bowerman - Anniston, AL -  23. Charles Boghosian - Durham, NC -
+ 24. Barry L. Bowerman - Weaver, AL -
+ 25. Douglas Thom - San Jose, CA - 408/253-1309 (online 4/12/85)
+ 26. Robert Kuhmann - St. Martin de la Brasque, France - 011+33+(90)-77-61-36
+ 27. Charles Hoffman - Tampa, FL - 813/831-7276
+ 28. Stanley K. London - Aurora, CO -
+
+ZAS is the Z80 macro assembler being used to support all Z System programming 
+activities.   Zas  creates  Intel HEX or Microsoft REL files  permitting  its 
+usage in place of Asm,  Mac, Rmac, and Macro-80.  Supporting program provided 
+(Zcon)  converts  Intel 8080 mnemonics to Zas Zilog format.   Another  (Zlib) 
+permits  creation of binary REL subroutine libraries;  adding,  deleting  and 
+replacing  modules,  and  printing  module names and public  symbols  from  a 
+library are features.
+     Others (Zlink and Zref) permit COM file generation from REL modules  and 
+symbol-label  cross reference to numbered source code lines.   Either Zas  or 
+Zlink optionally produces DRI compatible SYM files for use with DSD,  Sid, or 
+Zsid.
+     By the way, DSD (with 55 commands!) ships in two versions along with in-
+context  (individual-command) online help.   These versions run automatically 
+with  Z  (ZCPR3 and ZRDOS) after installing  using  Z3INS.COM.   One  handles 
+extended Intel (similar to TDL/Xitan) mnemonics;  the other, Zilog.  Both run 
+with either 8080 or Z80 microprocessors.   Under CP/M-80, both require patch-
+file  editing  for your terminal and use of debugger ZDM (or DDT) to  overlay 
+main DSD object file.  Source provided permits editing for your terminal code 
+and after assembling into hex file,  overlaying both Intel and Zilog versions 
+of DSD.COM.
+
+Prices  reduced  for  three Echelon products.   We  seek  wisdom,  not  money 
+(really?), so we have reduced prices for these EI software packages:  DSD and 
+both  versions of Z-Com2,  Items 07,  08,  and 25 (see attached List  Prices, 
+dated 15 March 1985).   We wish we could cut more prices but expenses must be 
+covered.   (Notice addition to list of off-shelf Z-Msg--Metal message program 
+for Z System--bulletin board, file and mail system!  Also, all versions of Z-
+Com and Z-Com2 are supplied with I/O Package buffer space allocated,  so PKey 
+and other segments are ready to load.)
+
+Amateur Z-User Corner:  ZDM (or DSD and DDT) makes neat emergency HEX to  COM 
+file  converter.   Load your HEX file (note last used address displayed under 
+PC  NEXT message) using I<filename.HEX><cr> and R<cr>.   Then exit  and  save 
+number  of  hex  pages (xxh) to <filename.COM>.   Number of pages  (each  two 
+records,  256  bytes)  to save is determined by dropping the  two  right-hand 
+digits  from PC NEXT address.   For example,  if address is 124F,  round  off 
+right two digits and use SAVE 12H <filename.COM> as your command  line.   But 
+if address is 1200 (on whole page boundary), round down one and save only 11H 
+pages.
+     Z-Node Central has a number of popular pre-configured ZCPR3 installation 
+files:   ready to install for Kaypro,  Osborne,  Morrow, Epson, Xerox, Apple, 
+Heath, iBex, and Jade.  Look for them in ARCHIVE directory of node.  Shortly, 
+all  Z-Nodes will have these files.   If you are having trouble installing Z3 
+on  one  of these machines,  study files to  obtain  get-over-stumbling-block 
+ideas.
+
+Computers and Electronics magazine publication termination announced by owner 
+Ziff-Davis  (they  cancelled  Microsystems  last  October).   Circulation  is 
+600,000!   Now we ask:   on what list should Z-D be placed?   Do colors exist 
+darker than black?   Ceasing publication of one magazine in favor (to prop up 
+sales)  of  another  (un-named  magazine  owned  by  Z-D,  actually  Creative 
+Computing)  should produce a few subscriber reactions,  cancelations  without 
+further  regard  for any Z-D publication.   We move away from  such  business 
+logic--such decision makers have no feeling for what they are  about--leading 
+to  these actions.   Managers and owners have every right to do as they think 
+best;  we  have a right to contemplate Z-D going out of business  altogether.  
+The  planet  and  cosmos,  in our opinion,  need neither  their  outlook  nor 
+expertise.
+
+Microcomputer  boom  continues!   Substantial  1985  gains  (20%  over  1984) 
+predicted  in all areas,  best likely is portables (their sales could  double 
+over '84,  especially if flat panel displays get easy to read).  Next is home 
+and  then office desktops.   Sales to hobbyist and tinker,  being neither  of 
+majorities nor mainstreams, are down in noise.
+     And still,  many vital niches exist for small companies;  Echelon caters 
+to those wishing to learn no matter where (home, office, shop, or laboratory) 
+they use computers.  We work on LAN (local area networks permitting computers 
+to talk to one another) concepts, AI (artificial intelligence) usefulness and 
+what can be done with more powerful (5th generation) software and  databases, 
+one  computer/one  user,  and  GSS graphics,  but learning  (expanding  one's 
+awareness) is above all else.  You hobbyists and tinkers, you remanence, come 
+join and learn as we learn!
+
+Why we do what we do!  Sometimes we think with words that are unwritedownable 
+and  notsotalkaboutable.   But clarity notwithstanding,  you know we  support 
+high  performance Z80 instruction set compatible  microcomputers.   Eight-bit 
+systems  are (to us) symbols of neatness (simplicity) and efficiency (only if 
+assembly  language  is  used) and mental challenge (must be  creative  to  be 
+competitive with 16/32-bit micros).   Remember, each letter and number in our 
+alphabet is represented by 8 bits (a byte) in each machine.
+     We provide screen upon which light shines.   You are our light, you fire 
+us  up  to jet speeds,  passing eagle and humming bird.   Those who  jump  on 
+bandwagons thinking there is no viable alternative:  not figuring things  out 
+for themselves, not continuing to learn, not becoming willful, not alive, are 
+our light too.
+     Capacity  for enjoyment increases as we learn--that's why we do what  we 
+do.   Joy  comes from simplest of accomplishments:   a buffer  loads,  screen 
+fills  with text,  data viewed,  a beginner overcomes a hurdle.   Our  bird--
+though caged--sings!  See you down the lines...
+			                                        Echelon, Inc.
+					                     101 First Street
+				                         Los Altos, CA  94022
+					              Telephone: 415/948-3820
+					         Z-Node Central: 415/489-9005
+
+Trademarks:   Z80/800,  Zilog;  HD64180,  Hitachi;  Z-System, Z-Tools, ZCPR3, 
+ZRDOS, Z-Com, Zas, Zlink, DSD, ZDM, ITOZ, Lasting-Value Software, Echelon and 
+their respective owners and authors;  Macro-80 Microsoft;  CP/M,  Mac,  Rmac, 
+Sid, Zsid, Digital Research; Mload, Nightowl Software.
+
+Z-News 108 is Copyright 1985 Echelon,  Inc.  All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit is 
+given to Echelon.
+
+---------------------------
+
+
+                Z-System LIST PRICES -- effective 15 March 1985
+
+
+                           Operating System Modules
+Item                                                                      Price
+01. ZCPR3 Core Starter Kit contains source to permit manual installation
+    of ZCPR3 CCP (console command processor) and its buffers using MOVCPM, DDT,
+    MAC and SYSGEN.  Loose leaf 173-page Installation Guide (Sampler) in-
+    cluded, with 20 utility programs in binary form (6/1/84) ........... $39.00
+02. ZCPR3 Utilities Package consists of 70 programs in both binary and source
+    code form.  Combined with Item 01 forms complete command processing sub-
+    system.  Online (over 400k-byte) help system included (6/1/84) ..... $89.00
+03. Z3-Dot-Com is the auto-install version of ZCPR3.  Package contains all
+    binary utility programs released to date, complete system.  Secure versions
+    available.  Installs in four minutes or less; full online help files, 52-
+    page loose leaf tutorial (9/15/84) ................................ $149.00
+04. Z3-Dot-Com on one disk for those who already have Item 02 and wish to add
+    auto-install to their collection (9/15/84) ......................... $49.95
+05. Z-Com same as Item 03 but with Item 09 added (1/28/85) ............ $199.00
+06. Z-Com same as Item 04 but with Item 09 added (1/28/85) ............. $99.00
+07. Z-Com2 same as Item 03 but with Item 10 added (3/29/85) ........... $219.95
+08. Z-Com2 same as Item 04 but with Item 10 added (3/29/85) ........... $119.95
+09. ZRDOS improved BDOS in binary, with six support utilities:  copy file
+    backup and archiving, set and display file attributes; file compare, dump,
+    and bi-directional viewing.  Upward compatible with CP/M-80.  66k-bytes of
+    online help for both functions and utilities, plus 35-page loose leaf
+    manual for programming system functions (1/9/85) ................... $49.50
+10. ZRDOS2 same as Item 09 but with single level re-entrance, function 10 full
+    command line editing and buffer recall, get DMA address, and 512-megabyte
+    maximum file and disk sizes, 45-page loose leaf manual (3/22/85) ... $74.99
+11. ZRDOS3 for HD64180 and Z800 chips, multi-tasking, large memory address
+    space usage, permits easy application program migration from MS-DOS, etc.
+    price tentitively established (7/85) .............................. $150.00
+
+
+               Z-Tools (Software Development System Utilities)
+
+20. Relocating Z80 Macro Assembler (ZAS) for Zilog mnemonics, includes linker
+    (ZLINKtm) and librarian (ZLIB), compatible with ASM, MAC, RMAC, M80, and
+    L80; supports ZCPR3 flow control conditional assembly error testing; 55-
+    page loose leaf manual (2/25/85) ................................... $95.00
+21. Z80 Debugger and Monitor (ZDM/ZDMZ) dynamic trouble-shooting, patching in
+    both Intel and Zilog code; DDT command compatible, 12-page loose leaf
+    manual (1/25/85) ................................................... $50.00
+22. Translators (ITOZ) convert Intel to/from Zilog and CDL/TDL mnemonics;
+    automatic conversions, table design permits easy pseudo-op additions with
+    utility supplied; 17-page manual, $80.00 value (1/25/85) ........... $51.00
+23. Disassembler (REVAS3) handles 5 popular Intel and Zilog mnemonic sets,
+    best and easiest disassembler to use, with 60-page manual showing how to
+    disassemble and how disassembler works (2/4/85) .................... $90.00
+24. Z-Tools Package of Items 20 thru 23 above; $315 value ........... $200.00
+25. Dynamic Screen Debugger (DSD), a full screen symbolic debugging program;
+    shows flags, cpu registers, stack and dual-memory areas; complete software
+    InCircuit-Emulator; DDT upward compatibility and other useful features;
+    with 53-page loose leaf manual (3/11/85) .......................... $149.00
+
+Item                                                                      Price
+26. Syslib3 Library contains over 210 assembly language subroutines used
+    to write ZCPR3 utilities.  Designed for use with macro assembler and
+    linker.  Full online help describes use of each subroutine and makes a
+    printed manual unnecessary; source code provided (6/1/84) .......... $29.00
+27. Same as Item 26 but includes Vlib and Z3lib Libraries, provides ZCPR3
+    environments and terminal video routines (9/1/84) .................. $45.00
+
+                         Input/Output Package Segments
+40. Input/Output Recorder (I/OR), redirector outputs to/from console or
+    to printer to default file, controlled by ZCPR3 RECORD command, 1.5k-byte
+    segment, ZRDOS2 req'd (3/29/85) .................................... $69.95
+41. Print Spooler (BPrinter), deluxe background single-file printing with
+    no change in TPA size, 1.5k-byte segment, ZRDOS2 req'd (3/29/85) ... $39.50
+42. Key Translator (PKey) key strokes converted to command strings, saved
+    as loadable files; programmable function key generator works with either
+    ZRDOS or ZRDOS2; 1.5k-byte segment (1/28/85) ....................... $39.95
+
+
+                    Lasting-Value Software (Applications)
+60. Discat efficiently maintains and catalogs floppy and hard disk files for
+    easy recall; modular, menu-driven, 67-page instruction manual, fancy and
+    easy to use (8/24/84) .............................................. $49.00
+61. Term3 provides full facilities for communicating with other computers,
+    terminals, and information services.  Modular, menu-driven with extreme
+    flexibility for automatic operations; phone auto-answering ......... $99.00
+62. Document Maintenance Manager (MaintMan) audits trail of text changes,
+    disk space efficient and menu-driven ............................... $99.99
+63. Emsg permits mail, message management and data transfers between two or
+    more sites using Z-System ..................... (price not yet established)
+64. Z-Msg message handling program written in optimized C.  Menu installation
+    object files, complete user statistics, 50-page manual (3/29/85) ... $99.95
+65. Z-Msg same as Item 64 but with full source code and libraries for quick
+    compilation by Manx Aztec C II Compiler (3/29/85) ................. $199.95
+
+                                 Documentation
+80. Sampler is an Introduction to ZCPR3 and Installation Guide, 173 pages,
+    loose leaf (6/1/84) ................................................ $12.00
+81. ZCPR3:  The Manual is bible of ZCPR3 and its utilities, over 300 pages,
+    typeset, bound book.  Recommended purchase.  $24.00 if ordered alone, but
+    includes fortnighter Newsletter; without Newsletter ................ $19.95
+82. ZCPR3:  The Libraries describes VLIB, Z3LIB, and SYSLIB3, three libraries
+    of assembly language subroutines used to write ZCPR3 utilities.  Very
+    powerful; teaches structured, quick-writing of programs .... (no price yet)
+83. Z-System Fortnighter Newsletter (Z-News) automatically received for 6
+    months by EI customers ordering $39.00 or more software, or for one year
+    with $35.00 user-support (free-ware) donation.  Newsletter per year after
+    complementary period or per direct order (7/23/84) ................. $24.00
+
+Notes:
+        a. Some Items not available on some 5" disk formats.
+        b. Date in parentheses is Item first shipment date; if none,
+           shipment not presently scheduled, but soon will be.
+        c. Items 05 thru 10, 20 thru 24 require use of Z80 computers.
+        d. Programs are copyrighted by, and trademarks or registered
+           trademarks of, Echelon or their authors; CP/M, DDT, MAC and
+	   RMAC, are of Digital Research; M80 and L80, of Microsoft.
+
+--------------------------
+
+
+                                                                  Rev. 01/17/85
+
+
+                V O L U M E   D I S C O U N T   S C H E D U L E
+
+
+            Quantity:  1-4        List Price         $100.00 (example)
+
+                       5-49           30%              70.00
+
+                       50-249         50%              50.00
+
+                       250-999        55%              45.00
+
+                       1000-4999      60%              40.00
+
+          Exceptions:  ZCPR3:  The Manual and The Libraries (no discount
+                       on Sampler)
+
+                       5-49           25% of prevailing list price
+
+                       50-249         33%  "     "       "     "
+
+                       250-4999       40%  "     "       "     "
+ 
+
+
+                         General_Terms_and_Conditions
+
+     1. Discounts based on yearly volume with any mix.  Minimum order of
+        five (5) for quantity discount to apply.  Dealer inquiries welcomed.
+     2. Special quantity prices may be negotiated for software without
+        media, labels, serialization, documentation, or with binders.
+        Write with detail requirements to receive our proposal.  OEM and
+        VAR Agreements available.
+     3. Echelon software is licensed on "per computer" basis.  Syslib3 is
+        licensed for non-commercial distribution only, not to be resold with
+        other software and not to be sold, bundled with hardware.  No
+        restrictions on binary code produced with SYSLIB3.
+     4. Terms FOB Los Altos, CA.  Payment by cashier's check, money order,
+        Visa or Mastercard.  Personal and company checks cause delivery
+        delay.  (COD's collected by UPS accepted.)
+     5. Shipments via US Postal Service (Priority) unless special request.
+        Orders are completed on business day following receipt, if product
+        is in stock.  Allow 10 days from date of shipment for delivery in
+        continental USA and Canada; other areas may take longer.
+     6. Prices may change without notice.
+
+                                 Echelon, Inc.
+                               101 First Street
+                             Los Altos, CA  94022
+                     Order Desk Telephone:  415/948-3820
+
+
+
+   Technical Assistance:  415/941-2219, 2 - 8 pm Pacific Time only, please.
+
+----------------------------
+
+                              O R D E R   F O R M
+
+
+1. Name ___________________________________________________ Date ______________
+
+Street ____________________________________ Telephone _________________________
+
+City ____________________________________ State ______________ Zip ____________
+
+2. Z80 CP/M based computer? (yes/no)  Computer type/brand _____________________
+
+3. Disk Format:  8 inch SSSD IBM 3740 standard (yes/no)
+              		    or
+   5 1/4 inch, 40 tracks, soft-sectored, single-sided double-density:  (yes/no)
+
+Computer format:  o Kaypro  o Osborne1  o Epson QX-10  o Heath/Zenith 89/90/100
+  (check one)	  o Ampro   o Morrow    o Apple CP/M   o Northstar CP/M (hard)
+
+Any special instructions? _____________________________________________________
+
+4. Ordering:  (see LIST PRICES Sheet)
+
+          Item Number & Name         Quantity   Unit Price     Extension
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+    ______________________________   ________   __________     _________
+
+  		                                  Subtotal $ ___________
+
+                             If California, add 6.5% sales tax _________
+
+Shipping & Handling charges:  add $3.00 if continental USA; $5.00 for Hawaii,
+Alaska, Canada or Mexico; or $12.00 if International address.
+	
+		       	                                 S&H $ _________
+
+Payment:  Money Order, Check or Credit Card          TOTAL $ ___________
+          (UPS COD's acceptable)
+
+VISA/MC _________________________________________ Expiration date _____________
+
+Bank number if MC ________________     (Please print order clearly, thank you.)
+
+------------------------------
+
+
+                    Z-Msg Message Handling Program
+
+
+The  Z-Msg  Message  Handling  Program is used for  local  and  remote 
+electronic  mail,  as  public and private access  electronic  bulletin 
+boards  (BBS),  inter-office memo tool and product support  aid  using 
+available communication channels.   Written in C Language (optimized), 
+Z-Msg  is  configurable without need for recompilation,  using  multi-
+function menu for quick and easy installation.   Remote communications 
+requires use of public domain program BYE.
+
+Ease of use and state-of-art software functionality are designed  into 
+Z-Msg.   Message editing by word,  phrase and line,  string searching, 
+collecting usage statistics,  configurability,  and security of access 
+are engineered into the program.
+
+From the user's perspective, major features include:
+
+     o  Commands to selectively read messages deposited since
+        last access of system.
+
+     o  Simple method of replying to and deleting messages being
+	read and addressed to user and also replying to other
+        messages on system.
+
+     o  Ability to enter up to 100-line messages containing up to
+        80 characters per line.  Values are set by the System
+        Operator (Sysop) and depend on memory limitations of the
+        computer system.
+
+     o  At login, messages addressed to caller/user are announced.
+	Information includes sender's name, status of message
+        (private or public), and if new since last access.
+
+     o  Articles and Notes commands allow user to read selected
+        text files placed by Sysop.  Extensive system information
+        usually is found in these areas.
+
+     o  Ability to search within "fields" of message headers, e. g.,
+        find and read messages addressed to all users, those of date
+        1/23/85, or those having word ZCPR3 within message text.
+
+     o  Commands to read messages in reverse order, most recent first.
+
+     o  Command to only read or to restore deleted (killed)
+        messages to active state, provided Sysop has not
+        performed a message purge since message were deleted.
+
+     o  Automatic screen page pause, optionally turned off.
+
+
+Major operational features available to Sysop:
+
+     o  Commands to add, delete, and edit user database, list
+        of subscribers to system.
+
+     o  Save messages to disk and output to a printer.
+
+     o  Read standard text files from disk into messages
+        being entering.
+
+     o  Flexible purge command permits convenient message database
+        maintenance.  Database may be saved to any disk/user area
+        (directory) with automatic creation of backup file.
+
+
+Matrix  and  modular  design promote high  security  and  access-level 
+flexibility.   Eight  (8) user access categories are controlled within 
+six (6) major functions:
+
+     o  Operating System (OS), Z or CP/M, accessiblility.
+
+     o  Access of user areas within OS (assuming OS access and
+	system is running remotely under BYE program).
+
+     o  Length of time system waits for input from user before
+	automatically disconnecting, BYE operation assumed.
+
+     o  Ability to enter messages.  All users may leave private
+	messages to the System Operator with special commands.
+
+     o  Ability to read and delete private and public messages 
+        not addressed to user.
+
+     o  Special OS access if system uses ZCPR Console Command
+        Processor Replacement in secure mode (WHEEL byte).
+        Manages OS functions ERA, REN, COPY, PATH, PEEK, POKE,
+        and other commands.
+
+Price for object file package is $99.95.  Source code is an additional 
+$100.  The Z-Msg manual may be purchased separately for $20.00.  $3.00 
+covers  shipping  and  handling.   If you  purchase  source  and  make 
+changes, Manx Aztec C (v1.05g) is required for compilation.
+
+Available directly from:
+                                                         Echelon, Inc.
+                                                      101 First Street
+                                                  Los Altos, CA  94022
+                                              Telephone:  415/948-3820
+

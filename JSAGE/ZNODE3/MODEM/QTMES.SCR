@@ -1,0 +1,172 @@
+
+;A version of QTMES.SCR - by Rob Friedman
+;
+;--updated 12/31/89
+;
+; This now includes a few little scripts I use to dial Starlink nodes
+;as well as a few ADAM BBS's. I originally attempted to have the script
+;capture the messages on the ADAM-NET boards, but the random Private 
+;Mail feature was something I couldn't figure out. So.. it's now written
+;to call them individually <the different BBS scripts>.
+;
+;I've used this script below to get me to Computer Club. The first 
+;number is dialed..and if busy, dials the second number. Use with the 
+;ESC-X command  in QTERM..<whatever version your using>. This script 
+;now is corrected. It will NOT dial the first number if the second is 
+;busy. I had thought it might, but the scripts are only read in order.
+;It now goes to the Club forum, and captures all the new messages in 
+;sections 9 and 10, then logs off.
+;
+;See below for alternates
+;
+;Remember to edit to your specs. as in Phone numbers, UID, and Password
+;edit out all lines with the ";"
+;  Enjoy..
+;	      Rob Friedman (Sysop ADAM CP/M)
+--------------------------------------------
+!b2400 8n1				    ;sets baud and parity
+!k2Rob Friedman(Sysop Adam CP/M)	    ;sets keys
+!k5Rob Friedman				    ;"
+!k176072,417\r				    ;"
+%ATZ\r%OK\r\n%%5%			    ;resets Modem to make sure
+%ATDT2944190\r%CONNECT 2400\r\n%%%9%7	    ;dials 1st # and checks
+%ATZ\r%OK\r\n%%5%			    ;resets if 1st # n/g
+%ATDT9322088\r%CONNECT 2400\r\n%%%	    ;dials 2nd #
+%\d\x03%\r\n%				    ;hits ^C
+%%D: %					    ;waits for I.D: prompt
+%76702,417\r%ord: %			    ;sends# ,looks for PW
+%PASS/WORD\r\n\r\n%!%			    ;sends PW, looks for !
+%g club\r%Forum	!%			    ;sends G CLUB, looks for Forum !
+!f cis.mes 6 rea thr new sec:9,10;scr\r     ;opens a catch file CIS.MES and
+					    ;reads all the newest files in
+					    ;secs 9 and 10 <see text>
+%\r%Forum !%				    ;sends <cr>, waits for Forum !
+%off\r%NO CARRIER\r\n%			    ;Logs off CIS, waits for NO
+					    ;CARRIER from modem
+!,					    ;hangs up via ATH0 string
+!a					    ;rings bell to wake you up
+--------------------------------------------
+;and your there!!
+;
+;If you only want to use it to logon to CIS and go to Club, stop it at 
+;the %g club\r%Forum !% line. That would duplicate the original QTCIS.SCR
+;
+;If you want to get files slightly differently, please note that these
+;are the standard CIS commands being used. If your section options are
+;set to only the sections you want, you can omit the "sec:9,10" part.
+;If you want older messages, change the "new" to "day:#" where # equals
+;the number of days from where you want to start. Hence, if I want to get
+;the messages not only from today, but from 2 days previously, even if
+;I've seen them before, I would use the string "days:2". The ";scr" string
+;gives the next command while in the one line. It tells CIS that you want
+;the messages to SCRoll continually, without stopping. The "6" in the
+;command string means that the file will keep capturing until it hits a
+;timeout of 6 seconds, and then will close the file.
+;
+;The whole idea of this is to automate the capture of messages, and
+;shorten your time on CIS and save $$. I'll be working on an answering
+;messages script soon. A variation of this would DL a specific file
+;from the LIBs. Be sure to read the QTERM.DOC, as well as the SCRIPTS.QTM
+;file, both in the QTERM LBRs.
+;
+;
+;Oh..I've added this little bit for the CPM section this 
+;little script lets me go to the CPM forum from anywhere 
+;else and grab the messages there.
+;Of course it can be used instead of my other parts for Club.
+;I call list it as QTCPM.STF
+-------------------------------------------------------
+%g cp/m\r%Forum	!%                                    ;      
+!f cpmcis.mes 6	rea thr	new sec:1-9,11-13;scr\r       ;
+%\r%Forum !%                                          ;
+!a                                                    ;
+-------------------------------------------------------
+;I use the sections this way since i dont want the 16-32 bit stuff.
+;It also rings the bell to get me back to the console
+;
+;Ok.. now let's leave CIS and use the Starlink network. Here are the 
+;scripts I use to first dial, then the separate log-ons:
+;This one is called QTSTAR.SCR
+;All it does is connect with the local Tymenet node.
+--------------------------------------------
+!b 2400 8n1                                 ;again it sets the baud
+!k2Rob Friedman                             ;and the keys..
+!k176702,417\r                              ;..
+!k9STA101788:                               ;this key is my UID for Tymnet
+%ATZ\r%OK\r\n%%5%                           ;resets the modem <as above>
+%ATDT4810150\r%CONNECT 2400\r\n%%%9%7       ;dial's 1st # or..
+%ATZ\r%OK\r\n%%5%                           ;resets and...
+%ATDT4810442\r%CONNECT 2400\r\n%%%          ;dials 2nd #
+%\d\d\d\d\x41%in: %                         ;waits 8 sec. and sends A
+%%%                                         ;ends script with 3 %%%'s
+---------------------------------------------
+;again.. this does nothing but dial Tymnet. You can do any simple
+;script this way <for dialing one or two numbers>
+;
+;Ok.. now we're on..and waiting at the prompt. We hit ESC-X
+;and get the script to get us to the Starlink node, and the 
+;BBS number and login. Next <or first> is the AAUG.SCR, for the 
+;Akron Adam User's Group in Akron, OH. This is one of the best
+;Adam & CP/M BBS's around. As a matter of fact, all these BBS's 
+;I illustrate here are fast BBS's using Tony Morehen's TDOS, a 
+;CP/M-compatible OS. And I recommend all of them. <In fact, I'm on
+;all of them.> 
+--------------------------------------------
+%\x16STA101788:8740;XXPWXX\r%>%             ;This first sends a ^V, then
+                                            ;the UID string with the Starlink
+                                            ;node <8740>, my Password, and 
+                                            ;waits for the local prompt.
+%d 8824720\r%NEW>%30%%5%3                   ;Dials the phone number, and waits
+                                            ;for the prompt, or goes to next 
+%logout\r%in:%%%                            ;line and logs out.
+%%%%                                        ;The 3-4 %%%'s ends the script
+%26\r%word>%                                ;Sends the ID#, waits for prompt
+%YYPWYY\r%%%                                ;Sends the Password.
+--------------------------------------------
+;The others are basically the same.. but for information, here 
+;are the scripts for the nodes and numbers. The next is 
+;AWAUG.SCR , for the Adam Washington Area Users Group <I hope>.
+--------------------------------------------
+%\x16STA101788:2262;XXPWXX\r%>%             ;All the same as above except
+%d 9225497\r%NEW>%30%%5%3                   ;for the node <here it's 2262>
+%logout\r%in:%%%%                           ;the phone # and...
+%%%%                                        ;
+%47\r%word>%                                ;My UID.
+%YYPWYY\r%%                                 ;
+--------------------------------------------
+;The last one is SOCA.SCR for SOuthern California Adam <again I hope>
+--------------------------------------------
+%\x16STA101788:9184;XXPWXX\r%>%             ;Again.. the same. Node here is
+%d 7751603\r%NEW>%30%%5%3                   ;<9184>. And a different phone..
+%logout\r%in:%%%                            ;
+%%%%                                        ;
+%92\r%word>%                                ;and UID.
+%YYPWYY\r%%                                 ;
+--------------------------------------------
+;The use of the ^V in front of the UID is to speed up the file transfers
+;from the Starlink nodes. These are optional, but the DO increase 
+;transmission speed. 
+;The reason the time setting on these are 30 secs, is that sometimes.. it 
+;will dial or ring a long time before Starlink says the number is busy. 
+;On the default, the 15 secs will timeout before Starlink says so..hence it
+;won't go to LOGOUT.
+;
+;Well.. I hope this helps some of you and you get to be proficient with 
+;QTERM. Even though ZMP runs more options, I've found QTERM's scripts to 
+;be really fast when dialing in.. and a real timesaver for use on CIS, as 
+;well as a timesaver for dialing into Starlink. What with all those numbers
+;and ID's to dial..whew. 
+;
+;A note here for NON-QTERM users who are on CIS. Please look at the CIS scripts.
+;The commands I'm using are standard CIS commands, and can be used with ANY 
+;modem program for fast capture of messages. Again.. having an external modem
+;running at 1200b or 2400b really helps. And again.. these scripts for QTERM
+;are for use with an external modem <unless you have adapted it for the 
+;Sydmodem 1200 internal modem>.
+;
+;Enjoy it!
+;Rob Friedman- Sysop ADAM CP/M 
+;CompuServe Computer Club Forum
+;   
+
+

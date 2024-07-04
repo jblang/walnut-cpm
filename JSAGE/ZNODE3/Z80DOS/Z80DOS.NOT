@@ -1,0 +1,193 @@
+This is the text of a letter I wrote to Carson Wilson, author of Z80DOS, 
+the superb new datestamping BDOS for Z80 computers, about my first few 
+days' experiences with it.
+
+                                       - Rick Charnes
+                                         15 October, San Francisco
+
+    Carson, I'm writing this with ..... Z80DOS INSTALLED ON MY HARD 
+DISK!!  ALL RIGHT!  How satisfying.  Does that make me the first person 
+on the planet?  It installed with no problems.  (Well, after 2 or 3 
+false starts that is, but that's life in the big city...)  As I 
+mentioned to you before I have no problem running DateStamper under 
+Z8DOS and fully intend to use BOTH datestamping systems.  I even did 
+something rather risque' -- I've installed DateStamper in a non-standard, 
+actually superior location between the BIOS and the start of the Z- 
+System segments.  Normally it is put either in high TPA below the CCP -- 
+in which case it eats up 2k TPA in addition to what it normally uses 
+since it prevents loaded programs from overwriting the CCP -- or inside 
+one of the Z-System segments such as the IOP or RCP in which case all or 
+part of that particular feature is lost.  Above the BIOS it requires 
+rewriting your whole memory map, but that was half the fun of it.  With 
+Z-COM such a procedure is quite complicated (Jay explained how in TCJ) 
+but with the Z initialization routines written right into the BIOS such 
+as we have with the Morrow bootable disk it's a breeze.
+ 
+     I spent last night going in to my A0:APP and A15:SYS directories 
+and pared off about 75 entries in order to run INITDIR on them.  It was 
+an amazing surgical procedure.  As a librarian I have an extremely 
+strong antipathy towards throwing anything away and very strong 
+tendencies toward collectionism, but being a doctor for an hour or so, 
+using ZFILER's group macro facility to throw tagged stuff into my 
+COMMAND.LBR and then erase it, was most enjoyable.  I think I'm none the 
+worse for it.  Running INITDIR on each of the 4 drives on my hard disk 
+was rather scary -- sort of the "moment of truth" that officially 
+inaugurates one into the wonders of Z80DOS -- but I did it, and I've now 
+got room for all the date stamps.  I normally have 512 possible entries 
+per drive and now have 394.  I'll try to stick to this; it's just a 
+matter of living lightly on the land and keeping everything neat and 
+tidy.  Erasing all one's various TEST.COM's after using them.
+  
+    One thing, though -- if one ever decides to _not_ use Z80DOS is 
+there then any way to restore the full number of entries to one's 
+directory?  I understand that with INITDIR you can erase the old time 
+stamps but I don't know any way to fully restore the directory to a "4 
+in 4" state; one seems forevermore locked in a "3 in 4" condition.  It's 
+not that big a deal, but I'd like to know.
+  
+    Here's the alias I'm using for editing:
+  
+VDE=NW if ex $1;app:savestmp app:datehold=$1;app:r$0 $* <<
+app:savestmp $1=app:datehold;else;app:r$0 $*;fi
+  
+    Note the "R$0"; I've renamed my "real" VDE and NW to RVDE and RNW 
+respectively; the above alias works perfectly with these and can be used 
+for any editor.
+  
+    The next day ... By the way, I was initially VERY upset with WS4 
+insistence on behaving as a true shell in that it completely screws up 
+any scheme to use it in an alias such as above.  (I don't know if you've 
+been following the conversation on Jay's BBS, but we discovered that 
+since it behaves as a true shell it of course can be used only with 
+difficulty in an alias since it will only run after the rest of the CL 
+is cleared)  In any case, Dave McCord made a suggestion on how to get 
+around the problem:  deliberately load up the shell stack ("with 
+multiple invocations of HSH or z/filer") before WS is invoked.  In this 
+way, if WS sees the shells tack is full, it will not behave as a shell, 
+since it can't install itself as one.
+  
+    Well, what I did rather than load up the shell stack was to poke the 
+relevant bytes in the environment descriptor (FE20h and FE21h for the 
+"standard" system) to instantly and temporarily create a system having 
+only a single shell stack entry of 128 bytes in length:
+  
+WS POKE FE20 01 80 if ex $1;app:savestmp app:datehold=$1;app:realws $* <<
+app:savestmp $1=app:datehold;else;app:realws $*;fi;POKE FE20 04 20
+  
+works just fine.
+  
+    OK, I've just changed the date with TIME.COM and I want to see that 
+BEAUTIFUL sight -- different creation and modification dates on a word- 
+processed file...
+  
+    Oh, a comment about DATEDEMO.  I assembled it up into a COM file.  
+It doesn't pause every screenful.  Also: the date of access information 
+is right flush against any 11-character filename, actually touching it.  
+Needs to be more space there.  Do you intend that as a replacement for 
+TDIR?  It's your own, right?  TDIR is someone else's.
+  
+    Was very pleased to discover, by the way, that one of programs that 
+I had assumed was ZRDOS-specific and was sad about the fact of giving up 
+and finding a replacement for is in fact not!  VTYPE, a lovely file 
+viewer and scanner (VERY fast moving from top to bottom; it'll do a 125k 
+file in about two seconds flat), runs fine under ZRDOS.  I wonder, 
+actually, if it's because I left the string of letters 'ZRDOS+' in the 
+BDOS header as you recommend doing in Z80DOS.BLD (for CP/M, I assume).  
+Am I correct in my assumption that the CP/M _command processor_ must 
+find the DRI header in the BDOS, and that's why you recommend leaving it 
+in?  I assume I didn't need to do the same with the ZRDOS+ header but 
+did it nonetheless and wonder if it might be responsible for the 
+continued successful operation of VTYPE.
+  
+    MOVE.COM, another program I'd assumed would only run under ZRDOS, 
+runs fine in my new BDOS.  I'd started recently using MAKE but don't 
+like it because it does something weird with files that take up more 
+than one directory entry: its status reporting to the screen indicates 
+one operation for each directory entry of the file!  In other words, if 
+I am changing the user area of BBMSG.LBR which is 88k in size from D3:  
+to D7: here's what MAKE displays on the screen:
+  
+D3:UPLOAD>make bbmsg.lbr d7:
+  
+MAKE  -  Version 2.6 for ZCPR3
+  
+BBMSG.LBR    = 7     R/W  DIR  Non-ARC
+BBMSG.LBR    = 7     R/W  DIR  Non-ARC
+BBMSG.LBR    = 7     R/W  DIR  Non-ARC
+  
+I suppose it is actually changing the user area for 3 directory entries 
+but I really don't want to know about it!  MOVE.COM doesn't do this.
+  
+    TDIR does something quite funny if run on a user area greater than 
+9.  It's really kind of amusing.  Look an an ASCII conversion chart.  
+See the characters after 0-9?  There's : ; < = > and ?  .  Well, that's 
+exactly what TDIR displays after user area 9.  If you do a directory of 
+A15:, TDIR's status reporting displays the current directory as
+  
+                   A0?:
+  
+And A14: is 'A0>:' and A13: displays as 'A0=:' and A12: is 'A0<:' and 
+A11: as 'A0;:' and A10 as 'A0::'.  It's quite funny.  
+  
+PUBLIC FILES
+------------
+  
+    First time in my life I ever created public files in any way other 
+than the ZRDOS+ way.  For sentimentalism's sake I nominated NSWEEP for 
+the job and used its good-old esoteric 'Y' command to set the flags on 
+the 2nd filename character.  Works like a charm, just like ZRDOS+'s 
+PUBLIC directory feature did.  Even left them in their old directory and 
+kept it named PUBLIC:.  Why not?
+  
+    The Echelon program PUBLIC.COM is interesting.  Oh, I forgot: you 
+never used ZRDOS+.  It implements its public feature by setting a 
+directory as public with a program PUBLIC.COM.  COMP, SFA and DFA all at 
+least abort and give you a message under Z80DOS that 'Error: you must be 
+running ZRDOS'.  PUBLIC.COM loads properly, seems as if it's working, 
+and even gives you a message telling you that the directory that you 
+specified as public is indeed public.
+  
+    Then when you try it -- it ain't.  PUBLIC.COM needs some error- 
+handling code.
+  
+    But setting the 2nd filename attribute on all my ex-public 
+directory'ed files works just fine and dandy.  By the way, I like the 
+feature that you can only erase a public file from the home user area.  
+ZRDOS does not have that safety feature, I don't believe.
+  
+    One thing I'm curious about.  Your instructions in Z80DOS.BLD for 
+loading in the newly-created Z80DOS.HEX and CBIOS.HEX intrigue me.  I 
+have always used MLOAD to create a binary file to prepare a file for 
+this purpose.  I create a COM file, and then load it in with DDT(Z) to 
+my CPM.COM at the offset address at which the OS segment is located in 
+CPM.COM.  You know, the CCP is at D00, BDOS at 1500 and BIOS at 2300 so 
+the offset for the "R" command is C00, 1400 and 2200 respectively.  When 
+I tried this technique, loading an MLOAD'ed Z80DOS.COM in to CPM.COM at 
+'R1400' -- and also my CBIOS.COM at 'R2200' it just didn't work.  Since 
+I changed the whole memory map I also needed to reassemble my cold boot 
+loader and load that in to CPM.COM.  In my system image file (CPM.COM) 
+my cold boot loader is at 900 so I loaded in my MLOAD'ed ZBOOT.COM at 
+800 and it just didn't work.
+  
+    Why?  Your method -- calculating the difference between where the 
+segment is in CPM.COM and where it runs in memory and loading in the HEX 
+file at that offset -- worked fine.
+  
+    You know what I wish TDIR or DATEDEMO would do?  Something that I 
+feel is an obvious thing for a directory program to do but very few do: 
+tell you how many possible directory entries remain on the disk.  The 
+very first dir program I ever used in my life, so primitive it doesn't 
+even know about user areas, does this --- but nothing I've found since, 
+from the grandaddy XDIR to SD to Eric Meyer's DA to Terry Hazen's DD, 
+display this.  Why?  With my new, more-limited-in-number directory this 
+information becomes very important to me.  Sure, you can take the number 
+of USED entries that _is_ displayed to you and subtract from that the 
+number that you might possibly remember you can potentially have ... but 
+that's really the long way around the problem.
+              
+    Very glad you left in the code in ZFILER and PPIP that supports 
+DateStamper.  So now we have two programs that support both datestamping 
+systems.
+    
+    G'night, comrade fellow Morrow user.  Thanks for a great BDOS.
+

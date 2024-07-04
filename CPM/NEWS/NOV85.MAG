@@ -1,0 +1,880 @@
+=================================================================
+
+                               The
+
+                             $ R / O
+
+                        R E A D   O N L Y
+
+
+                      -={ November 1985 }=-
+
+
+The   monthly   news  magazine of the Tampa Bay   Kaypro   User's 
+        Group and the DataCOM Network RCP/M Systems Group
+
+=================================================================
+
+               Steven L. Sanders - Editor (Sysop)
+
+=================================================================
+The  DataCOM Network consists of three remote databases with   60 
+megabyte  of files available to members 24 hours.   An annual fee 
+of $30.00 is required  for access,   an  application may be down-
+loaded by calling System #1   at (813) 937-3608 at  300/1200/2400 
+baud or send a  SASE along with your request to:
+
+                      TBKUG/DataCOM Network
+                        14 Cypress Drive
+                      Palm Harbor, FL 33563
+
+NOTE:   Articles and reviews of machines, hardware, software, and 
+other peripherals reflect currently advertised prices as released  
+by  the  distributors and are included here for YOUR  INFORMATION  
+ONLY.    The  TBKUG/DataCOM  Network  is   NOT   being  paid   to  
+advertise   these products and we  cannot  be   held  responsible   
+for  the  price  and/or  performance  of  said products.
+=================================================================
+
+                 -={ THE TBKUG IS MOVING !! }=-
+
+I  will be moving into a new location on November 15 and the  new 
+address will be:
+
+                     TBKUG / DataCOM Network
+                      2643 Cedarview Court
+                      Clearwater, FL 33519
+
+Please  note  that ALL telephone lines both voice and  data  will 
+also  be  changing  and the new numbers will be in effect  as  of 
+November 15.
+
+                   Modem Line 1 (813) 791-1454
+                   Modem Line 2 (813) 791-1455
+                    Voice Line (813) 791-1938
+
+
+            -={ VIDEO FEATURES OF THE NEW KAYPROS }=-
+
+                        by Steve Sanders
+
+Many,  many times I am asked what escape code does what,  or  how 
+did  I get that program to clear only part of the screen.   Well, 
+it may not be to clear in the Kaypro manuals so I will give you a 
+complete rundown of the video attributes and screen control codes 
+used in the new Kaypros.
+
+Applicable to the following Kaypro CP/M models; Kaypro 1, 2X, New 
+2,  4E,  4'84,  10, or ROBIE (does anyone really own one of these 
+ROBIEs??)
+
+
+			Enable		        Disable
+Inverse Video		ESC,"B0"		ESC,"C0"
+Reduced Intensity	ESC,"B1"		ESC,"C1"
+Blinking		ESC,"B2"		ESC,"C2"
+Underlining		ESC,"B3"		ESC,"C3"
+Cursor			ESC,"B4"		ESC,"C4"
+unknown attribute	ESC,"B5"		ESC,"C5"
+Save Cursor Pos.	ESC,"B6"   Restore pos  ESC,"C6"
+25'th line 		ESC,"B7"       		ESC,"C7"
+
+
+DEFAULTS ARE: Inverse OFF, reduced intensity OFF, blinking OFF,
+              Underline OFF, cursor ON, and 25th line OFF
+
+What  follows  is a sample MBASIC program which demonstrates  the 
+use of the 25th (status) line
+
+Note: Line 70 must be -->  PRINT CHR$(27);"=8 ";
+      The space after the 8 is not a typo
+
+
+10 REM THIS PROGRAM WILL DEMONSTRATE THE 25'TH LINE
+20 REM OF THE NEW KAYPRO
+30 REM
+40 REM
+50 PRINT CHR$(27);"B6" 	      REM SAVE CURSOR POSITION
+60 PRINT CHR$(27);"B7" 	      REM ENABLE 25'TH LINE
+70 PRINT CHR$(27);"=8 ";      REM MOVE CURSOR TO 25'TH LINE
+80 PRINT "THIS IS THE 25'TH LINE" : REM SHOW USER WE CAN DO IT!
+90 PRINT CHR$(27);"C6" 	      REM RECALL CURSOR POSITION
+100 REM
+110 REM WHEN YOUR DONE WITH THE 25'TH LINE IT MAY BE DISABLED
+120 REM WITH THE FOLLOWING
+130 REM
+140 PRINT CHR$(27);"C7"	      REM DISABLE 25'TH LINE
+150 PRINT CHR$(26)	      REM NOW CLEAR ENTIRE SCREEN
+160 END
+
+
+
+                       CURSOR POSITIONING
+
+The cursor is positioned by a vertical (v1) value (0-24) and a 
+horizontal (h1) value (0-80) as follows:
+
+PRINT CHR$(27) + "=" + CHR$(v1+32) + CHR$(h1+32)
+
+ 
+       0,0   +-----------------------------------+  0,80
+	     |   <----  80 columns wide	---->	 |
+	     |		   horizontal	 	 |
+	     |					 |
+	     |					 |
+  24 lines   |	            24 X 80     	 |
+  vertical   |					 |
+	     |					 |
+	     |					 |
+	     |					 |
+       24,0  +-----------------------------------+  24,80
+	     |    protected 25th status line     |
+             +-----------------------------------+
+
+
+
+                   SCREEN/CURSOR CONTROL CODES
+
+             FUNCTION                     HEX     DECIMAL
+      ----------------------------------------------------
+      CLEAR SCREEN/HOME CURSOR            1AH     CHR$(26)
+      HOME CURSOR (0,0)                   1EH     CHR$(30)
+      CLEAR TO END OF LINE (EOL)          18H     CHR$(24)
+      CLEAR TO END OF SCREEN (EOS)        17H     CHR$(23)
+      INSERT LINE (INS)                1BH,45H    CHR$(27);"E"
+      DELETE LINE (DEL)                1BH,52H    CHR$(27);"R"      
+
+
+
+                  GRAPHIC LINE DRAWING ROUTINES
+
+
+     33,33   +-----------------------------------+  33,190
+	     |   <-----  160 pixels wide ----->  |
+	     |		         	 	 |
+	     |					 |
+100 pixels   |					 |
+   high      |              100 X 160	 	 |
+             |					 |
+	     |					 |
+	     |					 |
+	     |					 |
+     130,33  +-----------------------------------+  130,190
+	     |    protected 25th status line     |
+             +-----------------------------------+
+
+
+Line draw formula:   ESC + "L" + (v1+32) + (h1+32) + (v2+32) + (h2+32)
+
+The following will draw a border around the CRT, starting at the
+
+(1) top left to top right, 
+(2) top right to bottom right,
+(3) bottom right to bottom left, and finally 
+(4) bottom left to top left.
+(1) PRINT CHR$(27);"L" +CHR$(33)+CHR$(33)+CHR$(33)+CHR$(190)
+(2) PRINT CHR$(27);"L" +CHR$(33)+CHR$(190)+CHR$(130)+CHR$(190)
+(3) PRINT CHR$(27);"L" + CHR$(130)+CHR$(190)+CHR$(130)+CHR$(33)
+
+Be sure to complete all other PRINT statements before using this
+final routine to draw the line from bottom left to top left.  If
+you don't, other PRINT statements will cause a break in the line
+if starting in column 1.
+
+(4) PRINT CHR$(27);"L" +CHR$(130)+CHR$(33)+CHR$(33)+CHR$(33)
+
+////////////////////
+
+NOTE:  If  using the K10ZCPR2,  K10ZCPR3,  K83ZCPR3,  or K484ZPR3 
+files  on your system,  you need to toggle the GRAF byte at  04fh 
+before drawing lines.  
+
+      You can do this from MBASIC as follows:
+
+POKE &H4F,&H0FF  enable line drawing (before first line is drawn)
+
+POKE &H4F,&H00   disable line drawing (after last line drawn)
+
+      Same poke command in CBASIC:
+
+POKE 04FH,0FFH  <-- do not confuse "0FF" with "OFF"
+
+POKE 04FH,00H
+
+      Or in assembly language:
+
+MVI	A,0FFH	;enable line drawing
+STA	04FH	;toggle GRAF byte "OFF"
+
+MVI	A,0	;disable line drawing
+STA	04FH	;toggle GRAF byte "ON"
+
+
+             -={ Modem & HDD Interface for SB180 }=-
+
+{Editor's note:   With the addition of this interface board,  the 
+SB180  single-board computer can now handle hard disk drives  for 
+mass  storage  and you can add the modem without using up one  of 
+the serial outputs - all this and Z80 s/w compatible as well.  We 
+now have a MEX overlay available for the SB180 computer,  see the 
+file MXO-SBS1.AQM in the MODEM section.}
+
+     The Micromint COMM180 expansion board may be the only  board 
+you  will ever need for your SB180 computer.   This 4" x 5" board 
+adds two major functions to your SB180:
+
+     1) Bell 103-212A compatible 300/1200 baud modem
+
+     2) SCSI hard disk controller interface
+
+The COMM180 board is available in three versions:
+
+     1) Modem, DTMF encode/decode, and voice synthesis alone
+
+     2) Small Computer System Interface (SCSI) hard disk
+        controller interface alone
+
+     3) Both of the above
+
+And  either the modem version or the SCSI controller version  may 
+be upgraded to the full version at any time.
+
+The COMM180 does not use a serial port on the SB180,  but instead 
+addresses the bus directly.   It is fully Bell 103 and Bell  212A 
+compatible (including FCC registered Data Access Arrangement) for 
+300  and 1200 baud use,  is 8251A software  compatible,  features 
+both  DTMF  and pulse dialing,  call  progress  monitoring,  DTMF 
+reception and decoding,  and a unique diagnostic capability which 
+automatically compensates for common telephone line deficiencies.  
+In addition the COMM180 has optional voice synthesis capabilities 
+which  allow  it to respond verbally to commands entered via  the 
+standard touch tone telephone pad.
+
+The SCSI allows the use of a wide variety of hard disks with  the 
+SB180 for fast,  sophisticated mass storage whether you need just 
+5 megabytes or 50 megabytes.   Many manufacturers offer hard disk 
+drives  and controller cards which mate with the SCSI  interface.  
+If  you  need more file space than floppies  allow,  the  COMM180 
+board  can  help  meet your storage  needs.   In  addition,  many 
+laboratory  instruments  support  the  SCSI  standard,  thus  the 
+COMM180  can  allow  the SB180 to be more easily  used  for  data 
+logging and data reduction.
+
+Software for the COMM180 includes a complete modem communications 
+system  and messaging system designed to run under  Z-System  DOS 
+available  for  the SB180.   BIOS modifications are  supplied  in 
+source code to allow integration of hard disk drivers into the Z-
+System DOS.
+
+
+                     TECHNICAL SPECIFICATIONS
+
+ Modem:
+
+ - Plugs into the Expansion Bus on the SB180
+ - Only 4" by 5"
+ - Fully Bell-212A and Bell-103 Compatible
+ - DTMF or Pulse Dialing
+ - Jack for External Speaker for Call Progress Monitoring
+ - DTMF Reception and Decoding
+ - 8251A Software Compatibility
+ - Parity Generation/Checking
+ - Sync Byte Detection/Insertion
+ - Synchronous 1200 bps, Asynchronous  1200,300,110 bps
+ - Software  Controlled  Audio  Input  and  Output  Interface  (2 
+    Separate Jacks) for Voice Communication or Acoustic Coupling
+ - Voice Synthesis (LPC coded)
+ - ASCII Command and Error/Status Codes
+ - Extensive Built in Diagnostics
+ - Phone Line Diagnostics
+ - FCC Registered Direct Connection. Tip and Ring Input
+ - Operates on +5/+12 Volt Power Supply 
+
+
+ SCSI Interface:
+
+ - Provides a Device Independent Local I/O Bus
+ - Operates at DMA Data Rates Up to 1.5 Megabytes Per Second
+ - Supports Initiator and Target Roles
+ - Parity Generation with Optional Checking
+ - Supports Bus Arbitration
+ - Provides Direct Control of All Bus Signals
+ - Xebec 1410 compatible
+ - Adaptec ACB4000 compatible
+
+
+                         COMM180 Software
+
+The  software  which comes with the COMM180 consists of TERM  III 
+and Z-MSG (optional).
+
+TERM  III is a sophisticated communications package which  offers 
+all the functions of standard modem programs but goes far  beyond 
+them  when used with COMM180's advanced features and Z-System DOS 
+(required for operation).  TERM III was designed to be used as:
+
+ 1)  an  originating communications system to allow the  user  to 
+dial  out,  communicate with other computers,  and  perform  file 
+transfer functions;
+ 2)  a  remote  access  system to allow users to  dial  into  the 
+system,  interact with it,  and transfer programs into and out of 
+it; and
+ 3)  a  configuration system to allow the user to  configure  the 
+attributes of the other two types of systems.
+
+TERM III offers multiple file transfer protocols:  Christiansen's 
+MODEM7  (with  checksum and  with  CRC),  MODEM7  batch,  XMODEM, 
+KERMIT,  CompuServe's CIS, and X-ON/X-OFF.  Special attention has 
+been  paid  to making the remote access system completely  secure 
+from unauthorized use.   You may also call in to TERM III on  the 
+COMM180  and  use  a  standard touch tone  pad  to  give  special 
+instructions,  e.g.,  run  a  program using the COMM180's  speech 
+synthesis to give a verbal summary of system access.
+
+Z-MSG  allows  the COMM180,  SB180,  and TERM III  to  be  custom 
+configured  as a "turnkey" Remote Bulletin Board System  - either 
+as  a  public  system allowing access to anyone or as  a  private 
+system restricting access to "members only".   Z-MSG allows up to 
+eight user "types" with varying priveleges associated with  each.  
+Messages may be public or private and may be over 100 lines long.  
+Extensive editing functions are provided and comprehensive online 
+help is always available.
+
+For  those  wishing to use the SCSI as a  hard  disk  controller, 
+source  code  is  provided which allows many types of  hard  disk 
+controllers  and  sizes of Winchester disks to be  used  as  mass 
+storage  for  the SB180.   Two popular controllers are  supported 
+directly  - the  Xybec 1410 controller and the  high  performance 
+Adaptec ACB4000.   Two disk sizes are supported - the standard 10 
+MB drive as well as the high capacity 20 MB drive.  Provisions to 
+support  other  controllers and even higher capacity  drives  are 
+included.   Of  course,  the SCSI may also be used to link  other 
+SB180's or SCSI equipment together as well.
+
+For more info, contact Micromint at:      800 635-3355
+
+
+                -={ WHATSNEW in Public Domain }=-
+
+VDO25B.LBR has the latest updated version of the VDO text  editor 
+by  James  Whorton.   It  now has all the  earlier  patches  pre-
+installed and comes with a 128-byte command buffer.   This little 
+gem is only 8k and uses no overlays,  just available memory.   It 
+is  very fast and is installable for most any 24x80 CP/M  machine 
+being sold today.
+
+ACMDU11.LBR   is  a  nice  utility  for  ZCPR3  folks  using  the 
+ARUNZ04/05 ALIAS.CMD file.   ACMDU11 allows you to add or  delete 
+alias commands stored in the ALIAS.CMD file quickly and simply.
+
+DBALL.LBR  is  a dBaseII system for generating  multiple  mailing 
+lists  that can be used by Wordstar and Mailmerge to produce form 
+letters.   This  is  an extensively modified version of  Dr.  Don 
+Saba's DBRECALL system for tracking patients.
+
+DBCHECK.LBR  is an all-purpose checking account program  for  use 
+with dBaseII.
+
+RECOVER.LBR  is  a menu-driven UNERASE utility for CP/M 2.2  that 
+will  list  ERAsed files on the current drive and  allow  you  to 
+UNERAse them easily.
+
+MXO-SBS1.LBR   contains  the  MEX  modem  overlay  for  use  with 
+Micromint's SB180 single board computer.
+
+GRAB.LBR has a program that works similar to FIND, but allows the 
+user to extract paragraphs from a Wordstar document file.
+
+
+           -={ SOFTWARE REVIEW: The Writer's Guide }=-
+
+                         by Daniel Patt
+
+    The WRITER'S GUIDE (TM),  version 1.1,  is a replacement menu 
+for  Perfect  Writer  (TM).   It provides two menu  screens  that 
+replace  all of the menu screens that come with  Perfect  Writer.  
+The  replacement  menu AUTOMATICALLY passes the  current  working 
+file's  name  to Perfect Formatter (TM) and Perfect Printer  (TM) 
+along with "standard" formatting and printing options.
+
+The  WRITER's GUIDE provides a single letter command that  allows 
+the  formatting and printing of the current  working  file.   Its 
+directory  features selecting files by extent or filename  alpha
+betically,  plus selecting only *.com,  etc.   (unfortunately one 
+can not access more than the A or B drives to my knowledge).
+
+In addition,  one can list a file from the menu,  count the words 
+in  a  file from the menu,  UNERASE a file and turn off  the  key 
+click  from  the menu and even call The WORD Plus (TM)  as  one's 
+spelling program from the menu.
+
+Since  most  of  my work with Perfect Writer  requires  immediate 
+formatting  and  printing  of the file  I  am  working  on,  this 
+replacement  menu is very useful to me.   It is well thought  out 
+and receives high marks from me.
+
+A recent letter in the Kugram (Vol.  3 No.  2) told of a new menu 
+program  that replaced the PW menu.   The company that offers the 
+program is Interior Systems,  Inc.  of Joelton, Tenn.  (P.O.  Box 
+188,  zip 37080).   The company can be contacted through its  800 
+number (800/531-5255).
+
+The  standard  Perfect  Writer uses a number of  menus  to  edit, 
+format and print a file on paper.  These menus require one to re-
+type  the  name  of  the file at the start of  each  use  of  the 
+program.  In addition, each time one uses the menus, one must re-
+enter  the  options unless one wants to use the  default  values.  
+Some  people  choose to not use the menus and directly enter  the 
+programs with the appropriate parameters added or use a SUBMIT or 
+EX file to make their standard choices with fewer steps.
+
+WRITER'S GUIDE offers an alternative to these methods.
+
+Since my new secretary was having trouble with the old set of  PW 
+menus,  the  Kugram  review suggested to me  an  alternative.   I 
+called  the  company  and ordered a copy of the  program  for  my 
+Kaypro  10.   I received the version for the Kaypro II.   When  I 
+tried  to use the "change user" option,  I discovered that I  had 
+the wrong version.   I called the company and promptly received a 
+call  back  from the people in charge.   The KP II version  costs 
+$35.00  and the KP 10 costs $55.00.   I paid the  difference  and 
+have been very happy with the program.  IT IS VERY NICE TO HAVE A 
+COMPANY  RESPOND TO PROBLEMS!!!  Not all companies can or will do 
+this.
+
+The KP II version does not work well on the KP 10; it is too slow 
+when  it  prints the full directory.   This is  because  it  also 
+calculates the remaining space on the B disk.   I believe that it 
+would  work quick enough for the KP II because there is not  that 
+much disk space to calculate.
+
+However,  after I received the KP 10 version of Writer's Guide, I 
+was very pleased.   The program comes in two versions on the disk 
+along  with  a COM file that will change the size of  the  PW.SWP 
+file.   One  file is the "normal" new menu and the other file  is 
+the  fast  menu.   The difference is that the fast menu does  not 
+calculate  the remaining disk space and display it every  time  a 
+directory read is requested.
+
+The  fast menu works at an acceptable speed in my office environ
+ment.  The menu allows the editing, formatting and printing of PW 
+produced  files by the pushing of one key (a letter) in the  menu 
+mode.   It provides for the changing of some, but not all options 
+for Perfect Formatter and Perfect Printer.   It provides for  the 
+changing  of  user  areas  from the menu  with  out  leaving  the 
+program.
+
+WRITER'S  GUIDE  has two menus.   You can change between them  by 
+typing the letter "M".   The command letters displayed in  either 
+menu  can be entered and used no matter which menu is  displayed.  
+The more familiar you are with the commands, the less you have to 
+look at the menus.
+
+To  work on a file from the menu,  you need to enter the  command 
+"W"  and the name of the file.   You need to enter the full  name 
+including  the extent.   It would have been a nice feature if the 
+".MSS"  extent was added automatically unless one typed a  period 
+(.) and an extent.
+
+Once  the  "Working on file" has been typed you do  not  need  to 
+retype  it from the menu to format it,  print it,  list it on the 
+screen,  or to use a speller on it.   All you need to do is enter 
+the single letter command for the desired function.   Since  most 
+of  my files are accessed and used one at a time,  this is a very 
+convenient feature.
+
+The  menus  allow you to display either the A or B  directory  or 
+just  specified types or names of files using the CP/M wild  card 
+features  of "?" and "*".   This is also a very nice  feature  to 
+have.   A  unique  addition which I have not seen before  is  the 
+ability  to  toggle  the  display of the directory  so  that  the 
+display is done alphabetically by extent or by file name.   Thus, 
+you  can have all .COM files printed alphabetically and then  all 
+".MSS" files printed alphabetically on the same screen.
+
+Use  of the Control-Y (^y) key causes the last entered file  name 
+to be repeated at the cursor position.  This is a nice feature if 
+you have chosen any of the copy,  rename,  kill (erase),  or yank 
+back (unerase) features offered on the menu.
+
+The  second  menu  provides a series of two  letter  commands  to 
+change the parameters sent to Perfect Formatter (TM) and  Perfect 
+Printer  (TM).   These  allow the selection from the menu of  Top 
+Level  of Verbatim,  formatting for a different device  than  the 
+default  device,  pausing  for  insertion  of  each  page,  start 
+printing  on a different page than page one,  number of copies to 
+printed, output to the screen, selecting the pf output file name, 
+selecting  the  PP out port name (other than the  default  port), 
+choice of the spelling program,  and display for the directory by 
+ext  or  filename.   When  one selects one of  these  two  letter 
+options, they remain selected until changed.
+
+Unfortunately,  the  menu  does  not allow one  to  send  the  -q 
+parameter  to  Perfect Printer (TM) which stops the query of  the 
+right  choice of device formatted.   This would have been a  very 
+nice  feature  to have had;  I have waited many  minutes  at  the 
+console when I have not answered yes to this question.
+
+The  program  provides a Control-C feature in the formatting  and 
+printing modes to stop the programs and go the next step.  If you 
+have  chosen  to  print  and format in one  step  and  issue  the 
+Control-C  in PF,  then the program sends to PP ignorant  of  the 
+fact that no ".FIN" file exists.
+
+Somehow  the program actual adds information to CP/M,  because if 
+you exit the program without using the program's exit mode,  then 
+CP/M will return you to the menu as if you had finished the  last 
+requested  operation.   This has happened to me a number of times 
+and at first I didn't understand what was happening.
+
+There  is a problem with the text to screen mode.   I found  that 
+the  order  of the format for device and the on  screen  printing 
+order to PF made a difference in the on screen page size.  Proper 
+choice  of the order would allow the actual size of  the  printed 
+page  to  be displayed in a continuous scroll across the  screen.  
+Improper choice provides a very short page to be scrolled  across 
+the screen.  Unfortunately, the program only allows for the short 
+page  scrolling across the screen.   The -c before -dev  {device} 
+option gives the result wanted.
+
+A  number of additions to this program would be very nice.   Some 
+of them have been commented on previously in this review.  Access 
+to more drives than just A or B,  the ability to run the menu and 
+the files in just one drive, quicker directory display, all these 
+would be useful modifications.
+
+But,  the program,  as is,  is good and is very useful because it 
+saves time.   I feel that it is well worth the money.  Now, if it 
+could only take up just 1K of file space...
+
+
+                 -={ Word Processing Helpers }=-
+
+                        by Steve Sanders
+
+The  TBKUG library has many useful utilities for word  processing 
+support.  Most of these utilities are made for Wordstar users and 
+deal  with manipulating the resultant ASCII files.   I will  give 
+you  a listing of utilities available and a brief description  of 
+what they do and/or how they do it:
+
+UNSOFT.LBR  contains  two very handy  utilities:  (1)  ENSOFT.COM 
+which converts ASCII text files to Wordstar document format.   It 
+actually  makes educated guesses as to where to put soft or  hard 
+carriage  returns as well as soft spaces.   (2) UNSOFT.COM  which 
+converts Wordstar document files back to normal ASCII files.   It 
+resets all high bits set by Wordstar back to zero and strips  out 
+all   dot  commands  except  .PA  which  is  converted  to  a  FF 
+(formfeed).   It  also  converts soft (1Fh) hyphens to real  hard 
+(2Dh) hyphens and removes all control characters except TAB,  FF, 
+CR, and LF.
+
+BACKTOWS.LBR  has  a utility that allows  re-formatting  document 
+files  to  your  preferrences.   You may re-format  a  right  and 
+lefthand  justified  file  so  that it now  has  a  "ragged"  un-
+justified  right  margin.   It will also perform  much  the  same 
+function as ENSOFT by adding high order bits at the beginning and 
+end of every word ala Wordstar document mode.
+
+FILT.LBR  has  a variety of ASCII file filters that perform  many 
+different tasks.   FILTA will remove all high bits,  changes lone 
+LF to a CR/LF pair and optionally retains FF  characters.   FILTB 
+is for filtering MBASIC files, does the same as FILTA but retains 
+the LF-CR required by some Basic editors.   FILTW is for Wordstar 
+document  mode files,  handles CR and LF like FILTA,  removes dot 
+commands,  converts  soft  to hard hyphens  and  non-break  (0Fh) 
+spaces to normal spaces (20h).   FILTWC is exactly like FILTW but 
+retains  the  CR  and  LF  intact  in  whatever  form  they  were 
+originally.
+
+WINDEX20.LBR  creates  indexes  for  Wordstar  files  written  in 
+document  mode.   It can be used with a manuscript of any length, 
+including  books up to 9,999 pages,  with a maximum of 254  keys.  
+There  are  three different modes of indexing available  and  can 
+become an invaluable W/P aid.
+
+PAIRX13.LBR  searches  Wordstar document  files  for  un-balanced 
+pairs  of print control characters.   Real handy when you  forget 
+that  "other"  ^PB  and end up with a whole document  printed  in 
+boldface.   Or  how  about  only one ^PS,  not bad  if  you  like 
+everything underlined.
+
+FOOTNOTE.LBR  combines  a Wordstar document file and  a  file  of 
+footnotes  for  it  into one  single  (non-document)  file,  with 
+footnotes  at the bottom of each page,  which may then be printed 
+out by Wordstar.
+WSAVEALL.LBR  is a unique concept for restoring text lost in  RAM 
+after  a "disk-full" error or a hastily exited (^KQ - Yes)  file.  
+Wordstar  always  buffers about 15k of edited text  in  the  same 
+location in memory and this program with the aid of a SUBMIT file 
+will automatically recover this text and place it in a file to be 
+further  edited.   This utility and RESQ13 will both recover text 
+even AFTER a system reset or cold boot.
+
+RESQ13.LBR  operates  much  the same as  WSAVEALL  except  it  is 
+manually  invoked  from  the  prompt  when  desired  rather  than 
+automatically submitting itself for processing after a warm boot.  
+RESQ  will auto-adjust itself for the size of TPA on your machine 
+so  it  works well even under small  memory  configurations  (ala 
+ZCPR3).   RESQ  will prompt you to enter a string to search  for, 
+then  begins  looking  thru the RAM buffer area  for  the  target 
+string.   If  the string is found,  RESQ backs up to the start of 
+the  buffer area and then saves the 15k (max) of text to  a  file 
+called RES.Q on the currently logged drive.
+
+SYA.LBR  (aka  Save Your ASSetts) is another RAM  rescue  program 
+similar to RESQ13.  I like RESQ better and have always had better 
+results then with SYA (nuff said?)
+
+OUTLINE.LBR  is  a  utility used in conjuction with  Wordstar  to 
+produce  an  outline.   There  are a maximum of  four  levels  of 
+outlining available.
+
+WC1.LBR is an update to the WC.COM utility supplied with Wordstar 
+to count the number of words in an ASCII file.  This version will 
+skip  all  lines  beginning with "dots"  to  avoid  counting  dot 
+commands  as words.   Very handy for writers who are paid by  the 
+number  of words per text or when you only have a limited  number 
+of words allowed for say an advertisement in a magazine or such.
+
+ROFF.LBR  contains  a file formatting utility that allows you  to 
+format  for printing any ASCII text file.   You may  specify  the 
+amount  of  indentation required for the entire file  and  change 
+this  specification at any time with another dot command.   There 
+are  many  parameters possible including  full-line  filling  and 
+complete   page-style  formatting  including  top  margins   with 
+headers,  a  second top margin,  the main body of text,  a  third 
+margin, and finally the bottom margin including the footers.
+
+WS3330.DQC  is  a  text file that contains all known  labels  and 
+patch  locations for Wordstar v3.30.   This is especially  useful 
+when patching-in an un-supported printer or for that special  mod 
+you want to make to Wordstar.
+
+WSFAST24.LBR  has  several different submit files used  with  the 
+included  EX15  utility to speed-up the operation of Wordstar  by 
+removing  unnecessary  time  delays and filling  in  the  opening 
+copyright display screens.  This is a definite must for owners of 
+the   Kaypro-bundle   versions  as  they  are  really   slow   as 
+distributed.   The  whole process is automated and takes only   a 
+couple  of minutes to perform.   The resultant copy  of  Wordstar 
+will  now  sign-on very quickly and allows you to  begin  editing 
+much faster then the stock version.
+
+QK-21.LBR  aka QWIKKEY is an all-purpose keyboard re-definer that 
+allows you to assign ASCII strings or commands for simple one-key 
+entry.   QWIKKEY  can be defined on-the-fly or it can read  in  a 
+file of pre-defined string assignments.   Now you know how to get 
+super  function keys on the Kaypro and other computers that  lack 
+real function keys.  QWIKKEY takes up very little memory and more 
+then pays you back with it's abilities.
+
+
+                  -={ S-100 System For Sale }=-
+
+MORROW DECISION I,  S-100 computer system with 14-slot Wunderbuss 
+MultI/O  motherboard,  3  programmable RS-232C serial  ports  (0-
+19.2kb) and 2 parallel I/O ports.   MPZ80 CPU card,  MM65K memory 
+board,  DJ/D2B 8-inch floppy controller board,  HDC-3A hard  disk 
+controller card.
+
+Disk sub-system: (1) Fujitsu 10mb hard disk in cabinet with power 
+supply and fan, and (1) Shugart 8-inch floppy drive (reads/writes 
+standard IBM 3470 format diskettes in 4 densities; 128, 256, 512, 
+or  1024 bytes per sector).   System can be easily set to boot-up 
+from  hard disk or floppy by flipping one dip switch on  the  CPU 
+board.
+
+Complete   BIOS  listings and  all  driver  software   for   any 
+configuration  of  available 5 or 8-inch  hard  disks.   Original 
+manuals   for  everything  and  CP/M  2.2  including  all  system 
+utilities and bunches of disks full of goodies.   System is  100% 
+operational and  very solid.   Heath H-19 smart terminal included 
+with  all  the above for $2,000.00 firm (you pay the shipping  if 
+not picked up at my home.)
+
+I  will also include a complete multi-user operating system ($600 
+value  MultI/OS  by  InfoSoft,  upward  compatible  to  CP/M  2.2 
+software)   in  full  source  form  with  documentation  and  all 
+utilities on 8-inch diskettes.   I can also furnish MEX, BYE, and 
+XMODEM  overlays to let you put this gem online as a super  RCP/M 
+system.
+
+If  interested,  contact  Steve Sanders (813) 937-7249  voice  or 
+leave  a message on one of the remote systems.   First  to  flash 
+cash  owns the machine!   I've only got just this one and it's  a 
+steal at this price.
+
+
+                 -={ Stretch Your Modem Time }=-
+
+Sitting  here behind the screens of my remote systems I see a lot 
+of  people  wasting  time  and  more  importantly,  money.   Most 
+everyone I know owns and uses a printer regularly, so why not use 
+it when you call by modem?  The most common mistake new users and 
+old  pros  alike make is to NOT dump the  DIRectory  listings  to 
+their printers.   This is especially effective for the callers at 
+300 baud who spend a lot of time just waiting for a file transfer 
+to  be  completed.   If  you first dump the DIR  listing  to  the 
+printer  then  you may then scan it during the file transfer  and 
+save the wasted time used with repetitive DIRs.
+
+You can always be dumping to the printer at the same time you are 
+saving  to  a terminal mode file with  MEX.   The  terminal  mode 
+capture  file  will do you no good as a referrence during a  file 
+transfer because you can't view it while receiving a  file.   The 
+hardcopy  from your printer can be viewed at anytime.   I find it 
+real handy to just always dump to the printer, of course I have a 
+fairly  high speed (160 cps) OKI 92 printer plus a  128k  printer 
+buffer.   This  may not work very well if all you have is a  slow 
+daisey-wheel  printer  capable  of only 10-20 cps  speed  and  no 
+buffer.
+
+Many,  many  times I see a caller transferring an ENTIRE  library 
+file  (usually very large) when he only needs or can use  one  or 
+two of the internal files.   Please use LUX or LDIR and then TYPE 
+out  the internal .DOC or .INF file first - you'll probably  find 
+out that only one version of the .COM file is for you anyway.  At 
+least  find  out if the set of programs will even work  for  your 
+computer before downloading the whole mess!
+
+HOW-TO Find a File:
+
+   1.   Use WHEREIS,  FINDF,  or FILEFIND and search for the file 
+online first, it may already be there in another file area.
+
+                   A0:SYSTEM>whereis sd100*.*
+
+   2.   If the online search is negative,  then use CAT to search 
+for  the  filename  in the master  library.   Remember  most  all 
+utilities  are  "versioned" and have numbers  to  indicate  their 
+version update status so always use wildcards like so:
+
+                   A0:SYSTEM>cat sd1*.*
+
+If  the file you seek is listed in the master catalog but is  not 
+online,  just leave me a message and I'll make the file available 
+on your next call.
+
+Remember  anytime  you have trouble with  system  commands,  just 
+enter HELP or SYSHELP anywhere while in CP/M.  All the help you'd 
+ever need is always there - you just have to ask for it.
+
+Also very important:   When you begin a XMODEM file transfer,  be 
+sure  to  WAIT  until  XMODEM shows you  it  actually  found  the 
+requested file and has opened the file!   If you hit the <RETURN> 
+right  after  entering the XMODEM command and immediately  escape 
+terminal  mode to enter your modem receive command you may  never 
+see  the any error messages displayed by XMODEM.   You also  will 
+not see the size of the file display or the number of records and 
+will  have  no idea how long the transfer will take or  when  you 
+have reached the end of file until your modem program returns you 
+to terminal mode.  Nuff said???
+
+Take  your time,  plan your strategy,  and stretchhhhh your modem 
+time and long distance dollars to their fullest...
+
+
+          -={ Review: JUKI 6100 Daisey-Wheel Printer }=-
+
+                     by Steve Sanders, TBKUG
+
+I just picked up a Kaypro Letter Quality Printer, better known as 
+a JUKI 6100 daisey wheel printer after realizing my need for real 
+correspondence  quality  type.   I  have been  scanning  all  the 
+magazines  and catalogs and comparing price and features and find 
+the JUKI to be right in the ballpark.   I got this one "slightly" 
+used, second-hand, and such got a very good deal on it pricewise.  
+
+For the new purchaser I have found the price is rather fixed even 
+by  mail  order  at around $350 for the model  6100  JUKI  daisey 
+wheel with a parallel (Centronics) interface.   The tractor  feed 
+is  extra  at around $130-150 and is absolutely necessary if  you 
+intend to use continuous forms or labels.   The JUKI comes with a 
+friction feed arrangement identical to a standard typewriter  for 
+cut sheet paper.   The 6100 prints along at a fairly brisk 18 cps 
+and  has the familiar sound of all plastic or metal daisey  wheel 
+printers.
+
+WHEELS:  The  6100 uses Triumph-Adler compatible  plastic  daisey 
+wheels  which hold up very well if handled properly when  not  in 
+the machine.   There is a wide variety of wheels available; PICA, 
+ELITE,  COURIER,  ORATOR,  SCRIPT, and MICRON to name just a few.  
+These are also measured in the size of pitch as well as style and 
+the 6100 can use 10,  12,  or 15-pitch,  and Proportional Spacing 
+wheels.   These  wheels are available for $18-25 each and last  a 
+long time when they are put back in their carriers after use.
+(P.S.   I  just ordered 5 different daisey wheels  from  Protecto 
+Enterprises in Barrington, IL and got 'em for $18/ea.)
+
+RIBBONS: The 6100 uses a standard IBM Selectric II drop-in ribbon 
+cartridge  loaded  either  with one-strike film  or  multi-strike 
+fabric.   I  highly  recommend the one-strike  film  for  overall 
+quality and appearance of the printed page.  These cartridges are 
+readily  available in any office supply store for around $4.00  a 
+piece  and  will  usually print about 150,000  characters  before 
+replacement.   The  JUKI  makes efficient use of the  ribbon  and 
+actually  prints on 3 different parts of it before advancing  the 
+film forward.
+
+SET-UP:  Installation was simple with the Kaypro and the  bundled 
+Wordstar  v3.30,  you  just  pick  the  Diablo  630  option  from 
+WINSTALL's printer menu.   I then added the patches as  specified 
+in  the  file JUKI-WS.PAT (available in the WORDPRO area  of  the 
+remote  systems) for continuous underlining (you definitely  want 
+this one),  proportional spacing,  and shadow print mode (similar 
+to bold but different).  My printed pages now look as if I slaved 
+over an IBM typewriter all day, but I'm not going to tell anyone!
+
+OPERATION: Very simple and straight forward,  insert paper,  roll 
+past top and align,  back it up to top of page,  and  print.   If 
+using  the tractor feed and continuous forms,  you need only flip 
+one easily accessible dip switch to avoid the stop-n-start  after 
+each page.   As per norm with all daisey-wheels,  the JUKI sounds 
+like   a  slightly  muffled  machine-gun  and  should  be  placed 
+somewhere  in  the room where some of the noise may  be  absorbed 
+rather than reflected.   Several vendors have "quiet boxes" which 
+can be placed over dot matrix or daisey wheel printers and really 
+puts the squelch on them.  After printing several pages your ears 
+could stand a rest - I suggest leaving the room during  printing, 
+use the old bathroom or coffee excuse!
+
+OVERALL:  I  would  have  to  give the JUKI  high  marks  in  all 
+categories except speed.  Speed-wise the JUKI is in the middle of 
+the range,  the low is 10cps and the high is 40-50cps.   But  the 
+high-speed  babies cost between $1,500-2500 so the JUKI is a good 
+buy between $350-425 (average mail order to retail prices.)  JUKI 
+has another model of interest to those who like both a typewriter 
+and a printer - the model 2200 is both.   It has a keyboard which 
+is nice for addressing one or two labels or envelopes or  writing 
+a  letter,  but  also  comes  with either a  serial  or  parallel 
+connector as well.   It is slow at 10cps as a printer but can  be 
+had  for  around $250 and uses all the same wheels as  all  other 
+JUKI models.   JUKI printers are good value for the money and I'm 
+sorry  to  see that Kaypro has dropped them from  their  Business 
+Pack systems.
+
+
+                   -={ That's All Folks !! }=-
+
+Another month has come and gone (where do they go?) and here I am 
+finishing up yet another $R/O magazine.  I have been working like 
+crazy to get the new multi-user system online.  It is here, it is 
+working, and it WILL BE ONLINE VERY SOON!!
+
+I  have a few minor problems to straighten out such as getting it 
+to  answer the phone properly and set correct input baudrate  but 
+that  should  only be a matter of patch and test  and  then  test 
+again.   Nothing worse then a 'buggy' system online so I'm trying 
+to work out all the bugs before going online.
+
+Congrats to David Kay,  the new president of Kaypro  Corporation.  
+Andy  Kay has stepped down in favor of retirement and the  reigns 
+have been passed to his son David.
+
+And  as always,  THANK YOU to all the members and others who have 
+bought  TBKUG  User Disk volumes and paid membership  dues  -- we 
+cannot do it without you...
+
+                          Steve Sanders
+

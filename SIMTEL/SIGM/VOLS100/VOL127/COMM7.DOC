@@ -1,0 +1,770 @@
+COMM7.DOC as of 05/26/83
+
+
+A.  DISCRIPTION OF OPERATIONS
+    -------------------------
+
+COMM7 is a major variation of the Ward Christensen/Jim Mills/Mark Zeiger
+MODEM program.  Features have been modified and added pleasing to me.  I
+use the program on a semi-regular basis in my life-business and need
+sufficient prompts and menu to help me remember what to do as I need to
+do it.  A consistent characteristic of the operations is desirable, so all
+code has arranged to give a software personality believed effective in
+human and data communications.  Many error traps and messages are provided
+to remind the operator of procedures for correctly using the program through
+all its functions.  The program is fully integrated with disk utilities
+providing a high efficiency communications control facility.
+
+The assembly program listing style has code in all capital letters with
+comments totally in lower case.  The bold code stands out in contrast to the
+rest of the program, produces an optimum visual appearance.
+
+Five (5) linkable assembly modules (header plus subfiles) produce COMM7xx.COM.
+All modules must be on the same disk at assembly time using LASM.COM or
+LINKASM.COM.  The header file is always called COMM7xx.ASM, with the
+linking subfiles called COMM7xxA, B, C, and D.ASM.  Simply type LASM COMM720
+to assemble.  Included as part of the COMM7 set-of-files is LASM.COM and
+LASM.DOC, the latter fully explaining use of the linking 'source' program.
+Source-linking is a reasonable compromise to the complexities of a linking
+'object' module program, such a RMAC.  And LASM and LINKASM are public domain
+programs.
+
+COMM7xx.ASM contains crt terminal and cpu system hardware environment equate
+options, modem and storage initialization, PMMI telephone library and dialing
+routines, and the COMM7 main menu. 
+
+COMM7xxA.ASM contains mode option processing code, Terminal and Echo Mode
+routines along with Christensen protocol file Send/Receive and Batch Mode
+routines.
+
+COMM7xxB.ASM contains workhorse subroutines, ilprt, printer ring-buffer,
+cmdline, reset, dirlist, inbuf, ilcomp, mfname, and table-driven CRC routines.
+
+COMM7xxC.ASM contains main command-line entry selection code, SAP sort and
+pack routines, clock/calendar day, date, and time routines, and SEL routine.
+
+COMM7xxD.ASM contains UTL facility, general storage tables, and CP/M system
+function equates.
+
+A single full-screen menu showing both primary and secondary options is
+provided.  The prompts offer examples of common responses required.  The menu
+is always returned at the default drive prompt command line by simply typing
+the letter 'm'.  (If the XPRFLG is set TRUE, options may be specified when the
+program is first called, e.g., COMM7 C goes directly to the telephone number
+library, if you have a PMMI MM-103 modem.  All the other primary and secondary
+options are permitted.  COMM7 TO.600 fn.ft goes to the Terminal Originate Mode
+at 600 baud with the file named 'fn.ft' opened, save starts/stops with
+<ESC> S toggle.)
+
+The screen remains stationary during continuous re-dial of a phone number.
+The telephone library or the menu remains in view, whichever was last
+called.  A major effort was made to reduce unnecessary screen scroll at
+all points in the program.
+
+A simple file-send protocol is available to send short files to the
+typical bbs.  It is activated when in the Terminal Mode using <ESC> T.
+The protocol uses two different delay loops to allow for the prompt at
+the end of each line of text sent, and also a delay between each character
+sent.  A transmission speed of about 85 words per minute is produced in
+the normal 300 baud rate mode.  The speed is about 90 wpm at the higher
+baud of 710.  The delay technique was chosen after reviewing the various
+bbs's from the uncompiled BASIC line-editors to the fast CBBS and PMS
+assembly language ones.  Since files sent in this "transfer" mode probably
+will be less then 2k bytes, the speed is adequate.  Longer files would
+normally be sent, not to the bbs message line-editor but, through the cp/m
+file checksum/crc protocol routines.  (A faster experimental, full
+hand-shake protocol send is also included and can be used if the
+dumb$protocol equate near the beginning of the assembly listing is set
+false.)
+
+A "stat" facility is part of the DIR command.  I find this useful
+before downloading a file to the default disk...I know I have the space
+to store it beforehand.  Additionally, an ERA capability is available as
+main menu commands.  Both the DIR and ERA protocol are the same as the
+CP/M convention.  You can erase unabiguous and ambiguous filenames and
+filetypes:
+
+            ERA *.ASM            U  = unambiguous
+            ERA FN.*             D: = drive #     [ ] = optional
+            ERA FN.FT            FN = filename    <RETURN> = CR or ENTER key
+            ERA [D:] UFN.UFT     FT = filetype
+
+If you don't want to erase to make space for a download, any and all
+disks may be changed if DIR is used immediately after the disk change occurs.
+DIR resets all drives and logs-in the currently selected default.  Use the
+ambiguous search capabilities of DIR to reduce the file display time if only
+interested in resetting the drives.  DIR XX finds and displays only the file
+'XX' (if it exists) thus eliminating an undesired, long file listing.
+
+The popular and useful SAP, sort and pack directory, program is available
+from the main command line.  A non-default drive can be called using:
+ 
+            SAP D:    where D: is the desired drive
+
+Entering merely SAP, sorts and packs the current (default) drive directory.  
+Since DIR does not sort the directory, SAP is useful for that.  Aftering
+SAPing, the next file downloaded (or copied) to that disk will show as the
+last in a subsequent DIR listing.
+
+A major disk file manipulation facility is provided but the VUE function must
+be equated false before assembly.  UTL is based on DISK7 and permits full
+housekeeping capabilty for copying files (multi-file tagging is permitted)
+to other drives and user areas with automatic 8-bit CRC verification.
+Additional features include renaming files, logging in new drives and user
+areas, a columnar sorted directory listing, printing files to the CP/M list
+device (printer), and viewing with the same pagination and single-line turn-up
+features of VUE.  Combined with SAP, UTL provides complete disk file
+maintainence without leaving the COMMunication program.  UTL is called from
+COMM7 main command line.
+
+A compact single-screen sub-menu is automatically shown after entering UTL
+followed by cursor <RETURN>.  Wildcard filenames and optional drive
+declaration are permitted.  UTL [d:]*.asm shows only 'asm' files on [selected]
+or current drive.  After UTL is called, anù otheò thaî á commanä keù causeó
+thå sub-menõ tï reappear®  fulì error trapping and command cancellation
+recovery is provided.  If a UTL command is entered but no other entry has been
+made and execution has not begun, cancellation occurs by entering a <RETURN>.
+
+UTL display is circular, single-file columnar, with crt console cursor moved
+'forward' with <SPACE>, or <RETURN> and 'reverse' with 'B'.  Drive remaining
+storage in kilobytes is automatically displayed whenever disks are logged-in
+or sub-menu recalled.
+
+Major command functions of UTL are:
+
+    C - Copy file to another drive/user with automatic 'crc' verification.
+        Format is --> to drive/user: 'd[nn]<return>' where 'd' is drive and
+        'n' is optional user area.  d, d:, dn, dn:, dnn, dnn: are all valid
+        entries.  (System reset occurs for disk change.)  Prompts to erase
+        already existing file on other drive or in other user area.
+    F - File size is shown in kilobytes rounded up to the next allocation
+        CP/M block.
+    D - Delete file from disk, prompts for certainty.
+    J - Jump (return) to COMM7 main command line
+    L - Log-in new drive/user for display and reset system for disk changes.
+        Format is same as 'C' for copy.
+    M - Mass copy of tagged files to another drive/user area.  Auto-erase
+        occurs if file(s) already exist(s).  Prompts for desired drive/user
+        area as with 'C' and 'L'.  Mass copyfunction can be repeated without
+        re-tagging files.  Simply re-entering 'M' copies previously tagged
+        files to the desinated drive/user area.  Also, if no files have been
+        tagged, pressing M resets cursor to file-list beginning.
+    P - Print text file to cp/m list device (printer), any keypress cancels.
+    R - Rename file on current drive.  Only cp/m convention names permitted.
+    S - Stat of requested drive.  Shows remaining storage in kilobytes.
+    T - Tag file for inclusion for mass copy to another drive/user area.
+        File remains tagged until either a disk log-in or 'U' is used to
+        untag it.  A '*' marker is placed on the filename cursor line to
+        indicate tagged status.
+    U - Untag file previously tagged for mass copy.  'U' can be used to move
+        cursor 'forward' for quick untagging of files.  Logging-in present
+        drive again, or another drive, with 'L' also quickly untags all files.
+    V - View text file on console, with pagination and single-line turn-up.
+        <crtl-x> cancels function.  A one line sub-menu reminds of the three
+        view scrolling functions.
+
+An ASCII text file is viewed on the local console with the VUE command. But
+VUE cannot be used if the UTL function has been equated true.  Entering
+VUE fn.ft provides pagination, filling the console screen with another 22
+lines of file 'fn.ft' for each pressing of <RETURN>.  Line-by-line viewing
+results from pressing the space-bar.  <CTRL-X> or <ESC> cancels with any
+other key used to continue.  A one-line menu reminds of the three control
+functions of viewing.  (To use the VUE function, the UTL equate must be set
+false.)
+
+The logged-in (default) drive and user area can be changed from the command
+line prompt using the format: A>Command: B: 7 <RETURN>.  Drive A, user 0
+is changed to B7.  B7>Command: A: 0 <RETURN> changes back to A0.  A>Command:
+B: <RETURN> produces B>Command: .
+
+The number of columns per line to display at DIR is now set to 5 but can be
+anything desired by changing the NPL (names per line) equate in the COMM7.ASM
+file before assembly (with DRI's ASM or MAC).  
+
+A "softkey" feature calls commonly used commands and messages from storage
+and outputs the string, when in the Terminal Mode.  <ESC> '1' outputs
+the text "DIR *.* $U0AD", a popular command string to display the directory
+of the remote drives.  All ten digits, 1,2,...9, and 0 are used to
+output stored text, preceded by the escape character.  See the SKONE
+assembly label for the default strings.  Also, the strings can be reviewed on-
+the-fly by using <ESC> R while in the Terminal Mode.  Set the SOFTKEY
+equate TRUE if this feature is desired.  The lead-in character may be changed
+to '^^' (home) if the 'escape' is dedicated to other uses.)
+
+In addition to opening a file when entering the Terminal Mode to capture
+incoming data, e.g., T fn.ft, data can be buffered and listed simultaneously
+to the printer as it is viewed on the console and saved to memory.  The
+<ESC> P characters toggles the printer on/off.  The console bell/buzzer is
+sounded as toggling occurs.  The printer routine uses a ring-buffer technique
+that permits slow printers to be used at high telephone line baud rates, e.g.,
+a 40 cps printer working at a 1200 baud input rate.  The save-file buffer
+automatically writes ram to disk as it approaches the space used by the
+printer ring-buffer.  Thus files of any length can be handled even when the
+printer is operating with neither interfering with the other. (The ring-buffer
+storage is located just under the CP/M operating system's CCP.)
+
+The SEL facility permits changing from the default transmission word structure
+of 8-bits per word, no parity, and one stop bit.  Many of the mainframe
+computer modems use different characteristics than is used on BBS's.  Also,
+SEL permits changing to half-duplex for communications with a remote that
+does not echo characters to the sender.  Characters are sent locally to the
+console as they being sent to the remote.  Finally, control codes may be
+filtered from of the received data stream before being sent to the local
+terminal or to the text save-file.  These features come in handy as time
+goes by.  SEL is invoked from the main menu and is operator-prompted for
+desired input.
+
+The menu "CPM" command to leave the COMM7 program prompts you if the
+telephone line is still connected with the option of leaving it connected.
+An additional feature is the secondary option of "E" which exits the program
+to CP/M after disconnecting the telephone and rebooting the system.  A typical
+sequence to send a file when connected to an RCP/M system operating under BYE
+and XMODEM:
+
+         Remote prompt --> a>XMODEM RC FN.FT <-- your entry in upper case
+         You then enter <ESC> E and at the Cmd Line enter:
+
+                        A>Command: SE D:FN.FT
+
+Send (S) file named "FT.FN" from drive "D" and exit (E) to CP/M with telephone
+line disconnected when transfer is completed.  Specifying the drive is
+optional, required only if FN.FT is not on the default drive.
+
+The equates for the crt terminal "begin dim", "end dim", "clear screen" and
+"erase-to-end-of-page" must be changed to the requirements of your equipment.
+Presently set for the Televideo/Lear Siegler, Zenith/Heath, ADDS, Soroc or
+Virtual line of terminals (the TVI 910/912/920/925/950, the ADM 21, 31, 42,
+and 5, the Z19/H19, the 120 and the Viewpoint).  These must be changed as
+necessary to suit your terminal, else the line over-writing, half-intensity
+high lighting, and menu reappearances are not performed correctly.
+
+The time duration to send a file under the normal command "S fn.ft" is
+displayed after the command entry.  Five baud rates (110-300-450-600-710)
+are considered to produce the actual time in minutes and seconds.  The
+calculation is made from command mode entry (TO.600 fn.ft) or from the
+Terminal Mode using the on-the-fly <ESC> B change request. 
+
+The code to control and display the time and date is equated to either the
+Godbout SS1 or Compu/Time CW Calendar board.  The result occurs on the
+command line.  Pressing <RETURN> updates the line without scrolling.  (The
+time and date, or just the time, can be called at various places in the
+program, if desired, and if you know assembly language.  A good place might be
+to call at the beginning of a file transfer and when all transfers have been
+completed, or wherever you choose.  Just add the calls to label TIMEDAY (or
+TIME) in the assembly file before you assemble.  The CW code in COMM7 is a
+version of the program CW.ASM but with the 11st, 12nd, and 13rd date-bug
+removed.)  If you have neither the SS1 or the CW board, set the RTC equate
+FALSE.
+
+Pavel Breder's MODEMCAL program has been altered to work with COMM7.
+The telephone library numbers are quickly changed using COMM7CAL without
+having to reassemble the long ASM program.
+
+COMM7 is my vehicle for demonstrating ability in assembly language.
+Changes continue to be made as requirements for new features become apparent.
+I trust you find them to your liking. The intention is to carry the 8080 code
+into the 16- and 32-bit cpu world through the use of the upcoming National
+NS/16032/16201 chip sets, instead of going into 8086/80286/Z8000 or 68000
+code.  I think CompuPro/Godbout is sympathetic to these ideas...claiming to
+have a CPU16000 S-100 card coming out at the beginning of 1983.  (I hope they
+make it -- I'll be one of their early customers.)
+
+If there is anything you need added, let me know and I'll give it consid-
+eration.  But first, try to understand the intent of the changes before making
+suggestions.  Uniformity, simplicity, automaticity, and general-public
+usefulness are the main impetus behind my changes.  Good luck and fortune in
+using COMM7.  
+
+------------
+
+                          COMMAND  MODE  SUMMARY
+
+    +-----------------------------------------------------------------+
+    |         |                  secondary                            |
+    | options |-------------------------------------------------------|
+    |         | A | B | D | E | O | Q | R | S | T | V |   |   |   |   |
+    +---------+-------------------------------------------------------+
+    |     | T | x |   |   |   | x |   |   |   |   |   |   |   |   |   |
+    |     +---+-------------------------------------------------------|
+    |     | E | x |   |   |   | x |   |   |   |   |   |   |   |   |   |  
+    |  p  +---+-------------------------------------------------------|
+    |  r  | S | x | x | x | x | x | x | x |   | x | x |   |   |   |   |  
+    |  i  +---+-------------------------------------------------------|
+    |  m  | R | x | x | x | x | x | x |   | x | x | x |   |   |   |   |  
+    |  a  +---+-------------------------------------------------------|
+    |  r  | M |   |   |   |   |   |   |   |   |   |   |   |   |   |   |  
+    |  y  +---+-------------------------------------------------------|
+    |     | C |   |   |   |   |   |   |   |   |   |   |   |   |   |   |  
+    |     +---+-------------------------------------------------------|
+    |     | D |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+    +-----------------------------------------------------------------+
+ 
+Legend: x = secondary option permitted with primary mode
+
+   Primary Modes:
+
+       T = Terminal in reaction to an character-echoing computer or
+           bulletin board system (bbs)
+       E = Echo (resemble a remote computer or timeshare response)
+       S = Send a CP/M file with Christensen protocol.  Includes either
+           CRC or Checksum record verification and auto-resend on error.
+       R = Receive a CP/M file as above
+       M = Menu display on local console, e.g.,  A>Command: M <RETURN>.
+           COMM7 M <RETURN> produces the main menu if COMM7 was assembled
+           with the XPRFLG set TRUE.
+       C = Call stored library of telephone numbers, directly from CP/M
+           command line at program load time: COMM7 C <RETURN>.
+       D = Disconnect the telephone line from the CP/M command line:
+           COMM7 D <RETURN>.
+
+   Secondary Options:
+
+       A = Answer mode in response to an incoming call.  EA <RETURN> produces
+           echo answer mode at the default 300 baudrate.
+       B = Batch mode allowing wildcard filenames.  SOB.600 *.ASM = send
+           in originate mode all files with type 'asm' at 600 baud.
+       D = Disconnect telephone line after completion of transfer(s)
+       E = Exit to CP/M after transfer(s) completed with telephone line
+           disconnected.
+       O = Originate mode by having first called a remote computer.  Normally
+           used with either E or T primary options.  At 'connection
+           established' prompt entry of 'TO.600 fn.ft <RETURN>' enters
+           Terminal Mode at 600 baud with the file 'fn.ft' open for
+           'colon-save' with the <ESC> S toggle.
+       Q = Quiet mode with limited display of status messages.  Primarily
+           used with slow printing terminals and when using a RCP/M with
+           COMM7 and BYE.  RAQBT = receive all files to be sent quietly in the
+           answer mode with return to Terminal Mode at completion.  The
+           baudrate is last declared rate, default of 300 if none ever
+           declared.
+       R = Receive data shown on console.  Useful when sending a file to
+           show sent status on console.  SORT.450 fn.ft = send 'fn.ft' at 450
+           baud in the originate mode viewing all received status headers with
+           return to terminal at completion.
+       S = Send data shown on console.  Useful when receiving a file to show
+           received status on console.  ROS.300 fn.ft = receive 'fn.ft' at 300
+           baud in originate showing all sent headers.
+       T = Terminal return when transfer(s) completed.  Back to Terminal Mode
+           instead of Command Mode.
+       V = View ASCII text on console while being either sent or received. All
+           headers and most status messages are suppressed.
+
+
+                       TERMINAL MODE CONTROL SUMMARY
+
+       <ESC> E = Enter Command Mode, a most often used control to re-enter
+                 from the Terminal Mode.  Use 'T' to re-enter Terminal
+                 Mode.  Use 'T fn.ft' to simultaneously open a file and
+                 return to Terminal Mode. 
+
+       <ESC> S = Toggle for saving, stopping save, of a declared file
+                 to random access memory (ram).  At the Cmd Line use
+                 WRT to save text to disk.  For this toggle to work,
+                 a file (fn.ft) must be opened at the Cmd Line first.
+                 At initial connection, TO fn.ft is sufficient if 300
+                 is desired.  At any time during communcations, use
+                 <ESC> E to return to Cmd Line.  Then type 'T fn.ft' to
+                 open a file for toggle saving.  When the toggle is active,
+                 the console bell/buzzer is sounded to indicate response
+                 to the toggle.  A ':' appears at the left margin to
+                 indicate a file is being saved (captured) to ram for
+                 later save-to-disk with WRT.  WRT is entered when at
+                 the Cmd Line.
+
+       <ESC> T = Transfer a file to remote system, no error protection.
+                 Program prompts for filename and mode of transmission.
+
+       <ESC> P = Toggle to turn printer on and off, fully buffered.
+
+       <ESC> D = Disconnect telephone line and re-enter Command Mode.
+
+       <ESC> <ESC> = Ignore locally next character entered on keyboard.
+                 Normally used to send next control code character to
+                 remote and not react locally to the code.
+
+       <ESC> R = Review on console the stored 'softkey' text strings
+                  used with the ESC 'n' function.
+
+       <ESC> n  = The 'escape' key followed by a numeral from 0 to 9
+                  outputs to console and to remote system the stored
+                  text indicated by <ESC> R.  Text strings may be
+                  changed with an editor before assembly of the program.
+                  Strings are in header module COMM720.ASM.
+
+       <ESC> B = Baudrate change on-the-fly.  Used with PMMI and with
+                 remotå systemó usinç NEWBAUD®  Aô thå remotå CP/Í command
+                 line, enter NEWBAUD followed by <RETURN>.  After the
+                 remote responds with instructions, type <ESC> B.  The
+                 local prompt asks for your new baudrate entry.  Press
+                 <RETURN>'s until the remote CP/M prompt responds.
+
+       <CTRL-X> = Cancel dialing or transfer file routine.
+
+------------
+
+
+B.  TECHNICAL DISCUSSION
+    --------------------
+
+Several people have asked many questions relative to the design structure
+of COMM7/MODEM762/780 and their various revisions.  Let's explores my
+present understanding of what has been done, and why, to achieve the
+results of COMM7/MODEM7 and the many versions altered from Ward Christensen's
+original MODEM.  The discussion is unstructured, as is the thought processes
+that produced it.
+
+The ALERTFLG register and the ALERT label and routine achieves slightly
+different results than could be with only the NFILFLG register flag.  After
+telephone connection is established and a file is specified with the Command
+Mode entry, e.g., TO.600 fn.ft, the NFILFLG is set FALSE.  A new file is
+capable of now being saved, first in solid-state RAM, then onto disk, if
+desired.  NFILFLG should be viewed to mean "no file being saved" if set TRUE.
+The first time the <ESC> S entry is made the ALERTFLG is set TRUE and remains
+that way till a WRT, DEL, or other command is entered.  Only RET can be
+entered without affecting the stored data.  All other commands eliminates
+the "save-file" possibility.  If only the NFILFLG was available, the save
+condition would exist even if the <ESC> S was never used -- an inconvenience
+in operation.  So the ALERTFLG is there simply to announce the first time
+the <ESC> S is used and stays TRUE no matter how many times it is toggled
+back and forth.  The SAVEFLG is the register toggled by <ESC> S indicating
+the need or not to put incoming received data into RAM.  It could be FALSE
+just when it should be TRUE to remind a file is being saved when returning
+to the Command Mode.
+
+A typical routine (label) sequence involving ALERT, DSC entered:
+
+DSC --> DISCON1 --> DISCONN --> ALERT --> FILOPEN --> MENU (Cmd Line)
+	   |			 ^ \	     	
+	   v			 |  \
+	MENU (options not reset) |   >MENU (Cmd Line)(no file open)
+	  		         |
+                            (other entry)
+
+The UARTFLG, UARTCTLB, MODCTLB, ANSWFLG, ORIGFLG, ORIGSAV, ANSWMOD, and
+ORIGMOD registers can be a stumbling block to understanding the program
+flow.  There is a complex relationship achieved among these data to correctly
+control the response of the modem hardware.
+
+Before discussing the above registers, it is well we consider error checking
+and trapping, and option processing performed by the program.  Knowledge
+of these procedures makes it easier to achieve an understanding of the
+remaining elements.
+
+Assume the XPRFLG is set FALSE...the program upon responding to the
+initial CP/M command entry goes directly to the menu.  Dialing a number
+establishes connection with another computer running COMM7/MDM7/MODEM7 or
+something compatible.  The Command line prompt response typically at this
+point would be TO.300 [fn.ft].  (The symbols '[' and ']' indicate the entry
+as optional.)  After a <RETURN> is entered, the 3-letter commands are checked
+for validity.  If one is found exactly matching the stored functions, the
+function is executed.  If a 3-letter command match is not achieved and if
+the first letter of the command is not a valid "primary" command-letter,
+an error message is displayed.  Else the 1-letter commands are checked.
+If a match, the program goes to SETFCB; if not, an error is presented to
+the operator.  More checking occurs here to be certain the primary command
+is correctly mated with a filename, if batch mode (B) hasn't been selected
+as a secondary option.  Batch permits wild card declarations: SB *.ASM.
+A filename does not have to be declared in the RB mode as the sender's
+filename(s) will be used.  If "S" or "R" (as in using XMODEM on an RCP/M) haó
+beån entereä withouô á filename¬ the operator is asked to re-enter the
+command with a prompting example to aid his memory.  (The NFILFLG register is
+set FALSE here.)  A call is made to PROCOPT to store and further validate
+correct command line primary and secondary options.
+
+After, the flow proceeds back to DOOPT and there jumps to the RESTART label
+near the program beginning.  Further checking of command entry occurs in this
+routine.  The primary option is executed here.
+
+Iæ thå XPRFLÇ ió TRUE¬ thå checkinç oæ primarù optionó starts aô thå very
+beginninç oæ thå prograí iî thå PROCOPÔ routine before much else is done.
+(If set FALSE, after PROCOPT is completed, the menu is shown, followed by
+the command line prompt, "d>Command:", where 'd' is the default drive
+originally selected.)  An error message is presented if other than T, E, S, R,
+M, C, or, D is detected after processing by the RESTART routine.  Furthermore,
+C and D are permitted as primary entries only in the XPRT mode and then must
+be initial call entries, e.g., COMM7 C.  This command would go directly to
+the dial-a-telephone-number routine after the program has loaded, showing the
+telephone library with a request for number or letter entry.  (The letter
+represents the number to be automatically dialed by the program.)  If no
+option is specified on initial entry, with XPRFLG assembled TRUE, the command
+line prompt is presented immediately after the short logon message.
+
+From RESTART the program jumps to the routines requested by the operator.
+One option available after communications has been established is "Enter
+Command Mode" by using <ESC> E.  At this point the ERA and DIR commands may
+be employed to understand and control available disk file and storage space.
+Another command entered might be "T" to return to the Terminal Mode.  With
+COMM7 returning to terminal mode is always done with "T", "TO", or "TA" even
+if a file-save has been established.  (RET is no longer necessary or
+available.)  "M" may be used if a file is open on returning to the Command
+Mode with <ESC> E.
+
+When transferring files to and from a remote computer, using the XMODEM
+program stored on disk in the remote computer, the "S" and "R" commands must
+be followed by a <SPACE> and the filename to transfer (ST fn.ft.).  The "T"
+indicates an automatic return to the Terminal Mode after the transfer is
+complete -- it's a secondary option.  "T" may be used also with the "R"
+primary command and usually is.  Other secondary options of use is the "V"
+which shows the ascii text file as it is being sent or received.  Use only on
+ascii, non-squeezed files, however.  Only the text is shown and not the
+headers and other check data.  The "R" and "S" secondary options permit
+showing on the console all that is either being sent or received.  They are
+most useful as a complement to the primary mode.  For example, SRT fn.ft sends
+the file fn.ft while all the received error codes are displayed locally.  The
+ACK and NAK's are shown in hex.  The reverse is true if receiving a file.  RST
+fn.ft. shows what you are sending at header time.  In this way the R/S
+secondary options can be used on all types of files, binary and ascii.  If RRT
+fn.ft is used on an ascii file, all received text and headers will show
+locally.  The same applies to SST, all sent text and headers show.  (Remember
+both secondary and primary options are covered with the E, S, R, and T
+letters, thus have double meanings.  V is only a secondary.)
+
+Returning to the Command Mode is by program entry through the MENU, MENU1,
+MENU2, or the XPRT points, finally showing the command line prompt.  Most
+of the crashes of MODEM7 are caused by incorrect entry when using the
+<ESC> E Terminal Mode function.  Going through MENU resets all the option
+tables to initial values.  This means that both originate and answer modes
+are set TRUE (non-zero).  If the operator uses the Terminal Mode function
+<ESC> B to change baudrate on-the-fly at this point, nothing happens.  The
+program just stays at the rate it was at, because neither mode is zeroed-out
+to indicate which has been selected as a secondary option.  Incorrect return
+to the menu is a major problem with many versions of MODEM7.  The programmer
+must have kept in mind if the option tables were to be reset or not.  (This
+requirement nearly drove this neophyte programmer to insanity.)  A  better
+way was certainly necessary to have a smoothly running system, without
+glitches or crashes.
+
+COMM717 and above solves this problem by using the UARTFLG flag to
+indicate which mode has been selected, not by attempting to use the ORIGFLG
+or ANSWFLG.  All returns are made to MENU, resetting the secondary option
+table each time the <ESC> E command is used.  Using 'T' to return to
+Terminal Mode results in always retaining the currently selected operating
+mode, answer or originate, and the baudrate.
+
+Major Routine Flow Summary: 
+	 
+	(if XPRFLG is FALSE)
+	COMM7 --> PROCOPT --> MENU --> Cmd Line Prompt --> COMPARE -->
+	DOOPT --> PROCOPT --> RESTART --> MENU --> Cmd Line Prompt
+
+	(if XPRFLG is TRUE, XPRT mode)
+        COMM7 --> PROCOPT --> RESTART --> MENU --> XPRT -->
+	Cmd Line Prompt --> COMPARE --> DOOPT --> PROCOPT --> RESTART -->
+         MENU --> Cmd Line Prompt
+
+After program execution, the normal sequence is from Cmd Line Prompt to Cmd
+Line Prompt, where operator input determines functions to be executed next.
+
+After a file has be opened in the Terminal Mode using TO.xxx fn.ft, data may
+be later saved-to-disk by the WRT command or deleted with DEL, as desired. 
+"T" allows the start of a new fn.ft. at anytime by entering T fn.ft at the
+Cmd Line.  Only one file may be open at once.
+
+The UARTFLG, set default TRUE indicating the answer mode, is controlled
+by the ORIGFLG/ANSWFLG registers.  UARTFLG is set the first time phone-line
+connection is established and maintained throughout the communication, unless
+changed on-the-fly.  Many a crash has resulted from changing the mode in the
+middle of communications with MODEM7 with a line of code or two wrongly
+placed.  (The flag a given routine tests, be it UARTFLG, ORIGFLG/ANSWFLG, or
+ORIGSAV, is being presently evaluated for optimum design compromise in the
+interest of coding efficiency.  Both UARTFLG and ORGISAV have been found to
+unnecessary by using PROCOPT correctly from both the initial cp/m command
+line and the menu command line.)
+
+The MODCTLB register keeps track of the condition of baudrate filtering
+sent out through port MODCTL2.
+
+UARTCTLB contains the answer/originate mode and transmission word structure
+established and controls the modem through the MODCTLP port.
+
+The ANSWFLG or the ORIGFLG register is zeroed-out (by PROCOPT) if a mode is
+selected.  If ORIGFLG is chosen on establishing connection (the "O" of
+TO.300), it is zeroed and also copied into both the UARTFLG and UARTCTLB
+registers.  So if the option table is reset, the program still remembers the
+mode last selected.  COMM7 uses only UARTCTLB to indicate mode.
+
+UARTFLG/UARTCLTB is used to remember the established O/A mode if the option
+table (OPTBL) needs to be reset; but operation, as is, must also continue.
+Such tricks were found necessary because of the many return-to-Cmd-Line-
+Prompts the program typically goes through.  A full flow-charted design
+would have permitted programming simplifications.  As it is, COMM7 re-enters
+the Cmd Mode through MENU in all cases but one.  Thus, the need for UARTFLG
+is fully established and may not be conveniently eliminated.  The existence
+of UARTFLG/UARTCTLB makes it possible to use the primary options T, E,
+S, R, etc., without having to have the operator declare the secondary "O" or
+"A" on each return from the command mode.  Additionally, the baudrate, once
+established by either declaration at the Cmd Line or through <ESC> B, need
+not be keyboard-entered again (except to change to a new desired rate).
+(COMM719 has eliminated the need for UARTFLG and uses only UARTCTLB for mode
+control.)
+
+Incidentally, if an entry of T, TO, or TA is made, the program returns with the
+current baudrate.  Early versions of COMM7 and all versions of MODEM7 have 
+troubles when doing this.  An entry of T fn.ft is correct if you want to open
+a file (for save-to-ram, toggled by <ESC> S, and later save-to-disk with
+WRT) after telehone connection has been established.  You can correctly use
+TO.xxx fn.ft but it's not necessary until you also want to change mode and
+baudrate.
+
+
+C.  COMM7 MEMORY MAP
+    ----------------
+
+The addition of the ring-buffered printer toggle under <ESC> P in the
+Terminal Mode has raised a question -- how, pray, does it work?
+
+To help visualize the working of the ring and the two other buffers used for
+storage, a RAM (Random Access Memory, usually solid-state semiconductors) map
+of a typical CP/M system using COMM7 is shown:
+
+
+                        RAM MAP UNDER COMM7
+                        -------------------
+       (assuming a 64k ram with 9k cp/m system consisting of
+          3.5k bios, 3.5k bdos, and 2k ccp/zcpr.  k=1024)
+
+     -----------     +------------------------+ - 0FFFFH  top-of-ram
+          ^          |          BIOS          |
+          |          |------------------------| - 0F200H
+   9k cp/m system    |          BDOS          |
+          |          |------------------------|	- 0E400H  (fbase)
+          V          |         CCP/CPR        |
+     -----------     |------------------------| - 0DC00H  (cbase)
+                     |                        |
+                     |   Printer ring-buffer  |
+                     |          (8k)          |
+                     |                        |
+     -----------     |------------------------| - 0BC00H
+          ^          |                        |
+          |          |   top of 'colon-save'  |
+          |          |          buffer        |
+          |          |      (BC00H down to    |
+  'colon-save' (^Y)  |       3F00H = 30k)     |
+     file buffer     |                        |
+        area         |------------------------| - 8200H
+        (30k)        |   BATCH names-buffer   |
+    auto-save to     |------------------------| - 7F00H
+    disk and re-     |                        |
+    set when full    |       CRC/Checksum     |
+          |          |  protocol send/receive |
+          |          |       file buffer      |
+          |          |          (16k)         |
+          V          |                        |
+     -----------     |------------------------| - 3F00H DBUF (BOTTRAM)
+                     |                        |
+                     |                        |
+                     |          COMM7         |
+                     |    with UTL set true   |
+                     |          (16k)         |
+                     |                        |
+                     |------------------------| - 0100H
+                     |      CP/M page zero    |
+                     +------------------------+ - 0000H  bottom-of-ram
+
+
+Notice the areas allocated to each function.  COMM7 uses 12k to 16k of the
+TPA (transient program area) with a full 30k to 34k allocated to the save-file
+under <ESC> S toggling before an automatic ram-to-disk save occurs.  The
+printer ring-buffer is set to 8k.  This value permits an 80 cps printer
+(e.g., an Epson) to work with a 1200 baud connection and list dozens of pages
+of text before characters are lost.  A two to one ratio between baudrate and
+cps of printer permits 16 to 32 pages to be listed before data loss.  In the
+typical situation no loss of data occurs, because the average transmission
+rate doesn't exceed the buffer plus printer's capability to maintain
+coordinated output.
+
+The ring starts at 0BC00H and fills as the input exceeds the printer's
+ability to keep up.  When 0DC00H is reached, the ring automatically resets
+to BC00H and starts again.  If the input from the low side catches up with
+the output from the high end, characters are lost.  This happens in
+theoretical, worst case, extreme situations.  It should seldom, if ever, be
+experienced in actual practice on accessing the typical bulletin board system.
+
+The more normal protocol send/receive using CRC or Checksum uses a set 16k
+buffer which resets from 7E00H to BOTTRAM on full in receiving a file. It
+loads fully on sending a file and refills as necessary if the file exceeds
+16k.  The result is a mechanically quiet system because few floppy disk
+accesses are required.  (Up to 31k could be allocated to this buffer if
+desired.)
+
+
+D.  COMM7 TEST PROCEDURE
+    --------------------
+These tests are used to determine bug status of a release of COMM7.  If
+program passes all below tests it is assumed to be as bug-free as the
+previous issue.
+
+1. Connect to a remote computer by auto-dialing a stored
+   telephone number.
+
+2. Enter TO.600 fn.ft when connection is established and toggle
+   printer on/off with <ESC> P.
+
+3. Receive logon message from remote computer and save in file
+   'fn.ft' using the <ESC> S toggle.  See that save is stopped
+   and started with the toggle.
+
+4. Send test file using the <ESC> T function.  See that the
+   system correctly received the short file.
+
+5. Use <ESC> E function and the 'T' terminal function while
+   saving the fn.ft file.
+
+6. Use again the <ESC> E function and WRT fn.ft to disk.
+
+7. Enter the RCP/M facility.
+
+8. Use XMODEM to send a file to your local computer, e.g.,
+   S fn.ft.  See that remote prompt is returned at end of
+   transfer.
+
+9. Use <ESC> E then DIR then "T" to return to terminal mode.
+
+10. XMODEM RC fn.ft and wait for prompt at end of transfer.
+
+11. Use NEWBAUD of the RCP/M system and change local baudrate
+    using <ESC> B.  Observe correct rate change.
+
+12. Use the Batch ("B") mode of COMM7 with another computer
+    running MODEM/COMM7 also.  Transfer at least two files each way.
+
+13. Done.
+
+
+E.  GLOSSARY (abbreviations)
+    --------
+
+ABT - abort			ADDR - address
+BGN - begin			BRK - break
+BYT - byte			CDE - code
+CHR - character			CH - CK - check
+CLS - CLR - clear		CMP - compare
+CPY - copy			CR - cursor return
+CTL - CNTL - CTRL - control	CT - CNT - count, counter
+CUA - current user area		CY - carry flag
+DAT - data			DIV - divide
+EOT - end of transmission, text ERR - error
+ERXIT - error exit		FIL - file
+FN - filename			FRM - frame
+FT - filetype			GT - greater than
+FG - FLG - FLGS - flag(s)	LP - loop
+LT - less than			MSG - message
+MT - empty			MUL - multiply
+NM - name			NXT - next
+P - port			PAR - parity
+PL - phone line			POS - position
+PRT - print			PT - pointer
+RD - read			REC - record
+RET - RT - return to caller, cursor return
+ST - status, stat		SW - switch, conditional branch
+SZ - size			TB - transmit buffer
+TBL - table			TC - transmission complete
+WR - write			Z - zero flag
+
+---------------
+
+frank gaude'
+10925 stonebrook drive
+los altos hills, ca 94022
+telephone: 415/941-2219
+

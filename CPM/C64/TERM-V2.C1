@@ -1,0 +1,1028 @@
+1000 rem  save "@0:newprot.src.1200",8
+1010 :
+1020 open2,8,2,"@0:newprot1200,p,w"
+1030 :
+1040 sys700
+1050 ;
+1060 .opt o2
+1070 ;
+1080 differ = $0000
+1090 startloc = $c000
+1100 c64 = 1
+1110 pnta = $62
+1120 pntb = $64
+1130 stat = $96
+1140 defto = $009a ;default output device (kernal)
+1150 ptr1 = $009e ;tape pass1 error log (kernal)
+1160 bufpntr = $a6 ;pointer to tape i/o buffer (kernal) [2]
+1170 tape1 = $b2 ;pointer to start of tape buffer (kernal) [2]
+1180 robuf = $00f9 ;pointer to rs232 output buffer (kernal)
+1190 lastch = $0200 ;last used character
+1200 ridbe = $029b
+1210 ridbs = $029c
+1220 rodbs = $029d ;start position of rs232 output buffer (kernal)
+1230 rodbe = $029e ;end position of rs232 output buffer (kernal)
+1240 rs232enb = $02a1 ;rs232 enable=128, disable=255
+1250 ibsout = $0326 ;chrout routine vector (kernal) [2]
+1260 codebuf  = $c800-differ ;buffer for incoming 3 chr codes
+1270 bitpnt   = $c803-differ ;bit pointer for allowable matches
+1280 bitcnt   = $c804-differ ;bit counter (0 to 4)
+1290 bitpat   = $c805-differ ;bit pattern for searches
+1300 timer1   = $c806-differ ;timer for non-received characters (2)
+1310 gbsave   = $c808-differ ;location to save good bad signal needed
+1320 bufcount = $c809-differ ;number of chrs to buffer into block
+1330 delay    = $c80b-differ ;delay for wait period
+1340 skpdelay = $c80c-differ ;delay skip counter
+1350 endflag  = $c80d-differ ;flag to indicate last block
+1360 check    = $c80e-differ ;save place for checksum (4)
+1370 check1   = $c812-differ ;secondary checksum holding place (4)
+1380 bufpnt   = $c816-differ ;pointer to current buffer
+1390 recsize  = $c817-differ ;size of received buffer
+1400 maxsize  = $c818-differ ;maximum block size
+1410 blocknum = $c819-differ ;block number (2)
+1420 filetype = $c81b-differ ;file type (from basic)
+1430 stack    = $c81c-differ ;stack pointer at entry
+1440 dontdash = $c81d-differ ;flag to suppress dashes and colons
+1450 specmode = $c81e-differ ;flag to send special start code
+1460 buffer   = $c900-differ ;buffer for block
+1470 ;
+1480 ;buffer positions
+1490 ;
+1500 sizepos = 4
+1510 numpos = 5
+1520 datapos = 7
+1530 ;
+1540 xmit = $cb00
+1550 oldout = $cb02
+1560 basic4 = $ef06 ;basic call from chrout
+1570 basic3 = $ef3b ;basic call from chrout
+1580 setup = $ef7e  ;set up rs232 to receive again
+1590 ;
+1600 ;kernal locations
+1610 ;
+1620 basic1 = $f80d ;basic call from chrout
+1630 basic2 = $f864 ;basic call from chrout
+1640 readst = $ffb7
+1650 chkin  = $ffc6 ;open channel for input
+1660 chkout = $ffc9 ;open channel for output
+1670 clrchn = $ffcc ;close input and output channels
+1680 chrin  = $ffcf ;input character from channel
+1690 chrout = $ffd2 ;output character to channel
+1700 getin  = $ffe4 ;get a character from keyboard queue
+1710 zfffe = $fffe
+1720 ;
+1730 *=startloc
+1740 ;
+1750 lda #00   ;sys 49152
+1760 .byt $2c
+1770 lda #03   ;sys 49155
+1780 .byt $2c
+1790 lda #06   ;sys 49158
+1800 .byt $2c
+1810 lda #09   ;sys 49161
+1820 .byt $2c
+1830 lda #12   ;sys 49164
+1840 .byt $2c
+1850 lda #15   ;sys 49167
+1860 nop
+1870 jmp over
+1880 jmp reset
+1890 jmp init
+1900 ;
+1910 over sta pnta
+1920 tsx 
+1930 stx stack
+1940 lda #<table
+1950 clc 
+1960 adc pnta
+1970 sta jmppoint+1
+1980 lda #>table
+1990 adc #$00
+2000 sta jmppoint+2
+2010 jmppoint jmp table
+2020 ;
+2030 table jmp accept
+2040 jmp receive
+2050 jmp transmit
+2060 jmp rectype
+2070 jmp trantype
+2080 jmp terminal
+2090 jmp init
+2100 ;
+2110 codes .asc "goo"
+2120 .asc "bad"
+2130 .asc "ack"
+2140 .asc "s/b"
+2150 .asc "syn"
+2160 ;
+2170 ;accept characters and check for codes
+2180 ;
+2190 accept sta bitpat ;save required bit pattern
+2200 lda #$00
+2210 sta codebuf
+2220 sta codebuf+1
+2230 sta codebuf+2
+2240 cd1 lda #$00
+2250 sta timer1 ;clear timer
+2260 sta timer1+1
+2270 cd2 jsr exit
+2280 jsr getnum ;get#5,a$
+2290 lda stat
+2300 bne cd3 ;if no chr, do timer check
+2310 lda codebuf+1
+2320 sta codebuf
+2330 lda codebuf+2
+2340 sta codebuf+1
+2350 lda lastch
+2360 sta codebuf+2
+2370 lda #$00
+2380 sta bitcnt ;clear bit counter
+2390 lda #$01
+2400 sta bitpnt ;initialize bit pointer
+2410 cd4 lda bitpat ;look at bit pattern
+2420 bit bitpnt ;is bit set
+2430 beq cd5 ;no, don't check this code word
+2440 ldy bitcnt
+2450 ldx #$00
+2460 cd6 lda codebuf,x
+2470 cmp codes,y
+2480 bne cd5
+2490 iny 
+2500 inx 
+2510 cpx #$03
+2520 bne cd6
+2530 jmp cd7
+2540 ;
+2550 cd5 asl bitpnt ;shift bit pointer
+2560 lda bitcnt
+2570 clc 
+2580 adc #$03
+2590 sta bitcnt
+2600 cmp #15
+2610 bne cd4
+2620 jmp cd1
+2630 ;
+2640 cd7 lda #255
+2650 sta timer1
+2660 sta timer1+1
+2670 jmp cd2
+2680 ;
+2690 cd3 inc timer1
+2700 bne cd9
+2710 inc timer1+1
+2720 cd9 lda timer1+1
+2730 ora timer1
+2740 beq cd8
+2750 lda timer1
+2760 cmp #$07
+2770 .if c64:lda timer1+1
+2780 .if c64:cmp #20
+2790 bcc cd2
+2800 lda #$01
+2810 sta stat
+2820 jmp dodelay
+2830 ;
+2840 cd8 lda #$00
+2850 sta stat
+2860 rts 
+2870 ;
+2880 ;
+2890 .if c64:.goto 3210
+2900 ;
+2910 ;do a get# for pet
+2920 ;
+2930 getnum ldx #5
+2940 jsr chkin
+2950 jsr chrin
+2960 sta lastch
+2970 jsr clrchn
+2980 rts
+2990 ;
+3000 ;do a get# for pet terminal mode
+3010 ;
+3020 getnum1 lda $e823
+3030 bpl gt1
+3040 ldx #5
+3050 jsr chkin
+3060 jsr chrin
+3070 sta lastch
+3080 jsr clrchn
+3090 lda $e822
+3100 lda #0
+3110 sta stat
+3120 rts
+3130 ;
+3140 gt1 lda #0
+3150 sta lastch
+3160 lda #2
+3170 sta stat
+3180 rts
+3190 ;
+3200 .goto 3540
+3210 ;
+3220 ;get# for c64
+3230 ;
+3240 getnum1 nop 
+3250 getnum tya 
+3260 pha 
+3270 lda ridbe
+3280 cmp ridbs
+3290 beq get1
+3300 ldy ridbs
+3310 lda ($f7),y
+3320 pha 
+3330 inc ridbs
+3340 lda #$00
+3350 sta stat
+3360 pla 
+3370 sta lastch
+3380 pla 
+3390 tay 
+3400 jmp dorts
+3410 ;
+3420 get1 lda #$02
+3430 sta stat
+3440 lda #$00
+3450 sta lastch
+3460 pla 
+3470 tay 
+3480 ;
+3490 dorts pha 
+3500 lda #$03
+3510 sta $ba
+3520 pla 
+3530 rts 
+3540 ;
+3550 ;send a code
+3560 ;
+3570 sendcode ldx #$05
+3580 jsr chkout
+3590 ldx #$00
+3600 sn1 lda codes,y
+3610 jsr chrout
+3620 iny 
+3630 inx 
+3640 cpx #$03
+3650 bne sn1
+3660 jmp clrchn
+3670 ;
+3680 ;do handshaking for reception end
+3690 ;
+3700 rechand sta gbsave ;save good or bad signal as needed
+3710 lda #$00
+3720 sta delay ;no delay
+3730 rc1 lda #$02
+3740 sta pnta
+3750 ldy gbsave
+3760 jsr sendcode ;send g/b signal
+3770 rc9 lda #%00100 ;allow "ack" signals
+3780 jsr accept ;wait for code
+3790 lda stat
+3800 beq rc2 ;if ok, send g/b signal again
+3810 dec pnta
+3820 bne rc9
+3830 jmp rc1
+3840 ;
+3850 rc2 ldy #$09
+3860 jsr sendcode ;send "s/b" code
+3870 lda endflag
+3880 beq rc5
+3890 lda gbsave
+3900 beq rc6
+3910 rc5 lda buffer+sizepos
+3920 sta bufcount
+3930 sta recsize
+3940 jsr recmodem ;wait for block
+3950 lda stat
+3960 cmp #%0001 ;check for good block
+3970 beq rc4
+3980 cmp #%0010 ;check for blank input
+3990 beq rc2
+4000 cmp #%0100 ;check for loss of signal
+4010 beq rc4
+4020 cmp #%1000 ;check for "ack" signal
+4030 beq rc2
+4040 rc4 rts 
+4050 ;
+4060 rc6 lda #%10000 ;wait for "syn" signal
+4070 jsr accept
+4080 lda stat
+4090 bne rc2 ;if not, send "s/b" again
+4100 lda #10
+4110 sta bufcount
+4120 rc8 ldy #12 ;send "syn" signal
+4130 jsr sendcode
+4140 lda #%01000 ;wait for "s/b" signal
+4150 jsr accept
+4160 lda stat
+4170 beq rc7
+4180 dec bufcount
+4190 bne rc8
+4200 rc7 rts 
+4210 ;
+4220 ;do handshaking for transmission end
+4230 ;
+4240 tranhand lda #$01
+4250 sta delay ;use delay
+4260 tx2 lda specmode
+4270 beq tx20
+4280 ldy #$00
+4290 jsr sendcode ;send a "goo" signal
+4300 tx20 lda #%01011 ;allow "goo", "bad", and "s/b"
+4310 jsr accept ;wait for codes
+4320 lda stat
+4330 bne tx2 ;if no signal, wait again
+4340 lda #$00
+4350 sta specmode
+4360 lda bitcnt
+4370 cmp #$00 ;"good" signal
+4380 bne tx10 ;no, resend old block
+4390 lda endflag
+4400 bne tx4
+4410 inc blocknum
+4420 bne tx7
+4430 inc blocknum+1
+4440 tx7 jsr thisbuf
+4450 ldy #numpos ;block number high order part
+4460 iny 
+4470 lda (pntb),y
+4480 cmp #255
+4490 bne tx3
+4500 lda #$01
+4510 sta endflag
+4520 lda bufpnt
+4530 eor #$01
+4540 sta bufpnt
+4550 jsr thisbuf
+4560 jsr dummybl1
+4570 jmp tx1
+4580 ;
+4590 tx3 jsr dummyblk ;yes, get new block
+4600 tx1 lda #"-"
+4610 .byt $2c
+4620 tx10 lda #":"
+4630 jsr prtdash
+4640 ldy #$06
+4650 jsr sendcode ;send "ack" code
+4660 lda #%01000 ;allow only "s/b" code
+4670 jsr accept ;wait for code
+4680 lda stat
+4690 bne tx1
+4700 jsr thisbuf
+4710 ldy #sizepos ;block size
+4720 lda (pntb),y
+4730 sta bufcount
+4740 jsr altbuf
+4750 ldx #$05
+4760 jsr chkout
+4770 ldy #$00
+4780 tx6 lda (pntb),y ;transmit alternate buffer
+4790 jsr chrout
+4800 iny 
+4810 cpy bufcount
+4820 bne tx6
+4830 jsr clrchn
+4840 lda #$00
+4850 rts 
+4860 ;
+4870 tx4 lda #"*"
+4880 jsr prtdash
+4890 ldy #$06
+4900 jsr sendcode ;send "ack" signal
+4910 lda #%01000
+4920 jsr accept ;wait for "s/b" signal
+4930 lda stat
+4940 bne tx4 ;if not, resend "ack" signal
+4950 lda #10
+4960 sta bufcount
+4970 tx5 ldy #12
+4980 jsr sendcode ;send "syn" signal
+4990 lda #%10000
+5000 jsr accept ;wait for "syn" signal back
+5010 lda stat
+5020 beq tx8
+5030 dec bufcount
+5040 bne tx5
+5050 tx8 lda #$03
+5060 sta bufcount
+5070 tx9 ldy #$09
+5080 jsr sendcode ;send "s/b" signal
+5090 lda #$00000
+5100 jsr accept ;just wait
+5110 dec bufcount
+5120 bne tx9
+5130 lda #$01
+5140 rts 
+5150 ;
+5160 ;receive a block from the modem
+5170 ;
+5180 ; stat returns with:
+5190 ;
+5200 ;  bit 0 - buffered all characters successfully
+5210 ;  bit 1 - no characters received at all
+5220 ;  bit 2 - insufficient characters received
+5230 ;  bit 3 - "ack" signal received
+5240 ;
+5250 recmodem ldy #$00 ;start index
+5260 rcm5 lda #$00 ;clear timers
+5270 sta timer1
+5280 sta timer1+1
+5290 rcm1 jsr exit
+5300 jsr getnum ;get a chr from the modem
+5310 lda stat
+5320 bne rcm2 ;no character received
+5330 lda lastch
+5340 sta buffer,y ;save chr in buffer
+5350 cpy #$03 ;chr one of the first 3
+5360 bcs rcm3 ;no, skip code check
+5370 sta codebuf,y ;save chr in code buffer
+5380 cpy #$02 ;on the 3rd chr
+5390 bne rcm3 ;no, don't look at chrs yet
+5400 lda codebuf ;check for a "ack" signal
+5410 cmp #"a"
+5420 bne rcm3
+5430 lda codebuf+1
+5440 cmp #"c"
+5450 bne rcm3
+5460 lda codebuf+2
+5470 cmp #"k"
+5480 beq rcm4 ;"ack" found
+5490 rcm3 iny ;inc index
+5500 cpy bufcount ;buffered all chrs
+5510 bne rcm5 ;no, buffer next
+5520 lda #%0001 ;yes, return bit 0 set
+5530 sta stat
+5540 rts 
+5550 ;
+5560 rcm4 lda #$ff ;"syn" found, set timer to -1
+5570 sta timer1
+5580 sta timer1+1
+5590 jmp rcm1 ;see if there is another chr
+5600 ;
+5610 rcm2 inc timer1 ;inc timer
+5620 bne rcm6
+5630 inc timer1+1
+5640 rcm6 lda timer1
+5650 ora timer1+1 ;timer now at zero
+5660 beq rcm7 ;"syn" found with no following chrs
+5670 lda timer1
+5680 cmp #$06
+5690 .if c64:lda timer1+1
+5700 .if c64:cmp #16 ;time out yet
+5710 bne rcm1 ;no, get next chr
+5720 lda #%0010 ;yes, set bit 1
+5730 sta stat
+5740 cpy #$00
+5750 beq rcm9
+5760 lda #%0100 ;but if chrs received, set bit 2
+5770 sta stat
+5780 rcm9 jmp dodelay
+5790 ;
+5800 rcm7 lda #%1000 ;"ack" found, set bit 2
+5810 sta stat
+5820 rts 
+5830 ;
+5840 ;create dummy block for transmission
+5850 ;
+5860 dummyblk lda bufpnt
+5870 eor #$01
+5880 sta bufpnt
+5890 jsr thisbuf ;read block into "this" buffer
+5900 ldy #numpos ;block number
+5910 lda blocknum
+5920 clc 
+5930 adc #$01
+5940 sta (pntb),y ;set block number low part
+5950 iny 
+5960 lda blocknum+1
+5970 adc #$00
+5980 sta (pntb),y ;set block number high part
+5990 ldx #$02
+6000 jsr chkin
+6010 ldy #datapos ;actual block
+6020 db1 jsr chrin
+6030 sta (pntb),y
+6040 iny 
+6050 jsr readst
+6060 bne db4
+6070 cpy maxsize
+6080 bne db1
+6090 tya 
+6100 pha 
+6110 jmp db5
+6120 ;
+6130 db4 tya 
+6140 pha 
+6150 ldy #numpos ;block number
+6160 iny ;high part
+6170 lda #255
+6180 sta (pntb),y
+6190 jmp db5
+6200 ;
+6210 dummybl1 pha ;save size of just read block
+6220 db5 jsr clrchn
+6230 .if c64:jsr reset
+6240 .if c64:jsr dod2
+6250 .if c64:jsr reset
+6260 ldy #sizepos ;block size
+6270 lda (pntb),y
+6280 sta bufcount ;set bufcount for checksum
+6290 jsr altbuf
+6300 pla 
+6310 ldy #sizepos ;block size
+6320 sta (pntb),y
+6330 jsr checksum
+6340 rts 
+6350 ;
+6360 ;set pointers for current buffer
+6370 ;
+6380 thisbuf lda #<buffer
+6390 sta pntb
+6400 lda bufpnt
+6410 clc 
+6420 adc #>buffer
+6430 sta pntb+1
+6440 rts 
+6450 ;
+6460 ;set pointer b for alternate buffer
+6470 ;
+6480 altbuf lda #<buffer
+6490 sta pntb
+6500 lda bufpnt
+6510 eor #$01
+6520 clc 
+6530 adc #>buffer
+6540 sta pntb+1
+6550 rts 
+6560 ;
+6570 ;calculate checksum
+6580 ;
+6590 checksum lda #$00
+6600 sta check1
+6610 sta check1+1
+6620 sta check1+2
+6630 sta check1+3
+6640 ldy #sizepos
+6650 cks1 lda check1
+6660 clc 
+6670 adc (pntb),y
+6680 sta check1
+6690 bcc cks2
+6700 inc check1+1
+6710 cks2 lda check1+2
+6720 eor (pntb),y
+6730 sta check1+2
+6740 lda check1+3
+6750 rol a ;set or clear carry flag
+6760 rol check1+2
+6770 rol check1+3
+6780 iny 
+6790 cpy bufcount
+6800 bne cks1
+6810 ldy #$00
+6820 lda check1
+6830 sta (pntb),y
+6840 iny 
+6850 lda check1+1
+6860 sta (pntb),y
+6870 iny 
+6880 lda check1+2
+6890 sta (pntb),y
+6900 iny 
+6910 lda check1+3
+6920 sta (pntb),y
+6930 rts 
+6940 ;
+6950 ;transmit a program
+6960 ;
+6970 transmit lda #$00
+6980 sta endflag
+6990 sta skpdelay
+7000 sta dontdash
+7010 lda #$01
+7020 sta bufpnt
+7030 lda #$ff
+7040 sta blocknum
+7050 sta blocknum+1
+7060 jsr altbuf
+7070 ldy #sizepos ;block size
+7080 lda #datapos
+7090 sta (pntb),y
+7100 jsr thisbuf
+7110 ldy #numpos ;block number
+7120 lda #$00
+7130 sta (pntb),y
+7140 iny 
+7150 sta (pntb),y
+7160 trm1 jsr tranhand
+7170 beq trm1
+7180 rec3 lda #$00
+7190 sta lastch
+7200 rts 
+7210 ;
+7220 ;receive a file
+7230 ;
+7240 receive lda #$01
+7250 sta blocknum
+7260 lda #$00
+7270 sta blocknum+1
+7280 sta endflag
+7290 sta bufpnt
+7300 sta buffer+numpos ;block number
+7310 sta buffer+numpos+1
+7320 sta skpdelay
+7330 lda #datapos
+7340 sta buffer+sizepos ;block size
+7350 lda #$00
+7360 rec1 jsr rechand
+7370 lda endflag
+7380 bne rec3
+7390 jsr match ;do checksums match
+7400 bne rec2 ;no
+7410 jsr clrchn
+7420 lda bufcount
+7430 cmp #datapos
+7440 beq rec7
+7450 ldx #$02
+7460 jsr chkout
+7470 ldy #datapos
+7480 rec6 lda buffer,y
+7490 jsr chrout
+7500 iny 
+7510 cpy bufcount
+7520 bne rec6
+7530 jsr clrchn
+7540 rec7 lda buffer+numpos+1 ;block number high order part
+7550 cmp #$ff
+7560 bne rec4
+7570 lda #$01
+7580 sta endflag
+7590 lda #"*"
+7600 .byt $2c
+7610 rec4 lda #"-"
+7620 jsr chrout
+7630 .if c64:jsr reset
+7640 lda #$00
+7650 jmp rec1
+7660 ;
+7670 rec2 jsr clrchn
+7680 lda #":"
+7690 jsr chrout
+7700 lda recsize
+7710 sta buffer+sizepos
+7720 lda #$03
+7730 jmp rec1
+7740 ;
+7750 ;see if checksums match
+7760 ;
+7770 match lda buffer
+7780 sta check
+7790 lda buffer+1
+7800 sta check+1
+7810 lda buffer+2
+7820 sta check+2
+7830 lda buffer+3
+7840 sta check+3
+7850 jsr thisbuf
+7860 lda recsize
+7870 sta bufcount
+7880 jsr checksum
+7890 lda buffer
+7900 cmp check
+7910 bne mtc1
+7920 lda buffer+1
+7930 cmp check+1
+7940 bne mtc1
+7950 lda buffer+2
+7960 cmp check+2
+7970 bne mtc1
+7980 lda buffer+3
+7990 cmp check+3
+8000 bne mtc1
+8010 lda #$00
+8020 rts 
+8030 ;
+8040 mtc1 lda #$01
+8050 rts 
+8060 ;
+8070 ;receive file type block
+8080 ;
+8090 rectype lda #$00
+8100 sta blocknum
+8110 sta blocknum+1
+8120 sta endflag
+8130 sta bufpnt
+8140 sta skpdelay
+8150 lda #datapos
+8160 clc 
+8170 adc #$01
+8180 sta buffer+sizepos
+8190 lda #$00
+8200 rct3 jsr rechand
+8210 lda endflag
+8220 bne rct1
+8230 jsr match
+8240 bne rct2
+8250 lda buffer+datapos
+8260 sta filetype
+8270 lda #$01
+8280 sta endflag
+8290 lda #$00
+8300 jmp rct3
+8310 ;
+8320 rct2 lda recsize
+8330 sta buffer+sizepos
+8340 lda #$03
+8350 jmp rct3
+8360 ;
+8370 rct1 lda #$00
+8380 sta lastch
+8390 rts 
+8400 ;
+8410 ;transmit file type
+8420 ;
+8430 trantype lda #$00
+8440 sta endflag
+8450 sta skpdelay
+8460 lda #$01
+8470 sta bufpnt
+8480 sta dontdash
+8490 lda #255
+8500 sta blocknum
+8510 sta blocknum+1
+8520 jsr altbuf
+8530 ldy #sizepos ;block size
+8540 lda #datapos
+8550 clc 
+8560 adc #$01
+8570 sta (pntb),y
+8580 jsr thisbuf
+8590 ldy #numpos ;block number
+8600 lda #255
+8610 sta (pntb),y
+8620 iny 
+8630 sta (pntb),y
+8640 ldy #datapos
+8650 lda filetype
+8660 sta (pntb),y
+8670 lda #$01
+8680 sta specmode
+8690 trf1 jsr tranhand
+8700 beq trf1
+8710 lda #$00
+8720 sta lastch
+8730 rts 
+8740 ;
+8750 ;do delay for timing
+8760 ;
+8770 dodelay inc skpdelay
+8780 lda skpdelay
+8790 cmp #$03
+8800 bcc dod1
+8810 lda #$00
+8820 sta skpdelay
+8830 lda delay
+8840 beq dod2
+8850 bne dod3
+8860 ;
+8870 dod1 lda delay
+8880 beq dod3
+8890 ;
+8900 dod2 ldx #$00
+8910 lp1 ldy #$00
+8920 lp2 iny 
+8930 bne lp2
+8940 inx 
+8950 cpx #120
+8960 bne lp1
+8970 dod3 rts 
+8980 ;
+8990 ;print dash, colon, or star
+9000 ;
+9010 prtdash pha 
+9020 lda blocknum
+9030 ora blocknum+1
+9040 beq prtd1
+9050 lda dontdash
+9060 bne prtd1
+9070 pla 
+9080 jsr chrout
+9090 pha 
+9100 prtd1 pla 
+9110 rts 
+9120 ;
+9130 ;reset rs232 port
+9140 ;
+9150 reset jsr setup
+9160 lda rs232enb
+9170 cmp #$80
+9180 beq reset
+9190 cmp #$92
+9200 beq reset
+9210 rts 
+9220 ;
+9230 ;terminal emulation routine
+9240 ;
+9250 terminal jsr cursor
+9260 term jsr getnum1
+9270 lda stat
+9280 bne keybj
+9290 lda lastch
+9300 and #$7f
+9310 sta lastch
+9320 cmp #$08
+9330 beq ok1
+9340 cmp #$0d
+9350 beq ok1
+9360 cmp #$20
+9370 bpl ok1
+9380 keybj jmp keyboard
+9390 ;
+9400 ok1 cmp #"a"+$20
+9410 bcc ok2
+9420 cmp #"z"+$21
+9430 bcs ok2
+9440 sec 
+9450 sbc #$20
+9460 sta lastch
+9470 jmp ok3
+9480 ;
+9490 ok2 cmp #$41
+9500 bcc ok3
+9510 cmp #"z"+1
+9520 bcs ok3
+9530 clc 
+9540 adc #$80
+9550 sta lastch
+9560 ;
+9570 ok3 cmp #$08
+9580 bne ok4
+9590 lda #$14
+9600 sta lastch
+9610 ok4 cmp #34 ;quote
+9620 bne ok5
+9630 jsr chrout
+9640 lda #20
+9650 jsr chrout
+9660 lda #34
+9670 ok5 lda lastch
+9680 cmp #$0d
+9690 bne ok6
+9700 lda #$20
+9710 jsr chrout
+9720 lda #$0d
+9730 ok6 jsr chrout
+9740 jsr cursor
+9750 ;
+9760 keyboard jsr getin
+9770 beq term
+9780 sta lastch
+9790 cmp #$13      ;clr/home key
+9800 beq termout
+9810 cmp #"a"
+9820 bcc ok7       ;<"a"
+9830 cmp #"z"+1
+9840 bcs ok7       ;>"z"
+9850 clc
+9860 adc #$20      ;to lowercase ascii
+9870 sta lastch
+9880 jmp ok8
+9890 ;
+9900 ok7 lda lastch
+9910 cmp #"a"+$80
+9920 bcc ok8       ;<"a"
+9930 cmp #"z"+$81
+9940 bcs ok8       ;>"z"
+9950 sec
+9960 sbc #$80      ;to uppercase ascii
+9970 sta lastch
+9980 ;
+9990 ok8 cmp #20   ;backspace
+10000 bne ok9
+10010 lda #$08
+10020 sta lastch
+10030 ok9 cmp #$83  ;shift r/s
+10040 bne oka
+10050 lda #$10      ;ctrl p
+10060 sta lastch
+10070 oka ldx #$05
+10080 jsr chkout
+10090 lda lastch
+10100 jsr chrout
+10110 jsr clrchn
+10120 jmp terminal
+10130 ;
+10140 termout rts   ;with clr/home
+10150 ;
+10160 cursor lda #$12
+10170 jsr chrout
+10180 lda #$20
+10190 jsr chrout
+10200 lda #$9d
+10210 jsr chrout
+10220 lda #$92
+10230 jsr chrout
+10240 ;
+10250 ;check for commodore key
+10260 ;
+10270 exit lda $028d   ;is commodore
+10280 cmp #$02         ;key down
+10290 bne exit1
+10300 exit2 pla 
+10310 tsx 
+10320 cpx stack
+10330 bne exit2
+10340 exit1 lda #$01
+10350 sta lastch
+10360 rts 
+10370 ;
+10380 ;move chrout vector if necessary
+10390 ;
+10400 init lda ibsout  ;been moved yet
+10410 cmp #<newout
+10420 bne init1        ;no, change it
+10430 lda ibsout+1
+10440 cmp #>newout
+10450 beq init2        ;yes, leave it
+10460 init1 lda ibsout ;store old chrout vector
+10470 sta oldout
+10480 lda ibsout+1
+10490 sta oldout+1
+10500 lda #<newout     ;set new chrout vector
+10510 sta ibsout
+10520 lda #>newout
+10530 sta ibsout+1
+10540 init2 rts 
+10550 ;
+10560 ;new chrout routine to correct for 1200 baud speed problems
+10570 ;
+10580 newout pha ;dupliciaton of original kernal routines
+10590 lda defto  ;test dfault output device for
+10600 cmp #$03   ;screen, and...
+10610 bne newout1
+10620 pla        ;if so, go back to original rom routines
+10630 jmp (oldout)
+10640 ;
+10650 newout1 bcc newout2 ;if device number less than 3,
+10660 pla ;also go back to original kernal routines
+10670 jmp (oldout)
+10680 ;
+10690 newout2 lsr a
+10700 pla 
+10710 sta ptr1
+10720 txa 
+10730 pha 
+10740 tya 
+10750 pha 
+10760 bcc newout9
+10770 jsr basic1
+10780 bne newout5
+10790 jsr basic2
+10800 bcs newout7
+10810 lda #$02
+10820 ldy #$00
+10830 sta (tape1),y
+10840 iny 
+10850 sty bufpntr
+10860 newout5 lda ptr1
+10870 sta (tape1),y
+10880 newout6 clc 
+10890 newout7 pla 
+10900 tay 
+10910 pla 
+10920 tax 
+10930 lda ptr1
+10940 bcc newout8
+10950 lda #$00
+10960 newout8 rts 
+10970 ;
+10980 newout9 jsr newout10
+10990 jmp newout6
+11000 ;
+11010 newout11 jsr newout12
+11020 newout10 ldy rodbe
+11030 iny 
+11040 cpy rodbs
+11050 beq newout11
+11060 sty rodbe
+11070 dey 
+11080 lda ptr1
+11090 sta (robuf),y
+11100 ;
+11110 newout12 lda rs232enb
+11120 lsr a
+11130 bcs newout13
+11140 lda #$10
+11150 sta $dd0e
+11160 lda xmit
+11170 sta $dd04
+11180 lda xmit+1
+11190 sta $dd05
+11200 lda #$81
+11210 jsr basic3
+11220 jsr basic4
+11230 lda #$11
+11240 sta $dd0e
+11250 newout13 rts
+11260 ;
+11270 .end

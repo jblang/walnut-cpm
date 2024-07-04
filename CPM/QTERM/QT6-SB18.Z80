@@ -1,0 +1,411 @@
+;
+; QT-SB18.Z80 - Micromint SB180 overlay for QTERM 4.0a
+;		by Steven Gold
+;
+; This overlay file was modeled after the Micromint SB180 overlay
+; for use with Term3. (See T3M-HI3.Z80 or T3M-HI2.Z80)
+;
+; I have also used structures from other modem overlays. 
+;
+;
+; The patch points indicated by the QTERM documentation have been 
+; worked into the overlay, some routines have been moved around to fit
+; the QTERM architecture, and others have been deleted since they do
+; not apply to the QTERM program.
+;
+; TO USE: First edit this file with your favorite ASCII editor, changing
+;		routines to conform to your hardware and changing
+;		equates to conform to your implementation selections.
+;		Then assemble with the SLR Systems SLR180 assembler and 
+;		apply the overlay using MLOAD to the original .COM file 
+;		to produce the patched .COM file.
+;
+; Note: While I admire David Goodenough's intentions with this software,
+;	expecting most users to make their own patches with DDT, SID, or
+;	whatever isn't exactly realistic. Hopefully, this overlay can be
+;	used as the basis for more and better overlays to QTERM. Feel free
+;	to fix and enhance as you wish!
+;
+;
+; History:
+;
+;	03/22/89 - QT6-SB18 - David Goodenough supplied me with an other 
+;	Steven Gold  overlay that was done for the SB-180 by Willy Gonnason of 
+;	             the U. of Calgary Electrical Engineering Dept. I've used 
+;                    his code for the BAUDSET and MODSET routines.
+;
+;	03/20/89 - QT5-SB18 - I couldn't get the Baud Rates to change properly,
+; 	Steven Gold  they still need alittle work. When you enter a baud
+;  	             rate with code I have it messes-up the baudrate port.
+;		     Still no support for 7E1 etc. Also I 
+;	             found out I was overwriting other code in certain places,
+;                    the program was working so I hadn't thought to check 
+;		     before.
+;
+;	03/18/89 - QT4-SB18 - release version
+;
+; Note2: The changing of baud rates still does not seem to work properly
+;        and I still have not tried to set the port definitions for 7E1 etc.
+;
+; Note3: I use a terminal that emulates the Televideo 910 so I left the terminal
+;        portion alone. 
+;	   		
+; *************************************************************************
+;
+BELL:	EQU	07h	;bell
+CR:	EQU	0Dh	;carriage return
+ESC:	EQU	1Bh	;escape
+LF:	EQU	0Ah	;line feed
+BDOS:	EQU	05H
+;
+YES:	EQU	0FFh
+NO:	EQU	0
+;
+;
+; Select one of the following for your computer board
+;
+CLK6	EQU	NO		; Yes if using 6 MHz clock
+CLK9	EQU	YES		; Yes if using 9 MHz clock
+Clk12	EQU	NO		; Yes if using 12 MHz clock
+;
+;
+;
+; Values shown are for a HD64180
+;
+;
+PRINTC: EQU	0109h		;QTERM print char routine address
+;
+cntla	EQU	0		; ASCI Control Register A Channel 0
+cntlb	EQU	2		; ASCI Control Register B Channel 0
+stat	EQU	4		; ASCI Status Register Channel 0
+tdr	EQU	6		; ASCI Transmit Data Register Channel 0
+rdr	EQU	8		; ASCI Receive Data Register Channel 0
+CTS	EQU	00100000B	; Clear-to-send input (pin 5)
+DCD	EQU	00000100B	; Data Carrier detect bit (pin 8)
+RDRF	EQU	10000000B	; RECEIVE DATA REGISTER FULL
+TDRE	EQU	00000010B	; TRANSMIT DATA REGISTER EMPTY
+;
+;
+;
+;	Code begins here...
+;
+; Modem input status routine:
+;
+	ORG	0110h
+; Input status.  Returns Z and A=0 if nothing waiting.
+;
+ISTAT:	CALL	IISTAT
+	AND	RDRF
+	RET	Z
+	LD	A,0FFH
+	RET
+;
+;
+; Read Modem character routine:
+;
+	ORG	0120h
+;
+; Recieve a character
+;
+INP:	CALL	ISTAT
+	JR	Z,INP
+	IN0	A,(rdr)
+	RET
+;
+; Modem output status routine:
+;
+	ORG	0130h
+; Output status.  Returns Z and A=0 if not ready to send.
+;
+OSTAT:	CALL	IISTAT		; GET STATUS REG
+	AND	TDRE
+OST1:	LD	A,0FFH
+	OR	A
+	RET
+;
+; Write Modem character routine:
+;
+	ORG	0140h
+;
+OUTP:	PUSH	AF
+	CALL	CKCTS		; check CTS
+OUTP1:	CALL	OSTAT
+	JR	Z,OUTP1
+OUTP2:	POP	AF		; return point from "CTS false" delay
+	OUT0	(tdr),A
+	RET
+;
+
+;
+; Start break routine:
+;
+	ORG	0150h
+STRBRK:
+	RET
+;
+; End Break routine:
+;
+	ORG	0160h
+ENDBRK:
+	RET
+;
+; Drop DTR routine:
+;
+	ORG	0170h
+;Turn DTR (and RTS) OFF. (set)
+dtroff:
+	in0	a,(cntla)
+	or	10h		; RTS off
+	out0	(cntla),a
+	ret
+
+;
+; Restore DTR routine:
+;
+	ORG	0180h
+;Turn DTR (and RTS) ON. (reset)
+dtron:
+	in0	a,(cntla)
+	and	0efh		; RTS on
+	out0	(cntla),a
+	ret
+;
+; Set Baud Rate routine:
+;
+;
+	ORG	190H		; set serial port baud rate
+BAUDSET:
+	PUSH	AF
+	LD	A,(BAUDSTOR)
+	AND	11111000B
+	POP	BC
+	OR	A,B
+	OUT0	(cntlb),A	; set it...
+	LD	(BAUDSTOR),A
+	RET
+
+
+
+;
+; Baud rate table:
+;
+	ORG	01A0h
+; Baud Rate Tables
+;
+	 if	clk6
+;
+; HD64180 commands to set baud rates @ 6.144 MHz clock
+;
+BAUDTB:
+	DB	00,NO		;38,400 bps disabled
+	DB	01h,NO		;19,200 bps disabled
+	DB	02h,No		; 9,600 bps enabled
+	DB	03h,No		; 4,800 bps enabled
+	DB	04h,YES		; 2,400 bps enabled
+	DB	05h,YES		; 1,200 bps enabled
+	DB	06h,NO		;   600 bps enabled
+	DB	0dh,Yes		;   300 bps enabled
+	 endif
+	 if	clk9
+;
+; HD64180 commands to set baud rates @ 9.216 MHz clock
+;
+BAUDTB:
+	DB	00,NO		;38,400 bps disabled
+	DB	20h,NO		;19,200 bps disabled
+	DB	21h,NO 		; 9,600 bps enabled
+	DB	22h,NO 		; 4,800 bps enabled
+	DB	23h,YES		; 2,400 bps enabled
+	DB	24h,YES		; 1,200 bps enabled
+	DB	25h,NO		;   600 bps enabled
+	DB	26h,YES		;   300 bps enabled
+	 endif
+	 if	clk12
+;
+; HD64180 commands to set baud rates @ 12.288 MHz clock
+;
+BAUDTB:
+	DB	00,NO		;38,400 bps disabled
+	DB	02H,NO		;19,200 bps disabled
+	DB	03h,NO 		; 9,600 bps enabled
+	DB	04h,NO 		; 4,800 bps enabled
+	DB	05h,YES		; 2,400 bps enabled
+	DB	06h,YES		; 1,200 bps enabled
+	DB	0Dh,NO		;   600 bps enabled
+	DB	0Eh,YES		;   300 bps enabled
+	 endif
+;
+; Communications mode setting routine:
+;
+;
+	ORG	1B0H
+SETMOD:                          ; set communication mode
+	JP	SETBAUDS	  ; not enough room here...
+;
+;
+	ORG	1C0H              ; communication mode table
+MODTBL:
+	DB	60H		; 7 N 1
+	DB	64H		; 8 N 1
+	DB	61H		; 7 N 2
+	DB	65H		; 8 N 2
+	DB	62H		; 7 E 1
+	DB	66H		; 8 E 1
+	DB	63H		; 7 E 2
+	DB	67H		; 8 E 2
+	DB	72H		; 7 O 1
+	DB	76H		; 8 O 1
+	DB	73H		; 7 O 2
+	DB	77H		; 8 O 2
+
+
+; Protocal Transfer Size
+;
+	ORG 	01CDH
+	RET
+;
+; Processor speed
+;
+	ORG	01CEh
+;
+	 IF	CLK6
+CPUSPD:	DB	06H		; Clock speed in MHz 
+	 ENDIF			; CLK6
+	 IF	CLK9
+CPUSPD:	DB	09H		; Clock speed in MHz 
+	 ENDIF			; CLK9
+	 IF	CLK12
+CPUSPD:	DB	12H		; Clock speed in MHz 
+	 ENDIF			; CLK12
+
+;
+ESCHAR:
+	DB	ESC		; escape/meta char to enable QTERM functions
+;
+; Signon message (max of 15 bytes plus NULL terminator byte):
+;
+	ORG	01D0h
+SIGNON:
+	DB	'Micromint SB180',0
+;
+; string to clear screen
+;
+	ORG	01F0h
+CLSCRN:
+	DB	'Z'-'@',0	; Control-Z on my Wyse-60 terminal
+
+;
+; GOTOXY routine (to control cursor placement):
+;
+	ORG	0200h
+GOTOXY:
+;	RET
+;
+;
+; Terminal capability bit map:
+;	these bits are set (1) if the terminal capability is present and
+;	reset (0) if it is not.
+;
+	ORG	022Fh
+TCBMAP:
+	DB	11111111b
+;		||||||||
+;		|||||||------- bright (end highlight)
+;		||||||-------- dim (start highlight)
+;		|||||--------- delete line
+;		||||---------- insert line
+;		|||----------- delete character
+;		||------------ insert character
+;		|------------- clear to end of line
+;		-------------- clear to end of screen
+;
+;
+
+;
+; Term Cap strings:
+;
+	ORG	0230h
+STHILT:	DB	ESC,'(',00h		; 8 bytes to define start hilite...
+;
+	ORG	0238h
+ENHILT:	DB	ESC,')',00h		; 8 bytes to define end hilite...
+;
+	ORG	0240h
+DELINE:	DB	ESC,'R',00h		; delete line
+;
+	ORG	0248h
+INSLIN: DB	ESC,'E',00h		; insert line
+;
+	ORG	0250h
+DELCHR:	DB	ESC,'W',00h		; delete char
+;
+	ORG	0258h
+INSCHR:	DB	ESC,'Q',00h		; insert char
+;
+	ORG	0260h
+CLREOL:	DB	ESC,'T',00h		; clear to EOL
+;
+	ORG	0268h
+CLREOS: DB	ESC,'Y',00h		; clear to end of screen
+;
+;
+; Entry subroutine
+;
+	ORG 	0270H
+ENTER:
+	RET
+;
+; Exit subroutine
+;
+	ORG	0273H
+EXIT:
+	RET
+;
+;
+; End of QTERM defined patches.
+;
+; begin custom patch area:
+;
+	ORG	0276h
+;
+; Read stat twice, as per Hitachi manual
+;
+IISTAT:	IN0	A,(stat)
+	IN0	A,(stat)
+	OR	A
+	RET
+;
+; Check state of CTS* and return A=0 and Z if CTS is true.
+;
+CKCTS:	IN0	A,(cntlb)
+	AND	CTS
+	RET	Z
+	LD	A,0FFh
+	RET
+;
+SETBAUDS:
+	PUSH	AF
+	LD	A,(BAUDSTOR)
+	POP	BC
+	PUSH	BC
+	BIT	4,B
+	SET	4,A
+	JR	NZ,NORST
+	RES	4,A
+NORST:
+	OUT0	(cntlb),A	;set even/odd
+	LD	(BAUDSTOR),A
+	POP	AF
+	RES	4,A		;bring up DTR
+	OUT0	(cntla),A	;set parity/noparity
+	RET
+
+BAUDSTOR:
+	DB	0		; storage for current baud rate.
+	RET
+	
+;
+; Custom patch area must end *PRIOR* to 0300h!!!!!
+;
+	END
+

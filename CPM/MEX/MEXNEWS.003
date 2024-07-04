@@ -1,0 +1,185 @@
+
+			    MEX Newsletter #003
+
+Date:	  05-27-84       From:  Ron Fowler               MEX rev:  1.00
+
+
+                            New Patch File
+                       Correspondence Information
+                         Hi-Speed File Transfers
+                           Upcoming Release
+                             MEX Overlays
+                      Jury Still Out on Dial-Abort
+
+
+This is the third in a series of (hopefully) informative notes for users of
+the MEX communications program.  These newsletters will provide bug fixes,
+tips, applications information, etc.
+
+------------------------------------------------------------
+
+New patch file
+
+Many of you have probably noticed how sluggish MEX is during file transfers,
+often taking 30 or 40 seconds just to get started (also very noticeable dur-
+ing batch transfers).  Well, it seems the timing constants in MEX are a off
+by a factor of three!  The following HEX file patch will repair that, and
+bring your revision level up to 'C' (no, I didn't skip B -- it just didn't
+get distributed very far).
+
+This patch also repairs a bug that several overlay writers have reported:
+after implementing the NEWBDV overlay extension, numbers entered on the
+command line (ie, not called from the phone library) would cause a random
+baud rate to be set.
+
+Incidently, this patch repeats the A patch in Newsletter #002 -- if you
+haven't already installed that one, you don't have to worry about installing
+it first.  If you have installed it, this one just writes over the same
+code that the first one generated, so it won't hurt anything.
+
+
+Here's the patch code:
+
+:0B0CF5003EFF323853215C53C3FF1256
+:100E6A00CDB314D83E0CEBCD0146EBC3DE123AD417
+:0F0E7A0052B7C4EA31F1F5E67F21DC52C3894358
+:0152D40000D9
+:0312DA00C36A0ED6
+:03438100C3780EF0
+:010ED70043D7
+:01130C0000E0
+:0312FC00C3F50C2B
+:020EA600D0007A
+:020EAF000D0034
+:0000000000
+
+
+Just 'clip' the above lines from this file with your text editor into
+a file named MEXFIX.HEX, and do this:
+
+		MLOAD MEX.COM=MEX.COM,MEXFIX
+
+(make sure you've saved a copy of MEX before making the patch, however,
+in case something goes wrong).
+
+I've been using the timing patch for the last week or so, and it makes MEX a
+lot more responsive, but since it changes the overall timing for the entire
+program, there is always the possibility of a side-effect.  If this patch
+causes any weird problems (a symptom of such a side-effect would be something
+that happens three times as fast as it should), please let me know.
+
+One final note: since the patch area within MEX was entirely consumed by
+previous patches, this one had to go at the top of the overlay area.  This
+shouldn't be a problem, unless you use an overlay that uses every available
+byte, something I think is pretty unlikely (if you're using the standard MXO
+Smartmodem overlay, the top area is definitely free).
+
+------------------------------------------------------------
+
+Correspondence:
+
+The Fort Atkinson BBS is back online 24 hrs (except when in use locally)
+at 300 and 1200 baud.  This is now the best way of reaching me with a question
+or comment (outside of Arpanet); since my Compuserve access is through another
+user's account, I log in on CIS as seldom as possible (it's also a long
+distance call).  I've also been logging in a lot less frequently on the SYSOP
+system in Michigan ... (it's always busy!).
+
+Our overlay collection is less than complete (even some of the new MXO over-
+lays are not present there yet).  We hope to have a complete collection on-
+line by early June, of both MXO and M7 overlays.
+
+Fort Fone File Folder: (414) 563-9932 ... should answer on 1st ring (made
+                       busy when in use locally)
+
+
+------------------------------------------------------------
+
+High-speed transfers:
+
+I've been using MEX locally for transfers between two computers connected
+through an RS-232 link.  File transfers at speeds of 9600 and 19200 are
+possible, with the following guidelines noted:
+
+1) If one computer has a faster CPU clock speed than the other, it can receive
+   at 9600 or 19200 without problems (assuming no extraordinary delay in 
+   the overlay modem I/O routines).
+
+2) The receiver should use the 'Q' mode ('quiet': no status messages, but more
+   relevantly, no console-status checking) if the transmitter is at an equal or
+   greater clock speed.
+
+3) It's not generally a good idea to view either received or transmitted
+   characters at the receiving end, regardless of clock speed (i.e., avoid use
+   of the V, S and R secondary commands at the receiving end).
+
+4) Batch file transfers will work much better with the above speed patch.
+
+
+------------------------------------------------------------
+
+Forthcoming release:
+
+I hope to start work on MEX revision 1.10 within the next week or so (pend-
+ing completion of a couple of deadlined projects I'm involved in).  The new
+release will hopefully accomplish the following:
+
+	- Incorporate all patch fixes
+	- Fix a couple of minor annoyances (like control-C abort not
+          working at times)
+	- Add some hooks requested by users for special overlay access
+	- Add a couple of features 
+
+If I can get to it, the new release should be out sometime in the first
+half of June (unless I get carried away adding stuff).
+
+------------------------------------------------------------
+
+MEX overlays
+
+MEX overlays are coming in at an astonishing rate; turns out there is some
+confusion about just where a MEX overlay differs from an M7 overlay, so
+I thought I'd clarify that a little.
+
+MEX overlays do not call the MDM7 jump table (the one with JMP$ILPRT,
+JMP$INLNCOMP, etc) .... instead, they use the MEX service processor.  The
+reason for this is facilitate my long-term plan to condense the overlay
+format (say around MEX 2.0, perhaps).  I should be able to take an MXO
+overlay and turn it into an MX2 overlay in a matter of minutes, with
+little chance of buggifying the code in the process.
+
+In addition, I'd prefer that MXO overlays use the simpler label names
+I've employed in the PM and GB overlays (although I should have mentioned
+this much sooner: quite a number of re-released M7 overlays have the old
+label names intact).
+
+At any rate, the idea is that if I impose a new overlay structure in the
+future, the burden of changing the overlays should fall on me, not the
+user (*especially* if MEX2 is a commercial product, something I'm still
+fighting with myself about); the MXO format makes that change somewhat
+easier.
+
+------------------
+
+Dial-abort problem:
+
+A lot of people have mentioned that they can't abort an in-progress DIAL
+command.  I haven't been able to duplicate that here (abort always works
+fine for me).  If anyone has any idea what's causing this problem, please
+let me know.
+
+There are a number of places within MEX that don't check the console for
+an abort (mostly within file transfers); also some screen displays that
+don't check for a ^S pause.  Hopefully, I'll zap all these when I do the
+new release ....
+
+
+------------------
+
+Special thanks here to Cliff Harrison for re-formatting the DOC files;
+they were pretty ugly in their original state (I rushed them out in about
+a day or 2).  The new format is a welcome change; I'll make sure they
+stay maintained this way.
+
+----------------------------< MEXNEWS.003 >------------------------------
+

@@ -1,0 +1,353 @@
+; B5EQ-3.ASM - Insight Enterprises EQ-4 insert to BYE5 - 02/21/86
+;
+;		Z80 DART and 8116 baud rate generator
+;
+; This insert adapts BYE5 to the Insight Enterprises EQ-4 computer.
+; USING	THE Z80	DART AND SMC 8116 BAUD RATE GENERATOR.
+;
+;
+;	     Note:  This is an insert, not an overlay
+;
+;=   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =
+;
+; 02/21/86 - Modified for BIOS version 2.1	- Tom Morris
+; 09/13/85 - Corrected typos and masked interrupts during MDINIT
+;						- Chris Taylor
+; 09/07/85 - First version of this file 	- Chris Taylor
+;
+;=   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =
+;
+; Change the following information to match your equipment
+;
+PORT	EQU	38H		; Port modem is on
+BRPORT	EQU	37H		; Baud rate generator port
+MDCTL1	EQU	PORT+1		; Modem control port
+MDDATP	EQU	PORT		; Modem data in port
+;
+CON96	EQU	14*16		; Console baudrate is 9600
+A300	EQU	5		; Modem (DART Pair 'A') 300 baud
+A1200	EQU	7		; 1200 bps
+A2400	EQU	10		; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+;
+; Check for carrier.  If not, return with zero flag set
+;
+MDCARCK:MVI	A,10H		; RESET status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	8		; Check for carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	DI			; Allow no interrupts during setup
+	MVI	A,0		; Setup to write register 0
+	OUT	MDCTL1
+	MVI	A,18H		; Channel reset
+	OUT	MDCTL1
+	CALL	NODTRX		; Set 8bit, no parity and no DTR
+	MVI	A,1		; Set for WR1
+	OUT	MDCTL1
+	XRA	A		; Allow no interrupts from this DART
+	OUT	MDCTL1
+	EI			; CONTINUE
+	PUSH	B
+	MVI	B,20		; 2 second delay to drop any carrier
+;
+OFFTI:	CALL	DELAY
+	DCR	B
+	JNZ	OFFTI		; Loop until 2 seconds have elapsed
+	POP	B		; Restore 'BC' pair
+	MVI	A,5		; Write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; Turn DTR back on
+	OUT	MDCTL1
+;
+	 IF	IMODEM		; If using intelligent modem
+	CALL	IMINIT
+	 ENDIF
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem
+;
+MDINP:	IN	PORT		; Get a character
+	RET
+;.....
+;
+;
+MDINST:	IN	MDCTL1		; In modem control port
+	ANI	1		; Character waiting
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT
+	RET
+;.....
+;
+;
+; See if output is ready for next character
+;
+MDOUTST:IN	MDCTL1		; Get status
+	ANI	4		; Ready?
+	RET
+;.....
+;
+;
+; Re-initialize modem and hang up the phone
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF
+;
+;
+; Called by BYE main to turn off DTR
+;
+MDSTOP:	MVI	A,5		; Write register 5
+	OUT	MDCTL1
+	MVI	A,0		; Turn off DTR
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; This routine returns a 255 because we are unable to support the
+; requested baud rate on this hardware.
+;
+SETINV:	ORI	0FFH
+	RET
+;.....
+;
+;
+SET300:	MVI	A,(CON96+A300)
+	JMP	SETBAUD
+;
+SET1200:MVI	A,(CON96+A1200)
+	JMP	SETBAUD
+;
+SET2400:MVI	A,(CON96+A2400)
+;
+SETBAUD:OUT	BRPORT		; Set requested baud rate
+	XRA	A		; Say baud rate is OK
+	RET
+;.....
+;
+;
+NODTRX:	LXI	H,DO8NOP
+	CALL	BLOCK$OUTPUT
+	RET
+;.....
+;
+;
+; HL points to block to output
+;
+BLOCK$OUTPUT:
+	MVI	B,6		; Get count
+	MVI	C,MDCTL1	; Get port
+	DB	0EDH,0B3H	; THIS IS THE Z80 OUTIR INSTRUCTION
+	RET			; Return
+;.....
+;
+;
+DO8NOP:	DB	3,0C1H		; 8bit, recv enable
+	DB	4,44H		; X16, 1 stop, no parity
+	DB	5,0		; Turn DTR off
+;.....
+;
+;
+; Perform system and hardware dependent PRE-processing.  This routine is
+; executed by the PATCH subroutine before the BIOS jump table is over-
+; written, allowing BIOS intercept to operate as close to the initial
+; signon display.
+;
+MDPREP:	LXI	H,JTBLNEW	; Get replacement table address
+	LXI	D,NEWJTBL	; Address to overwrite
+	LXI	B,JTBLEN	; Number of bytes to overwrite
+	DB	0EDH,0B0H	; THIS IS THE Z80 LDIR INSTRUCTION
+;
+;
+; Move the BIOS intercept routines into common memory
+;
+	LXI	H,STCOMN	; Start of interface routines
+	LXI	D,COMMN		; Where in high memory to load
+	LXI	B,COMLEN	; Length of common code
+	DB	0EDH,0B0H	; THIS IS THE Z80 LDIR INSTRUCTION
+;
+;
+; Get the BDOS base page and complete the SXBIOS replacement stack ad-
+; dress.  We are using the BDOS copyright notice as a stack since BDOS
+; is in common and the copyright notice is sufficient length for a stack.
+;
+	LDA	BDOSBASE
+	STA	SXBIOS+1	; Finish up the replacement stack adrs
+	RET
+;.....
+;
+;
+; SYSTEM/HARDWARE DEPENDENT POST-PROCESSING ROUTINE
+;
+; This routine is executed by the EXCPM routine before returning control
+; to CP/M Plus when BYE5 terminates.
+;
+MDPOSP:	RET
+;.....
+;
+;
+; The EQ4 operates in a banked environment.  BIOS calls may originate in
+; any bank (0,1,2,or 3).  It is possible for bank 1 (where BYE resides)
+; to be out of context (not selected) when a BIOS call is made.  Steps
+; must be taken to be sure the BIOS jump table does NOT direct a BIOS
+; call into bank 1 unless bank 1 is in context.  The following code will
+; be moved into common memory where it is free to intercept BIOS calls
+; from any bank.
+;
+; This code does the following:
+;
+;	- Save the caller's stack pointer
+;	- Save the callers bank pointer
+;	- Switch to bank 1
+;	- Execute the BYE interface routine
+;	- Execute the original BIOS routine as needed
+;	- Recover caller's stack pointer
+;	- Reset the memory bank to that of the caller
+;	- Return control to the caller
+;
+;
+;	The BDOS Copyright notice is used for the BIOS replacement stack.
+;
+;-----------------------------------------------------------------------
+;
+;NOTE:	These addresses apply for EQ-4CBIOS rev 2.1A ONLY
+;	Be sure to GENCPM with TOP PAGE of MEMORY set to 0FEH
+;
+@CBNK:	EQU	0FCDCH		; address of current bank byte
+BNKSEL:	EQU	0FC82H		; entry point of BIOS bank select (SELMEM)
+COMMN:	EQU	0FF00H		; spare memory goes to 0FFF7
+;				;  (0FFF8-0FFFF is used for system communication)
+;.....
+;
+;
+BANK1	EQU	1		; Bank 1 mask
+;
+STCOMN	EQU	$
+;
+WBCOMN	EQU	COMMN+($-STCOMN) ; Warm boot
+	CALL	SWIN
+	JMP	MBOOT
+;
+CSCOMN	EQU	COMMN+($-STCOMN) ; Console status
+	CALL	SWIN
+	CALL	MSTAT
+	JMP	SWOUT
+;
+CICOMN	EQU	COMMN+($-STCOMN) ; Console input
+	CALL	SWIN
+	CALL	MINPUT
+	JMP	SWOUT
+;
+COCOMN	EQU	COMMN+($-STCOMN) ; Console output
+	CALL	SWIN
+	CALL	MOUTPUT
+	JMP	SWOUT
+;
+SWIN	EQU	COMMN+($-STCOMN) ; Bank switch in routine
+	POP	H		; Get return address
+	DB	0EDH,073H
+	DW	SXSAVE
+	DB	0EDH,07BH
+	DW	SXBIOS
+	LDA	@CBNK		; Get current bank from system
+	STA	RTBNK		; Remember for switch back
+	MVI	A,1		; Gonna switch to bank 1
+	CALL	BNKSEL		; Do it
+	PUSH	H		; Put return address on new stack
+	RET
+;.....
+;
+;
+SWOUT	EQU	COMMN+($-STCOMN) ; Bank switch out routine
+	MOV	H,A		; Save a reg (for console input call)
+	DB	0EDH,07BH
+	DW	SXSAVE
+	LDA	RTBNK		; Return to the bank
+	CALL	BNKSEL
+	MOV	A,H		; Restore a reg
+	RET
+;.....
+;
+;
+SXSAVE	EQU	COMMN+($-STCOMN)
+	DS	2		; Save area for caller's stack pointer
+;
+SXBIOS	EQU	COMMN+($-STCOMN)
+	DW	0085H		; End of copyright notice is bdos+85h
+;
+RTBNK	EQU	COMMN+($-STCOMN)
+	DS	1
+;
+COMLEN	EQU	$-STCOMN	; Length of common memory interface code
+;
+	 IF	COMLEN > 00F7H
+	FAIL	COMMON MEMORY CODE SEGMENT IS TOO LARGE
+	 ENDIF
+;.....
+;
+;
+JTBLNEW:JMP	MCBOOT		; Cold boot
+	JMP	WBCOMN		; Warm boot
+	JMP	CSCOMN		; Modem status test
+	JMP	CICOMN		; Modem input routine
+	JMP	COCOMN		; Modem output routine
+;
+	 IF	(NOT HARDLOG) AND (NOT PRINTER)
+	JMP	COCOMN		; Modem list device
+	JMP	COCOMN		; Modem punch device
+	JMP	CICOMN		; Modem reader device
+	 ENDIF			; NOT HARDLOG AND NOT PRINTER
+;
+JTBLEN	EQU	$-JTBLNEW
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; Here is some nice-to-know stuff for selecting the baud rate value for
+; CON96, A300, A1200, and A2400
+;
+; DART pair	A / B
+;
+;SPEED$T
+;	DB	0,0*16		; 50 baud
+;	DB	1,1*16		; 75 baud
+;	DB	2,2*16		; 110 baud
+;	DB	3,3*16		; 134 baud
+;	DB	4,4*16		; 150 baud
+;	DB	5,5*16		; 300 baud
+;	DB	6,6*16		; 600 baud
+;	DB	7,7*16		; 1200 bps
+;	DB	8,8*16		; 1800 baud
+;	DB	9,9*16		; 2000 bps ( not supported )
+;	DB	10,10*16	; 2400 bps
+;	DB	11,11*16	; 3600 bps
+;	DB	12,12*16	; 4800 bps
+;	DB	13,13*16	; 7200 bps
+;	DB	14,14*16	; 9600 bps
+;	DB	15,15*16	; 19200 bps
+;.....
+;
+;
+;			       end
+;-----------------------------------------------------------------------
+

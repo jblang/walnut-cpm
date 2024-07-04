@@ -1,0 +1,85 @@
+Subject :  IMP overlay customization
+From    :  Irv Hoff
+Date    :  17 July 85
+
+
+        The following notes will help the IMP user to select various
+user options.  The ones that should be quite self-explanatory will not
+be included in the list.
+
+
+0103  MSPEED    -  use 05 for 1200, 06 for 2400.
+0104  HS2400    -  YES if 2400 is your top speed, otherwise NO
+0105  HS1200    -  YES if 1200 is your top speed, otherwise NO
+0106  RACAL     -  YES if using a Racal-Vadic modem with autodial
+                        (the 1200v and 2400v can also use the Hayes
+                        AT protocol, but the Racal-Vadic protocol
+                        displays additional progress reports.)
+                -  NO for "AT" protocol developed by Hayes
+0107  PROMODM   -  YES if using the Prometheus ProModem 1200, else NO
+
+010A  CLEAR     -  Most computers can clear the CRT with a CTL-Z, if
+                   yours does, put a 1BH (CTL-Z) here.  Some use an
+                   "ESC-x" (the "x" may be a upper or lower case ASCII
+                   character.)  Put that character in this location, the
+                   ESC will be automatically added if an ASCII character
+                   is present.  Put a 0 here if you don't know what your
+                   terminal needs, it will then scroll 24 blank lines to
+                   clear the screen.
+010B  CLOCK     -  This value is your clock speed times 10, for more
+                   variation.  A 4 MHz clock would use 40.  (Convert to
+                   hex if installing via DDT.)  This just sets the time
+                   for some of the internal delay loops.  It can be
+                   changed to whatever is needed to make those more ac-
+                   curate.
+010C  BYTDLY    -  This puts a delay between characters when sending an
+                   ASCII file in the terminal mode.
+010D  CRDLY     -  This puts a delay after a CRLF when sending an ASCII
+                   file in the terminal mode.  Sometimes these are used
+                   on systems that cannot accept messages at full speed.
+010F  TCHPUL    -  Some modems (such as the Racal-Vadic, Prometheus,
+                   etc.) can auto-sense if they can touch-tone dial or
+                   need to pulse dial.  Put a 0 here (do not use '0'
+                   which is an ASCII value) if you want your modem to
+                   auto-sense what it can use.  Else a 'T' or 'P'.
+0114  EXTCHR    -  This is the local control "lead-in" character when in
+                   the terminal mode.  Currently set to ESC.  Some ter-
+                   minals don't have ESC or the operator may prefer some
+                   other character.  Put it here.
+
+                   The characters from 0115 through 011C are the local
+                   control characters and may easily be changed to suit
+                   the operator's preference - if different.
+
+0168  J$STRNGA  -  This jumps to the 'AT' initialization string for
+                   1200 bps modems.
+0169  J$STRNGB  -  This jumps to the 'AT' initialization string for
+                   2400 bps modems.  If the user wants to develop his
+                   own customized initialization string, just change
+                   this to jump to your own routine.
+
+                   In writing these routines, you can use J$ILPRT for
+                   strings (terminate with a 0 character) for local
+                   display, "CALL  J$CRLF" for a new line on the CRT,
+                   J$SNDSTR to send a string to the modem (end with $),
+                   J$SNDCHR to send a single character to the modem, and
+                   '#' character is a 0.1 second delay.  Including ###
+                   in the string to the modem would cause a 300 ms.
+                   delay, etc.  (250 ms. minimum needed after an 'AT'
+                   string is completed by a CR before the modem should
+                   be given any other duty.)
+
+                   The J$ commands just listed would allow the user to
+                   add routines to set parity, stop bits, different
+                   initialization strings, etc.
+
+ROOM REMAINING
+--------------
+        There are 601 characters remaining after the start of the SYSVR
+label.  The routines in the overlay should stop by 0400H.  In the case
+of the I2DP-1 overlay, that would leave an additional 223 bytes for any
+customization the user might add.
+                                        - Irv Hoff
+                                          Los Altos Hills, CA
+                                          (415) 948-2166 - voice
+

@@ -1,0 +1,165 @@
+;
+                                                   
+                          ---  N Z B L I T Z  ---  
+                                                   
+                                Version 1.5
+
+                       An NZCOM System Clone Utility
+
+
+                          C -->  Configuration   
+                          S -->  Syntax          
+                          O -->  Operation       
+
+
+         NZBLITZ is Copyright (c) 1988,89,90  Cameron W. Cotrill,
+                           All Rights Reserved.
+
+   NZBLITZ is released to the public domain for non-commercial use only.
+      Please back up all files before using NZBLITZ and remember that
+                     you use NZBLITZ at your own risk.
+:C
+Configuration
+
+ZCNFG.COM and NZBLITZ.CFG may be used to configure NZBLITZ to allow saving
+the system image up to the start of the CBIOS (the default), or up to a
+fixed, specified top-of-save address.
+
+If you specify saving to top-of-memory, the system image from the CCP all
+the way up to the top of memory, including the CBIOS is saved.  This allows
+those of us running custom NZCOM systems that use the existing standard
+Ampro Z-system buffers that reside above the CBIOS to also save systems
+with NZBLITZ at the cost of a slightly larger NZBLITZ image file.  See
+AMPRO.ZCM for a sample ZCM file for Ampros that uses the standard Ampro
+above-CBIOS Z-system buffers in an NZCOM system.
+
+You may also configure a lower top-of-save address if you wish to save the
+CBIOS but your system has other features at the top of memory that you
+don't wish to save, such as dedicated ROM space.
+
+While the drive, user and filename for the NZCOM.CCP file are taken
+directly from the NZCOM NZBIOS, you may configure NZBLITZ so that the
+system loader files write the NZCOM.CCP file as a system and/or archived
+file, which is handy for those of us operating on RAM disk workspaces.
+:S
+Syntax
+
+To save a system image, the NZBLITZ command line syntax is:
+
+     NZBLITZ [dir:]sysname[.com][;trailing;commands]
+
+Enter those trailing commands that you always want executed after the
+system is loaded, such as clock or other initialization commands.
+
+
+The resulting NZBLITZ system loader file command line syntax is:
+
+     SYSNAME [/f]
+
+     The /F option suppresses the write of the NZCOM.CCP file in the
+     interest of reduced loading time.  If you choose to use this option,
+     be CERTAIN that your current NZCOM.CCP runs at the same address as the
+     system you are going to load does.  Otherwise, the system will crash -
+     and quickly!
+:O
+Operation
+
+NZBLITZ is an NZCOM utility that permits saving and direct loading of
+system images.  NZBLITZ started life during development of NZCOM.  In
+greatly expanded form, it became the /C (clone) option.
+
+NZBLITZ is a very simple minded utility.  It doesn't look to see what
+elements of the running system can or should be saved (TCAPS, MCL, Shell
+Stack, etc).  It simply captures everything from the CCP (or lowest loaded
+RSX) up to the CBIOS (or above) into a system loader utility.  When the
+system loader utility is run, it replaces the entire saved system, as
+specified by its configuration, writes NZCOM.CCP to disk to the drive and
+user specified in the NZCOM NZBIOS, then boots the new system.
+
+This strategy has several very significant side effects.  First, the ENTIRE
+user environment is replaced - this includes Shells, RCP, FCP, IOP, TCAPS,
+DOS, CCP, and in the case of ZSDOS and ZDDOS the clock and stamp drivers
+that live in the NZCOM user area!  This allows a cold load of a system -
+full up with drivers, shells, path, and options set as you want in very
+short order - 4 seconds on my hard disk system.  By comparison, a startup
+alias to load the same system by "traditional" methods would take 14
+seconds.  If the CBIOS is saved as well, installed hard disk, RAM disk and
+other special drivers no longer need be loaded or initialized at each cold
+boot, saving even more time.  Completely configured systems can be loaded
+or replaced almost instantly.
+
+The system loader files created by NZBLITZ are stand-alone COM files,
+complete with loader.  These COM files also respond to ZCPR style help.
+Though these files contain a ZCPR header, they do not require a Z-system in
+order to run.  This is no accident, as one primary purpose for the NZBLITZ
+is to cold start NZCOM systems.  Aside from speed in loading a fully
+configured system, NZBLITZ system loader files can be very useful for
+saving space on floppy systems.  Because NZCOM or NZCOM.LBR are not needed
+once the COM file is created, there can be a savings in disk space if you
+typically use one standard system.
+
+When you run an NZBLITZ system loader file, you may suppress the write of
+the NZCOM.CCP file by including the "/F" option on the command line.  If
+you use this option, be CERTAIN that your current NZCOM.CCP runs at the
+same address as the system you are going to load does.  Otherwise, the
+system will crash - and quickly!  The system loader uses a function 37
+reset, then exits directly to the CCP (which issues a function 13 reset
+right away) to reset all disks.
+
+See your NZCOM documentation for more information on customizing your NZCOM
+systems.
+Saving an NZCOM System
+
+Saving your current NZCOM system is a simple as typing:
+
+     NZBLITZ sysnam[.com].
+
+If you forget the syntax, NZBLITZ responds to the usual ZCPR help request,
+as well as "?" or a null command tail.  If the filetype is blank, NZBLITZ
+will assume "COM.".  If you always want to run a specific series of commands
+after the system image loads, simply enter the desired commands after the
+NZBLITZ invocation.  NZBLITZ will save these commands and flush the
+multiple command line after saving the system to the file SYSNAME.COM or
+whatever you chose to call it.
+
+For example, if you wanted to save the system to a file called SYSNAME.COM
+and always wanted to set the clock and display the directory each time you
+loaded that system, you would enter:
+
+     NZBLITZ sysname;clock;dir
+
+When you run SYSNAME, the CLOCK and DIR commands will run after the system
+image is loaded.
+Including an NZBLITZ System Loader File in an Alias Script
+
+When an NZBLITZ system loader file is run in a ZCPR3 system, it will check
+the multiple command line of the current system for any pending commands
+before it loads the new system.  If there are any pending commands, they
+will be saved and after the new system is loaded, they will be appended to
+the new system's multiple command line.  The first commands to run will be
+the commands you specified on the NZBLITZ command line when you created
+your system loader file.  Finally, after these original commmands have run,
+any old system pending commands will be run.
+
+This means that you can now include NZBLITZ system loader files in alias
+scripts.  You can change NZCOM systems quickly and automatically in order
+to customize any or all of your system features specifically for whatever
+application you wish to run.  You can now change the size and composition
+of your system about as quickly and easily as loading a new RSX or IOP.
+Adventures in Customized NZCOM/NZBLITZ Systems
+
+As a simple example, if your usual "full-featured" 46k system has a TPA
+that is too small to run your full-up version of WS4, you can write an alias
+script called WS:
+
+     WS tpa50;ws4 $*;tpa46
+
+where TPA46.COM and TPA50.COM are NZBLITZ system loader files containing
+system images for customized 46k and 50k systems respectively.  Let's assume
+that your normal "full-featured" 46k system is loaded using TPA46.COM and
+that a 50k system, customized for use with WS4 and perhaps including an RSX
+such as the HPC calculator, is loaded using TPA50.COM.  When the WS alias
+script is run, the special 50k system is loaded, WS4 is run to edit the
+specified filename from the command line, and finally, the "full-featured"
+46k system is automatically reloaded when you leave WS4.
+

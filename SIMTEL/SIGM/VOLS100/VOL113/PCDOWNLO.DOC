@@ -1,0 +1,233 @@
+4.4. 8086/8088
+
+If  you  need to install Kermit on your PC, and you do not have a Kermit floppy
+but you do have access to a mainframe computer with a copy of the IBM PC Kermit
+distribution, you should read this section.
+
+Kermit for the IBM PC is written in  assembly  language.    The  PC  assembler,
+however, is not provided with the minimum system, so IBM PC users cannot be ex-
+pected to have it.  Assembler source plus the runnable version (.EXE) of Kermit
+               19
+are distributed  , along with some special "bootstrap" files, described below:
+
+The KERMIT.EXE file is converted by an assembler program on the PC, KFIX, which
+makes  all  bytes  in the file printable by breaking each one up into two 4-bit
+"nibbles" and adding a constant.    The  result  is  a  printable  file  called
+KERMIT.FIX.    It is assumed that a copy of KERMIT.FIX is available to you on a
+mainframe computer.  To download the file to the PC, two  cooperating  programs
+are  run: a Fortran program, KSEND, on the mainframe and a Basic program, KGET,
+on the PC.  These programs are very short; they are  shown  in  their  entirety
+
+_______________
+
+  19
+    The  PC  assembler's  object  (.OBJ) files are not printable, like CP/M hex
+files, so the Kermit-80 bootstrapping technique would not work here.
+                                    - 42 -
+
+
+below.  KSEND reads a line at a time from KERMIT.FIX, types the line, and waits
+for  a  signal  from KGET that it can send more data.  KGET reads each line and
+converts the text back to the format of an executable (.EXE) file.  Here's  the
+procedure:
+
+   1. You  should  have  a  version  of  KGET  on  the PC and KSEND on the
+      mainframe; if you don't have them, copy  them  (i.e. type  them  in,
+                     20
+      using an editor  ) from the listings below.
+
+   2. Log  in  on the mainframe.  This could be tricky if you have no ter-
+      minal  emulation  facility  on  the  PC.    If  you  have  the   IBM
+      asynchronous  communication  package,  you can do this at low speeds
+      (baud rates).  If your PC has no terminal emulation facility, you'll
+      have to use a real terminal to log in, and then switch the cable  to
+      the PC.
+
+   3. Compile  KSEND.FOR on your mainframe, if it needs compiling.  Define
+      logical unit numbers 5 and 6 to be  the  controlling  terminal,  and
+      logical unit number 7 to be KERMIT.FIX.  On the DEC-20, for example:
+
+          @define 5: tty:
+          @define 6: tty:
+          @define 7: kermit.fix
+
+      On a DECsystem-10, do something like:
+
+          .assign tty: 5:
+          .assign tty: 6:
+          .assign dsk: 7:
+          .rename for007.dat=kermit.fix
+
+      On an IBM system under VM/CMS,
+
+          .filedef 5 term ( lrecl 64 recfm f
+          .filedef 6 term ( lrecl 64 recfm f
+          .filedef 7 disk kermit fix ( lrecl 64 recfm f perm
+
+      Start KSEND on the mainframe.  It will print a message, and then sit
+      and  wait for the PC to send back an OK; don't change any connectors
+      until you see the message.
+
+   4. Escape back to the PC, or connect the PC to the mainframe.  The PC's
+      communication port should be connected with a null  modem  cable  to
+      the  modem  that's  connected  to  the mainframe (dialup, dedicated,
+      switched, whatever hookup you normally have available for logging in
+      on the mainframe from a terminal).  If you were  using  a  different
+      terminal  to  log in to the mainframe, make sure the PC's communica-
+      tion port is set at the same speed.
+
+   5. Enter BASIC and run KGET on the PC.  If KGET prints  messages  about
+
+_______________
+
+  20
+    You'll also have to compile and load the Fortran program on the mainframe.
+                                    - 43 -
+
+
+      i/o  errors,  run  it again.  If it still gets errors, reboot the PC
+      and try again.  Once KGET is running, the transmission  will  begin.
+      KGET will print each 64-character line of nibbles as it arrives from
+      the  mainframe.  Each line should be the same length -- if you see a
+      ragged edge, you can assume there has been a transmission error, and
+      you should start the process again.
+
+   6. When transmission is complete, you'll see the BASIC  "Ready"  prompt
+      again.    Leave  BASIC  by  typing  SYSTEM.    You  should  now have
+      KERMIT.EXE on your PC.  Try to run it.  If you see the  "Kermit-86>"
+      prompt,  try  to  CONNECT  to  the  host mainframe and transfer some
+      files.  If Kermit doesn't run correctly, there may have been  trans-
+      mission  errors,  in  which  case you should start the process again
+      from step 2 above.
+
+This is the mainframe side, KSEND, in transportable Fortran (it should  run  on
+both DEC and IBM mainframes):
+
+C KSEND -- Download a file over the terminal line. No special checking is done,
+C except to wait for response (any response at all) from other side.
+C
+C This Fortran program should be run on the mainframe in conjunction
+C with the KGET program on the IBM PC to transfer KERMIT.FIX to the PC.
+C
+C Daphne Tzoar, CUCCA, Jan 83
+
+      INTEGER A(64)
+
+      WRITE(6,50)
+50    FORMAT(' Ready to transfer data......')
+
+C - Get terminal handshake
+100   READ (5,10,END=35)X
+10    FORMAT(A1)
+
+C - Get line from file
+35    READ (7,20,END=90)A
+20    FORMAT(64A1)
+
+C - Write to tty
+      WRITE (6,25)A
+25    FORMAT(' ',64A1,';')
+      GOTO 100
+90    CONTINUE
+
+C - Send final handshake
+      WRITE (6,30)
+30    FORMAT(' ',65('@'))
+      STOP
+      END
+
+The  final @'s tell KGET that the transmission is done.  This works because the
+technique for forming KERMIT.FIX ensures that the file will contain no @'s.
+
+This is the PC side, KGET, in PC Basic.  Note that the  communication  port  is
+opened at 4800 baud (you could substitute any other speed).
+                                    - 44 -
+
+
+1   'KGET.BAS
+
+5   'Run this program on the PC in conjunction with a Fortran program on the
+6   'mainframe to get Kermit to the PC.  Daphne Tzoar, CUCCA, Jan 83
+
+10   OPEN "com1:4800,n,8,1" AS #1  ' Clear the port status.
+20   CLOSE #1
+30   OPEN "com1:4800,n,8,1,cs,ds,cd" AS #1 ' Open it for real.
+40   OPEN "KERMIT.EXE" FOR OUTPUT AS #2
+50   OK$ = "ok"
+60   PRINT#1,OK$                   ' Tell host we're ready for data
+70   X$=INPUT$(65,#1)              ' Data plus semi-colon
+80   VALUE$ = LEFT$(X$,1)          ' First char of input
+90   VALUE = ASC(VALUE$)
+100  IF VALUE = 64 OR VALUE = 192 GOTO 430          ' @ means we're done
+110  IF VALUE >= 160 AND VALUE <= 175 THEN GOTO 140 ' Kill all illegal chars
+120  IF VALUE >= 32 AND VALUE <= 47 THEN GOTO 140
+130  X$ = MID$(X$,2) : GOTO 80
+140  IF VALUE <> 174 GOTO 210      ' Not a dot (for read) - don't worry
+150  TWO$ = MID$(X$,2,1)           ' Look at char after the dot.
+160  TWO = ASC(TWO$)
+170  IF TWO >= 160 AND TWO <= 175 THEN GOTO 210     ' It's ok.
+180  IF TWO >= 32 AND TWO <= 47 THEN GOTO 210
+190  X$ = MID$(X$,3)               ' Kill the char
+200  GOTO 80
+210  SIZ = LEN(X$)                 ' How much input was actual data
+220  READIN = 65 - SIZ
+230  XTWO$=INPUT$(READIN,#1)       ' Get rest of data
+240  X$ = X$ + XTWO$ : X$ = LEFT$(X$,64)
+250  PRINT X$         ' Optional - use this line to follow the transmission
+260  GOSUB 290
+270  PRINT#2,X$;      ' Put data to the file.
+280  GOTO 60
+290  ' Get two chars, subtract space (20 hex) from each, and combine
+300  ' to one digit.
+310  FOR A = 1 TO 32
+320    Y$ = MID$(X$,A,1)
+330    Z$ = MID$(X$,A+1,1)
+340    YNUM = ASC(Y$) : ZNUM = ASC(Z$)
+350    IF YNUM > 127 THEN YNUM = YNUM - 128    ' Turn off hi bit if on
+360    IF ZNUM > 127 THEN ZNUM = ZNUM - 128
+370    YNUM = YNUM -32 : ZNUM = ZNUM -32       ' Subtract the space
+380    XNUM = (16 * YNUM) +ZNUM
+390    NEWCHR$ = CHR$(XNUM)
+400    X$ = MID$(X$,1,A-1) + NEWCHR$ + MID$(X$,A+2)
+410  NEXT A
+420  RETURN
+430  PRINT  " [All done.]"
+440  CLOSE #1,#2                            ' Clean up.
+450  END
+
+If  you already have a working Kermit on your PC and you want to get a new one,
+you should use Kermit itself to transfer the KERMIT.FIX file.   Once  you  have
+the new KERMIT.FIX on your PC disk:
+
+   1. Rename KERMIT.EXE to something else, so you'll still have it in case
+                                    - 45 -
+
+
+      something goes wrong.
+
+   2. Modify KGET:
+
+         a. Remove lines 10 and 20.
+
+         b. Change line 30 to 
+
+                30   OPEN "KERMIT.FIX" FOR INPUT AS #1
+
+         c. Remove line 60, since we're not handshaking with a remote host
+            any more.
+
+         d. In line 70, change "65" to "64".
+
+         e. Remove  line 250, since there's no need to monitor a transmis-
+            sion line.
+
+         f. Change line 280 from "GOTO 60" to "GOTO 70".
+
+   3. Save the modified KGET under a new name, say KEXE.BAS, and  run  it.
+      It  will end with some error like "Input past end in 70", which just
+      means it came to the end of file (of course, you  could  avoid  this
+      error by trapping it, but no harm is done in any case).
+
+   4. You  should now have a new, working version of KERMIT.EXE on your PC
+      disk.
+

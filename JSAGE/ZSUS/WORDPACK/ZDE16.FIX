@@ -1,0 +1,30 @@
+To:       ZDE 1.6 Users
+From:     Carson Wilson
+Date:     12 Nov 90
+About:    Fix for control character display problems.
+
+Lee Rimar noticed that ZDE version 1.6 would not display control characters 
+correctly on his equipment.  Embedded control codes in his files such as 
+control-S or control-Y were highlighted, but the characters didn't always 
+correspond to those in his files.
+
+When Lee's friend Roger Bond discovered that the bug did not appear under 
+ZSDOS, I was able to track down and eliminate the problem.  As Roger Bond 
+suspected, the bug is due to the differences between ZSDOS and standard 
+CP/M.  Apparently his "vanilla" CP/M software was using the AF' register.  
+There is a long-standing controversy on this issue, but the ZSDOS team 
+elected to play it safe and leave the "alternate registers" intact.  In 
+upgrading ZDE, I made the (mistaken) assumption that the AF' register would 
+reliably store the value to be output in alternate video, and since many 
+machines DO preserve AF', the mistake didn't show up on them.
+
+The next version of ZDE will fix the problem, but if you find that control 
+characters are not displaying correctly on your computer you can also make 
+the following changes to ZDE (version 1.6 ONLY) with DDT.COM or a patcher 
+like Steve Cohen's ZPATCH:
+
+    Address (100h offset)   Old Value (opcode)      New Value (opcode)
+    ---------------------   ------------------      ------------------
+    389C hex                08 hex  (ex af,af')     F5 hex  (push af)
+    38A0 hex                08 hex  (ex af,af')     F1 hex  (pop af)
+

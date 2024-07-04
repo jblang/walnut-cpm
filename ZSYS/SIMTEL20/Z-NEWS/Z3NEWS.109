@@ -1,0 +1,185 @@
+                                                                  8 April 1985
+                                  Z-NEWS 109
+
+Z TIPS:  Bruce Morgen (Ivyland, PA) makes Poke&Go operate faster, improves his 
+original  idea  of altering an application program loaded in memory  and  then 
+running application.  Here 'tis:
+
+POKE&GO2 - Improved version for ZCPR3 systems that support the GET command.  
+3/10/85    GET is pretty economical in terms of code length within ZCPR3,
+           so if you have a macro assembler [like ZAS] I strongly recommend
+           you implement it - makes POKE&GO much faster and eliminates need
+           for ZEX, using the following ALIAS script [comments right of
+           vertical bar, |, are not part of alias]:
+
+A0:SYSTEM>ALIAS WSD
+ALIAS, Version 1.1
+ Alias Name: WSD     
+ Old Alias Command Line:
+  1 --> A0:;		       |GO TO SYSTEM DIRECTORY
+  2 --> LDR SYS3.RCP;	       |LOAD RCP THAT HAS THE POKE COMMAND
+  3 --> GET 100 WS.COM;	       |LOAD WORDSTAR WITH GET (PROGRAM DOES NOT RUN)
+  4 --> POKE 036B 22;	       |SET RIGHT MARGIN TO 35 (ACTUALLY 34 DECIMAL)
+  5 --> POKE 0378 00;	       |SET INITIAL MODE TO DOCUMENT FROM NON-DOCUMENT
+  6 --> $D$U:;		       |RESTORE ORIGINAL DIRECTORY
+  7 --> GO $1;		       |RUN LOADED WORDSTAR WITH OPTIONAL FILENAME
+  8 --> A0:;		       |BACK TO SYSTEM DIRECTORY ON EXIT
+  9 --> LDR SYS.RCP;	       |LOAD REGULAR RCP
+ 10 --> $D$U:		       |EXIT TO ORIGINAL DIRECTORY
+
+     Never  to  be outdone,  Echelon staff produced  two  aliases,  first  one 
+reduces clutter of files along system search path.   As an example of concept, 
+using HLP files, put all help files in a directory not used by other files and 
+not  along your search path (say A12:).  Rename HELP.COM to HLP.COM and  place 
+along  the  path.   Next  create  an alias  called  HELP,  place  along  path, 
+containing:
+
+  1 --> A12:;           |you could call this directory HELP:
+  2 --> IF NUL $1;
+  3 --> HLP ZCPR3;      |default entry point
+  4 --> ELSE;
+  5 --> HLP $1;         |get declared HLP file using HLP.COM
+  6 --> FI;             | (endif)
+  7 --> $D$U:           |return to original directory
+
+After  implementing above,  help is obtained from any directory by typing  the 
+word HELP followed by pressing cursor return, <cr>.  Alias logs into A12:, HLP 
+ZCPR3  combination runs.   Then when finished viewing help screens,  logs back 
+into original directory.   Help file name need not be entered on command line, 
+then ZCPR3 (or other entry point specified by your custom alias,  line 3) top-
+of-tree  file is executed.   But any name may be specified to by-pass  default 
+file  help entry point.   Neat!   Global aliases can be created to speed  just 
+about any task you think of.
+     Next,  who  in  the  Z community has created a PRINT command  alias  that 
+direct requested number of printed copies of a file be made?  Desired quantity 
+is  requested  using command line trailing attribute.   One way it's  done  is 
+using ALIAS,  ZEX,  IF/ELSE/FI,  GOTO,  ECHO,  REG and, of course, PRINT.  Our 
+staff developed below example in about 20 minutes (surely you have an  example 
+that's better).  We called the controlling alias PR which contains few lines:
+
+  1 --> IF EXIST $1;                   |put printer to work if..
+  2 --> ZEX PRINT $1 $2 $3;            |..file exists.
+  3 --> ELSE;
+  4 --> ECHO ++ $1 NOT FOUND ++;       |if not, tell!
+  5 --> FI                             |keep balance
+
+Nested  batch  file PRINT.ZEX contains sixteen command lines,  but it's  smart 
+(and some of it is a little tricky).  Online documentation in IF, Z3UTIL2 (for 
+REG),  and  CMDFILES  (for  GOTO  and ZEX) describe what  must  be  known  for 
+understanding:
+
+;
+; PRINT.ZEX prints declared copies of a file from PR alias
+;              ^&  suppress False IF's
+;
+if NUL $3              |if no PRINT options specified assume..
+reg S0 $2              |..$2 contains number of copies.
+else
+reg S0 $3              |set REG 0 to number of copies from $3
+fi                     |balance 'if' with 'endif'
+;=again                | 'loop' entry repeats file printing
+fi                     |keep balance when looping
+if 0                   |REG 0 must be one or greater to print
+else
+if NUL $3              |if options not specified drop $3 and..
+PRINT $1               |..use defaults of PRINT.COM.
+else
+PRINT $1 $2            |execute PRINT with declared options
+fi                     |keep balance under all conditions
+reg M0                 |decrement REG 0 by one count (-1)
+GOTO again             |continue printing (final FI in..
+;                      |..controlling PR alias.)
+; Printing Complete
+;
+
+For  more  one or more printed copy of a file (after placing PRINT.ZEX and  PR 
+alias along search path), type PR <filename> [options] <number of copies><cr>. 
+File to be printed must be in current directory.   An example:   PR fn.ft e  5 
+produces  five  "exact" copies of fn.ft on your printer;  PR fn.ft 2 prints  2 
+copies  at  default PRINT settings.   PR.COM and PRINT.ZEX could  be  in  A15: 
+(ROOT) directory and fn.ft in B0:  (WORK1).   We used controlling alias simply 
+to not have to type ZEX on command line.  ZEX file could be more structured by 
+nesting  conditionals--as  is,  works fine.   Many ways exist to do  "looping" 
+tasks--let's hear about yours!  Z waits for you to unleash its vast power!
+
+Z-Node  proliferation  continues!  Newest additions (more needed in  areas  of 
+Atlanta, New York City, Chicago, Miami, Dallas, and Houston):
+
+          29. Edward Unrein - Altamonte Springs (Orlando), FL - 305/295-0844 
+          30. Ben Ragan - St. Louis, MO - 314/423-7038
+
+FLASH:  Steve Ciarcia's "Circuit Cellar" of BYTE Magazine will fully  describe 
+superior  single-board computer called SB-180,  useful in industrial  control, 
+desktop  and  portable personal computing applications.  (Also,  hobbyist  and 
+tinkers  will  find much here--it's a construction  article--to  expand  their 
+horizons.)  Use of Hitachi CMOS HD64180 super 8-bit chip gives computer 16/32-
+bit  performance at extremely low prices,  and runs Z80/8080 instruction  set, 
+CP/M-80 software.  Board is bundled with Echelon Z software.  (See newsletters 
+105  and  107 for computer benchmarks.)  SB-180,  both hardware and  software, 
+descriptions appear in two contiguous before-end-of-1985 issues of BYTE.
+     Selling  price for computer not presently established (should  be  around 
+$400.00 assembled and tested,  without power supply or disk drives),  but from 
+performance rating it'll be tops.   Full Z System comes with it,  ZAS and ZDM, 
+macro  assembler and debugger tools included.   BIOS handles popular 5.25 inch 
+disk formats, as well as 8" standard and others.  RAM disk is part of BIOS for 
+quick assemblies,  edits,  and compiles.   Also,  one parallel and two  serial 
+ports,  SCSI hard disk expansion and local area network ports,  printer buffer 
+option  traded for RAM disk storage,  plus software configuration of  hardware 
+resources,  number of memory waits states, 6.1 or 9.2 mHz cpu clock speed, I/O 
+channel baudrates,  parity, word lengths, etc.  Physical size permits mounting 
+on 5.25 inch floppy drive side.  SB-180 and bundled software is available from 
+Micromint,  Inc. (25 Terrace Drive, Vernon, VT 06066) after first BYTE article 
+appears.
+
+Echelon product delivery update:  We have been experiencing significant delays 
+in  shipping  our off-the-shelf products because of large amounts of  business 
+activities beyond our staff's ability to handle.  But Wait!  We are getting on 
+top of it--patience!   ZCPR3:  The Manual has moved forward another step  with 
+Rick Conn approving "galley" proofs produced by publisher,  New York ZOETROPE; 
+shouldn't be too much more waiting before we start book shipments to you,  our 
+customers.   (Believe, we want book as much as you.)  Term3 moves slowly--Rick 
+is giving it all the attention he can--it's worth waiting for!   ZRDOS2 should 
+start  shipping by middle of this month...more work to finish it up than first 
+calculated; but it nears completion, not much left presently to do.
+
+Texas Instruments and Kaypro (among others) each announce computers similar to 
+IBM PC-AT;  AT&T announces voice/data computer,  as does Compaq Computer.  IBM 
+ceases PCjr production!  King is dead--long live kings?
+
+Voice versus keyboard command and data entry is much discussed for present and 
+future control and ease of computer operation.   We think real issue is  being 
+missed.   Ideally,  numbers  must  be accurately  entered;  word,  phrase  and 
+sentence carefully chosen.  Spelling, grammar and style checkers do a good job 
+of  catching  typos and loose wordage,  but every number of a spreadsheet  had 
+better be correct else results could be very misleading.   Moreover,  if input 
+data is in error results may look okay, but neither computer operator nor end-
+user  of  information  know calculations were made  from  faulty  input  data. 
+Disaster!   And now the judgement:   of what value results,  even if correctly 
+developed and obtained, if equations used to generate them are not understood? 
+Power comes from getting results and fully knowing how they were obtained.
+     The  microcomputer  is more than tool to do familiar things  faster  than 
+done using older methods:   by Deity-on-high,  it's a means to personally grow 
+and  to learn of fundamentals of life,  of thinking,  of being.   Don't equate 
+microcomputers to appliances,  as if similar to automobiles that you need only 
+learn to drive,  to use;  and not know how they work,  how they  think!   Yes, 
+machines think--if you disagree, wait another 2 years for evidence even "flat-
+earthers" won't be able to repudiate!
+     Are  not  ideas more important than paper on which words  (expression  of 
+ideas) are printed?   Are not users more important than tools or machines?  Be 
+more  than  drone  or  clone--be  master,   be  elitist  using  inner-directed 
+imagination!  See you down the lines...
+					                         Echelon, Inc.
+					                      101 First Street
+				                          Los Altos, CA  94022
+					               Telephone: 415/948-3820
+					          Z-Node Central: 415/489-9005
+
+Trademarks:   HD64180, Hitachi; Z80/800, Zilog; 8080/8088, Intel; Z-System, Z-
+Tools,  ZCPR3,  ZRDOS,  Z-Com,  Zas,  Zlink,  DSD,  ZDM,  ITOZ,  Lasting-Value 
+Software,  Echelon  and  their respective owners and  authors;  CP/M,  Digital 
+Research.
+
+Z-News 109 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon.
+

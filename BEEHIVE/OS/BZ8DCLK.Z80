@@ -1,0 +1,119 @@
+
+;+----------------------------------------------------------------------+
+;| BZ8DCLK	Read time and date from real-time-clock, convert to	|
+;|		Z80dos format and exit with HL pointing to buffer.	|
+;|									|
+;|		For MicroBee's with Z80DOS and BIOS V9 or PJB's BIOS.	|
+;|									|
+;|		BZ8DCLK.Z80 adapted from Peter De Lacey's BIOSCLK.Z80.	|
+;|		BIOSCLK.Z80 adapted from Ron Murray's BEECLK.Z80.	|
+;|		BEECLK.Z80 adapted from S. Kluger's UNDATE.ASM.		|
+;|									|
+;|		BZ8DCLK.Z80 written by Phil Summers c/o Z-node 62 Perth |
+;+----------------------------------------------------------------------+
+
+bz8dclk	push	de		; save all		1
+	push	bc		; registers		1
+	push	af		; used			1
+
+	ld	hl,tb		;			3
+	push	hl		; read time		1
+	ld	e,0		; and date from		2
+	ld	b,7		; RTC using		2
+	ld	a,26		; extended		2
+	rst	28h		; BIOS call		1
+	pop	hl		;			1
+
+	ld	b,3		;			2
+lp	ld	a,(hl)		;			1
+
+	ld	e,a		;			1
+	and	0FH		;			2
+	ld	d,a		;			1
+	ld	a,e		; convert BCD		1
+	and	0F0H		; year, month		2
+	rrca			; and date in		1
+	ld	e,a		; A to binary		1
+	rrca			;			1
+	rrca			;			1
+	add	a,e		;			1
+	add	a,d		;			1
+
+	ld	(hl),a		; save binary		1
+	inc	hl		; value and point	1
+	djnz	lp		; to next		2
+
+	ld	l,a		; count days in HL	1
+	ld	h,b		; start with the date	1	b=0
+
+	ld	de,365		; days in a year, start	3
+	ld	bc,78+(3*256)	; year, leap year mask	3
+
+ay	ld	a,(year)	; exit if the year	3
+	cp	c		; counter has reached	1
+	jr	z,fin		; the current year	2
+
+	inc	c		; add 365 days		1
+	add	hl,de		; for each year		1
+
+	ld	a,c		; also, if		1
+	and	b		; the year is		1
+	jr	nz,ay		; a leap year		2
+	inc	hl		; then add an		1
+	jr	ay		; extra day		2
+
+fin	and	b		; if this year is	1
+	ld	a,(month)	; a leap year but	3
+	jr	nz,nly		; if the month isn't	2
+	cp	b		; past February		1	b=3
+	jr	nc,nly		; then subtract the	2
+	dec	hl		; incorrect leap year	1
+
+nly	push	hl		; save days so far	1
+
+	ld	e,a		; calculate the		1
+	dec	d		; address of the	1	d=0
+	ld	hl,dt-1		; number of days	3
+	add	hl,de		; so far this		1
+	ld	c,(hl)		; year and get		1
+	ld	b,d		; it in BC		1
+
+	add	a,246		; adjust fo Oct.,	2
+	rl	b		; Nov. and Dec.		2
+
+	pop	hl		; add year-days		1
+	add	hl,bc		; to month-days		1
+	ld	(nd),hl		; and save in buffer	3
+
+	pop	af		; restore all		1
+	pop	bc		; registers		1
+	pop	de		; used			1
+
+	ld	hl,nd		; exit with HL		3
+	ret			; pointing to buffer	1
+
+dt	db	0		; 1st Jan - 1st Jan	1
+	db	31		; 1st Jan - 1st Feb	1
+	db	59		; 1st Jan - 1st Mar	1
+	db	90		; 1st Jan - 1st Apr	1
+	db	120		; 1st Jan - 1st May	1
+	db	151		; 1st Jan - 1st Jun	1
+	db	181		; 1st Jan - 1st Jul	1
+	db	212		; 1st Jan - 1st Aug	1
+	db	243		; 1st Jan - 1st Sep	1
+	db	273-256		; 1st Jan - 1st Oct	1
+	db	304-256		; 1st Jan - 1st Nov	1
+	db	334-256		; 1st Jan - 1st Dec	1
+
+tb	equ	$
+
+year	ds	1		; year			1
+month	ds	1		; month			1
+nd	ds	1		; date			1
+	ds	1		; day			1
+	ds	1		; hours			1
+	ds	1		; minutes		1
+	ds	1		; seconds		1
+
+	end
+

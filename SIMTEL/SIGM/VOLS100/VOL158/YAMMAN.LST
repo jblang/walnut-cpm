@@ -1,0 +1,1519 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     YAM User's Manual               Page 1                    Version 4.24
+
+          
+          
+                                User Manual for
+                            YAM (Yet Another Modem)
+                               by Chuck Forsberg
+                          
+                            Distributed with YAMC86
+                       (Converted for CI C86 and CP/M-86)
+                                 by Paul Homchick
+
+          
+
+
+     1  Highlights       1. Highlights 
+
+          
+          Conversational  mode  with  optional  capture  to  file  and
+          multiple page review of past output.  File capture  of  long
+          files  works  with  any system which responds to XOFF within
+          400 characters.  
+          
+          Flexible uploading of suitable files to many types of remote 
+          systems,  even  Bulletin  Boards  without  normal  uploading
+          capability.  
+          
+          Error  checking  file  exchange  with  programs  using  Ward
+          Christensen's  protocol  with  optional  Cyclic   Redundancy
+          Check.  Enhanced error recovery and transfer abort logic.  
+          
+          Batch transmission of files with compatible programs.  
+          
+          High   speed   operation;   9600   baud  file  transfer  and
+          conversational terminal   operation.      Buffered   printer
+          operation at >>1200 baud.  Full printer buffering allows use 
+          of  slow  printers,  or  printers with burst transfers (line
+          printer, MX80, etc.).  Function key escape sequences can  be
+          buffered,  wllowing  proper operation when keyboard baudrate
+          exceeds host baud rate.  
+          
+          Disk utility functions including directory  listing,  change
+          disk  and/or  user  number,  erase  files,  disk  free space
+          calculation,  file  transfer  time  calculation,  CRCK  file
+          check, and local listing of files.  
+          
+          
+          Great flexibility  in specifying filenames.  New data may be
+          appended to existing  ASCII  files.    Optionally,  YAM  can
+          maintain  log  of  files  sent  and/or  received  with disk,
+          filename, baud rate, and the name of the remote system.  
+          
+          Able to send files to TWX type machines.  
+          
+          Matching program (XYAM) for use by remote systems as  XMODEM
+          replacement  obtained  from  same source files, allows batch
+          transfer of files with full CRC checking.  Matching programs 
+          (sb.c and rb.c) are available for Version 7 and  System  III
+          Unix(tm).  
+          
+          Written  in C, a modern high level systems language for ease
+
+
+     YAM                             Page 1                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 2                    Version 4.24
+
+
+          of portability and maintenance.  
+          
+
+
+     2  Rosetta Stone       2. Rosetta Stone 
+
+          
+
+
+            CAPTURE                                                                 CAPTURE When in the T(term) function, ALL data coming from 
+                the remote is captured in a circular buffer.  
+                
+
+            DUMPING                                                                DUMPING When a receive file is open as a result  of  a  "t
+                filename"  command,  and the circular buffer is nearly
+                full, that data is written out to the receive file  if
+                Dumping is on.  Setting Squelch mode (see below) turns 
+                Dumping off until a ^R character is encountered.  
+                
+
+            FUNCTION                                                                FUNCTION An operation supported by yam, such as DIR, TYPE, 
+                S, R,  or T(term).  A command may set or reset a MODE,
+                or perform 0 or more FUNCTIONS.  
+                
+
+            IFF                               IFF If and only if.  
+                
+
+            HOST                                                                   HOST   The   ``other   machine''   with   which   YAM   is
+                comminucating.   This  may  be  with  either  a direct
+                RS-232 connection or through a pair of modems.  
+                
+
+            MODE                                                                   MODE Many modes affect the way the term  function  handles
+                data.  
+                
+
+            OPTION                                                             OPTION Option(s) apply to the S and R commands only.  
+                
+
+            PREFIX                                                                 PREFIX  A  letter  that  prefixes  a command to modify its
+                action.  
+                
+
+            REPLOT                                                                 REPLOT Traditional term (from early days of Tek  Graphics)
+                referring   to   the  rapid  redisplay  of  previously
+                calculated information.  In the case of YAM, the  last
+                20  to 50 kilobytes of host output may be paged and/or
+                searched with the replot function.  
+                
+
+            TWX                                                                    TWX Teletypewriter  Exchange  (Teletype  Copr.  TM).     A
+                protocol  (of sorts) used to send files (usually paper
+                tape) between Teletype machines.  
+                
+
+            {} Required argument.  
+                
+
+
+     YAM                             Page 2                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 3                    Version 4.24
+
+
+            [] Optional argument.  
+                
+
+            pattern                                                                pattern ...  An empty pattern represents all files on  the
+                default disk  with  the  current  user number.  A disk
+                identifier without filename represents  all  files  on
+                that disk  with  the current user number.  Unambiguous
+                and  ambiguous  filenames  may  be  specified  in  any
+                combination.  A pattern may contain any combination of 
+                the above.  
+
+
+     3  Prefices and Commands       3. Prefices and Commands 
+
+          
+
+          3 1   mode s              3.1 -{mode[s]} 
+          Enable  mode(s)  affecting  file transmission/reception with
+          the term function.  (The "s" and "r"  commands  always  send
+          data transparently.) 
+          
+
+          3 2 a             3.2 a: 
+          Change  to a: disk (or b, etc.) CP/M versions print the free
+          disk space in kilobytes.  
+          
+
+          3 3 a1             3.3 a1: 
+          Change to a: disk user 1 WARNING: Do NOT change user  number
+          when  file(s)  are  open;  CP/M  2.2 gets terribly confused.
+          CP/M versions print the free disk space in kilobytes.  
+          
+
+          3 4 bm            3.4 bm 
+          Set baudrate to m.  Example: "b19200" NOTE:  some  212  type
+          modems  work better if the baud rate is set to slightly less
+          than 1200 baud; e.g., 1180 baud.  
+          
+
+          3 5 break            3.5 break 
+          Sends a break.  May be abbreviated to br.  
+          
+
+          3 6 bye            3.6 bye 
+          Dump any  connection  in  progress  by  dropping  DTR  (data
+          terminal ready).  A call or b (set baudrate) command must be 
+          given  to  reassert  DTR  before making or answering another
+          data call.  
+          
+
+          3 7 call name            3.7 call name 
+                                     ____                                        Iff the first character of name is a  letter,  yam  searches
+                                 ____                                            the PHONES  file  for  name.    If the search is successful,
+          enable Data Terminal Ready (DTR), and set  baudrate  to  the
+                                                 ____                            value (if  present)  corresponding  to name.  NOTE: some 212
+          type modems work better if the baud rate is set to  slightly
+          less than  1200  baud;  e.g.,  1180  baud.    If autodial is
+          supported, dial the telephone  number.    The  specifics  of
+
+
+     YAM                             Page 3                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 4                    Version 4.24
+
+
+          autodial operation  may  vary  with  the implementation.  If
+          autodial  is  not  supported,  the   telephone   number   is
+          displayed.   It  is not necessary to type the entire name as
+          it appears in the file, as YAM will  find  the  first  entry
+                              ____                             ____               that is a prefix of name.  If the first character of name is 
+          not  a  letter,  yam  assumes  a  telephone  number has been
+          entered directly.  
+          
+          Example: "call tcbbs" or "call tc" 
+          
+
+          3 8 chat            3.8 chat 
+          Chat keyboard to  keyboard.    Characters  typed  by  either
+          keyboard  are  echoed  to  both  ends,  and  RETURNS echo as
+          RETURN/LINEFEED.  Chat will become hostile if the other  end
+          also echoes characters.  
+          
+
+          3 9 close            3.9 close 
+          Dump capture buffer if a receive file is open, close files.  
+          
+
+          3 10 chek  pattern                 3.10 chek [pattern ...] 
+          Print  the  "chek"  chesksum  and  character  count  for the
+          specified files.  The checksum is calculated with  the  same
+          alogrithim as  the  CP/M  CHEK.COM program.  This command is
+          slower but possibly more accurate than the crck command.  
+          
+
+          3 11 crck  pattern                 3.11 crck [pattern ...] 
+          Print the "crck" chesksum and sector count for the specified 
+          files.  The "crck" algorithm  is  stolen  from  version  4.3
+          CRCK.ASM.  
+          
+
+          3 12 dir  pattern                 3.12 dir [pattern ...] 
+          Display  pathnames  matching pattern alphabetized across the
+          page.  The usual ambiguous filenames are allowed.  Since dir 
+          or any  other  commands  which  accept  a  pattern  use  the
+          circular buffer for filename expansion, be sure to write out 
+          any captured  data  first!    Example:  "dir" "dir *.c" "dir
+          yam*.c" "dir *.c *.h" 
+          
+
+          3 13 dirr  pattern                 3.13 dirr [pattern ...] 
+          Displays the directory with the number of  sectors  in  each
+          file.  The number of files matched, number of blocks, number 
+          of  kb  allocated to those files, and estimated transmission
+          time at the  current  baudrate  for  all  files  listed  are
+          displayed.   Transmission  time  estimate  is based on batch
+          transmission from a  Z89  with  700kb  Tandon  drives  to  a
+          Cromemco 4mHz  4fdc  system  with  Persci  277  drive.  Time
+          includes file i/o but not error correction.  
+          
+
+          3 14 dump pattern                 3.14 dump pattern ...  
+          Dump the named files in side by side hex/ascii format.  Zero 
+          length files will not be displayed.  
+
+
+     YAM                             Page 4                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 5                    Version 4.24
+
+
+          
+
+          3 15 d mode s              3.15 d{mode[s]} 
+          Disable mode(s) affecting  file  transmission  or  reception
+          with the  term  function.   (The "s" and "r" commands always
+          send data transparently.) 
+          
+
+          3 16 erase pattern                 3.16 erase pattern ...  
+          Erase the named files.  For each matched pathname, the  user
+          is prompted  for  Y, N, or Q.  Y erases the file, N skips to
+          the next file, and Q or anything else  aborts  the  command.
+          The number of free blocks on the default disk is displayed.  
+          
+
+          3 17 e mode s              3.17 e{mode[s]} 
+          Enable  mode(s)  affecting  file transmission/reception with
+          the term function.  (The "s" and "r"  commands  always  send
+          data transparently.) 
+          
+
+          3 18 flip  ans org             3.18 flip {ans,org} 
+          Flip  the  local  modem  between answer and originate modes.
+          This command is not supported by all versions of YAM.    See
+          FLIP.  
+          
+
+          3 19 f mode s   name            3.19 f[mode[s]] name 
+          Send file  'name'  in  the term function.  The optional mode
+          enables one or modes.  If squelch is enabled,  preface  with
+          ^R and  append with ^T.  If Q (TWX) mode is enabled, name is
+          opened, sending is  stopped,  and  YAM  remains  in  command
+          mode.  See also type/list command.  
+          
+
+          3 20 help            3.20 help 
+          Displays a  command  summary.   This command closes any open
+          send file.  
+          
+
+          3 21 initialize            3.21 initialize 
+          Initializes yam to all its default values.  Does  not  reset
+          the disk system (see "reset").  
+          
+
+          3 22 kill            3.22 kill 
+          Kill all  data in the capture buffer.  Restores the pointers
+          to their initial positions.  
+          
+
+          3 23 link            3.23 link 
+          Link two ports.  The local host port is  selected  with  the
+          Mport command.    The  remote modem port is specified in the
+          particular yamsys.h header file.  
+          
+          Characters received from the local host are buffered in  the
+          circular buffer.    Characters  from the circular buffer are
+          transmitted  to  the  modem  (and  displayed  on  the  local
+
+
+     YAM                             Page 5                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 6                    Version 4.24
+
+
+          terminal   screen)   at  a  rate  suitable  for  the  modem.
+          Characters from the modem are sent to the local host.    Iff
+          the  modem  sends a DELETE or ETX (0177 or 003) to the host,
+          the buffler is cleared.   If  a  break  from  the  modem  is
+          detected,  the  buffer is cleared and a break is sent to the
+          local host.  Keyboard characters from the local terminal are 
+          sent to the local host.  Operation assumes  that  the  modem
+          port  is the slower of the two, and that the local host will
+          not overflow the circular buffer before giving the remote  a
+          chance to  respond.   This last requirement means that files
+          longer  than  the  size  of  the  circular  buffer  must  be
+          displayed with a pager such as more(1).  Exit from this term 
+          - like function is with control E from the local keyboard.  
+          
+
+          3 24 list pattern                  3.24 list pattern [...] 
+          List the file(s) specified by one or more possibly ambiguous 
+          pattern(s).  This command closes any open send file.  Yam or 
+          Xyam  compiled  with  USQ  defined will automatically detect
+          squeezed files and print them in ASCII.  List  stops/resumes
+          printing with  ^S.   Keyboarding ^X cancels, and ^K skips to
+          the next file (it might take a few whacks of the keyboard to 
+          get YAM to hear it.) XYAM prefaces each  file  with  ^R  and
+          suffixes it  with  ^T.    The standard putchar() is used, so
+          tabs and newlines are expanded.  The printer can be  enabled
+          with ^P  on  the  command  line.  Because tabs are expanded,
+          files containing tabs will get larger if downloaded with the 
+          list command; if you can't use the s command, at  least  use
+          type.   Likewise,  because  newlines  are expanded to cr/lf,
+          there will usually be two carriage returns per line.  
+          
+
+          3 25 mn            3.25 mn 
+          Change data port to (decimal) n.  Example: "m224" The domain 
+          of  correct  port  numbers  and  consequences  arising  from
+          incorrect port numbers vary with the implementation.  
+          
+
+          3 26 o            3.26 o 
+          Disable the modem by turning off DTR.  
+          
+
+          3 27 off            3.27 off 
+          Disable modem and return to operating system.  
+          
+          
+
+          3 28 pxm            3.28 pxm 
+          Set Parameter x to value m.  
+          
+
+          3 29 reset  size             3.29 reset [size] 
+          Dump the capture buffer; if a file is open, close all files, 
+          and reset   CP/M's   disk  system.    This  allows  swapping
+          diskettes.  The optional argument size becomes the  size  of
+          the circular capture buffer, useful for debugging.  
+          
+
+
+
+     YAM                             Page 6                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 7                    Version 4.24
+
+
+          3 30 replot  m             3.30 replot [m] 
+          Redisplay  the last m lines and/or escape sequences received
+          from the host.  If m is 0 or absent, redisplay starting with 
+          the earliest data.  A screenful is displayed at a time.  The 
+          commands accepted in replot mode are listed below.  
+          
+
+          3 31 rewind            3.31 rewind 
+          Rewind the buffer pointers for  the  display,  printer,  and
+          file dump  from  the  term  function.    The  effect of this
+          command is the same as if the data  had  been  sent  another
+          time.  
+          
+
+          3 32 r options   file                 3.32 r[options] [file ...] 
+          Receive  with  options  1  or  more  files  using  the  Ward
+          Christensen protocol.  If no filename is given,  batch  mode
+          is assumed.    (Note:  batch  mode  is  not  compatible with
+          MODEM7.) If more than one filename is given, a  single  file
+          transfer will be made for each.  If the RESTRICTED option is 
+          defined,   a   file  received  in  error  will  be  unlinked
+          (erased).  
+          
+
+          3 33 s            3.33 s 
+          Displays status information.  
+          
+
+          3 34 sum pattern                 3.34 sum pattern ...  
+          Sums the named source files  with  an  alogritim  compatible
+          with  sum(1)  on  Version  7  Unix  (sum  -r on System III).
+          Carriage returns, and all characters  starting  with  CPMEOF
+          are excluded  from  the calculation.  This processing allows
+          comparision of source files stored on different systems  but
+          not ``binary'' files.  
+          
+
+          3 35 s options  pattern                 3.35 s[options] pattern ...  
+          If  batch  mode  is  specified  with the b option, 0 or more
+          files are sent according to the ambiguous pathname(s).    If
+          batch  mode  is not specified, the named unambiguous file(s)
+          are sent each in single file mode.  
+          
+
+          3 36 type pattern                  3.36 type pattern [...] 
+          Type the file(s) specified by one or more possibly ambiguous 
+          pattern(s).  This command closes any open send file.  Yam or 
+          Xyam compiled with USQ  defined  will  automatically  detect
+          squeezed files  and print them in ASCII.  Type stops/resumes
+          printing with ^S.  Keyboarding ^X cancels, and ^K  skips  to
+          the next file.  XYAM prefaces each file with ^R and suffixes 
+          it with ^T.  Direct console output (bios(4, ...) is used.  
+          
+
+          3 37 t c  mode   file             3.37 t[c][mode] [file] 
+          The term  function with optional capture to file.  0 or more
+          modes may be enabled.  The c (close) mode causes data in the 
+          capture  buffer  to  be   written   to   file   and   closed
+
+
+     YAM                             Page 7                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 8                    Version 4.24
+
+
+          immediately.   View mode causes the term function to display
+          control characters  by  prefixing  ^  to  the  corresponding
+          letter.   If the free buffer space becomes low, yam attempts
+          an xoff-dump-xon sequence.  A receive file previously opened 
+          by 't file' will not be closed by a 't'command.  
+          
+          In XYAM, t file begins data capture, and received characters 
+          are not echoed.  If the remote sends Control-Z, the file  is
+          closed.  
+          
+          Keyboarded  characters  are  treated  in  either of two ways
+          depending on the value of Exitchar (see parameters,  below).
+          If  Exitchar  is non zero, term will return when a character
+          matching Exitchar is keyboarded, and all others  are  passed
+          without any   special  action.    Otherwise,  the  following
+          subcommands are available: 
+
+          _ __ _               3.37.1 ^@ 
+          Break. Sends a break signal to the remote.  The break key on 
+          your terminal will probably generate a ^@ (NULL)  character.
+          After  the  break  is  sent,  any  remaining  keyboard input
+          (usually garbage from a break character) is discarded.  
+          
+
+          _ __ _  _            3.37.2 ^E 
+          Exits from the term function back  to  main  command  level.
+          Rapidly  typing  ^E^E  will  instead  cause  one  ^E  to  be
+          transmitted.  
+          
+
+          _ __ _  _            3.37.3 ^F 
+          Iff Q (TWX) mode is in effect, transmit  ANSWERBACK  to  the
+          remote.    This  is  equivalent  to  HEREIS  on  a  Teletype
+          machine.  
+          
+
+          _ __ _  _            3.37.4 ^Q 
+          Iff a send file  is  open  and  its  transmission  has  been
+          stopped by  a  XOFF,  transmission is resumed.  Otherwise no
+          special treatment.  
+          
+
+          _ __ _  _            3.37.5 ^S 
+          Iff a send  file  is  open  and  it  is  being  transmitted,
+          transmission is stopped.  Otherwise no special treatment.  
+          
+
+          _ __ _  _            3.37.6 ^V 
+          Replots  up  to  24  lines  starting  with  either the first
+          character received after the last character  keyboarded,  or
+          about  48  lines  back if less than 400 characters have been
+          received since the last character sent.    This  allows  the
+          output  from  the  last command to be conveniently reviewed.
+          Replot then awaits next replot command (see  below).    ^V^V
+          typed quickly sends one ^V instead.  
+          
+          The following received characters are recognized in the term 
+          function, when they are fetched from the circular buffer for 
+
+
+     YAM                             Page 8                     Rev 9-10-83
+
+
+     YAM User's Manual               Page 9                    Version 4.24
+
+
+          the display.  
+          
+
+          _ __ _  _            3.37.7 ^E 
+          Iff  Q  (TWX)  mode is in effect, transmit ANSWERBACK to the
+          remote.  
+          
+
+          _ __ _ __            3.37.8 SO 
+          If Cis02 mode is  in  effect,  turns  on  the  Compuserve  A
+          protocol.  This protocol is used with the XFTRAN program and 
+          the DOW  command of SIG/ACCESS.  See yam4.c and Compuserve's
+          CP-MIG user group for more information.  
+          
+
+          _ __ _ ____            3.37.9 XOFF 
+          Stops file transmission from yam.  
+          
+
+          _ __ __ ___            3.37.10 XON 
+          Resumes file transmission.  
+          
+
+          _ __ __ ___            3.37.11 TAB 
+          Some versions of YAM expand tab characters to spaces on  the
+          display.   BUG:  Since YAM does not decode cursor addressing
+          commands, these commands should not be intermixed with  tabs
+          on the same line.  
+          
+
+          3 38 w            3.38 w 
+          Write  dumps  the  circular  buffer  to the receive file, if
+          open.  
+          
+
+          3 39 wc pattern                 3.39 wc pattern ...  
+          Takes a count of lines, words, characters excluding returns, 
+          and all text characters for the  given  files.    Characters
+          beginning with  CPMEOF  are  excluded.    On 8 bit versions,
+          counts are modulo 64k.  
+          
+
+          3 40 x            3.40 x 
+          eXit to CP/M.  Dumps and closes any open files.  If YAM  has
+          been  "nobooted",  this  command  will  avoid  the CP/M warm
+          boot.  Any letters after x will  cause  the  command  to  be
+          ignored,  so  users  may  keyboard  "xyam  s file" from XYAM
+          command prompt without untoward results.  
+          
+
+          3 41    command            3.41 !  command 
+          Execute command.  
+          
+          
+
+          3 42   command            3.42 $ command 
+          Run command with standard  output  directed  to  the  remote
+          system.   Normally,  stderr  remains  connected to the local
+
+
+     YAM                             Page 9                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 10                    Version 4.24
+
+
+          terminal, but it may be redirected to a file with the syntax 
+          ``2>pathname''.  Stderr can be also redirected to the remote 
+          system with ``2>&1''.  
+          
+
+          3 43   command            3.43 # command 
+          Run command with stdin, stdout connected to the host system, 
+          but with stderr still connected to the local terminal.  Used 
+          with sb(1) and rb(1).  
+          
+          
+
+          3 44              3.44 ; 
+          Semicolon is an optional command delimiter which may be used 
+          in place of RETURN in order to place multiple commands on  a
+          line.  Since commands such as "sb" have an indefinite number 
+          of  operands,  the semicolon must be used to string commands
+          together.  Example: "sb *.c;off"  batch  transmits  all  *.c
+          files, then disconnects.  Unfortunately, CP/M's CCP clobbers 
+          ;  and  everything  past  it  in  the  command  line, so use
+          backslash instead.  
+          
+          
+
+          3 45 NATHAN            3.45 NATHAN 
+          The NATHAN command sends the rest of  the  physical  command
+          line  to  the  host,  starting with the very next character.
+          This command works with SUBMIT and XSUB (if lowercase  isn't
+          needed).   Normally a cr/lf is sent as the end of each line,
+          but this may be changed by relevant mode(s).  
+          
+
+
+     4  MODES used with D  E  F  T or U commands       4. MODES used with D, E, F, T or U commands 
+
+          
+
+
+            !  Negates the sense of the following mode.  For  example,
+                t!l will turn off the line printer.  
+                
+
+            2                                                                      2  "2" causes formfeed from the remote to clear the screen
+                (CLEARS string defined in  bdscio.h).    Also  enables
+                Compuserve  A  protocol  if  this feature is included.
+                N.B. Non-ASCII files or files  without  CR's  must  be
+                uploaded in Cpmpuserve's binary mode.  
+                
+
+            a                                                                      a  A return from the keyboard is sent as return, linefeed.
+                If half duplex, both are sent to the console.  
+                
+
+            b                                                                       b Binary mode of TRANSMISSION with T function.  All 8 bits 
+                are sent.   Handy  for  downloading  binary  files  to
+                adjacent machines  without  any  modem program.  Don't
+                confuse this  with  the  S  function  which  uses  the
+                Christensen protocol.   Also don't confuse with i mode
+
+
+     YAM                            Page 10                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 11                    Version 4.24
+
+
+                which affects files received with the T function.  
+                
+
+            d                                                                      d Directly enables/disables dumping of  captured  text  is
+                squelch mode  is in effect.  If squelch mode is not in
+                effect, always enables dumping.  
+                
+
+            e                                                                      e With term command, echo  characters  received  from  the
+                host to  the  host.    Use  this  only for keyboard to
+                keyboard communication, and  then  only  at  one  end.
+                Reset after  each  command.    Does  not  imply  "Half
+                Duplex".  
+                
+                With  the  f  command,  selects  an   alternate   file
+                transmission  function  sendecho()  which waits for an
+                echo to each character  transmitted  (for  Throttle/10
+                seconds).   The echoed character is output to console.
+                See "propagating yam" below.  Often it is fairly  easy
+                to  write  a simple receive routine which synchronizes
+                with the sender by the simple expedient of echoing the 
+                characters received.  On Heath/Zenith CP/M system, the 
+                pip device "TTY:" does just that.  
+                
+
+            f                            f Full duplex.  
+                
+
+            g                                                                      g Resumes (GO) sending file once  in  the  term  function,
+                equivalent to  XON.  Disabling GO causes a file queued
+                for transmission to wait for an XON character.  
+                
+
+            h                                                                       h Half Duplex.  Displays keyboarded characters as they are 
+                sent to the host.  
+                
+
+            i                                                                      i Image transparent  data  dumping,  all  8  bits  of  all
+                characters received,  including NULLS.  This overrides
+                the t and/or z modes.  
+                
+
+            j                                                                      j Jovemode suppresses the automatic transmission  of  XOFF
+                and  XON  when  yam's  buffer fills up to allow proper
+                operation  with  EMACS  type   editors   where   these
+                characters  are  used as commands and thus unavailable
+                for flow control.  If Exitchar has not been  set  (see
+                parameter  e)  it  is  set  to US (Control-Underscore)
+                which is currently unbound in Jove.  This disables the 
+                Control E and Control V commands in term mode.  
+                
+                Resetting jovemode also resets Exitchar.  
+                
+
+            l                                                                       l List unit (Printer) on.  Since the printer is separately 
+                buffered, it needn't be as fast as the  incoming  data
+                as  long  as  the difference doesn't exceed the buffer
+                size.  The rewind command may be  used  to  get  extra
+
+
+     YAM                            Page 11                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 12                    Version 4.24
+
+
+                copies of the received data.  
+                
+
+            n                                                                      n  Called nlmode, after the corresponding tty mode in Unix
+                systems.  Send NEWLINE  (lf)  only  when  transmitting
+                file (no CR).    Send  keyboarded CR as NEWLINE.  When
+                receiving a file  to  disk  with  the  term  function,
+                NEWLINE is stored on disk as \\r \\n.  
+                
+
+            o                                                     o Onetrip; exit before the next prompt.  
+                
+
+            p                                                                      p  When  sending  files  with  the  term  command, wait to
+                receive GOchar after sending a CR  at  the  end  of  a
+                line.    The  default  for  GOchar  is  linefeed  (see
+                parameter g below).  If GOchar is  not  received,  the
+                wait  times  out and transmission proceeds in the same
+                manner as with w mode.  The duration of  this  timeout
+                is controlled by the p parameter.  
+                
+
+            r                                                                      r Called  crmode.    Sends  CR  only  at  the  end of each
+                transmitted line.  
+                
+
+            s                                                                      s Squelch  the  dumping  of  captured  data  with  ^T  and
+                unsquelch with ^R.  These characters are not copied to 
+                the file.   When a receive file is opened with Squelch
+                mode is selected, writing to the file is  turned  off.
+                Selecting  squelch  mode  automatically  turns writing
+                off; disabling  squelch  automatically  turns  it  on.
+                (See "d" above).  
+                
+
+            t                                                                       t If Waitnum is more than 1, wait for echoes to stop after 
+                sending each  Waitnum characters for period Pause.  If
+                Waitnum==1, send at 1/Throttle, measured in  loops  of
+                the term()  function.    The default values of Waitnum
+                and Throttle provide transmission at  about  50  words
+                per minute  regardless  of  baud  rate.  This is handy
+                because many remote systems  cannot  accept  input  at
+                full speed.  
+                
+
+            v                                                                      v View  control  characters  as ^C.  Useful in shutting up
+                the bloody  bell.    In  addition  to  the  above,   v
+                distinguishes  characters  with  the parity bit set by
+                prepending a tilde (~).  Note: View mode  is  distinct
+                from view  option.    This  mode  is  reset after each
+                command.  
+                
+
+            w                                                                      w When sending files with the term command, send  CR  only
+                at  end  of  line,  and  then  pause until echoes from
+                remote have stopped.   Useful  for  sending  files  to
+                bulletin boards where the remote needs time to prepare 
+                for the  next  text line.  The length of this pause is
+
+
+     YAM                            Page 12                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 13                    Version 4.24
+
+
+                controlled by the p parameter.  
+                
+
+            x                                                                      x Exit from the term function when EOF is  encountered  on
+                transmitted file.  
+                
+
+            z                                                                      z  Close  file  when  ^Z  is encountered while dumping the
+                capture buffer.  Otherwise ^Z is ignored.   It  should
+                be  noted  that ``The Source'' coughs up an occasional
+                ^Z just as  the  "UPI"  program  is  about  to  output
+                something interesting.  
+                
+
+
+     5  Options used with S and R commands       5. Options used with S and R commands 
+
+          
+          All options are reset after each command.  
+          
+
+
+            7                                                                      7 Use  only  7  bit  transfers  (eigth bit masked).  Since
+                files  are  transferred  with  the  eigth  bit  reset,
+                program  images  and  other ``binary'' files cannot be
+                sent this  way.    Crc  option  cannot  be   used   in
+                conjunction with  7  bit  transfers.    This option is
+                useful for file transfer with brain damaged  operating
+                systems.  
+                
+
+            b                                                                      b Batch  option.    Pathnames  are provided by the sender.
+                Disk  names  are   excluded   from   the   transmitted
+                pathname(s), and may not be specified for batch option 
+                reception (use the change directory command).  
+                
+
+            c                                                                      c  Request  Cyclic  Redundancy  Check  instead  of  simple
+                checksum.  This option must be specified  with  the  R
+                function.  The receiving program automatically signals 
+                the sending  program  if  CRC  is  to  be  used.   The
+                probability of an  undetected  transmission  error  is
+                much  less  if  CRC  is  used  in  place of arithmetic
+                checksum.  
+                
+
+            k                                                                       k Use 1 K byte blocks with the S and R functions.  Default 
+                block length is 128.  Increases  throughput  when  the
+                baudrate  is  high,  relative to the response times of
+                the channel and computers.  The k option may not  work
+                properly  on  all  systems,  especially  at  high baud
+                rates.  Some 212 type modems work better if  the  baud
+                rate  is  set  to  slightly less than 1200 baud; e.g.,
+                1180 baud.   This  is  especially  true  if  using  1k
+                blocks.  
+                
+
+            q                                                                      q  Quiet  option  inhibits some of the status information.
+
+
+     YAM                            Page 13                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 14                    Version 4.24
+
+
+                Unlike  some  other  programs,  quiet  option  is  not
+                necessary  for  proper  file  file  transfer at higher
+                baudrates.  
+                
+
+            t                                                                      t  Execute  the  term  function  after  file   transfer(s)
+                complete.  
+                
+
+            v                                                                      v View  the  data  being  transmitted.    Correct  data is
+                displayed once.    Viewing  ascii   files   does   not
+                interfere  with  correct  transmission at extreme baud
+                rates, although throughput will be affected.  For each 
+                sector,  data  is  viewed  once  before  sending/after
+                receiving.  
+                
+
+            y                                                                      y Yes  it  is  OK  to  clobber a file already on disk.  If
+                absent, the operator is given a choice of appending to 
+                the current file (a), erasing it (y) or aborting (n).  
+                
+
+
+     6  Parameters used with P command       6. Parameters used with P command 
+
+
+
+            gm                                                                     gm Set GOchar to m (decimal).  Default is linefeed.   (See
+                p  mode.)  Some remote systems accept uploads with a ?
+                for each line.  Optimum operation with such  a  system
+                might call  for  pg63  pp10000 pt90 ftw filename.  The
+                first sets the goahead character to question mark, the 
+                second sets the timeout to a  long  delay,  the  third
+                sets  throttle  to  a speed which allows the remote to
+                echo at 300 baud (assuming no tabs), and  finally  the
+                command to send the file with throttle and wait at end 
+                of line (also eliminating the lf).  If this sounds too 
+                complex you can always go back to longhand.  
+                
+
+            em                                                                     em Set  Exitchar  to  m  (decimal).  Same format as GOchar
+                discussed above.  If defined (non-zero), term function 
+                will return  when  m  is  keyboarded,  and  ALL  other
+                keyboarded characters  are  passed  to the remote.  If
+                special function keys have been defined for replot and 
+                exit they will still be  recognized.    Otherwise,  be
+                sure  not  to  set  Exitchar  to  something  you can't
+                keyboard!  
+                
+
+            wn                                                                     wn Set Waitnum to n.  See "w" mode for details.    Default
+                is 1.  
+                
+
+            tm                                                                     tm Set  Throttle  to  m.  The default value corresponds to
+                about 80 words per minute sending speed.  
+                
+
+
+
+     YAM                            Page 14                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 15                    Version 4.24
+
+
+            pm                                                                     pm Set Pause to m.    When  the  free  characters  in  the
+                circular buffer  reach  400,  an  XOFF is sent.  Pause
+                controls  the  time  which  must  then  pass   without
+                characters  received  before  believing that the other
+                end really has obeyed the XOFF character,  as  opposed
+                to  the  sometimes  lengthy  Compuserve hitches in the
+                getalong.  If Pause is too short, it is possible  that
+                a   lurch   in   output   will   be   interpreted   as
+                acknowledgement  of  the  XOFF,  only  to  have   more
+                characters  arrive  whilst yam is occupied dumping the
+                buffer to  disk.    When  this  happens,   unfortunate
+                characters  are  routed  to the proverbial bit bucket,
+                and you can retry  the  download  as  the  timesharing
+                service increments  the  connect  charge.  The default
+                value seems suitable for Source over  Tymnet  and  BBS
+                systems.  Pause is also the echo wait period used with 
+                the w  mode,  as well as the timeout for p mode.  Some
+                bulletin board programs require a very long pause when 
+                accepting files with the p or w mode.  
+          
+
+
+     7  Replot Commands       7. Replot Commands 
+
+          
+          Commands  within  replot  consist  of  a  single  character.
+          Replot  maps  uppercase,  lowercase,  and control characters
+          together in decoding commands.  
+
+
+            b                                            b Display beginning of buffer.  
+
+            k                                                       k Kill entire buffer contents and return.  
+
+            v BS                                                                 v,BS Display previous page (some overlap is provided).  
+
+            SP                                      SP Display the next page.  
+
+            / Accept a search string, terminated by  return.    Search
+                through  the  buffer  starting at the current location
+                for the first (next) instance of that string  (matches
+                either case).  Display page starts with that line.  If 
+                the  search is unsuccessful, ring bell and jump to the
+                beginning of the buffer.  
+
+            n                                                                      n Search for next occurrence  of  the  previously  entered
+                search string.  
+
+            p                                              p Backup one line and redisplay.  
+
+            LF                                 LF Advance one line.  
+
+            x                                                                      x  Exit after displaying the last page of buffer contents.
+                This restores the screen  and  keyboard  to  the  same
+                state they  were  in  before  replot  was  entered.  X
+                allows you to see where you were if you  were  in  the
+                midst of  keyboarding  a  command  to the remote.  For
+                example, suppose you are typing in a line of  commands
+
+
+     YAM                            Page 15                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 16                    Version 4.24
+
+
+                and  you  need  to  "thumb  back" through the remote's
+                output for some vital nugget of information.    (After
+                you enter a 20 line email message, NOW Compuserve asks 
+                you  for the 8 digit account number to mail it to!) So
+                you hit some Control V's  until  you  see  it  on  the
+                screen.   Now  you  can't remember whether you typed a
+                space after the  last  part  of  you  command  to  the
+                remote.   No sweat, just exit replot with x and you'll
+                see  just  where  you  were  (But  don't  forget  that
+                number!)  X may not redisplay the entire page contents
+                if the host has been sending escape sequences  in  the
+                last page.  
+
+            z                                                                      z  Kill  the  rest  of the buffer by setting the character
+                insertion pointer to just after the end of the current 
+                display.  This subcommand should not be used  if  some
+                data has been sent to either the list device (with tl) 
+                or  a  receive  file  (t filename) since the last kill
+                command as the pointers might  get  out  of  sync  and
+                attempt   to  output  the  entire  64k  memory  space,
+                entrails and all.  
+
+            OTHERWISE                                          OTHERWISE Return to previous function 
+          
+
+
+     8  Sample YAM Session       8. Sample YAM Session 
+
+          
+          A sample session on CP/M might be: 
+          
+          
+          
+ A0>yam b19200 b:         Set 19kb, Change to b disk
+ dirr yam?.? yamhlp.mss   List files and calculate xmsn time
+ sb yam?.? yamhlp.mss     Send them to a local system
+          
+ call hydepark            Can't remember the phone number! (At 19kb??)
+ t                        Term Function
+ minirbbs
+ E                        Enter a message, etc.
+          
+ ^E
+          
+ ftp letter               Open 'letter' and send to bbs, using
+                          prompt and throttle modes to slow
+                          transmission so the remote system won't
+                          drop characters. YAM remains in T(erm)
+                          after the file is sent.
+ xmodem s foo.bqr         Command host to download a file
+          
+ ^E
+ rt secret.tqp            Download the file, then back to term function
+          
+ ^V pause ^V^V            Flip back three pages,
+                          to first part of directory listed previously
+ CR                       Back to term function
+                          More keyboarding with remote, logoff
+
+
+     YAM                            Page 16                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 17                    Version 4.24
+
+
+ (^E                      if CDO defined, term will exit by itself)
+ off                      Drop DTR so modem won't answer calls,
+                          Return to CPM
+          
+          
+
+
+     9  Notes       9. Notes 
+
+          
+          When operating with  a  timesharing  system  and/or  through
+          network   or   satellite   links,   considerable  delays  in
+          transmission and responce  to  blocks  may  severely  reduce
+          throughput of an FTP (file transfer protocol).  The k option 
+          causes  the  s  command to use 1024 byte blocks, rather than
+          the standard 128.  At high  baud  rates,  this  reduces  the
+          protocol  related  overhead  up to 87 per cent, depending on
+          file length, by reducing the number of blocks which must  be
+          sent and  acknowledged  by  a factor of 8.  1024 byte blocks
+          are selected by the sender.  An STX at the beginning of each 
+          block (otherwise SOH for 128 bytes) inicates this  block  is
+          1k long.    Pathnames  are always sent with 128 byte blocks.
+          Buffering problems on some timesharing systems may  mitigate
+          againgst use of 1k blocks at high baudrates.  
+          
+          Files  transmitted  from Unix to CP/M will be padded with ^Z
+          characters as necessary to reach a length divisable by 128.  
+          
+          CP/M files sent with 1k blocks may not  compare  identically
+          with  their  originals  due  to  the addition of up to seven
+          extra 128 byte sectors (padded with CPMEOF).  
+          
+          Readiness to receive sectors with Cyclic Redundancy Check (2 
+          bytes) instead of the usual additive checksum  is  indicated
+          by  a  0103  (ASCII  "C") for initial "naks" instead of 025.
+          CRC option is highly recommended.  It is  the  default  when
+          using  batch  mode and/or 1k blocks, unless the 7 bit option
+          is also in effect.  
+          
+          File transmission is compatible with MODEM7 in single  file,
+          standard block  length  mode.    File  transmission  may  be
+          aborted by sending a SEQUENCE of CAN (^X) characters.   Each
+          character  keyboarded  will  cause  readline()  to  return a
+          TIMEOUT error, thus regaining  keyboard  control  relatively
+          easily.  
+          
+          Maximum  baudrate  possible  without errors using the t(erm)
+          function  depends  on  the  computer  and   particular   yam
+          implementation, but usually is 9600 baud.  
+          
+          
+          Use these  numbers  for  comparison.  Your mileage and range
+          may differ depending on clock speed,  circuit  distance  and
+          RFI/EMI.  California estimate lower.  
+          
+          
+          Quiet  mode  is  not necessary for proper operation at 19kb,
+          although it does increase throughput slightly.  View  option
+
+
+     YAM                            Page 17                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 18                    Version 4.24
+
+
+          (S  and  R  commands)  does  not decrease maximum baud rate,
+          although throughput is obviously affected according  to  the
+          ratio of terminal speed to communications rate.  
+          
+          Printer operation with bios calls or view mode substantially 
+          reduces the highest baudrate possible with the term function 
+          without  losing  characters  (independent  of actual printer
+          speed).  The term function will send XOFF to prevent  buffer
+          overflow  if  the  printer is on, or if a receive file is in
+          use.  Term function on the Cromemco with a 300 baud  printer
+          works fine at 4800 baud.  
+          
+          In  the  term  function, use of the circular buffer provides
+          some advantages.  
+          
+               Incoming data may come in at a  rate  higher  than
+               the display and/or printer.  Tab expansion for the 
+               display does not compromise this ability.  
+               
+               The  user may decide to save a timesharing session
+               on the disk AFTER it has started (or possibly even 
+               finished) as long as the buffer pointers have  not
+               wrapped around.  
+               
+               The same ability also applies to the printer.  The 
+               printer need not be as fast as the host as long as 
+               the Tortoise is allowed to catch up.  
+               
+               Received data may be redisplayed (rep command).  
+               
+          At  high  speeds,  the display will fall behind the incoming
+          data, as storing of raw host  data  into  the  buffer  takes
+          precedence over  all  else.    As  a  result, a defective or
+          incorrectly programmed port which sources data at high speed 
+          can lockout the keyboard.  If yam "goes away" when  entering
+          the term function, this may be the cause.  
+          
+          If insufficient stack space is provided above the end of the 
+          circular  buffer,  yam may sulk when attempting to exit from
+          the term function.  The amount of stack space is  determined
+          in   the   init   function   (in  yam1.c)  where  bufend  is
+          initialized.  
+          
+          The t and z modes affecting dumping of  captured  data  take
+          effect  when  the  circular buffer is written to the receive
+          file, not as the characters are first received from the data 
+          port.  
+          
+          The append option (available  if  receiving  filename  where
+          filename  exists)  operates by calculating the length of the
+          file,  searching  the  last  NSECTS  records  for  ^Z,   and
+          positioning the pointers appropriately.  Since YAM fills the 
+          rest  of  the entire last record with ^Z, the last record of
+          an existing file may be "cleaned up" by the command sequence 
+          "kill tc filename" which clears the  capture  buffer,  opens
+          filename  for  append, and then closes it without adding any
+          text.  
+          
+
+
+     YAM                            Page 18                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 19                    Version 4.24
+
+
+     10  Communicating with TWX Machines       10. Communicating with TWX Machines 
+
+          
+          YAM has certain features which facilitate sending  files  to
+          TWX machines.    Files  for  transmission  to  TWX  machines
+          conventionally begin with the local answerback, which may be 
+          triggered by a ^F in the file.  After the test of the  file,
+          add an ENQ (^E) which releases the TWX machine's answerback, 
+          another  ^F  to  send  your  answerback, and finally a ^D to
+          allow the TWX machine to disconnect.  
+          
+          To send a file, the following sequence is recommended: 
+          
+          yam call name fq sendfile thqx logfile close off 
+          
+          Both sendfile  and  logfile  should  be  open  by  the  time
+          connection  is made, or the called TWX machine may not get a
+          timely response to its ENQ (^E).  Since YAM  uses  the  same
+          file  descriptor  for  looking  up phone numbers and receive
+          files, you cannot open the receive  file  before  using  the
+          call command.  
+          
+          If printer operation is desired, change the thqx to thqxl.  
+          
+
+
+     11  Downloading Files from Unix TM  Systems       11. Downloading Files from Unix(TM) Systems 
+
+          
+          To download files from Unix systems with sb, invoke sb(1) to 
+          send  the  desired  files  and  then  use  the yam ``r[yt]''
+          command.  On Unix type: 
+          
+          sb file ...  
+          
+          Then exit term with ^E and give 
+          
+          ry 
+          
+          and file transfers will commence.  
+          
+          If the files are long, and/or if the  baudrate  is  limited,
+          you can save time by squeezing them first with sq(1).  
+          
+          Versions  of  the  BDS  C  programs  SQ,  TYPE,  and USQ are
+          available for  Unix  systems.    The  CP/M  version  of  USQ
+          supports  a  -n option which will expand Unix NL's to CR/LF.
+          The Unix version -n flag suppresses carriage returns.  
+          
+          If a file or set of files are to be transported between Unix 
+          systems with yam, it is helpful to place them  in  a  tar(1)
+          archive   (and   possibly   squeeze   the   archive)  before
+          transmission.    This   proecedure   will    preserve    the
+          modification  times  and  avoid  adding ^Z characters to the
+          ends of files.  
+          
+          The -k option of sb will select 1  kb  block  length  rather
+          than  the standard 128 bytes for improved throughput at high
+
+
+     YAM                            Page 19                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 20                    Version 4.24
+
+
+          baudrates.  Currently this does not work at 9600  baud  with
+          the Z100 under MSB.  
+          
+          Consult the sb.1 manual entry for more information.  
+          
+
+
+     12  Uploading Files to Unix TM  Systems       12. Uploading Files to Unix(TM) Systems 
+
+          
+          On Unix systems, files may be uploaded with rb(1).  
+          
+          See the rb.1 manual entry for more information.  
+          
+
+
+     13  Error Correcting File Transfer with Other UGH  Remote Systems       13. Error Correcting File Transfer with Other(UGH) Remote Systems 
+
+          
+          If  the  host  system  has YAM, XYAM, MODEM, XMODEM, tmodem,
+          umodem, or something compatible, you can upload  files  with
+          the  s  command  on  your  computer  and the corresponding r
+          command on the remote.  Newer  versions  of  some  of  these
+          programs  support  Cyclic Redundancy Check as an alternative
+          to the simple checksum used by the original Ward Christensen 
+          protocol.  CRC is much better  at  detecting  errors  and  I
+          recommend its use where available.  
+          
+          Unfortunately,  this  protocol  is  not  implemented  on the
+          popular timesharing services The Source and Compuserve.   It
+          is  often  possible  to  upload  files  using the F command,
+          perhaps with one or more modes.   Your  chances  of  success
+          improve  if  you set "enab flow" when connecting to Telenet.
+          If using Tymnet, type ^R^X just  before  the  host  computer
+          name to  enable  flow  control  with XOFF and XON.  It often
+          helps to use "half duplex" when connecting to the computer.  
+          
+          Yam4 implements the Compuserve `A' protocol which is  usable
+          only on Compuserve's own network.  
+          
+          The  determined  hacker  will  divine  alternative  ways  to
+          transfer files by a close examination of the  rest  of  this
+          document.  
+          
+
+
+     14  BUGS       14. BUGS 
+
+          Yam  does  not  trap  any escape sequences from the computer
+          which can lock up the keyboard or display.  If  yam  appears
+          to  be  locked  up,  check  the terminal by itself to see if
+          perhaps it is wedged.  
+          
+          Some 8-bit versions of yam must  use  an  assembly  language
+          ``warp-drive''  term function to operate at the highest baud
+          rates.  This may cause  confusion  as  some  of  the  subtle
+          amenities of the regular term function are missing.  
+          
+
+
+     YAM                            Page 20                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 21                    Version 4.24
+
+
+          Not all commands are implemented on all versuions.  
+          
+          When  YAM  is  used  with a terminal (or terminal emulation)
+          which accepts commands to transmit information to  the  host
+          (screen  dump, cursor position, ident, etc.), the characters
+          so generated may cause YAM to do strange things.   The  most
+          common  manifestation  of  this is in replot mode, where the
+          automatically generated characters may  cause  YAM  to  exit
+          replot.  
+          
+
+          14 1 Z 89            14.1 Z-89 
+          Older  vintage  Z-89's  may  not operate properly at 9600 or
+          19200 baud, most notably  with  the  Berkeley  Editor  which
+          makes considerable  use of terminal capabilities.  Sometimes
+          the CRT firmware gets so flustered that  it  must  be  reset
+          with a ESC z.  This problem may be due to the Z-89 CPU board 
+          baud rate clock being slightly slower than the incoming data 
+          rate.  Selecting two stop bits on the host machine may solve 
+          this problem.    Setting the CRT port to 19200 baud may also
+          help.  This problem may show up with other  computers  using
+          outboard CRT's.  a bad assumption for the ROM video software 
+          on the  PC.   Yam versions ``yam and yamb'' will not operate
+          with BIOSes that use keyboard interrupts,  but  ``yammcom'',
+          which   uses   bios   calls   for   keyboard   input,  will.
+          Unfortunately, BIOS keyboard input on the Z89  is  too  slow
+          for yammcom to work properly at 9600 baud.  
+
+          14 2 Z 100 CP M 85            14.2 Z-100 CP/M-85 
+          Scrolling  speed  problems  appear at high baud rates (>1200
+          baud).  However, the r function does work at 9600 baud  even
+          if 1k blocks are being used.  
+
+          14 3 HP 125            14.3 HP-125 
+          The HP 125 computer consists of an intelligent terminal with 
+          a number of peripherals, one of which happens to be an 8 bit 
+          CP/M computer.    Porting yam to this contraption poses some
+          difficulties as the computer running  yam  must  communicate
+          ___  ___________ ________ __ ___ _____ _____ ____ __________           the  intelligent terminal to the modem while also displaying
+          __ ____ ____                       on that same terminal.  
+          
+          When yam comes up on the 125, serial  port  1  is  selected.
+          Yam  issues  a special HP function call to set serial port 1
+          to 8 bit pass through mode.    Port  1  or  port  2  may  be
+          selected with  the  mN  command.  Unfortunately, HP does not
+          provide  a  function  to  make  the  second  port  similarly
+          transparent.  
+          
+          Other  ports  may be selected by magical escape incantations
+          entered (without spaces).  These map the desired serial port 
+          to the CP/M reader and punch devices.  (See  Chapter  11  of
+          the  HP  125  System  Refrence  Manual.) The first two lines
+          select serial port 1.  The last two lines select serial port 
+          2.  Refer to the manual for others.  
+          	ESC & i 10 s 16 d 2 M
+          	ESC & i 0 s 25 d 2 M
+          
+          	ESC & i 10 s 18 d 2 M
+
+
+     YAM                            Page 21                     Rev 9-10-83
+
+
+     YAM User's Manual              Page 22                    Version 4.24
+
+
+          	ESC & i 2 s 25 d 2 M
+          The aids key should then  be  pressed,  then  the  congifure
+          function  to  set  the baud rate and other parameters on the
+          desired port.  
+          
+          YAM on the 125 works marginally at  1200-9600  baud  in  the
+          term function,  depending  on the situation (?).  The remote
+          must be prepared to respond to XOFF and XON  at  all  times.
+          When  using  the t function, there is a problem sending long
+          files (longer than the  yam  buffer  size)  to  the  HP  125
+          because  of  interference  betweent  flow control characters
+          generated by the terminal firmware and yam itself.  
+          
+          Protocol file transfer (thru port #1) usually works at  9600
+          baud but sometimes gets out of sync.  
+          
+          HP  has  not  documented  any  way for CP/M programs to send
+          breaks and/or change baud rate.  
+          
+          The  HP-125  has  a  somewhat  non-standard  CP/M  operating
+          system.  The undocumented bdos function 6 with 0xFE does not 
+          work on the HP.  An ESC E sequence will cold boot CP/M.  
+          
+          If  an  asterisk appears in the AUTO LF function window, the
+          HP-125 CP/M operates very strangely.  For example,  the  dir
+          command suddenly forgets about most disk files.  In general, 
+          CP/M  is  somewhat  fubar  in this mode; nothing works quite
+          right.  That is not the only undesireable mode the hp125 can 
+          get into.  
+          
+          Files may also be downloaded to the HP 125 using pip reading 
+          from the RDR: device  (mapped  as  indicated  above).    The
+          sender (such as yam) must respond to XOFF and XON.  Only hex 
+          files  can  be  transferred this way as the terminal portion
+          munges anything more exotic.  
+          
+          In fairness to the HP 125's designers, it  should  be  noted
+          that  the  HP  125  terminal  section  sports  some of yam's
+          features without need for a CP/M computer.  
+          
+
+          14 4 Televideo 820H            14.4 Televideo 820H 
+          Yam for the Televideo 820H defaults to the rs232 port.   The
+          baud  rate  should  always be set using the b command as yam
+          cannot determine what baud rate was set before running  yam.
+          To  select  the  printer port, give ``m33''. ``m32'' selects
+          the rs232 port.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+     YAM                            Page 22                     Rev 9-10-83
+
+lso be downloaded to the HP 125 using pip reading 
+          from the

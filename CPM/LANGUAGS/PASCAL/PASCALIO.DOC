@@ -1,0 +1,169 @@
+This  is  an explanation of the action of Pascal I/O,  as applied  to  text
+files.   A system meeting the ISO and ANSI standards is assumed.  This does
+not apply to Turbo Pascal exactly, because Turbo omits some of the standard
+abilities and functions,  especially for console input.   UCSD Pascal fails
+in console i/o, but other operations  are implemented.   PascalP  functions
+exactly as described below.
+
+Any  Pascal file is conceptually a single stream,  with a file buffer  var-
+iable.   If we always refer to the file variable itself as "f",  the buffer
+variable is "f^".   If f is declared as "f  : FILE OF thing", then f^ is of
+type  "thing",  and may be used as such a variable at any time the file  is
+open (i.e. after the file has been reset or rewritten).
+
+A Pascal text file is equivalent to "PACKED FILE OF char", and additionally
+specifies that the eoln, readln, writeln procedures may be used.  THESE MAY
+NOT BE USED ON A NON-TEXT FILE.
+
+For  reading,  a file at any time consists of two ordered arrays of  items.
+The first is the portion that has already been input, and the second is the
+portion  that has not been input yet.   The buffer variable f^ always  con-
+tains the last single item input (consisting of characters,  an eoln  mark,
+and  an eof mark for text files).   The eoln mark always appears as a space
+in f^, and may only be detected by the eoln procedure.  The eof mark in any
+non-empty text file must immediately follow an eoln mark (specified by  the
+standard).   (Thus  any  good system will automatically append an  eoln  on
+closing  a  file,  if and only if it is not already present.)   The  second
+portion of the file is unlimited, and unknown as yet to the Pascal program.
+
+When  a file is "reset" the file is actually opened,  and the first char is
+placed in f^ (this may be the eof or eoln mark,  checked by eof/eoln  func-
+tions).  This first char is removed from the second portion.
+
+From  here  on,  the  action of the "get(f)" procedure is  to  advance  one
+further  character  in the source file,  discarding the old f^  value,  and
+replacing it with the next char.   It should always be an error to do  this
+when eof is true.
+
+Note  that  nothing  has yet affected any variable in the  Pascal  program,
+except  the  f^ buffer.   These are the underlying functions of  the  input
+system.   The program may use the file by such actions as "ch := f^" at any
+time.
+
+The syntax of "read(f,  ch)" is STRICTLY defined as "ch := f^; get(f)", and
+the  eoln and eof functions examine the non-visible characteristics of  the
+last  input character.   If "f" is omitted,  as in "read(ch)" the  standard
+file "input" is assumed, and the buffer variable is "input^".
+
+For  most  CPM or MSDOS systems the file actually contains a <cr>  to  mark
+eoln,  and  a <^Z> to mark eof.   The value of f^ when eof is true  is  not
+defined by the standards, but when eoln is true it should be a space.  Thus
+the  <cr>  character can not appear (unless the system defines eoln as  the
+<cr,lf>  pair.   Some  systems always discard any <lf>,  so that  the  file
+action  remains  the same when input from a keyboard as when input  from  a
+disk file.
+
+The  syntax  of  "read(f,  ch1,  ch2,  ..)"  is  defined  as  "read(f,ch1);
+read(f,ch2); .... ", and is simply a shorthand.  If the object read-into is
+an integer,  or a real,  then automatic conversion is performed from a text
+string,  and at completion f^ holds the terminating character (space,  non-
+numeric,  etc).   Such a read causes a run-time error when no valid integer
+etc.  is  found  before a terminator,  but leading blanks (and  eolns)  are
+skipped over.
+
+Notice that nothing so far controls any flushing of input lines,  to ensure
+that  a  read  starts on the next physical  line.   This  is  performed  by
+"readln(f)",  which  is defined as "WHILE NOT eoln(f) DO  get(f);  get(f)".
+NOTE  the final get.   This always leave f^ holding the first character  of
+the next line (which is a space if the next line is empty, i.e. consists of
+eoln alone), or possibly an eof mark.  Again, an omitted "f" implies input.
+
+The  syntax  of  "readln(f,   item1,   item2,  ..  itemn)"  is  defined  as
+"read(f,item1);  read(f,item2); ... read(f,itemn); readln(f)", and is again
+just a convenient shorthand.
+
+This brings up the great bugaboo of Pascal text i/o:   When a file is reset
+it MUST place the first character in f^.  If that file is interactive (i.e.
+the  keyboard)  the first character must be typed at that time.   Thus  the
+natural sequence "reset(f);  write('prompt message'); read(f, ch)" to get a
+reply  to a prompt requires that the answer be typed before the  prompt  is
+made.  The problem also reappears after any readln, because the first "get"
+from the next line is performed. (see below for why f^ is filled at all)
+
+This  is normally cured by a special driver for text files.   Whenever  the
+"get"  is executed it simply sets a flag somehere (totally invisible to the
+application program) which says "a get is pending".  (If get finds the flag
+set it must perform the pending get,  and then again set the  flag).   Note
+that the "get" may be implied by a reset,  read,  or readln operation.  Now
+the  system must again intercept any use of eoln,  eof,  or the f^ variable
+and,  before actually executing them, check the "get_pending" flag.  If set
+the actual get must be performed,  the flag reset,  and then the eoln, eof,
+f^  references may be made.   This prevents the early  physical  read,  and
+allows natural programming.   However the programmer should always remember
+that any reference to eof,  eoln, or f^ will cause the physical read.  Thus
+the  sequence  "reset(f);   IF  eof(f)  THEN  something;   write('prompt');
+read(f,ch)" will cause the physical read to be too early.
+
+Some  systems  do not follow the ANSI/ISO standard,  and define  a  special
+interactive  file type where read(f, ch) is defined as "get(f);  ch := f^".
+This causes all sorts of problems,  because the programmer must always know
+that  this file is interactive,  and programs cannot use the standard input
+and disk files interchangably.
+
+The  "get" is normally executed on reset (or readln) so that the  value  of
+eoln  and eof is available after using a character (by read),  and so  that
+the program can look ahead to the next character.  This allows decisions to
+be made,  i.e.  is the following character numeric.. then read a number; or
+is  it alpha ..  then read a char;  or is it a special ..  then read a user
+command etc.  Thus a file copy program such as:
+
+       WHILE NOT eof DO BEGIN
+         WHILE NOT eoln DO BEGIN
+           read(ch); write(ch); END;
+         readln; writeln; END;
+
+works naturally.  The read/write line can be replaced by
+
+           write(input^); get(input); END
+
+or by some sort of filter such as
+
+           IF input^ <> ' ' THEN write(input^);
+           get(input); END;
+                              to strip out all blanks.
+
+with the same action and no auxiliary variable.   Such a fragment can  copy
+the  standard  input to standard output,  and works correctly with any  i/o
+redirection applied.
+
+NOTE  that "reset(input)" is always automatically performed when a  program
+begins  running,  and similarly "rewrite(output)".   Thus  such  statements
+should normally not appear in a program.
+
+Think  of  readln  as  a line-flushing procedure,  but bear  in  mind  that
+"readln(item)" is always equivalent to "read(item); readln".
+
+For output, write(f, item1, item2, .. itemn) is defined as "write(f,item1);
+write(f, item2); ... write(f, itemn)", and "writeln(f, item)" is defined as
+"write(f,  item);  writeln(f)".   Both of these are again  shorthand.   The
+writeln  procedure alone (i.e.  writeln(f) ) simply puts an eoln mark  into
+the file being written.   If the "f" specification is omitted the write  is
+shipped to "output" file by default.
+
+Again,  the  fundamental  writing procedure is "put(f)",  which causes  the
+content of f^ to be appended to the end of the file f.   "write(f, item) is
+STRICTLY defined as "f^ := item;  put(f)",  and should be unable to  create
+the  eoln  mark  in  a text file (reserved for  writeln).   The  action  of
+"rewrite(f)" is to empty any old version of f,  and leave f^ undefined.  f^
+is  also undefined after any write operation.   Thus doing  nothing  except
+"rewrite(f)" in a program should leave f as an empty file, but existing.
+
+All  Pascal files should be automatically closed when the defining  program
+(or procedure for a local file) is exited.   Some systems provide a "close"
+procedure  to  force  an early close for one reason  or  another  (e.g.  to
+release a locked file to another user in a multi-process environment).   If
+a file was open for write (via rewrite), and is later "reset", an automatic
+close is done.   These closings of a written file append the eof mark,  and
+force any system buffers to be flushed.   Some systems are incomplete,  and
+actually  require that a specific call to "close" be made.   This procedure
+is non-standard, and such programs will not be portable.
+
+Again,  this  is how it should work according to international  (and  ANSI)
+standards.  Some systems do not meet the standards - beware.
+
+For Turbo Pascal users,  I have written a set of includable procedures (see
+TURBOFIX.LBR) which make Turbo meet these standards, although you will have
+to use non-standard procedure names.
+
+I hope this clears up some confusion.  C.B. Falconer 85/9/11, 87/2/12
+P

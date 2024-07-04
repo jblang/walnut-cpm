@@ -1,0 +1,6 @@
+const
+	n	= 6;
+	twicen	= 2*n;
+	nn	= 14;
+	twicenn	= 2*nn;
+	prec	= nn - 2;

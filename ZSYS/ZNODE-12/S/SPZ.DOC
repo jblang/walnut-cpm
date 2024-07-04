@@ -1,0 +1,317 @@
+
+
+                             SPZ.COM
+
+
+SPZ is a full screen interactive disk update utility, providing 
+many of the features found in DU.COM.  The program is menu 
+driven, and little additional documentation is required.  The 
+following notes consist of a functional overview, plus notes on 
+features not documented in the menus.
+
+
+                      SYSTEM REQUIREMENTS.
+
+
+SPZ requires a Z80 - it may be possible to update the source for 
+8080 but extensive use is made of Z80 opcodes, and this would be 
+a large exercise.  Subroutines would be required to simulate 
+LDIR, LDDR, and CPIR, to say nothing of varieties of shift, 
+rotate and load instructions.
+
+CP/M 2.x is required.
+
+One or more disks may be used - SPZ determines if a selected disk 
+is defined in the BIOS before attempting to access it.
+
+The terminal used must support cursor addressing, clear screen, 
+and erase to end of line.  At least an 80 by 24 display is 
+required.
+
+
+                           FACILITIES.
+
+
+SPZ enables disk sector editing in HEX or ASCII, using File 
+Relative or Track/Sector addressing.  In File Relative mode a 
+sorted directory listing is used to select the file.  In both 
+modes forward and backward browse is provided, in addition to 
+random record selection.  The displayed sector may be copied to a 
+scratchpad buffer, or exchanged with the scratchpad.  The 
+directory list may be full (*.*) or selective, eg. *.ASM and the 
+selection may be changed at any time.
+
+A file TYPE facility gives a paged, formatted display of any 
+file.  Control characters are displayed as "." except for TAB and 
+Carriage return/Line feed which are processed normally.  .COM 
+files are not formatted.
+
+The SPZ command format may enter any operational mode directly -
+
+SPZ            enters SPZ with a *.* directory list.
+SPZ d:         as above with d:*.* directory list.
+SPZ [d:]afn    as above with d:afn directory list.
+SPZ [d:]ufn    enters SPZ in file relative mode, using the 
+               specified file.
+SPZ [d:]DSK:   enters SPZ in Track/Sector addressing
+               mode on the specified drive.
+
+
+                      DIRECTORY LIST MODE.
+
+
+In directory list mode the cursor is positioned on the first 
+filename displayed.  The cursor can be moved LEFT, RIGHT, UP or 
+DOWN using Control keys.  A file is selected by typing a command 
+character against the required file name - "E" for file relative 
+editing, or "T" for the TYPE function.
+
+Up to 32 file names are listed.  If there are more files, the 
+directory list may be paged forward and back.
+
+Other drives may be selected or the current disk changed.  NOTE: 
+if the disk in the current drive is changed, the "change disk" 
+function should be used to select the same drive again.  This 
+provides a new directory list, and avoids CP/M making the disk 
+Read Only.
+
+Track/Sector addressing is selected from the directory list 
+display.
+
+The directory list selection may be changed - the default is *.* 
+unless set by the SPZ command.
+
+
+                       FILE RELATIVE MODE.
+
+
+In this mode the selected file is displayed in HEX and ASCII 
+format with record number and file offset displayed.  For .COM 
+files the address when loaded at 0100H is diplayed.
+
+The record displayed may be selected by browsing forward and 
+back, locating the first or last record, or by setting a record 
+number (in HEX).  When setting a record number, Hex digits are 
+entered in "calculator style" - new digits are entered on the 
+right while the number moves left.  Backspace deletes the last 
+digit entered, and Escape restores the original number.  These 
+features are common to all number entries in SPZ.  The selected 
+record is read when RETURN is pressed.  If it is not found, the 
+previous record number will be restored.
+
+The displayed record may be changed by typing "C".  The cursor is 
+positioned on the first hex digit, and is moved using the same 
+control keys as are used in the directory list mode.  Any valid 
+hex digit may be typed to alter the record.  The TAB key moves 
+the cursor to its corresponding location in the ASCII display, 
+allowing character strings to be easily changed.  Another TAB 
+returns the cursor to the HEX display area.
+
+Two control codes are available to stop editing the record; one 
+saves the changes and rewrites the record to disk, the other 
+restores the record to its original contents.
+
+Return to directory list mode is made by typing "L".
+
+
+                            TYPE FILE
+
+
+Files are TYPEd with up to 72 characters per line, 18 lines per 
+page.  Except for .COM files, Carriage return/Line feed codes are 
+honoured, and Tabs are expanded.  All other control characters 
+are displayed as "." to prevent unwanted terminal control 
+functions.
+
+Forward and backward paging operations are provided, including 
+return to top of file.  Following paging, the highest page 
+displayed can be restored.
+
+
+                    DIRECTORY LIST SELECTION.
+
+
+The ambiguous file name used for the directory list may be edited 
+by typing "M" in the directory list mode display.  The existing 
+file NAME and TYPE may be overwritten or edited using INSERT and 
+DELETE control keys.  Only those characters defined as legal in 
+the CP/M documentation are permitted.
+
+If "*" is typed at any point in the NAME or TYPE, the remainder 
+of the field will be filled with "?".  If a SPACE is typed the 
+remainder of the field will be blanked out.  Period also has this 
+effect if used in the NAME field - an ambiguous file name may 
+thus be entered in the normal fashion.
+
+The TAB key switches between editing the NAME and TYPE.
+
+The ESCAPE key restores the original selection, RETURN produces a 
+new directory list.
+
+NOTE - insert and delete affect only the field being edited, - 
+characters do not wrap between name and type.
+
+
+                    TRACK/SECTOR ADDRESSING.
+
+
+This mode is entered by typing "S" in directory list mode.  The 
+facilities provided here are similar to File Relative mode, but 
+sectors are selected by setting (or browsing back and forward) 
+track and sector numbers.  The allocation block number is also 
+displayed and may be set.  When a block number is set, the first 
+sector of that block is displayed.  The record diplayed may be 
+altered in the same manner as File Relative mode.  The scratchpad 
+facility is also available in this mode.  Note that sectors saved 
+in one mode are available for exchange in the other mode.
+
+
+                          INSTALLATION
+
+
+SPZ uses the following terminal facilities -
+
+     Cursor Addressing
+     Clear Screen
+     Erase to end of line
+
+SPZ assumes that the cursor is positioned by a prefix string 
+followed by ROW+020H, COLUMN+020H.  If this is not the case for 
+your terminal you must update routine CURS and reassemble and 
+link SPZ.
+
+The cursor positioning prefix, and other functions may be altered 
+using DDT, or preferably a Z80 debugger.
+
+***************************************************************
+
+NOTE: The following addresses are NOT correct for the version of 
+SPZ.COM distributed on this disk!  I am leaving the text below 
+unaltered for historical reasons but have added what appears to 
+be true for the assembled code distributed with this 
+documentation.  This is a classic case of not having the source 
+code for the executable program.  I am also not convinced this 
+documentation file is describing version 3.3 of SPZ, but it's 
+probably pretty close.   (Lee Bradley, August 13, 1989)
+
+****************************************************************
+
+Three 4 byte strings are reserved at 180H, for VDU control 
+strings, each of which MUST end in 00H.
+
+     180H - Clear Screen
+     184H - Erase to end of line
+     188H - Cursor position prefix
+
+The byte at 18CH is used as a "flag" character in the directory 
+list - the cursor is positioned over it.
+
+****************************************************************
+
+NOTE: Here's what I have found to be the case for the assembled 
+code distributed with this version:
+
+At location 150H the first byte holds the number of bytes in the 
+clear screen sequence, which follows.  For the distributed 
+version (Kaypro compatible), this is 01 1A.  (CTRL-Z).
+
+At location 158H the first byte holds the number of bytes in the 
+clear to end of line sequence, which follows.  For the 
+distributed version (Kaypro compatible), this is 01 18.  (CTRL-X).
+
+At location 170H the first byte holds the number of bytes in the 
+cursor lead in (for cursor positioning), which follow.  For the 
+distributed version (Kaypro compatible), this is 02 1B 3D.
+(ESC =).
+
+At location 180H you will find the values 01 20 20 01, which 
+appear to have something to do with the offset needed by the 
+cursor positioning codes.  Probably need to leave these alone.
+
+I have also edited SPZ.COM to make it run on a Royal AlphaTronic 
+computer, which is VT52 compatible (sort of).  I have a color 
+monitor and decided to make the clear screen sequence give me a 
+white foreground and blue background.  The codes I used follow:
+
+At 150H (clear screen with white foreground, blue background) 
+I put 04 1B 54 37 31.  (ESC T 7 1). 
+
+At 158H (clear to end of line) I put 02 1B 4B. (ESC K)
+
+At 170H (cursor positioning leadin) I put 02 1B 59.  (ESC Y).
+
+****************************************************************
+
+The control keys used for cursor movement are defined by equates 
+in the assembler source and may be altered if desired.  The menus 
+will reflect any changes made to these equates.
+
+
+                             SPZ.MAC
+
+
+Several Macros are used in the SPZ assembly.  These are provided 
+inline.
+
+$RTN 
+
+is used to head each subroutine.  It generates a label (using DS 
+0 because Microsoft seem to think EQU statements do not need to 
+be listed in the Macro expansion [Ah well, it takes all kinds 
+...]).  An entry statement is also generated so that the L80 /Y 
+option will provide symbols for ZSID.
+
+$PANEL
+
+generates a call to the panel display subroutine, passing a panel 
+name as a parameter.
+
+$NPANEL
+
+does the same, but first clears the screen.
+
+$FLD
+
+generates a call to the field display subroutine.
+
+$IFLD
+
+same as $FLD, but also inputs a character and converts to upper 
+case.
+
+$STRO
+
+prints the specified string.
+
+$HEXW
+
+prints a 4 byte HEX number.
+
+$MTCH
+
+calls the string search function.
+
+$EXVA
+
+calls the vectored call function.
+
+
+                      CONTROL CODE EQUATES.
+
+
+A set of EQU statements is provided to change the control codes 
+used throughout SPZ.  These EQUates are also used in the menus, 
+hence changes to these will correctly update displayed messages.  
+Take care not to use 00H - CP/M function 6 does not return the ^@ 
+key!  Also codes really must be control codes - 01H to 1FH 
+otherwise the panels get funny, and results might not be what you 
+expect when editing a sector.
+
+That's it Folks - 
+
+Willie Davidson
+8 Comely Bank Street
+Edinburgh
+Scotland.
+
+

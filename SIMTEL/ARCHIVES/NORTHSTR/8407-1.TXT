@@ -1,0 +1,101 @@
+ 1-Jul-84 20:52:20-MDT,1845;000000000000
+Return-Path: <IME-TECOM@OFFICE-1.ARPA>
+Received: from OFFICE-1.ARPA by SIMTEL20.ARPA with TCP; Sun 1 Jul 84 20:52:12-MDT
+Date:  1 Jul 1984 1946-PDT
+From: Ime-Tecom@OFFICE-1.ARPA
+Subject: NorthStar's Split BIOS and ZEX
+To:   northStar-users@simtel20
+cc:   rbloom@apg-1
+
+For those that have bothered to try to run Rich Conn's ZEX with
+the NorthStar CP/M with a split BIOS - it dona work!
+
+Here is a way you can make it work:
+
+;zexmod.asm   1 July 84  rwb2
+;
+;This will run ONLY on a NorthStar "64k" CP/M system with the Split BIOS
+;with the BIOS located at F300 (which is the default implementation.)
+;
+;Rich Conn's ZEX (and other "clever" programs) will not run under this
+;configuration.  This little memory patch allows ZEX to run.  Once 
+;installed, it will stay put until a cold boot.  It "should" not bother
+;any other programs.
+;
+;In NorthStar's implementation, the BIOS is split away from the rest of the 
+;CP/M system.  (It was moved to the other side of the PROM at E800h.)  In 
+;order that CP/M will "look" continuous, a copy of the BIOS jump table is 
+;placed at E700h on the bottom side of the PROM and simply duplicates the 
+;"real" jump table now located at F300h on the top side of the PROM.
+;
+;This program alters the jump table at E700 so that it points TO 
+;the jump table at F300 instead of being copy of the table at F300.
+;
+;		-->THIS SHOULD NOT BE LOADED AS A COM FILE<-- 
+;			(unless you "like" 58k files)
+;
+;Load the patch with the following:
+;
+;		A>DDT ZEXMOD.HEX
+;		NEXT PC
+;		E733 0000
+;		-^C
+;		A>
+;
+;that's it!  Now Zex and QK will run.
+
+org	0e700h
+
+jmp	0f300h
+jmp	0f303h
+jmp	0f306h
+jmp	0f309h
+jmp	0f30ch
+jmp	0f30fh
+jmp	0f312h
+jmp	0f315h
+jmp	0f318h
+jmp	0f31bh
+jmp	0f31eh
+jmp	0f321h
+jmp	0f324h
+jmp	0f327h
+jmp	0f32ah
+jmp	0f32dh
+jmp	0f330h
+
+end
+-------
+20-Jul-84 18:51:21-MDT,683;000000000000
+Mail-From: WANCHO created at 20-Jul-84 18:51:15
+Date: 20 Jul 1984  18:51 MDT (Fri)
+Message-ID: <WANCHO.12032943216.BABYL@SIMTEL20>
+From: "Frank J. Wancho" <WANCHO@SIMTEL20>
+To:   NORTHSTAR-USERS@SIMTEL20
+Subject: Archives Moved
+
+In order to free up a considerable amount of space on our MICRO:
+device, all the mailing-list archives formerly kept in
+MICRO:<CPM.ARCHIVES> have been moved to PS:<MAIL.ARCHIVES>.
+
+Here are the particulars for NORTHSTAR-USERS at this moment:
+
+Filename			Type	 Bytes	 Sectors     CRC
+
+Directory PS:<MAIL.ARCHIVES>
+NORTHSTAR.ARCHIV.31013		ASCII	 13385  105 =  69H  D3D9H
+NORTHSTAR-ARCHIV.TXT.1		ASCII	 16722  131 =  83H  11EAH
+
+--Frank
+26-Jul-84 22:30:39-MDT,371;000000000000
+Mail-From: WANCHO created at 26-Jul-84 22:30:32
+Date: 26 Jul 1984  22:30 MDT (Thu)
+Message-ID: <WANCHO.12034555999.BABYL@SIMTEL20>
+From: "Frank J. Wancho" <WANCHO@SIMTEL20>
+To:   NORTHSTAR-USERS@SIMTEL20
+Subject: Disk 1 on N*
+
+Has anyone succesfully used a CompuPro Disk 1 in a N* Horizon?  If so,
+please tell me what you had to do to get it to work.
+
+--Frank

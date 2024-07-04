@@ -1,0 +1,15 @@
+
+Msg #3050 posted 01/30/88 at  5:59 pm by Michal Carson
+To: Fred Haines     About: mload and z33 (12 lines)
+
+I had some difficulty with MLOAD zapping the first 6 bytes of Z33, as well. I 
+think I was working on something Z33-specific using MLOAD to load it and then 
+trying to run it. It would abort, saying Z33 was not available, but that 
+would cause a warm boot and it took me the longest time to figure out what was 
+going on.
+
+I found that MLOAD was calculating it's buffer space based on the BDOS vector 
+at 06h. The cure is fairly simple: at line 44 of MLOAD24.Z80 the instruction 
+LD A,L should be patched to XOR A to subtract from zero instead of six. I used 
+ZPatch to plug an 0AFh (XOR A) into address 01B6h.
+

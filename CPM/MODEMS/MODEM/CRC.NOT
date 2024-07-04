@@ -1,0 +1,212 @@
+                   Calculating the XMODEM CRC
+                         J. LeVan, Ph.D.
+
+Introduction:
+     I have been in the process of developing a terminal emulator
+program for my home computer.  I was very unhappy with the Xmodem
+transfer  rate,  especially at high modem speeds.   The  checksum
+method  is clearly faster,  but cannot catch communication errors
+as  effectively.   The CRC method has an upper end throughput  of
+500 bytes per second.
+
+     I place a help call on CompuServe and receive an  intriquing
+response  from Bela Lubkin.   The algorithm he suggested appeared
+to be much quicker than the classical bit shift method.   It  was
+not at all clear to me how the algorithm worked.   The purpose of
+this  note  is  an  explanation of how and  why  a  table  lookup
+algorithm can work.
+
+     Throughout  this note,  I will use "effective throughput" to
+mean:
+  (SizeOfPacket * NumberOfPackets)/(TimeOfEot - TimeOfInitialSOH)
+All source code will be in C.  These programs were written to run
+on an Apple MacIntosh, which is equipped with a high speed serial
+port.
+     Below  is  the  standard  bit  shift  and  occasionally  XOR
+algorithm.   The condition for doing the XOR is simply, if a 1 is
+going  to be shifted out of the sign bit then shift and  XOR  the
+old  CRC  with  the  generator.   Note that  the  inner  loop  is
+performed exactly eight times.
+________________________________________________________________
+___Fig.1: Bit Shift CRC_________________________________________
+
+unsigned short ComputeCrc(crc,bufptr,len)
+register unsigned short crc;   /* unsigned shorts are 16 bits */
+register char *bufptr;
+register short len;
+{
+     register int   i;
+     while (len--) {           /* calculate CRC from end to start*/
+          crc ^= (unsigned short) (*bufptr++)<<8;
+          for ( i=0 ; i<8 ; ++i ) {
+               if (crc & 0x8000)
+                    crc = (crc << 1) ^ 0x1021;
+               else
+                    crc <<= 1;
+          }
+     }
+     return(crc);
+}
+________________________________________________________________
+
+     After  exactly eight shifts,  there will be no carries  from
+the low byte out of the top of the high byte.  This leads us to a
+critical observation:
+
+Ob  1:  Whether  or  not an XOR is done with the CRC  does  *not*
+depend on the low byte of the CRC.
+
+     Let A,  B,  and C be sixteen bit unsigned quantities.  We'll
+use the standard C notation for XOR,  a carat (^).  The following
+mathematical properties hold.
+
+Ob 2:  XOR is Associative and Commutative.  I.e: For any choice
+of A, B and C; these equations will always hold true:
+     A^B = B^A                                    (1)
+     (A^B)^C = A^(B^C)                            (2)
+
+     Likewize,  using  the standard C notation for a  left  shift
+( A<<B means A shifted left B times ),  it can be shown that left
+shift is distributive over XOR.
+
+Ob 3:  Left shift distributes over XOR.  I.e: For any choice of A
+and B; this equation will always hold true:
+     (A^B)<<1 = (A<<1) ^ (B<<1)                   (3)
+
+     Now  take  a close look at the inner loop of the  ComputeCrc
+algorithm.   First  decompose the variable 'crc' into two  parts,
+'crch' and 'crcl'.   The variable 'crch' is simply the high  byte
+of  'crc'  with the low byte changed to all  zeroes.   Similarly,
+'crcl' is the low byte of 'crc',  with zeroes in the high half of
+that word.  To create 'crc' from 'crch' and 'crcl' we can use:
+
+     crc = crch ^ crcl
+
+The first pass through the loop yields:
+
+     crc = ((crch ^ crcl)<<1) ^ P1
+
+wherein P1 is either 0 or 0x1021. After two iterations we have:
+
+     crc = {[ ((crch^crcl)<<1) ^ P1] << 1} ^ P2
+or:
+     crc = (crch << 2) ^ (crcl << 2) ^ (P2 << 1) ^ P2
+
+wherein P2 is either 0 or 0x1021.  Looking ahead we can write the
+equation for crc after eight iterations:
+
+     crc = (crch << 8) ^ (crcl << 8) ^ ((P1<<7) ^ (P2<<6) ^..^ P8)
+
+     The term (crch<<8) vanishes, and (crcl<<8) is easy enough to
+compute  so the only question remaining is how we  can  calculate
+the last term.  Observation one tells us that the third term only
+depends  on  the initial value of crch.   This means that we  can
+compute  the third term by computing all possible values  in  the
+inner  loop  for  crc = 0x0000 to 0xFF00 stepping  by  0x100  and
+storing  the  values  in an array  CrcTable,  indexed  by  values
+running  from 0x00 to 0xFF.   This is exactly the function of the
+algorithm presented below:
+
+
+________________________________________________________________
+___Fig.2: Table lookup CRC______________________________________
+
+
+unsigned short CrcTable[256];   /* declaration for the table */
+
+InitCrcTable()
+/* this routine calls ComputeCrc, defined in Fig.1 */
+{
+     int count;
+     char zero;
+     zero=0;
+     for ( count=0 ; count<256 ; count++ )
+          CrcTable[count] = ComputeCrc(count<<8,&zero,1);
+}
+
+unsigned short TableCrc(crc,bufptr,len)
+register unsigned short crc;
+register unsigned char *bufptr;
+register short len;
+{
+     while (len--)
+          crc = CrcTable[crc >> 8^(*bufptr++)] ^ crc<<8;
+     return(crc);
+}
+
+________________________________________________________________
+
+Thus our third term is found by:
+
+     ((P1<<7) ^ (P2<<6) ^ ... ^ P8) = CrcTable[crch>>8]
+the final crc is caluclated by:
+     crc = crc_table[crch>>8] ^ (crcl<<8)
+
+Substituting  this  relation into the algorithm  in  Fig.  1,  we
+easily obtain the algorithm in Fig. 2.
+
+     That  much  having been said,  it only remains to  be  seen,
+whether  or not it has all been worthwhile.   How much faster  is
+table lookup?
+     After building a 128 byte sector filled with random numbers,
+I  ran  a  benchmark  in which the CRC  and  Checksum  were  each
+calculated 100 times with the following results.   Here each tick
+represents 1/60th of a second.
+
+________________________________________________________________
+___Table.1: Comparison of methods for 100 sectors_______________
+
+Slow CRC            120 ticks
+Table CRC            25 ticks
+Checksum              3 ticks
+________________________________________________________________
+
+     The table driven method is an order of magnitude faster than
+the older CRC method,  and only an order of magnitude slower than
+the Checksum method.   This offers a much smoother trade off than
+originally  available  with  the  CRC  check.    What  do   these
+differences mean in terms of effective through put?
+     My   communications   program   also  uses   the   following
+optimizations which can affect transfer speed:
+     All disk I/O is double buffered.
+     The  transmitter sends the body of the Xmodem  Packet  while
+simultaneously calculating the CRC.  This leads to an almost zero
+calculate time at low speeds.
+     The machine on the receiving end of the line only calculates
+the CRC after a complete packet has arrived.
+________________________________________________________________
+___Table.2: Transfer measurements_______________________________
+
+               Effective Throughput: (bytes/sec)
+     Baud:     1200      2400      9600      19200     57600
+Method:        (128 byte packets)
+Slow CRC       106.......201.......598.......770.......773
+Table CRC      109.......210.......692.......1113......1172
+Checksum       110.......213.......709.......1155......1263
+
+Method:        (1k byte packets)
+Slow CRC       ..........210.......628.......939.......994
+Table CRC      ..........220.......729.......1185......1185
+Checksum       ..........222.......745.......1226......1973
+________________________________________________________________
+
+     One  should take benchmarks with a grain of salt.   However,
+it  is clear that the table lookup algorithm stays closer to  the
+checksum  method  than the standard  bit  shift  algorithm.   The
+efficiency  and  speed  of compiled code can  vary  greatly  from
+machine  to  machine.   These tests were made with two  computers
+linked directly through their serial ports.
+     I have found that CompuServe typically yields and  effective
+throughput  of  60-80  bytes  per second  at  1200  baud.   Genie
+typically yields 70-80 bytes per second,  and my neighborhood Vax
+785 lets me run with an effective throughput of 103-105 bytes per
+second, all with Xmodem.
+     In  my first attempt at Xmodem,  I used a function call  for
+processing each character in the crc loop.   In addition,  I  did
+not  overlap the CRC calculation with transmission of the packet.
+This  was  a  dreadful mistake.   I could not  get  an  effective
+throughput  of more than 500 characters per second even  with  4k
+buffers  at any speed.   The bottom line is that it take a number
+of optimizations to speed up a complex process.
+
+

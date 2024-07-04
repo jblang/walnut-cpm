@@ -1,0 +1,327 @@
+                                                                25 August 1986
+                                  Z-NEWS 508
+
+Z  Tips.    Thanks  to you who have subscribed or  have  renewed  to  hardcopy 
+version of Z-News.  We appreciate your continuing support.
+     Z-Index, massive index to Z-News is shipping.  Those who renew newsletter 
+subscription receive it free.  To other we offer it for $8.95.
+     Notice  Alias,  Vfiler  and Arunz CMD, Menu MNU, and  Vmenu  VMN  process 
+command  lines  after all prompts, if any, have  received  operator  response.
+Therein  establishes  major virtue of GETVAR and RESOLVE.   Commands  may  run 
+before  prompts are output to operator for responses!  Such  tools  complement
+our  others to satisfy needs of "turn-key" menu systems.  GH alias  of  Z-News 
+507  and GLF below could only be created using this tool duo.   Neither  Alias 
+nor  Arunz have facility to run commands, prompt operator, then run more  com-
+mands based upon operator's response.
+     Dennis Wright has finished AC, Version 3.9, and hopefully it solves  some 
+problems  some  have  had  with archiving files.  We include  it  in  file  of 
+aliases, ALIAS#1.LBR, as convenience.
+     Don't forget, if you need to add line numbers to a text print-out,  PRINT 
+does  this  plus  can add left margin offset, custom file  headers,  and  most 
+importantly,  wrap  lines  that are too long to print  whole,  as  one.   With 
+utility  somewhere along search path (in ROOT, say), type PRINT //<cr> to  see
+its many features.
+     Data  compression,  CRUNCH  is more efficient than  SQUEEZE.   Our  8-bit 
+community   is  encouraged  to  phase  out  "squeezing"  files  in  favor   of 
+"crunching."   Steven  Greenberg  has taken high-level  language  versions  of 
+Lempel-Ziv-Welch  algorithm  implemented and described by  Kent  Williams  and 
+produced pair called CRUNCH and UNCR(unch).  Written in assembler, occupy  but 
+16  and 15 records, respectively.  SQ occupies 42 to 47 records, depending  on 
+version;  USQ,  15, and UF (UsqFast), a low 10.   Steven  claims,  "conversion 
+speed  'an  order of magnitude' faster than C-Language  equivalents."   He  is 
+thoughtful  enough to have made the pair, plus associated  TYPELZ,  understand 
+our  DU form, drive/user areas, for effective use of Z-System facilities.   We 
+have  tested CRUNCH and SQUEEZE.  We cannot argue against the former's  super-
+iority.   Echelon  supports CRUNCH.  CRUNCH11.LBR is  on  Z-Nodes  everywhere.
+Don't miss benchmark results below.
+     --------------------------------------------------------------------
+From Our Mail Box.   Bob Peddicord, Z-Node #60 Sysop, 503/597-2066, Selma, OR, 
+upgrades  VMENU, to Version 1.7, with five-column, 20-file screens  and  other 
+improvements.   Style  goes with VFILER, Version 4.0 and beyond.  If  no  bugs 
+show, source code is released presently.  Download VMENU17.LBR, if  interested 
+(it's on an upcoming SUS, Software Update Service, diskette.)
+     From Dennis O'Neill, Electra-Find string-search program author, "When you 
+time  an Electra-Find search, you're timing a lot more than a  simple  search.
+Many  other  things  happen  that add  considerable  overhead  to  the  search 
+time...continually  monitoring keyboard for ESCAPE, to permit  interrupting  a 
+search...looking for start and end pointer...Boolean searching for more  words 
+in  a  search  list...checking  for  special  search  characteristics,   case-
+sensitive,  wildcard, phonetic, exclusion, etc...buffering files  larger  than 
+memory...and more."  Yes, Dennis, it takes time to handle features.  We under-
+stand price paid for each.  But, your product has it all--features plus speed, 
+congratulations!   To  accomplish both is a great achievement.   "Thanks  very 
+much  for including Electra-Find in your search time  comparisons,"  concludes 
+Dennis.  Hopefully we were objective, fair to all concerned, with our  testing 
+reported in Z-News 505 and 506.
+
+Z-User's  Corner.    Earlier  this  year,  Steve  Cohen,  Chicago,  IL,  wrote 
+interesting  utility called "W".  Dubbed The Wildcard Shell Processor,  offers 
+use  of  wildcards,  the  ? and *, to programs  not  usually  accepting  them.
+Stimulated  by a suggestion in Z-News 402 about automating file copying  using 
+ZRDOS  utility  COMP  with /T option, copy only if files don't  match,  W  was 
+produced.  (Now we only need a ZEX 3.2 with required features to complete what 
+402 indicated could be done.)  W permits command
+
+                         w comp WORK:*.* BACKUP:<cr>
+
+to compare, file by file, equality of directories WORK and BACKUP, and command
+
+                               w zas *.z80<cr>
+
+to  assemble all Z80 type files on default directory.  Both commands  function 
+correctly, even though your better judgement says they do not!  Command
+
+                              w z3ins *.com<cr>
+
+installs  all Z3 COM files on default directory, in a single  line--lots  more 
+convenient  than using an install script.  (Use Version 1.3 of Z3INS.)   Down-
+load  file (it's coming by SUS, Software Update Service) W20.LBR from  Z-Nodes 
+for more.
+     Next subject (Hacker's Corner of Z-News 006 Revisited.)  Okay, we  didn't 
+tell   enough.   To  get  a  clean  prompt  for  erase  "E"  command  in   the 
+"Housekeeping" menu of Z-News 504, WORK-VMN.LBR, you must comment-out,  remove 
+four  (4) lines of code from your SYSFCP.ASM file and reassemble.  In  routine 
+IFCINPUT  remove  lines  containing CALL NL, CALL PRIF,  CALL  PRINT,  and  DB 
+'True?','  '+80H statements.  We have used modified code for sometime  and  it 
+works  find  with CMD, menu, and alias command lines.  Here's  what  our  code 
+looks like:
+
+;
+; Condition: INPUT (from user)
+;
+	IF	IFOINPUT
+IFCINPUT:
+	LXI	H,Z3MSG+7	;pt to ZEX message byte
+	MVI	M,10B		;suspend ZEX input
+	PUSH	H		;save ptr to ZEX message byte
+	IF	NOT NOISE
+;	CALL	NL
+	ENDIF		;NOT NOISE
+;	CALL	PRIF
+;	CALL	PRINT
+;	DB	'True?',' '+80H
+	MVI	C,1		;input from console
+         .
+         .
+	ENDIF		;IFOINPUT
+
+Reassemble and use as SYS.FCP loaded at cold boot.  After, always use an "echo 
+prompt"  statement ahead of IF IN conditional.  Modified system segment  works 
+with all versions of transient IF.COM up to latest, Version 1.4, even if  "IN" 
+has been changed to "XN", Jay Sage convention.
+     Next  subject.   Dear to Richard Jacobson's heart is CPSEL,  console  and 
+printer  selection  utility.  (Richard runs two phone lines  for  Z-Node  #15, 
+Chicago,  312/649-1730,  312/664-1730,  and is co-author  of  Z-System  User's 
+Guide.)   Well,  long-time  Echelon customer, John Tuksal  (Livonia,  WI)  has 
+created two support utilities that change printer parameters on-the-fly.  They 
+are  called  PRTDFLT and PRTSET and on-the-fly patch loaded  SYS.ENV.   (CPSEL 
+facility selects which one of four printers are active.  Pages 7-5 through 7-8 
+of  Z-System's User's Guide clearly describe features of CPSEL  and  SYS.ENV.)
+(Both PAGE and PRINT use environment-data for wrapping lines.)  First  utility 
+resets printer to default values; second sets printer to that needed for  next 
+task.   Both run from aliases, menus, and from ZEX files.  (You  hackers  will 
+appreciate  John's liking for long labels.  Notice his  instructive,  easy-to-
+follow source code style in PRTDFLT.LBR and PRTSET.LBR libraries.  Reminds  of 
+Andy   Johnson-Laird   in  The  Programmer's  CP/M  Handbook,   published   by 
+Osborne/McGraw-Hill.)   Here, two more tools to automate tasks!
+     Now  we  list parameters that pass from command line script to  ZCPR3,  a 
+table by function and utility:
+
+                        TABLE OF Z-SYSTEM PARAMETERS
+
+                                                    Utility
+  Function              ALIAS    ARUNZ    RESOLVE     SH     VFILER    (V)MENU     ZEX
+  1) Directory
+      current drive      $d:      $dn:      $d:                %d:       $d:    
+      current user       $u:      $un:      $u:                %u:       $u:
+      current dir:                                             %c:       $c:
+      home (du:)                                               %h:
+      home (dir:)                                              %r:
+  2) Files
+      full name (fn.ft)  $n       $n
+      name only (fn)              $:n
+      type only (ft)              $.n
+  3) Registers  n=0..9            $rn       $rn
+  4) System Files
+      full name        $f1..4    $f1..4    $f1..4                       $f1..4
+      name only        $n1..4    $n1..4    $n1..4                       $n1..4
+      type only                  $t1..4    $t1..4                       $t1..4
+  5) Current (pointer) File
+      full name (fn.ft)                                        %f        $pf
+      name only (fn)                                           %n        $pn
+      type only (ft)                                           %t        $pt
+      current du:fn.ft                                         %$
+  6) Named Variable Handling              %<text>   %<text>
+  7) Specials
+      Command Separator   ;         ;       $|         ;        ;         ;         ;
+      Memory Location            $mnnnn
+      User Prompt               $" " $' '                      ' '       " "
+      Verb Equate                  =
+      Parameters       $0..9     $0..9                                           $1..9
+        Verb Name        $0        $0  
+        Command Tail     $*        $*
+      Recursion                    $z
+        with looping               $-n
+
+Lots  of  little details to remember while programming  scripts.   Above  data 
+sized for CRT screen could be online, as part of Z-System HLP system, as alias 
+containing  Z-COM's  VID to "read" text of table, or as COM  file  made  using 
+TXT42 program.
+
+          if $1=//;echo $0 - get z-system parameters table;      <<
+          echo syntax: $0<cr>;else;ROOT:;vid params.tbl;$d$u:;fi
+
+Yes, an alias tool for script heaven, called GPT, Get Parameters Table.  $0 is 
+name  of  alias;  usually  we directly use the name, but  here  we  wanted  to 
+remember  one  of the things $0 can do.  You develop  "params.tbl"  from  text 
+table  above--please show us finished product!  That done, back to more  alias 
+development.
+     SEE,  of  Z-News 504, works so well we expanded it to  near  command-line 
+buffer capacity.  Adding built-in help and send-to-printer functions we have:
+
+
+      if $1=//;echo see - display files in command.lbr;echo syntax:  <<
+      see [p];else;if $1=p;ROOT:llf ROOT:command /cip;ROOT:echo $$;  <<
+      else;ROOT:llf ROOT:command /ci;fi;fi
+
+In SEE, the "$$" simply sends a single CR/LF combination to printer for  blank 
+line  between  print-outs,  but use transient ECHO and not  resident.   $$  is 
+passed to command processor from alias script as single $, which is ECHO  flag 
+to send text to printer.  But in this case, we have no text and only CR/LF  (a 
+blank line) is output.  You could output a form-feed, use $$^L instead, if you 
+choose.   Three possibilities with updated version: see<cr> displays files  to 
+console,  see p<cr> to console and printer, and see //<cr> for built-in  help.
+Now, are you ready for another alias?  Okay, here goes...
+     We  use  GETVAR and RESOLVE in GLF.  Get Library  Files  initially  shows 
+directory  list for declared library file and then prompts operator  for  file 
+list to extract.  Neat and very quick.  Has built-in help and error  messages.
+We  use  "glf" as our named variable which gets automatically placed  in  ROOT 
+file SH.VAR by GETVAR.
+
+      if $1=//;echo syntax: glf [du:]libname;else;if nu $1;echo glf  <<
+      libname;else;llf $1 /ci;quiet s;getvar glf files to extract?;  <<
+      resolve lget %glf;quiet r;fi;fi
+
+     Aliases, aliases, cornucopia of aliases--many ways to get jobs done.  And 
+now...
+     We  thought  you might find our  change-to-another-directory  VMENU  (and 
+MENU) command line interesting.  Use L or N as command letter.
+
+    l ROOT:quiet s;ROOT:shctrl p;"Log into New Directory (du/dir): ":;  <<
+      ROOT:quiet r;ROOT:vmenu *.* default.vmn
+
+Line is in our default VMN file in ROOT directory.  A similar one should be in 
+all other VMNs.  Only modification, "default.vmn" is appropriately renamed  to 
+directory-specific  VMENU  name.   Entering  colon (:)  for  du/dir  forms  is 
+optional.  From any directory containing specific-for-directory VMN file,  you 
+move to others, one-by-one, and still have default, multi-purpose VMN found by 
+VMENU's auto-search along path.  Super!
+                    -------------------------------------
+     As  indicated  in Z Tips above, some LZW/Steven Greenberg  CRUNCH  versus 
+Dave  Rand  and  Jim Lopushinsky SQUEEZE benchmarks.  Time  in  seconds;  file 
+sizes, records (128 bytes).  Many conclusions to draw.  Let's hear yours?
+
+                File Type:        Text          Library      Binary      
+        Uncompressed Size:  22     54    189      423       61    232  records
+Program: LZW CRUNCH v1.1
+  Time to Crunch           8.63  12.41  27.02    51.27    15.82  37.13 seconds
+  Compressed Size           15     36    111      246       56    219  records
+  Time to Uncrunch v1.1    9.89  11.66  16.73    26.81    17.14  23.89 seconds
+Program: SQUEEZE v1.11
+  Time to Squeeze         16.25  24.88  39.79    55.32    33.99  47.64 seconds
+  Compressed Size           16     41    125      266       60    195  records
+Program: SQUEEZE v1.06
+  Time to Squeeze         10.59  13.35  24.45    41.99    18.49  32.18 seconds
+  Compressed Size           17     41    129      269       60    196  records
+  Time to Unsqueeze v1.19  9.45  10.76  17.36    29.39    14.13   ---  seconds
+Program: UsqFast v2.0
+  Time to Unsqueeze        6.60   7.47   9.56    16.21    10.38  15.47 seconds
+
+At  compressing 232-record binary file SQUEEZE fares better than  CRUNCH.   In 
+all other cases CRUNCH produces higher uncompressed-to-compressed ratio and is 
+faster  at  compressing small files.  UF is  hands-down  winner  uncompressing 
+files,  much  faster  than USQ or UNCR.  But notice, little  seems  gained  in 
+compressing binary files.  Library file contains 11 ASCII files to make total.
+Tests  were conducted with electronic timer, on Ampro Bookshelf 4mHz Z80  hard 
+disk computer, and from VFILER, Version 4.1g, CMD macro commands.
+
+Lunch Break.   Renewal and first-time subscriptions to Z-News are needed if we 
+are to continue expending energy writing.  If you neither renew nor  subscribe 
+for  first time we take it as a signal you think Z-News not worth  your  money 
+(see  Z-News 305 concerning money).  Each month thousands read it "free"  from 
+remote  access systems and electronic bulletin boards.  Is it not  worth  your 
+$24.00  per year to continue reading it?  Labors of love go just so  far  when 
+bills  come due!  Please, renew now--become an EI customer, subscribe for  the 
+first  time--get  bundled  massive index, Z-Index,  as  part  of  subscription 
+renewal.   Index  bundling with renewals expires 31 August 1986.  We  dare  to 
+knock even if doors don't open.  Help us to continue to help you.  Thanks!
+
+     Editorial.  The menus and alias scripts generated and discussed in recent 
+newsletters  point to solid conclusions about "tool style" versus  "integrated 
+application" programs.  V-Spell versus The WORD Plus is good case in point  in 
+our  world.   (PC DOS world has many examples of integrated  applications  not 
+being universally best.)  VS is integrated and from within program most things 
+of  a spelling-word nature are performed, and performed well, but you have  to 
+be in the program and cannot do anything from OS command line, except load and 
+run program.  On the other hand, TWP closely follows tool concept of ZCPR3 and 
+ZRDOS.   TWP permits OS to use its various facilities in custom ways.  GS  and 
+WF  aliases  are  representative of what a powerful  OS  teamed  with  single-
+function tools can achieve.  Integrated application programs, though having  a 
+place  on  our  list of priorities (you, we love VFILER and  NULU),  locks  us 
+operators  into mold set by program designers.  Our freedom of  expression  is 
+taken  away--we  become more a function of the program than  when  under  non-
+integrated concepts.  Long live single-function tools!
+     ====================================================================
+Of Cabbages and Kings.   Life: to take on substance (to eat), converting it to 
+energy  (essence)  for continuation of being.  From life  comes  upper-echelon 
+abstractions:  Time and Intelligence.  Time:  measure of displacement  between 
+objects, assuming movement is reality, is concrete.  Intelligence:  measure of 
+ability to learn, organize, and communicate.  Notice we do not define but only 
+tell  how to gauge.  No definitions!  We, we are "high on a mountain top,"  or 
+maybe intoxicated on a hill-side?  And now...
+     Z-News 309 Ramblings Revisited.  Each species feeds on another.  Birds on 
+worms, animals on plants and fish.  But, if we use a species as food to  main-
+tain  our  lives we are obliged to insure the survival of that  species,  like 
+farming  (we plant, growth occurs, we eat).  If worms eat all  insects,  there 
+are  no  insects.  If birds eat all worms, there are no worms.   If  fishermen 
+hunt  and  catch all the whales, there are no whales.  We are all part  of  an 
+endless  biological string.  Our feet grew simultaneously with our  head  from 
+within  our mother's womb.  We were not put together like  automobiles,  parts 
+bolted together, but one whole emerged as with all life.  We evolve...we  eat, 
+taking  on  food of many types, we live.  (Z-News 309 tells of many  kinds  of 
+food.)   Each group feeds on the other in seemingly unending cycles.  But  who 
+or what feeds on human beings?  Don't give your life without also giving  your 
+word!  See you down the lines...
+
+                                                                 Echelon, Inc.
+                                                       885 N. San Antonio Road
+                                                       Los Altos, CA 94022 USA
+                                                       Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+
+Trademarks:   Bookshelf,  Ampro Computers; SB180, Micromint;  PRO-180,  Magnum 
+Digital;  ON!, Oneac; DT42, The SemiDisk, Deep Thought 42,  SemiDisk  Systems; 
+HD64180, Hitachi; CLIPPER, Fairchild; Z-System, ZCPR3, ZRDOS, Z-News,  Z-Tool, 
+Z-Tools,  Zas,  Zlink,  Z-Msg,  TERM  III,  Term3,  Quick-Task,  Lasting-Value 
+Software,  Echelon;  GT180, Turbo Modula-II, Borland International;  TWP,  The 
+Word Plus, Oasis Systems; V-Spell, CompuView; C/80, Software Toolworks; BDS-C, 
+BD Software; SIFT, Siftsoft; Electra-Find, O'Neill Software.
+
+
+
+                  *                                        *
+
+
+
+                               Z sets you FREE!
+
+
+
+                  *                                        *
+
+
+
+Z-News  508 is Copyright 1986 Echelon, Inc.  All Rights Reserved.   Permission 
+to  reprint,  wholly or partially, automatically granted if source  credit  is 
+given to Echelon.
+

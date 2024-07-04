@@ -1,0 +1,112 @@
+Date: Mon, 25 Feb 85 15:49:04 EST
+From: Edward Haines <haines@BBNCCI.ARPA>
+Subject: Kermit and TACs
+To: Info-Kermit @ cu20b
+
+Using Kermit with an InterNet Terminal Access Controller (TAC).
+
+There are some conditions that must be met to successfully use Kermit on a
+personal computer through a TAC.
+
+Flow Control
+
+The buffer size for a terminal port on a TAC is typically about 64 bytes.
+(The size is a configuration parameter.)  Since the default packet size in
+Kermit is about 96 bytes it is quite likely that buffer overflow will occur.
+
+Some possible solutions:
+
+1.  Enable flow control in Kermit on the PC and on the TAC.  Many PC
+versions of Kermit implement XON/XOFF flow control.  In particular, the
+new MS-DOS version does for the IBM PC.  To enable flow control on the TAC
+issue the TAC commands
+
+  @Flow Input Start
+  @Flow Output Start
+
+These are usually abbreviated @f i s and @f o s.  Note that flow control
+is not compatible with binary mode (except see note below).
+
+2.  Make the packet size on the PC Kermit small enough to not overflow the
+TAC buffer, e.g.  60 bytes.  I had patched the old MS-DOS Kermit to do
+this.  On the new MS-DOS Kermit, there is a command to set the packet
+size.
+
+3.  Increase the buffer size in the TAC.  This is not usually practical
+and won't be considered further.
+
+
+TAC Intercept Character.
+
+The default TAC intercept character is the AT-sign.  The AT-sign is also
+required by the Kermit Protocol.
+
+Solutions
+
+1.  Have the PC Kermit automatically double AT-signs on output.  This is
+probably the best solution in general.  This feature is available on some
+PC implementations of Kermit.  It is not yet available on the MS-DOS
+version.  [Ed. - It's available in CP/M-80 Kermit 4.0x.]
+
+2. Change the TAC Intercept character with the command
+
+  @Intercept <decimal ASCII value>
+
+I generally use @I 6 which sets the intercept character to Ctrl-F.
+
+3.  Put the TAC into Binary mode.  This has the side effect of disabling
+the Intercept character.  It also will allow you to transfer binary files
+without special encoding.  The TAC can be put into Binary mode with the
+commands
+
+  @Binary Input Start
+  @Binary Output Start
+
+Some host systems allow you to engage the binary mode from the host.
+[Ed. - DEC-20 Kermit has a command for this.]
+
+There are several problems with binary mode:
+   Some host systems don't support it.
+   You lose the ability to control the TAC from the PC.
+   You lose the ability to do XON/XOFF flow control.
+
+Binary Files
+
+It is sometimes desireable to be able to transmit an 8-bit binary file
+between a host and a PC.  The TAC (which implements the DDN Telnet
+Protocol) normally provides just a 7-bit ASCII path.
+
+Solutions
+
+1. Enable binary mode (if possible) as described above.
+
+2. Enable 8th bit prefixing (if available) in both Kermits.  (This is
+usually done by enabling parity.)
+
+Notes
+
+1.  You will probably get the best throughput for ASCII files by keeping
+the packet size as large as possible and using flow control.
+
+2.  There is not much advantage in increasing the baud rate between the PC
+and the TAC beyond 1200 baud because of the realatively long turnaround
+time for the acknowledgement packet.
+
+3.  You may have problems when going through satellite hops or multiple
+gateways due to the occasional very long delays.  This may result in
+Kermit giving up.  I have also seen Kermit get into a sort of resonant
+mode where it sends each packet twice but is otherwise succesful.
+[Ed. - The resonating packets usually happen when one of the Kermit
+programs is not capable of flushing its input buffer.  See the BYTE
+article for an explanation of this phenomenon.  Long delays can be
+circumvented to some extent by increasing the timeout interval; many
+Kermits have commands to allow this.]
+
+4.  Only the first letter of a TAC command is required.
+
+5.  It is possible to set binary mode in only one direction.  For example
+you can set Inbound binary and retain input flow control (XON/XOFF flow is
+in the opposite direction).  You probably don't need outbound (input to
+the PC) flow control when using the Kermit protocol.
+
+Ted Haines

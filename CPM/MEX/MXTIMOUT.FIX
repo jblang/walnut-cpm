@@ -1,0 +1,38 @@
+	When using MEX to receive 1200 baud XMODEM transfers on a Kaypro 4-84, 
+I got a "Bad Sector Header" message every 128 records (16K).  I believe this
+problem occurs on all floppy-based Kaypros because the disk writes are so 
+slow. 
+	The MEX file transfer buffer comes installed at 16KB long.  The Kaypro 
+takes too long to write this much data, so when the buffer is flushed, 
+the sending machine times out and sends the current block again.  This puts 
+the two machines temporarily out of synch.  Most of the time, they get back on 
+track quickly, so there's no problem except a little wasted time.
+	But sometimes the entire file transfer gets cancelled when this error 
+occurs.  I assume there's a control character in the transmitted file that 
+gets misinterpreted as a command because of the out-of-synch condition. 
+This can be very upsetting when it happens near the end of a 96K file, as
+it did to me recently.
+	The solution is to make the transfer buffer smaller, so that the 
+receiving Kaypro can write out the buffer and acknowledge the current block
+within the timeout "window."  You can do this by editing, assembling and 
+MLOADing MEXPAT22.ASM over MEX.COM. However, this patch file can alter 
+previously-made configurations.
+	There's a much easier fix.  Just change just one byte with any disk 
+editor (PATCH, DU, FU, SUPERZAP, etc.) or even DDT. I'll assume you know how to
+use one.
+	MEX patch points begin at location 0D00, and the size of the transfer 
+buffer (in KB) is in location 0D23.  As supplied, this byte contains the hex 
+number 10.  Just change it to 04, and you won't have any more timeout errors.
+	I found this location by looking in MEXPAT22.ASM and comparing the 
+bytes in MEX.COM with the listing.  I have used this modification on MEX 1.14
+over a week now with no problems. The same patch should work on MEX 1.2.  I 
+don't know if the patch points are different in other versions.  If you
+can't find the hex 10 at location 0D23, just look for the following sequence
+of bytes: FF 10 01 28 28 00 00.  The "10" is what you need to change.
+	If anybody has any further information on this problem, feel free to 
+append it to the end of this file.
+					Peter A. Klein
+					Seattle, WA  
+					2/15/86
+ion on this problem, feel free to 
+appe

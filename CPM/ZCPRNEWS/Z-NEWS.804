@@ -1,0 +1,192 @@
+EI                            Z-NEWS 804                     14 September 1987
+==============================================================================
+Of  Significance.  "Big news for the brave few of you who started  this  whole 
+thing."   MicroPro  ships  WordStar, CP/M Edition, Release 4.   Echelon  is  a 
+dealer for this outstanding product.  Only 50k-byte TPA, user program  memory, 
+required for full functionality.  (At 49k you lose mergeprint capability,  but 
+all  other  features are still available including math and macros.)   Can  be 
+installed both as a standard CP/M program that knows user areas and as a ZCPR3 
+shell  that uses the environmental descriptor to know not only user areas  but 
+named  directories and paths, and executes all the Z-System commands from  its 
+"R" command.  If you don't presently own WordStar here's your chance to become 
+a  registered  user for special price of $195; that's $100 less  than  retail.
+WordStar, it's Item 68 on our Price List.  Order today with your credit  card.
+We handle just about any CP/M disk format.  Try us!
+     "You, the CP/M user, are a significant part of our heritage and  success.
+You represent our roots in word processing software, and without you, we would 
+not  be  where we are today."--Leon Williams, President  and  Chief  Executive 
+Officer, MicroPro International.
+     Jim  Spickard, a remote/contributing editor of Profiles Magazine,  writes 
+Test Driving Turbo Modula-2 article in October 1987 issue.  Very  interesting, 
+shows  TM2 to be nearly three times faster than Turbo Pascal--don't miss  this 
+informative piece!
+------------------------------------------------------------------------------
+Z-User's  Corner.  You know, facilities of ZCPR v3.3 (we call it Z33)  aid  to 
+speed file operations.  To find out how much, we measured program (a  Z-System 
+alias  in  this case) execution time using  various  command-line  techniques: 
+using  command search path, declaration of file location by DU and DIR  forms, 
+and  by  using  forward slash, "/", flag to indicate  direct  access  to  ECP, 
+Extended Command Processor.  We use workhorse Ampro Bookshelf Z80 computer and 
+its SCSI 65-millisecond 20-megabyte hard disk.  File is public domain TPA.COM, 
+on  SUS diskette #7, made into an alias and placed in ALIAS.CMD as  "tpa  echo 
+TPA  S%>hows  memory available in bytes.;root:lx tpa".  ALIAS.CMD is  in  ROOT 
+directory,  A15  in  our  case.  Default path is "$$  A0  A15"  (remember,  $$ 
+indicates current drive and current user number (area).  We are logged onto C0 
+for  tests.  Timing starts at pressing <cr> and stops at  command-line  prompt 
+return.  Our results:
+
+         Command Line        Duration, seconds
+         tpa                       5.12
+         /tpa                      3.64                (Timing accuracy
+         a15:cmdrun tpa            3.52                    estimated at
+         root:cmdrun tpa           3.48                      0.2 second.)
+
+We, for long time now, have used directory declaration preceding filenames  in 
+alias  scripts not knowing speed-up results, if any.  We now know.  About  1.5 
+seconds  are saved by using either / or directory, either DU or DIR  form,  in 
+front  of file to be found.  Additionally, using / saves  usually  much-needed 
+character space, as the shortest directory or drive/user declaration  requires 
+two spaces, three or four in most cases.
+     Recently,  we used ARUNZ's recursive ability to continue  development  of 
+TLF, Z-News 803-4.  Recursion occurs whenever an object uses itself more  than 
+once,  calls  itself in a conditional loop.  Because  of  finite  command-line 
+buffer lengths, about 200 characters in most Z-System installations, recursive 
+commands quickly overflow buffer space.  Z-Team member, Jay Sage, has provided 
+solutions  to overflow problem with his ARUNZ- and VALIAS-tool  offerings  (as 
+has Rob Friefeld with his recent completion of SALIAS, combination BALIAS  and 
+VALIAS).
+     A "$z" following alias name in line of ALIAS.CMD script file indicates to 
+ARUNZ, usually renamed to CMDRUN (the default name of ZCPR3's Extended Command 
+Processor,  the ECP), to overwrite command buffer and start at  buffer  begin-
+ning.   So when called by itself, from within itself, buffer  is  flushed--now 
+empty--ready  to receive up to another 200 or so characters to  be  processed.
+Process  can  be repeated without limit.  Jay uses a short line  to  test  the 
+workings:
+
+  recurse $z zif;if in L%>oop again (y/n)? ;$0;else;                        <<
+   echo T%>he loop is now complete.;fi
+
+RECURSE is a line in ALIAS.CMD contained in CMD.LBR on SUS #12.  But it's easy 
+enough to type into your present CMD file and try.
+     As  a final example of using "$z" to effectively extend the  command-line 
+buffer--aliases can be made up of two or more command lines, as needed to  get 
+the  job  done  in each of 200 characters or less--we  show  a  recursive  GLF 
+(actually  a nested alias using $z flush-buffer operator), Get  Library  Files 
+alias developed in Z-News 508-4.
+
+  glf if //=$1;or nu $1;echo $0 - G%>et%< L%>ibrary%< F%>iles;              <<
+   echo S%>yntax: $0 [du:]libname<cr>;else;ROOT:quiet s;/glf2 $1;fi
+
+  glf2 $z zif;ROOT:zldir $d1$u1:$:1;ROOT:getvar glf files to extract:;      <<
+   ROOT:resolve ROOT:lget $1 %glf;ROOT:quiet r
+
+If  other than built-in help is indicated, GLF2 is called by GLF.  As it  gets 
+processed,  the  original GLF command-line buffer is  fully  overwritten  with 
+GLF2's  parsed and expanded script.  Now, spend some time, but  after  running 
+GLF  with  first  only a <cr> to get help, using SHOW.   Use  the  M,  Memory, 
+command to see your command-line buffer entry.  Buffer address is shown on  #1 
+menu  entry of SHOW.  Next, run GLF and actually get a file out of a  library.
+Then  run  SHOW again to see the command-line buffer and how it  has  changed.
+From there you get a feel for what $z is about.
+     Remember, in those cases where you use Z3 utilities as tools, e.g., LGET,
+you  can use wildcards (? and *) and file lists (full filenames  separated  by 
+commas)  as your response to prompts, to type (LT handles  wildcards,  cancels 
+present file and types next by you entering ^x) or extract more than one  file 
+at  at  time.  Also, a value (text, characters entered by you in  response  to 
+prompt)  placed into a variable name with GETVAR stays until changed--it's  on 
+disk  in  file SH.VAR.  A <cr> at the GETVAR prompt uses the old  value.   Use 
+SHDEFINE  or  SHVAR  to  see (and change) value  of  each  variable  you  have 
+previously used.
+
+   Notice  Z33  handles IN(put) as it does ECHO, provides ability  to  pass 
+   lower-case  characters  to  the console (and printer  in  ECHO's  case).  
+   Z33's  ZIF  operator makes sure there are no pending IF  states,  either 
+   true  or  false, at the start of alias execution.  XIF  resets  true  IF 
+   states  to  zero.  And IFQ shows know many states are pending,  if  any, 
+   both  "trues"  and  "falses";  IFSTAT shows only  trues.   Yes,  Z33  is 
+   advanced!
+
+     Have you ordered your copy of Jay's ZCPR 3.3 User's Guide yet?  Please do 
+it now...its usefulness is worth its $14.95 price tag.  It's one way partially 
+to compensate Jay for his splendid public domain work.  Thanks.
+
+Software  Beat.  Less we forget...does anyone, and we address  especially  you 
+hackers  out there, have or wish to write a Backgrounder II screen driver  for 
+ANSI/VT100 terminals?  Such a driver would be welcomed by a growing number  of 
+users in BG II community.  Let's show that the old public domain spirit  still 
+lives--contribute a driver.
+
+In Other Words.  "In any weather, at any hour of the day or night, I have been 
+anxious  to improve the nick of time, and notch it on my [walking] stick  too; 
+to  stand  on  the meeting of two eternities, the past and  future,  which  is 
+precisely  the present moment; to toe that line.  You will pardon some  obscu-
+rities, for there are more secrets in my trade than in most men's, and yet not 
+voluntarily  kept, but inseparable from its very nature.  I would gladly  tell 
+all that I know about it, and never paint "No Admittance" on my gate.
+     "I long ago lost a hound, a bay horse, and a turtle-dove, and am still on 
+their trail.  Many are the travellers I have spoken concerning them,  describ-
+ing  their tracks and what calls they answered to.  I have met one or two  who 
+had heard the hound, and the tramp of the horse, and even seen the dove disap-
+pear behind a cloud, and they seemed as anxious to recover them as if they had 
+lost them themselves."--from Walden, Economy chapter, by Henry David  Thoreau, 
+American writer and naturalist, 1817-1862.
+==============================================================================
+Of  Angels  and Eagles.  Much has been written about what's  wrong  with  USA: 
+"It's  hard to sit tall-in-the-saddle when you owe money to everyone."   Anni-
+versary  of  the signing of US Constitution, September 1787,  prompts  writing 
+about what's right, and how we can get more Right.
+     Sons  and  daughters  with liberty in their bones  put  their  lives  and 
+fortunes on the line to bring forth principles embodied in that document.  The 
+imperative "Carry that torch!" received "We will!" as a response from them and 
+from  us.   We  still have that vision, a vision handed down to  us  from  our 
+ancestors.  We still have the determination, the will to continue in that same 
+vain, to protect that vision, that vision just beneath the surface of  consci-
+ousness--to  overcome  all obstacles in our way, bringing the fruits  of  free 
+thinking to free people, becoming what we and they are capable of becoming.
+     This we all know.  The Liberty Tree grows through us, because of us, will 
+not  die  under our tender care.  Ascending world culture uses us,  with  some 
+reservations, as models of freedom, as the way human relations should  evolve.
+Are  we  so timid to think any less of ourselves: models of  freedom?   Do  we 
+know...who  we are and what we are to become without such a spirit  that  con-
+tinues  what  our  fore fathers began long ago.   We  will...to  overcome,  to 
+succeed.  It's urgent!
+     We  wind  down  now  wanting about three  fingers  of  Jack  Daniels  but 
+Magdalena  wishes  us  to have but a sip of white  Zinfandel.   Magdalena,  as 
+usual, has her way with us.  See you down the lines...
+
+Echelon, Inc.       885 North San Antonio Road         Los Altos, CA 94022 USA 
+Telephone: 415/948-3820    Telex: 4931646   Z-Node Central (RAS): 415/948-6656
+
+Trademarks:  Little Board, Bookshelf, Ampro Computers; SB180, SB180FX,  GT180, 
+Micromint; ON!, Oneac; The SemiDisk, Deep Thought 42, SemiDisk Systems;  XLR8, 
+M.A.N.  Systems;  VAX,  Digital Equipment;  Macintosh,  Apple;  HD63484/64180, 
+Hitachi;  Z-System,  ZOS,  Z-Com, ZCPR3, ZRDOS, Z-Tools,  Zas,  Zlink,  Z-Msg, 
+Term3, Quick-Task, NuKey, Z80 Turbo Modula-2, Lasting-Value Software, Echelon; 
+CP/M,  Digital Research; Unix, AT&T; TurboROM, Advent; Graphix Toolbox,  Turbo 
+Pascal,  Borland  Int'l; WordStar, Newword, MicroPro Int'l;  JetFind,  Bridger 
+Mitchell.
+
+
+                  *                                        *
+
+     We The People of the United States, in order to form a more  perfect 
+     union, establish justice, insure domestic tranquillity, provide  for 
+     the  common  defense, promote the general welfare,  and  secure  the 
+     blessings  of liberty to ourselves and our posterity, do ordain  and 
+     establish this constitution for the United States of America.
+
+              Preamble, Constitution of the United States, 1787.
+
+
+                                 Fly with Z!
+
+
+
+                  *                                        *
+
+
+
+Z-News  804  is  Copyright  MCMLXXXVII Echelon,  Inc.   All  Rights  Reserved.
+Permission  to reprint, wholly or partially, automatically granted  if  source 
+credit is given to Echelon.
+

@@ -1,0 +1,55 @@
+
+    Enhancing the Osborne Executive Enhanced BIOS Version 1.1
+
+     According  to  OCC,  their enhanced Osborne  Executive  BIOS 
+prevents  a  premature  display of BIOS time-out  error  messages 
+while using printers with internal print buffers.   This is  only 
+partially true.   The delay value,  DELAY0,  is reset after every 
+timeout to the value you supplied with the new SETUP command, but 
+the initial timeout value remains at five seconds.  To change the 
+initial  value,  I  recommend the following steps,  using  DU-V86 
+which can be found on the -FOG/EX1.006 disk.
+
+     Enter DU, logon to a disk containing CPM3.SYS, and get a map 
+of the disk by typing M.  A typical map line might be:
+
+A0-AF  00 CPM3    .SYS 00 : B0-B1  00 CPM3    .SYS 01
+
+What  we  really want to know is where on the disk  the  CPM3.SYS 
+file starts.   On this disk it starts with Group A0.   The sector 
+we  want to change is 5 groups and 7 sectors or 2FH sectors  from 
+the  start of the CPM3.SYS file,  or in this case,  it  is  group 
+A5:07.  Enter:
+
+GA0;+2F;D
+
+to display the sector of interest.   CPM3.SYS will probably start 
+at a different location on your disk,  substitute the first group 
+listed in the map for the A0 in the above command.
+
+     The last line of the displayed sector should read:
+
+70  03CD2EE4 C118DF01 3A06E6B7 2008C5CD  *.M.dA._.:.f7 .EM*
+
+If  it doesn't,  then you don't have the latest enhanced CPM3.SYS 
+from OCC or you didn't enter the command correctly.   Look at the 
+map  again  and  make  sure you have found  the  first  entry  of 
+CPM3.SYS in the map.
+
+     If  the last line of the displayed sector matches that above 
+then  you have found the correct sector.   The  eighth  byte,  01 
+above,  is  the byte we want to change.   A value of 01 gives a 5 
+second  timeout,  I  changed  mine to 78H to give  a  600  second 
+timeout.  To do this, enter:
+
+CH77,78;W;X
+
+DU  will update your disk and exit.   Reboot the system with  the 
+updated  disk  and verify that the first BIOS timeout  error  now 
+takes  much longer than 5 seconds.   If so,  you've now fixed the 
+timeout bug!
+
+                                        John M. Blalock
+                                        PO Box 39356
+                                        Phoenix, AZ 85069
+                                        (602) 993-4604

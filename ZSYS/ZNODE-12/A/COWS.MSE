@@ -1,0 +1,75 @@
+
+~ COWS.MSE, Lee Bradley, Sysop, Z-Node #12, 203 665-1100, 10/02/90
+
+~ 11/90 Recoded/recommented cursor macros. Changed prompt. 
+~ Renamed program. Color logic fancied up.
+~ Added clear screen, version, and attribute code.
+~ Fine tuned.
+
+#Z,2,7;#P,22,50;"COWS, Version 3.141592654"
+
+#D,300;                      ~ delay
+
+#P,22,6;"Please enter a number: " ?' 48 -
+
+r :                          ~ set number of repetitions
+7 c :  0 d :                 ~ set initial colors
+#C;                          ~ cursor off
+( r. ^ r. 1 - r :            ~ main loop
+#D,300;                      ~ delay
+#Z,d.,c.;                    ~ clear screen
+#P,22,50;"COWS,"
+" Version 3.141592654"
+d. 1 + 7 \ d:                ~ change color
+0 j :                        ~ initialize row
+( 18 j. - ^                  ~ loop on row
+10 i :                       ~ initialize col
+( 34 i. - ^                  ~ loop on col                     
+~ display cow at appointed place
+#P,j.1+,i.;
+"               (  )"   
+#P,j.2+,i.;
+"               ("#A,2;"oo"#A,0;")"  ~ inverse eyes
+#P,j.3+,i.;
+"        /-------\/ "
+#P,j.4+,i.;
+"       / |  Z  ||             Z-Festival"
+#P,j.5+,i.;
+"      *  ||----||"
+#P,j.6+,i.;
+"         **    **"
+#P,j.7+,i.;
+"           ..."
+i. 6 + i :                   ~ bump col
+)
+j. 7 + j :                   ~ bump row
+#D,100;                      ~ delay
+))
+#O;                          ~ cursor on
+
+~ Macros 
+
+$P ~ position cursor macro (Royal specific)
+2% '  + 1% '  + 'Y '[ '@ - !' !' !' !' 
+@
+
+$Z ~ clear screen (w/ fore/back ground colors) macro (Royal RGB)
+2% '0 + 1% '0 + 'T '[ '@ - !' !' !' !'
+@
+
+$C ~ cursor off macro (Royal) (ESC ^R)
+'R '@ - '[ '@ - !' !'
+@
+
+$O ~ cursor on macro (Royal) (ESC ^S)
+'S '@ - '[ '@ - !' !'
+@
+
+$D ~ delay macro
+1% w : ( w. ^ w. 1 - w : )
+@
+
+$A ~ attribute macro (Royal)            (ESC ^V 0-3)
+1% '0 + 'V '[ '@ - !' !' !'  ~ 0 = normal, 1 = blink, 2 = inverse
+@                            ~ 3 = blink and inverse
+

@@ -1,0 +1,263 @@
+LOAD:	jsr	EXPR2
+..ld0:	ldx	#4
+..ld1:	jsr	RI
+	cmp	#0FF
+	bne	..ld0
+	dex
+	bne	..ld1
+..ld2:	jsr	RI
+	cmp	#0FF
+	beq	..ld2
+	bne	..ld3
+;
+..loop:	jsr	RI
+..ld3:	sta	@ptrHL,Y
+	jsr	SHOWIT
+	jmp	..loop
+;
+UNLD:	jsr	EXPR2
+	jsr	MARK
+..loop:	lda	@ptrHL,Y
+	jsr	PO
+	jsr	SHOWIT
+	jmp	..loop
+;
+MARK:	ldx	#8
+..mrk:	lda	#0FF
+	jsr	PO
+	dex
+	bne	..mrk
+	rts
+;
+MEMCK:
+MEMSIZ:	sty	ptrL
+	sty	ptrH
+	dec	ptrL
+..mem0:	inc	ptrH
+	lda	@ptrHL,Y
+	eor	#0FF
+	sta	@ptrHL,Y
+	cmp	@ptrHL,Y
+	bne	..mem1
+	eor	#0FF
+	sta	@ptrHL,Y
+	jmp	..mem0
+;
+..mem1:	dec	ptrH
+	ldx	ptrL
+	lda	ptrH
+	rts
+;
+;;
+;;;********
+ASSIGN:
+BFUNCT:
+CFUNCT:
+EFUNCT:
+JTEST:
+NFUNCT:
+IUSER:
+OUSER:
+QUERY:
+READ:
+WRITE:
+YSRCH:
+	lda	#"?"
+	jmp	CO
+;
+;;
+.sbttl	/IO subroutines/
+.page
+.ife %type-1,[
+CI:	jsr	CSTS
+	beq	CI
+	lda	CONPRT
+	clc
+	rts
+;
+CSTS:	lda	CONSTS
+	rora
+	bcs	..none
+	lda	#0FF
+	rts
+;
+..none:	clc
+	lda	#00
+	rts
+;
+;;
+CO:	and	#0FF
+	beq	..rts
+	pha
+..wait:	lda	CONSTS
+	rola
+	bcs	..wait
+	pla
+	sta	CONPRT
+..rts:	rts
+;
+;;
+IOINIT:	lda	#BREAK
+	sta	IRQLOC
+	lda	#BREAK>8
+	sta	IRQLOC+1
+	lda	#OLDBRK
+	sta	BRKV
+	lda	#OLDBRK>8
+	sta	BRKV+1
+	rts
+;
+;;
+RI:
+PO:
+LO:
+IOGET:
+IOSET:
+	rts
+;;
+;
+;;
+.loc	0FFFA
+.WORD	TRAP
+.WORD	ZAPPLE
+.WORD	IRQ
+]
+.ife %type-2,[
+PRTSTS	=	0C080
+PRTDAT	=	0C081
+KEYBD	=	0C000
+KBDSTB	=	0C010
+COUT	=	0FDF0
+%READ	=	0FEFD
+%WRITE	=	0FECD
+;
+CI:	lda	KEYBD
+	bpl	CI
+	bit	KBDSTB
+	clc
+	rts
+;
+CSTS:	lda	KEYBD
+	bmi	..rts
+	lda	#0
+..rts:	rts
+;
+;;
+CO:	sta	regA
+	and	#0FF
+	beq	..pla
+	cmp	#0A
+	beq	..pla
+	and	#7F
+	cmp	#"`"
+	bcc	..notl
+	sbc	#20
+..notl:	ora	#80
+	jsr	COUT
+..pla:	lda	regA
+	rts
+;
+;;
+RI:	ldx	SLOTN
+..noac:	lda	KEYBD
+	bpl	..nxt
+	jsr	CI
+	cmp	#03	;ctl C
+	bne	..nxt
+	jmp	ERROR
+;
+..nxt:	lda	PRTSTS,X
+	lsra
+	bcc	..noac
+	lda	PRTDAT,X
+	rts
+;
+;;
+PO:	sta	regA
+	ldx	SLOTN
+..po:	lda	PRTSTS,X
+	and	#2
+	beq	..po
+	lda	regA
+	sta	PRTDAT,X
+	rts
+;
+IOINIT:	lda	#BREAK
+	sta	IRQLOC
+	lda	#BREAK>8
+	sta	IRQLOC+1
+	lda	#OLDBRK
+	sta	BRKV
+	lda	#OLDBRK>8
+	sta	BRKV+1
+	lda	#2*10
+	sta	SLOTN
+	lda	#11	;300baud
+	sta	BAUDR
+ACINIT:	ldx	SLOTN
+	lda	#3
+	sta	PRTSTS,X
+	lda	BAUDR
+	sta	PRTSTS,X
+	rts
+;
+;;
+IOGET:
+IOSET:
+LO:	rts
+RESTRT:	JMP	ENTRY
+]
+.ife %type,[
+tempx=	4E
+tempy=	4F
+chin=	50
+LOUT=	3
+COUT=	1
+KBDSTS=	2
+KBDSTB=	0
+;
+CI:	stx	tempx
+	sty	tempy
+..sts:	jsr	kbdsts
+	sta	chin
+	lda	chin
+	beq	..sts
+	jsr	kbdstb
+	ldy	tempy
+	ldx	tempx
+	sta	chin
+	lda	chin
+	clc
+IOINIT:	rts
+;
+CO:	and	#0FF
+	beq	..rts
+	stx	tempx
+	sty	tempy
+	jsr	COUT
+	ldy	tempy
+	ldx	tempx
+	and	#7F
+..rts:	rts
+;
+CSTS:	stx	tempx
+	sty	tempy
+	jsr	kbdsts
+	ldy	tempy
+	ldx	tempx
+	sta	chin
+	lda	chin
+	bne	..rts
+	lda	#0
+..rts:	rts
+;
+RI:
+PO:
+LO:
+IOGET:
+IOSET:
+	rts
+;
+RESTRT:	jmp	BEGIN]
+;
+;;

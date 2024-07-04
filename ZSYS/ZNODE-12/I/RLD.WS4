@@ -1,0 +1,113 @@
+.lh 8
+.lq on
+.ps off
+.cw 12
+                  Z-80 Instructions RLD and RRD
+.po 8
+
+     The Z-80 instructions RLD and RRD are a pair of instructions ç
+that  a  poorly understood by most  programmers.   Although  they ç
+appear  a  little  strange and perhaps rather  useless  at  first ç
+glance, they are particularly useful for the manipulation of  BCD ç
+numbers.   A single RLD or RRD instruction will  usually  replace ç
+several lines of 8080 code.
+
+     Let  me  give  you  some  examples  of  the  use  of   these ç
+instructions.  Suppose that we have a large packed BCD number  (2 ç
+digits  per  byte)  stored in memory at BCDNUM.   The  number  is ç
+BCDLEN  long, so the last 2 digits are stored at BCDNUM +  BCDLEN ç
+-1.  If we wish to print this number, we must first convert it to ç
+ASCII.   The following code would accomplish this, assuming  that ç
+ECHO is a subroutine which sends the contents of the accumulator, ç
+A, to the screen while preserving all registers, including A:
+
+          LD   HL,BCDNUM      ; Point to the the start of the number
+          LD   B,BCDLEN       ; Set up a counter
+          LD   A,30H          ; Prepare A for ASCII print
+
+BCDLP:    RLD                 ; Shift the high nibble of (HL) to
+                              ;  the low nibble of A and the low
+                              ;   nibble of (HL) to the high nibble
+                              ;    of (HL)
+          CALL ECHO           ; Print the digit
+          RLD                 ; Now shift the high nibble (the previous
+                              ;  low nibble) of (HL) to A
+          CALL ECHO           ; Print that one
+          RLD                 ; Restore the original packed number
+          INC  HL             ; Point the the next two digits
+          DJNZ BCDLP          ; Loop until done
+
+     These  instructions can also be used to align  operands  for ç
+BCD  floating  point arithmatic (and are much  faster  than  code ç
+using  single  bit shifts).  Suppose that you wish to  shift  the ç
+number  in the previous example right by one nibble and insert  a ç
+zero  in the high order nibble.  Following will  accomplish  this ç
+quite easily:
+ 
+          XOR  A              ; Clear accumulator
+          LD   HL,BCDNUM      ; Point to the number
+          LD   B,BCDLEN       ; Our counter again
+
+SHIFTLP:  RRD                 ; Shift low nibble of A to high nibble
+                              ;  of (HL), high nibble of (HL) to low
+                              ;    nibble of (HL) and low  nibble of
+                              ;     (HL) to A
+          INC  HL             ; Point to next byte
+          DJNZ SHIFTLP        ; Loop til done
+
+This routine effectively divides our BCD number by 10.
+.pa 
+Actually, a more useful (though slightly more complex) example is ç
+a  routine to allow keyboard input of a decimal number  which  is ç
+then converted to BCD format:
+
+          XOR  A              ; Clear accumulator
+          LD   HL,BCDNUM      ; Point to storage for number
+          LD   B,BCDLEN       ; Our ubiquitous counter!
+
+CLEARLP:  LD   (HL),A         ; Clear entire buffer to 0
+          INC  HL
+          DJNZ CLEARLP
+          LD   B,BCDLEN       ; Reset counter
+          LD   C,2            ; Need 2 ASCII per BCD digit
+          LD   HL,BCDNUM+BCDLEN ; Point to least significant
+
+NXTDIGIT: CALL GETCH	      ; Routine to get 1 ASCII char
+			      ;  from keyboard (preserves
+                              ;   HL and BC)
+          CP   CR             ; Carriage return?
+          RET  Z              ; If so, all done
+
+ADDLP:	  RLD                 ; Shift digit
+          DEC  C              ; Done 2 digist?
+          JR   NZ,NXTDIGIT    ; If not, go get another
+          LD   C,2            ; Else, reset digit counter
+          DEC  HL             ;  adjust pointer
+          DJNZ NXTDIGIT       ;   and loop til buffer is full
+
+     This  routine is somewhat flawed in that it only allows  the ç
+input  of an even number of digits, but I think that you get  the ç
+idea.
+
+     The   ability   to   do  decimal   shifts   allows   decimal ç
+multiplication  and  division to be done fairly  easily.   Multi-ç
+plication  is done similar to the way that it is done  on  paper.  ç
+Multiplier digits are tested from right to left and the multipli-ç
+cand  added  to  a product (which is zeroed  before  the  process ç
+starts).   At the end of each multiply step, the multiplicand  is ç
+shifted  left,  like the indentation of  the  successive  product ç
+lines when multiplying with pencil and paper (some of us old guys ç
+still  remember  the time before computers and  calculators  were ç
+readily available!).  Of course, decimal multiplication done this ç
+way  is quite slow (each RLD or RRD instruction takes 5 M  cycles ç
+and  18  T states), so if a lot of it is needed, it  is  probably ç
+faster  to convert to binary, multiply with a binary routine  and ç
+then convert the answer back to BCD.  Readers are left to  figure ç
+the  details  out  for themselves (it's too  long  for  inclusion ç
+here).   If  you  are really interested, contact  me  and  I  can ç
+probably supply an example.
+ 
+                                    Ian Cottrell, Sysop
+                                    The Information Centre RCP/M+
+                                    Ottawa, ON, Canada
+                                    (613) 952-2289

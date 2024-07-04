@@ -1,0 +1,172 @@
+
+			MEX Newsletter #001
+
+Date: 	 05-09-84
+From:    Ron Fowler
+MEX rev: 1.00
+
+This is the first in what will probably be a series of informative notes for
+the MEX communications program.  These newsletters will provide bug fixes,
+tips, applications information, etc. for users of MEX.
+
+In order to avoid the daily-revision syndrome that was such a problem for
+users of MDM7, important bug fixes will be provided in the newsletter whenever
+possible, in a form useable in a READ file.  The hitherto undocumented
+POKE command will be used to install patches; you can use the CLONE command
+to save the patched program.
+
+------------------------------------------------------------
+
+These minor bugs have been found in the initial release of MEX: 
+
+1) Certain commands result in screen output that contains a graphics or rev-
+   erse video character; these commands are typically those which list key-
+   words out of a table (the '?' command, "STAT ?", "HELP ?", etc).  These
+   keywords have the high-bit set in the last character of the keyword, and
+   MEX doesn't reset that bit.
+
+2) For Alternate Long Distance Numbers: if an ALDN number is greater than
+   12 characters, and the ALDN is specified on the command line, (eg,
+   "[MEX] A0>>CALL <805-555-1212"), MEX misses any characters in the ALDN
+   number beyond the 12th.
+
+The following patch sequence will fix both problems.  Use your text editor to
+copy the following 8 lines into a file (say, MEXFIX.MEX), then use the READ
+command to execute it ("READ FIXMEX").  Make sure your MEX is still functional,
+then use CLONE to save the fixed copy to disk (e.g., "CLONE NEWMEX.COM").
+
+
+POKE $0E6A $CD $B3 $14 $D8
+POKE $0E6E $3E $0C $EB $CD
+POKE $0E72 $01 $46 $EB $C3 $DE
+POKE $0E77 $12
+POKE $0E78 $E6 $7F $21 $DC $52 $C3 $89
+POKE $0E7F $43
+POKE $12DA $C3 $6A $0E
+POKE $4386 $C3 $78 $0E
+
+
+
+This patch will be incorporated in the next revision of MEX (probly 1.01).
+
+------------------
+
+A number of users have reported that MEX disconnects them when any of the
+exit-to-system commands (BYE, CPM, EXIT, SYSTEM) are entered.  The command
+
+POKE $0168 $0C9
+
+will fix that problem for most (again, CLONE your MEX to make the change
+permanent).  This problem exists with several overlays, and relates to two
+entries in the overlay jump table, usually called JMP$GOODBYE and JMP$DISCON
+in MDM overlays (GOODBV and DISCV is MEX overlays).  MEX assumes that the
+JMP$DISCON routine disconnects the phone; it is called on an X secondary
+command or from the DSC command.  JMP$GOODBYE is called just prior to exiting
+MEX and re-entering CP/M, providing a way for the overlay (if it needs to)
+to "clean up" before CP/M gets control back.  Apparently MDM7 does not call
+these routines in the same way, since several overlays have both of these
+entries pointing to disconnect code.  Hence, an exit always disconnects.
+
+I believe that these overlays are technically in error; JMP$GOODBYE should
+have no reason to disconnect the phone.  Problem is, Irv Hoff never documented
+the MDM overlay entry points (at least, as far as I know), so I can't be
+sure of his intent.  In any case, I'd recommend that the offending overlays
+be modified; this would make the change permanent (otherwise, the above POKE
+must be executed each time a new MEX is generated).
+
+------------------------------------------------------------
+
+CIS protocol notes:
+
+I didn't mention in the features list in -READ.ME (or in any of the announce-
+ments that I sent out) that MEX is capable of file exchange with Compuserve,
+using their "A" protocol.  Do "HELP CIS" for a little more information about
+this feature.  If you don't use Compuserve and resent having valuable buffer
+space taken up by Compuserve code, do "HELP COLD" for information on how to
+remove the Compuserve code altogether, and reclaim the space for buffers.
+
+Some notes on file-append:
+
+Also not mentioned in the announcements was the "A" secondary option for the
+T, E and L commands: this one lets you append to the end of an existing term
+file (do "HELP APPEND" for more information on the "A" option).  I should
+point out that some text editors write out files that are not compatible with
+the way MEX does a file-append.  The algorthm used by MEX allows a fast
+seek-to-end, and works like this:
+
+	1) seek last physical record
+	2) scan backwards until end-of-file mark found (1AH)
+	3) scan backward until the first non-1A is found; this is
+	   the last file character
+	4) copy any previous characters in the record to the capture buffer
+
+This should always work for files created by MEX; certain text editors, how-
+ever, put a single 1A at the end of file, followed by random characters.  If
+one of these random characters is a 1A, MEX will find a false end of file 
+(after the real end), and newly-appended text will be "invisible".
+
+Other editors do not put an end-of-file mark in the file if the text ends
+on an even 128-byte boundary (ED.COM does this).  This too will cause problems
+with the 'A' option.
+
+Thus, unless you're sure your text editor legitimately writes the end-of-file
+mark (and pads the last sector with EOF marks) it's best to use the 'A' option
+only with files created by MEX.
+
+READ files:
+
+The documentaton doesn't mention it, but if you specify a READ file without
+a filetype (eg, "READ CALLJOE"), MEX will assume a filetype of "MEX" (in fact,
+a file named "CALLJOE" can't be found by MEX for this reason).
+
+------------------------------------------------------------
+
+It might not be clear from the documentation, but you can make your phone
+numbers and keystring definitions a permanent part of MEX.  Simply define
+the numbers you frequently use with the PHONE command (or LOAD a file from
+disk), define your keystrings (or LOAD them), the do "CLONE <filename>".
+
+You can, at any time, change the phone numbers or keystrings and re-CLONE;
+MEX may be CLONEd any number of times.
+
+------------------------------------------------------------
+
+Misc. gotcha's:
+
+0) In spite of what the documentation says, MEX will not run "out-of-the-box";
+the overlay file must be installed first.  This was due to a change that was
+made just prior to release.
+
+1) It has been brought to my attention that, if you use the CLONE command with-
+out a filename, MEX will write a filename of all blanks as the CLONE file.
+Be sure to specify a name to the CLONE command; I'll make sure that the next MEX
+does not allow all-blank filenames.
+
+2) Another problem is that, if you specify a drive name with the filename for
+the 'R' or 'S' commands (send/receive/Christensen protocol), MEX ignores
+the command altogether. For now, just forego the drive name, and log into
+the drive you want to send from or receive to.  This, too, will be repaired
+in the next revision (this doesn't affect batch transmissions under the 'B'
+secondary option).
+
+3) Some users have had problems with keystring memory becoming corrupted; I'm
+looking into the problem, but have not been able to corrupt my keystring
+memory.  The most frequent complaint is that these garbage keystrings can't be
+deleted with the KEY command. If you have this problem, do this:
+
+	[MEX] A0>>COLD
+
+This will erase your keystrings (*and* your phone numbers!), and allow you
+to start over.  Nothing else will be disturbed.
+
+4) The third line of the HELP file under LOAD (and SAVE) specifies an illegal
+example for saving a phone number file:
+
+	SAVE C:NEWPHONE.NUM
+
+(phone number files must have a filetype of "PHN").
+
+
+
+-------------< End of MEX newsletter #001 >--------------
+

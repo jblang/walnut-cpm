@@ -1,0 +1,51 @@
+
+
+
+
+
+
+==========
+IMPDSC.FIX
+==========
+
+
+A Fix for the Disconnect Routine in IMP 2.44
+
+
+
+Larry Davis of Glendale LITTERA seems to have found a solution to what he 
+rightly calls an "irritating quirk" of IMP - a reluctance to disconnect when 
+the remote is sending data, or worse, after the remote disconnects and IMP 
+starts reading line noise as transmitted data.  IMP users have had to get used 
+to switching their modems off to disconnect.
+
+Here is Larry's proposed fix: in the IMP overlay three are four instructions 
+in the GOODBYE routine that delay the disconnect routine.  
+
+        mvi     b,'S'-40h       ; send a ^S to stop the remote
+        call    j$sndchr        ; this is where Larry thinks it hangs
+        mvi     b,1
+        call    j$timer
+
+He believes that deleting or commenting out these instructions will permit 
+instant disconnect, no matter what the modem is "receiving."  For those who 
+would rather do a quick patch than a reassembly, here's how I did it.  The 
+code breaks down to
+
+     06,13,CD,nn,nn,06,01,CD,nn,nn
+
+A search for 06,13,CD finds this pattern twice, once for a disconnect by ^N, 
+and again for DSC.  I found the first instance starting at the last byte in 
+sector 2 (for me, anyway, 01FFh) and the second time in sector 89 - I found it 
+at 2D52.  Zeroing out the ten bytes in both instances allows you to test 
+Larry's theory with a minimum of hassle.  Make note of the actual bytes shown 
+here as nn in case you run into trouble and want to restore the byte strings.  
+(In my version of IMP the bytes were 8C,01 and 92,01, or addresses 018Ch for 
+J$SNDCHR and 0192h for J$TIMER.
+
+
+Fred Haines
+
+Glendale LITTERA
+818-956-6164
+Abel Iwaz, sysop

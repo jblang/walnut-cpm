@@ -1,0 +1,526 @@
+
+
+
+                                VIRTUAÌ SYSTEMS
+
+                        Beî Grey¬ Cedaò Milì Z-Nodå 24
+
+    Iî thió month'ó articlå wå arå goinç tï examinå thå dynamicó oæ memorù 
+    managemenô aó iô caî bå applieä tï writinç programó foò CP/Í anä ZCPR® 
+    Iî mù firsô article¬ wå brieflù toucheä oî thå limitationó placeä oî 
+    programó becauså oæ memorù sizå restrictions® Wå founä thaô systemó 
+    witè á fixeä memory¬ let'ó saù 64K¬ requirå largå programó tï bå 
+    segmented¬ oò "overlayed¢ iæ theù arå tï fiô iî thå availablå memory® 
+    Thió haó thå effecô oæ creatinç morå worë foò thå programmer® Hå musô 
+    bå awarå noô onlù oæ thå program'ó functionality¬ buô musô alsï bå 
+    concerneä witè "fitting¢ iô intï availablå memory.
+
+    Traditionally¬ programmeró foò singlå-user¬ noî-multitaskinç systems¬ 
+    havå tendeä tï assumå thaô alì oæ thå memorù froí thå enä oæ thå 
+    prograí codå tï thå Basiã Disë Operatinç Systeí (BDOS© waó availablå tï 
+    uså aó desired® Thió meant¬ iî reality¬ thå applicatioî programó coulä 
+    "oveò-write¢ thå Consolå Commanä Processoò (CCP© iî ordeò tï gaiî thå 
+    extrá 2Ë iô occupies.
+
+    Today¬ however¬ wå arå concerneä witè maximizinç thå programmer'ó 
+    efficiencù tï solvå thå probleí aô hand¬ anä tï minimizå thå "overhead¢ 
+    hå musô encounteò tï producå á workinç application® Iî otheò words¬ wå 
+    wisè tï allo÷ hií tï writå programó thaô wilì worë iî á minimuí memorù 
+    size¬ witè verù littlå regarä foò managinç thå availablå memorù space.
+
+    Whaô techniqueó arå available¿ Ho÷ dï wå implemenô them¿ Whù arå theså 
+    methodó sï importanô iî thå ¸-biô world¿ Whù can'ô wå gï on¬ "willù-
+    nilly¢ thå waù wå havå donå foò thå pasô 1µ years?
+
+    Thå answeró tï theså questionó arå noô obvious¬ buô wå arå alì 
+    painfullù awarå oæ thå implications® Limiteä memorù spacå meanó 
+    restrictinç thå applicatioî programó tï ruî iî thå availablå memorù 
+    space® Aó á result¬ wå ofteî compromiså thå functionalitù oæ aî 
+    applicatioî tï conservå space® Yet¬ wå wanô thå prograí tï bå 
+    operationaì oî thå broadesô crosó-sectioî oæ ¸-biô CP/Í machineó witè 
+    aó mucè functionalitù aó ió possible.
+
+    Beforå wå caî reallù consideò "how¢ tï dï theså things¬ wå musô firsô 
+    looë aô thå waù standarä CP/Í systemó currentlù "loaä anä execute¢ thå 
+    programó wå run® Anä iî ordeò tï reallù looë aô thió problem¬ wå reallù 
+    neeä tï kno÷ whaô thå "memorù image¢ normallù lookó like.
+
+    [Therå arå severaì systemó thaô dï noô adherå tï thå "general¢ ruleó É 
+    wilì discuss¬ notablù somå oæ thå earlù Northstaò Systems® However¬ iæ 
+    yoõ havå onå oæ theså earlù systems¬ yoõ alreadù kno÷ thå differences.]
+
+    Memorù iî ¸-biô computeró generallù beginó aô addresó 0000È (thå È 
+    standó foò hexadecimaì oò baså 16© anä goeó tï addresó FFFFH® Iæ thió 
+    hexadecimaì numbeò ió converteä tï it'ó decimaì equivalent¬ wå finä 
+    thaô iô ió equaì tï 65,53µ oò 64Ë (1Ë iî computereså ½ 102´ bytes).Š
+    Iî manù currenô systems¬ thå operatinç systeí (OS© buildó froí thå toð 
+    (FFFFH© dowî towarä thå bottoí (0000H)® Thå memorù ió consecutive¬ oò 
+    sequential¬ oò contiguous® Thaô is¬ therå arå nï gapó iî iô froí thå 
+    lowesô bytå tï thå highesô byte.
+
+    Moreover¬ manù oæ thå OÓ segmentó arå á fixeä size® Foò example¬ iî thå 
+    mosô commoî implementation¬ thå CCÐ requreó ¸ 25¶-bytå pages¬ oò 204¸ 
+    bytes® Thå BDOS¬ requireó 1´ 25¶-bytå pages¬ oò 3584 bytes® Thå BIOS¬ 
+    oî thå otheò hand¬ haó á "variable¢ size¬ anä generallù runó abouô 409¶ 
+    bytes¬ anä disë bufferó perhapó aó mucè aó 204¸ bytes® Therå ió onå 
+    morå area iî memory¬ Pagå 0¬ thaô ió reserveä foò "communicationó"
+    betweeî thå OÓ anä applicatioî program¬ iô ió fixeä aô 25¶ bytes.
+
+    Foò purposeó oæ discussinç thå CP/Í (ZRDOS© OS¬ iô ió generallù easieò 
+    tï thinë oæ memorù froí toð tï bottom¬ whilå foò applications¬ wå wanô 
+    tï consideò memorù froí thå bottoí tï thå top...
+
+    Baseä oî thå previouó discussion¬ then¬ wå finä á "typical¢ memorù 
+    imagå tï looë somethinç likå thå following:
+
+
+              FFFÆ +-----------------------------+
+                   ü                             |
+                   ü        Disë Bufferó         ü         204¸ ¨ 2.0k)
+                   ü                             |
+              F800 +-----------------------------+
+                   ü                             |
+                   ü           BIOÓ              ü         409¶ ¨ 4.0k)
+                   ü                             |
+              E80° +-----------------------------+
+                   ü                             |
+                   ü           BDOÓ              ü         358´ ¨ 3.5k)
+                   ü                             |
+              DA0° +-----------------------------+
+                   ü                             |
+                   ü            CCÐ              ü         204¸ ¨ 2.0k)
+                   ü                             |
+              D20° +-----------------------------+
+                   ü                             |
+
+                   |            TPÁ              ü      þ 5340µ (52.5K)
+                   ü                             |
+              010° +-----------------------------+
+                   ü                             |
+                   ü           Pagå °            ü          25¶ (0.25k)
+                   ü                             |
+              000° +-----------------------------+
+
+
+    Beaò iî mind¬ however¬ thió ió á "theoretical¢ systeí layout¬ anä ió 
+    NOÔ indicativå oæ thå systeí yoõ maù bå using® Iô ió provideä merelù 
+    foò purposeó oæ discussion® Wå wilì develoð aî imagå thaô wilì matcè 
+    youò owî systeí nexô month® TPÁ standó foò Transienô Prograí Areá anä 
+    ió thå areá iî memorù wherå applicatioî programó load.Š
+    Beforå wå caî reallù begiî ouò project¬ wå neeä tï kno÷ jusô á littlå 
+    morå abouô thå pagå ° anä whaô iô contains® Ratheò thaî presenô iô iî 
+    graphiã form¬ I'í goinç tï illustratå iô witè assembleò statementó sï 
+    wå caî uså thió informatioî iî writinç futurå programs.
+
+    É dï noô intenä tï explaiî thå rudimentó oæ assembleò languagå syntax¬ 
+    yoõ shoulä studù youò manualó anä yoõ shoulä feeì freå tï contacô må 
+    wheî yoõ havå questions® É woulä prefeò yoõ dï thió bù callinç Cedaò 
+    Milì Z-Nodå 2´ [503Ý 644-462± anä leavinç á messagå tï ALÌ USERS.....
+
+    [Noteº thå followinç codå examplå waó produceä usinç WordStaò (tm© anä 
+    shoulä noô bå "extracted¢ froí thå articlå tï assemble® Instead¬ á 
+    separatå filå calleä PAGE0.MAÃ (oò .Z80© wilì bå provideä tï assemble.]
+
+            TITLÅ   'PAGÅ ° Definitionó ­ CP/Í Computeò Systems'
+
+    » Prograí       -------------­  » Noteº Undefineä aô moment
+    » Segmenô       Pagå 0
+    » Authoò        Beî Grey
+    » Languagå      Z8° Assembler
+    » Datå          0´ APÒ 88
+    » Previouó      None
+
+    » Conditionaì Definitions
+
+    NÏ      EQÕ     000°            » Definå NO
+    YEÓ     EQÕ     noô NÏ          » Definå YES
+
+    » Assembleò Definition
+
+    M8°     EQÕ     NÏ              » MicroSoft
+    SLÒ     EQÕ     yeó             » SLÒ Systems
+    ZAÓ     EQÕ     NÏ              » Echelon
+
+    » Versioî Levels¬ Date
+
+    VERSÎ   EQÕ     0°              » Versioî  Number
+    REVSÎ   EQÕ     0°              » Revisioî Level
+
+    VMNTÈ   EQÕ     0´              » Versioî Month
+    VDATÅ   EQÕ     0´              » Versioî Date
+    VYEAÒ   EQÕ     8¸              » Versioî Year
+
+    » Operatinç Systeí Definitions
+
+    CPM2²   EQÕ     NÏ              » CP/Í Versioî 2.2
+    CPM3°   EQÕ     NÏ              » CP/Í Versioî 3.° (CP/M+)
+    ZCPR³   EQÕ     yeó             » Usinç ZCPÒ  3.x
+    ZRDOÓ   EQÕ     yeó             » Usinç ZRDOÓ 1.x
+
+    BASÅ    EQÕ     000°            » Baså oæ Memory
+    CCÐ     EQÕ     BASE+0D200È     » Baså oæ CCP
+    BDOÓ    EQÕ     CCP+0800È       » Baså oæ BDOS
+    BIOÓ    EQÕ     BDOS+0E00È      » Baså oæ BIOSŠ
+    » Starô oæ Pagå 0
+
+             iæ     M8°
+            .Z80
+            ASEG
+            ORÇ     0000
+             endif
+
+    RST°    EQÕ     ¤               » Restarô Vectoò 0
+
+    WBOOTº  JÐ      BIOS+³          » Warí Booô Entry
+    IOBTYEº DÂ      0°              » Input/Outpuô Byte
+    USRDSKº DÂ      0°              » MÓ Nybblå ½ User¬ LÓ Nybblå ½ Disk
+    BDOSVº  JÐ      BDOS+¶          » BDOÓ Functioî Call
+
+    RST1º   DÓ      ¸               » Restarô Vectoò 1
+    RST2º   DÓ      ¸               » Restarô Vectoò 2
+    RST3º   DÓ      ¸               » Restarô Vectoò 3
+    RST4º   DÓ      ¸               » Restarô Vectoò 4
+    RST5º   DÓ      ¸               » Restarô Vectoò 5
+    RST6º   DÓ      ¸               » Restarô Vectoò 6
+    RST7º   DÓ      ¸               » Restarô Vectoò · (Debuç Utilities)
+
+            DÓ      1¶              » 004° ­ 004F
+            DÓ      1±              » 005° ­ 005B
+
+    FCB1º   DÓ      1¶              » Defaulô FCÂ 1
+    FCB2º   DÓ      1¶              » Defaulô FCÂ 2
+
+            DÓ      0´              » 007Ã ­ 007F
+
+    DMABFRº DÓ      12¸             » 008° ­ 00FF
+
+            END
+
+    Thió examplå oæ codå actuallù generateó á Pagå 0® Thió ió NOÔ somethinç 
+    wå normallù neeä tï dï foò ourselves¬ sincå thå OÓ wilì alwayó insurå 
+    thå correcô valueó arå storeä iî thió area® Iô ió foò illustratioî onlù 
+    anä ió intendeä tï bå á littlå introductioî aó tï stylå anä form® Mosô 
+    oæ iô ió selæ explanatory¬ anä É wilì minimizå mù descriptioî oæ it.
+
+    Iî general¬ alì programó wå writå wilì begiî thå samå wayº á TITLÅ anä 
+    á brieæ fe÷ lineó oæ whaô thå program'ó namå is¬ whï wrotå it¬ whaô thå 
+    languagå useä is¬ thå datå anä somå commenô abouô previuoó versions® Iæ 
+    desired¬ á fe÷ (verù few© lineó caî bå addeä tï addresó itó function:
+
+    » Prograí       
+    » Segmenô       Pagå 0
+    » Authoò        Beî Grey
+    » Languagå      Z8° Assembler
+    » Datå          0´ APÒ 88
+    » Previouó      None
+
+Š    » Functioî      Thió ió á codå segmenô tï illustratå thå contentó of
+    »               thå CP/Í Pagå 0® Iô ió "never¢ compileä iî reaì life.
+
+    Eveî experienceä programmeró takå timå tï creatå thå abovå sectioî iî 
+    EVERÙ prograí theù write® Thinë abouô it..® Woulä yoõ remembeò alì oæ 
+    thå stufæ fivå oò eveî teî yearó froí now¿ Probablù not¬ anä thió biô 
+    oæ documentatioî serveó tï inforí thå reader¬ aó welì aó refresè ouò 
+    owî memorieó iî thå future® Iô ió á gooä programminç practice® Dï it!
+
+    Thå nexô twï statementó arå directiveó tï thå assembler¬ defininç twï 
+    commonlù useä values¬ YEÓ anä NO® Wå coulä havå defineä OÎ anä OFÆ oò 
+    eveî TRUÅ anä FALSÅ iî thå samå way.
+
+    » Conditionaì Definitions
+
+    NÏ      EQÕ     000°            » Definå NO
+    YEÓ     EQÕ     noô NÏ          » Definå YES
+
+    OFÆ     EQÕ     000°            » Definå OFF
+    OÎ      EQÕ     noô OFÆ         » Definå ON
+
+    Oò wå coulä dï somethinç likå this:
+
+    TRUÅ    EQÕ     YEÓ             » Definå TRUE
+    FALSÅ   EQÕ     NÏ              » Definå FALSE
+
+    Theså statementó wilì permiô uó tï conditionallù selecô certaiî optionó 
+    iî thå prograí aô lateò points® 
+
+    Thå followinç threå statementó definå whicè assembleò wå wilì uså wheî 
+    wå puô thå prograí together® Onlù ONÅ oæ thå optionó shoulä bå YES¬ thå 
+    resô shoulä bå NO® Already¬ wå arå usinç thå conditionaló wå defineä iî 
+    thå lasô fe÷ lineó oæ code® Whù dï this¿ Welì becauså iô ió importanô 
+    foò otheró tï kno÷ "how¢ yoõ assembleä thå program¬ anä whaô assembleò 
+    yoõ used® Noô alì assembleró arå createä equal!
+
+    » Assembleò Definition
+
+    M8°     EQÕ     NÏ              » MicroSoft
+    SLÒ     EQÕ     yeó             » SLÒ Systems
+    ZAÓ     EQÕ     NÏ              » Echelon
+
+    Iî thió case¬ É usåd onå oæ thå SLÒ Systems§ assemblers¬ SLR180+¬ á 
+    virtuaì memorù assembler® Alì SLÒ assembleró uså thå samå syntax® Iæ 
+    yoõ arå usinç M80¬ theî yoõ woulä seô M8° EQÕ yes¬ anä SLÒ EQÕ NO® Thå 
+    samå ruleó prevaiì iî thå caså oæ thå lasô equatå foò ZAS¬ thå Echeloî 
+    Inc.¬ product® Therå coulä bå otheró addeä tï thå lisô aó well¬ buô foò 
+    ouò purposes¬ theså arå thå onlù threå assembleró thaô wilì concerî us.
+
+    Recalì mù discussinç versioî anä revisioî leveló aó á parô oæ thå filå 
+    name¿ Welì insidå thå prograí iô ió necessarù tï identifù thå samå twï 
+    values® Iî addition¬ I'vå includeä thå Versioî Datå sï wå caî telì wheî 
+    wå lasô modifieä thå program® Yoõ shoulä geô iî thå habiô oæ updatinç 
+    theså valueó EVERÙ timå yoõ ediô thå program® Iæ desired¬ thå timå may
+    alsï bå added¬ althï noô required:Š
+    » Versioî Levels¬ Date¬ Time
+
+    VERSÎ   EQÕ     0°              » Versioî  Number
+    REVSÎ   EQÕ     0°              » Revisioî Level
+
+    VMNTÈ   EQÕ     0´              » Versioî Month
+    VDATÅ   EQÕ     0´              » Versioî Date
+    VYEAÒ   EQÕ     8¸              » Versioî Year
+
+    VHOUÒ   EQÕ     0·              » Versioî Hour
+    VMINÓ   EQÕ     0°              » Versioî Minutes
+    VSECÓ   EQÕ     0°              » Versioî Seconds
+
+    Sincå wå wilì bå writinç programó tï ruî undeò botè CP/Í anä ZRDOS¬ anä 
+    wilì probablù bå usinç botè thå standarä CCÐ anä ZCPR¬ wå shoulä definå 
+    theså valueó also® Thió ió á furtheò aiä tï documentation® Aô thió 
+    point¬ iô ió noô significant¬ buô lateò iô wilì becomå quitå important.
+
+    CPM2²   EQÕ     NÏ              » CP/Í Versioî 2.2
+    CPM3°   EQÕ     NÏ              » CP/Í Versioî 3.° (CP/M+)
+    ZCPR³   EQÕ     yeó             » Usinç ZCPÒ  3.x
+    ZRDOÓ   EQÕ     yeó             » Usinç ZRDOÓ 1.x
+
+    Thå nexô seô oæ equateó definå somå oæ thå importanô anä ofteî useä 
+    addresseó iî ouò systems:
+
+    BASÅ    EQÕ     000°            » Baså oæ Memory
+    CCÐ     EQÕ     BASE+0D200È     » Baså oæ CCP
+    BDOÓ    EQÕ     CCP+0800È       » Baså oæ BDOS
+    BIOÓ    EQÕ     BDOS+0E00È      » Baså oæ BIOS
+
+    BASÅ defineó thå "bottom¢ oò "beginning¢ oæ memory® Noticå thaô thå CCÐ 
+    equatå ió defineä aó thå BASE+0D200H® Thió ió donå sï thaô thå prograí 
+    caî kno÷ noô onlù wherå thå CCÐ ió located¬ buô alsï tï keeð thå 
+    "symbol¢ CCÐ á relocatablå item® (I'lì discusó relocatabilitù later.©
+
+    Likewise¬ thå BDOÓ addresó ió aî "offset¢ oæ fixeä valuå froí thå CCP¬ 
+    anä sincå wå kno÷ thå CCÐ ió 204¸ bytes¬ oò 8*256¬ (notå thaô 25¶ iî 
+    hex ió 100© sï wå adä 8*10° (0800H© tï thå CCÐ beginninç address¬ tï 
+    finä thå beginninç oæ thå BDOS® Wå alsï kno÷ thaô thå BDOÓ ió 1´ 25¶-
+    bytå pageó (1´ iî hex ió 0E¬ sï 0E*10° ½ 0E00H).
+
+    Iæ wå alsï wisheä tï includå thå usuaì 2Ë oæ buffeò spacå generallù 
+    founä afteò thå BIOS¬ wå coulä adä onå morå equatå ..® however¬ wå 
+    woulä havå tï kno÷ EXACTLÙ ho÷ biç thå BIOÓ is¬ anä rounä iô uð tï thå 
+    nexô eveî 1Ë boundary® Wå havå assumeä á 4Ë BIOÓ sï wå woulä have:
+
+    BASÅ    EQÕ     000°            » Baså oæ Memory
+    CCÐ     EQÕ     BASE+0D200È     » Baså oæ CCP
+    BDOÓ    EQÕ     CCP+0800È       » Baså oæ BDOS
+    BIOÓ    EQÕ     BDOS+0E00È      » Baså oæ BIOS
+    EPROÍ   EQÕ     BIOS+1000È      » Baså oæ EPROÍ oò Buffers
+
+    [Noteº iæ 2Ë ½ 8*256¬ theî 4Ë ½ 16*256¬ thuó 10*10° ½ 1000H.)Š
+    Confused¿ É hopå not® Hexadecimaì arithmetiã ió discusseä iî nearlù 
+    everù computeò textbooë É havå eveò seen® Remember¬ wheî dealinç witè 
+    computers¬ theù "think¢ iî baså 1¶ (hexadecimal)¬ noô baså 1° (decimal© 
+    likå wå do® Sï yoõ ask¬ whù couldn'ô wå uså decimaì numberó tï definå 
+    theså values¿ Thå answeò ió wå could¬ buô sincå wå arå talkinç abouô 
+    thå reaì hardware¬ anä wilì bå concerneä abouô "reaì memory¢ addresses¬ 
+    iô ió morå appropriatå tï worë iî hexadecimaì values® Afteò all¬ thå 
+    outpuô oæ thå assembleró alwayó provideó uó witè thå heø valueó iî thå 
+    listinç (NEVEÒ thå decimaì ones)...
+
+    Thå nexô fe÷ statementó arå significanô iæ yoõ arå usinç M8° aó thå 
+    assembler® Theù arå NOÔ requireä foò SLÒ oò ZAÓ anä thereforå wå wanô 
+    tï makå theí "conditional¢ oî thå assembleò wå arå using® Thaô is¬ iæ 
+    wå arå usinç M80¬ theî theså statementó wilì bå used¬ iæ wå arå not¬ 
+    theù wilì noô bå used® Pleaså notå thå style¬ thå conditionaì "if¢ ió 
+    offseô onå column¬ anä ió iî "loweò case"..® Thió makeó iô easù tï finä 
+    iî á largå listinç (dittï foò thå "endif").
+
+             iæ     M8°
+            .Z80
+            ASEG
+            ORÇ     0000
+             endif
+
+    Iî thå caså oæ M80¬ whicè caî assemblå botè 808° Inteì anä Z8° Ziloç 
+    mnemonics¬ wå neeä tï inforí iô whicè seô oæ mnemonicó wå arå using® Iî 
+    ouò case¬ wå wilì ALWAYÓ uså thå Ziloç codes® (Thå .Z8° directive)
+
+    Thå ASEÇ statemenô telló M8° thaô thió ió aî "absolute¢ segment® Iô ió 
+    noô requireä bù thå otheò twï assemblers®
+
+    Thå ORÇ statemenô telló M8° wherå iî memorù wå wanô thió codå located® 
+    Thió directivå causeó M8° tï puô á speciaì valuå iî thå relocatablå 
+    filå thaô wilì bå generateä bù thå assembler¬ sï thaô L80¬ thå linkeò, 
+    wilì bå ablå tï "place¢ iô iî thå propeò memorù area¬ namelù Pagå 0.
+
+    No÷ wå havå thå basiã definitions¬ wå wilì examinå jusô whaô ió iî Pagå 
+    0¬ anä whaô thå valueó mean...
+
+    RST°    EQÕ     ¤               » Restarô Vectoò 0
+
+    WBOOTEº JÐ      BIOS+³          » Warí Booô Entry
+    IOBTYEº DÂ      0°              » Input/Outpuô Byte
+    USRDSKº DÂ      0°              » MÓ Nybblå ½ User¬ LÓ Nybblå ½ Disk
+    BDOSFVº JÐ      BDOS+¶          » BDOÓ Functioî Call
+
+    RST1º   DÓ      ¸               » Restarô Vectoò 1
+    RST2º   DÓ      ¸               » Restarô Vectoò 2
+    RST3º   DÓ      ¸               » Restarô Vectoò 3
+    RST4º   DÓ      ¸               » Restarô Vectoò 4
+    RST5º   DÓ      ¸               » Restarô Vectoò 5
+    RST6º   DÓ      ¸               » Restarô Vectoò 6
+    RST7º   DÓ      ¸               » Restarô Vectoò · (Debuç Utilities)
+Š            DÓ      1¶              » 004° ­ 004F
+            DÓ      1±              » 005° ­ 005B
+
+    FCB1º   DÓ      1¶              » Defaulô FCÂ 1
+    FCB2º   DÓ      1¶              » Defaulô FCÂ 2
+
+            DÓ      0´              » 007Ã ­ 007F
+
+    DMABFRº DÓ      12¸             » 008° ­ 00FF
+
+            END
+
+    Thå firsô line¬ defineó (informationally© wherå thå firsô Restarô 
+    Vectoò begins® Iô jusô sï happens¬ thió ió thå samå addresó wherå thå 
+    jumð tï thå BIOÓ Warí Booô Entrù ió found® Thå EQÕ ¤ sayó: assigî thå 
+    addresó oæ thå Prograí Counteò (000° aô thió point© tï thå labeì RST0.
+
+    RST°    EQÕ     ¤               » Restarô Vectoò 0
+
+    Thå nexô linå defineó thå labeì WBOOTÅ (warí booô entry© aó á jumð (JP© 
+    tï thå BIOS+3® Iæ yoõ lookeä aô thå beginninç oæ thå BIOS¬ yoõ woulä 
+    seå thaô iô beginó witè á serieó oæ jumð instructions¬ pointinç tï thå 
+    variouó functionó thå BIOÓ provides® Normally¬ wå dï noô concerî 
+    ourselveó witè thió information¬ becauså thå BDOÓ alsï knowó abouô 
+    thió jumð table¬ anä wheî wå makå á functioî calì tï BDOS¬ iô locateó 
+    thå BIOÓ anä provideó thå necessarù linkagå foò us.
+
+    WBOOTº  JÐ      BIOS+³          » Warí Booô Entry
+
+    Thå nexô linå defineó thå labeì IOBYTE® Iô ió defineä aó á singlå bytå 
+    (DÂ ½ Definå Byte© witè á valuå iî thå bytå oæ 00H® Thió bytå ió ofteî 
+    useä bù thå BIOÓ anä otheò applicationó tï "rå-direct¢ thå input/outpuô 
+    oæ á program® (Iî standarä CP/Í systems¬ thå STAÔ commanä manipulateó 
+    thå contentó oæ thió byte.)
+
+    IOBTYEº DÂ      0°              » Input/Outpuô Byte
+
+    Thå labeì USRDSË defineó twï valuesº thå fouò leftmosô bitó contaiî thå 
+    currenô "useò area¢ anä thå fouò rightmosô bitó definå thå currenô 
+    "disk¢ (thå loggeä iî oò defaulô disk)® Wheî á bytå ió divideä intï twï 
+    ´-biô values¬ wå refeò tï theí aó thå Mosô Significanô (MS© anä Leasô 
+    Significanô (LS© Nybble® Perhapó aî illustratioî wilì bå helpful:
+
+
+    USRDSKº DÂ      0°              » MÓ Nybblå ½ User¬ LÓ Nybblå ½ Disk
+
+                             Useò Disk
+
+              MÓ Nybblå -->  000° 000°  <-­ LÓ Nybble
+                 Biô ·  ----¯         \---­ Biô 0
+
+
+    Thå nexô linå 
+
+    BDOSFVº JÐ      BDOS+¶          » BDOÓ Functioî CallŠ
+    defineó thå entrù poinô tï thå BDOÓ thaô wå calì tï havå aî OÓ functioî 
+    performeä foò us® Mosô programó loaä á "functioî code¢ intï Registeò C¬ 
+    anä appropriatå informatioî iî thå otheò registeró anä theî perforí thå 
+    instruction:
+
+            CALÌ    BDOSFÖ        » Perforí Functioî Call
+
+    Foò exampleº supposå wå wanô tï kno÷ iæ á characteò ió waitinç oî thå 
+    consolå foò input® Wå mighô uså Functioî Codå 1± (Reaä Consolå Status© 
+    tï determinå this® Thå codå woulä be:
+
+            LÄ      C,1±          » FÃ ½ Consolå Status
+            CALÌ    BDOSFÖ        » Perforí OÓ Function
+
+    Wheî controì ió returneä tï uó froí thå OS¬ (righô afteò thå CALL)¬ wå 
+    wilì havå á valuå iî Registeò A® Iæ iô ió 00¬ nï characteò waó waiting¬ 
+    iæ iô ió NOÔ 00¬ theî á characteò ió waiting® Buô É digress¡ Wå onlù 
+    havå á fe÷ morå lineó oæ codå tï go¬ anä wå wilì havå completeä thió 
+    article...
+
+    Unfortunately¬ thió kinä oæ explanatioî requireó lotó oæ wordó anä 
+    examples® Thå contentó oæ Pagå ° arå sï verù important¬ É wanteä tï 
+    starô witè iô sï yoõ wilì understanä somå oæ thå morå rudimentarù 
+    locationó iî youò memorù image.
+
+    Thå nexô seveî lineó represenô thå remaininç Restarô Vectors® Therå arå 
+    eighô oæ theí iî thå Z8° machine® Iî generaì theù arå unuseä aô presenô 
+    iî mosô machines® However¬ witè thå ne÷ OÓ anä somå ne÷ applications¬ 
+    theså byteó wilì bå used® (DÓ ½ Definå Storagå iî bytes)
+
+    RST1º   DÓ      ¸               » Restarô Vectoò 1
+    RST2º   DÓ      ¸               » Restarô Vectoò 2
+    RST3º   DÓ      ¸               » Restarô Vectoò 3
+    RST4º   DÓ      ¸               » Restarô Vectoò 4
+    RST5º   DÓ      ¸               » Restarô Vectoò 5
+    RST6º   DÓ      ¸               » Restarô Vectoò 6
+    RST7º   DÓ      ¸               » Restarô Vectoò · (Debuç Utilities)
+
+    Thå nexô twï lines¬ merelù allocatå 2¸ byteó oæ memory® Nothinç oæ anù 
+    interesô ió iî them® Thå addresseó tï thå right¬ iî thå commentó area¬ 
+    merelù indicatå whaô "memorù locations¢ theù allocate.
+
+            DÓ      1¶              » 004° ­ 004F
+            DÓ      12              » 005° ­ 005B
+
+    Alsï locateä iî Pagå ° arå twï "default¢ Filå Controì Blocks¬ aô 
+    addresseó 005CÈ anä 006CH® Theså FCBó arå generallù filleä iî bù thå 
+    CCÐ iæ wå havå specifieä "arguments¢ oî thå commanä line® É wilì noô 
+    botheò witè á discussioî oæ theiò structurå aô thió time® Wå wilì coveò 
+    iô iî detaiì aô á lateò time.
+
+    FCB1º   DÓ      1¶              » Defaulô FCÂ 1
+    FCB2º   DÓ      1¶              » Defaulô FCÂ 2
+Š    Next¬ arå fouò bytes¬ merelù allocatinç memorù aó above:
+
+            DÓ      0´              » 007Ã ­ 007F
+
+    Anä lastlù comeó thå defaulô Direcô Memorù Accesó Buffer® Thió ió thå 
+    areá wherå CP/Í generallù storeó á recorä reaä froí onå oæ thå floppù 
+    diskó (oò harä disk)® Iô ió ALWAYÓ 12¸-bytes¬ becauså CP/Í thinkó ALL 
+    physicaì recordó arå 128-byteó iî length®
+
+    DMABFRº DÓ      12¸             » 008° ­ 00FF
+
+    Theî thå assembleò directive¬ END¬ tï definå thå obvious¬ thå enä oæ 
+    thå program.
+
+            END
+
+    Iî thió month'ó article¬ É havå describeä thå basiã layouô oæ memorù 
+    anä thå contentó oæ Pagå 0® Nexô month¬ wå wilì begiî á "real¢ prograí 
+    anä discusó morå memorù management® Iæ yoõ dï noô havå BUFFERS.DOÃ aô 
+    thió time¬ yoõ mighô retrievå iô foò nexô monthó column.
+
+    Youò assignmentº Yoõ shoulä trù tï assemblå thió prograí anä prinô ouô 
+    thå resultinç listing® Keeð iô handù foò thå future¬ aó wå wilì refeò 
+    tï iô oveò anä oveò again® Iæ yoõ dï noô havå M80¬ SLÒ oò ZAS¬ yoõ caî 
+    geô á copù oæ thå compileä listinç filå froí mù Ú-Node®
+
+    Yoõ musô havå á printeò capablå oæ printinç á minimuí oæ 12± columns® 
+    Mosô 8° columî doô-matriø machineó caî bå seô tï "condensed¢ modå anä 
+    wilì worë fine® Thå filå caî bå printeä witè PIÐ anä haó imbeddeä ^Ì 
+    (Controì-L© aô appropriatå placeó tï causå á Forí Feeä (ne÷ page)® Thå 
+    sourcå codå foò thió filå ió alsï availablå oî mù Ú-Node¬ Accesó 
+    Programminç anä PEÇ-3® Refeò tï youò printeò manuaì oò documentatioî oî 
+    PIÐ foò morå printinç details.
+
+    Onå morå poinô oæ interestº Somå assembleró displaù thå assembleä 
+    addresó aó iô ió actuallù storeä iî memory¬ lo÷ byte¬ theî higè byte® 
+    Thå SLÒ assembleró caî displaù iô botè ways® É choså tï sho÷ iô aó 
+    higè-bytå anä lo÷-byte¬ simplù becauså iô ió easieò tï read® M80¬ 
+    however¬ doeó jusô thå opposite.
+

@@ -1,0 +1,73 @@
+                       Technical Abstract
+
+CRUNCH 1.x maintained a table representing up to 4096 strings  of
+varying lengths using the so called LZW algorithm, which has been
+described in the earlier documentation.  These strings were  ent-
+ered into a table in a manner where the strings content was  used
+to  determine the physical location (hashing), and that  location
+was used as the output code.  Hash "collisions" were resolved  by
+maintaining another 12 bits of data per entry which was a "link",
+or pointer to another entry.
+
+In contrast, CRUNCH 2.x uses an "open-addressing, double hashing"
+method similar to that employed in the UNIX COMPRESS.  This meth-
+od  involves a table of length 5003, where only 4096 entries  are
+ever made, insuring the table never gets much more than about 80%
+full.  When a hash collision occurs, a secondary hash function is
+used to check a series of additional entries until an empty entry
+is  encountered.   This method creates a table filled  with  many
+criss-crossed "virtual" chains, without the use of a "link" entry
+in the table.
+
+One reason this is important is that [without using any addition-
+al  memory] the 1 1/2 bytes which were previously allocated as  a
+link can now become the [output] code number.  This enables us to
+assign  code  numbers, which are kept right alongside  the  entry
+itself,  independently  of the entry's physical  location.   This
+allows  the codes to be assigned in order, permitting the use  of
+9-bit  representations  until there are 512 codes in  the  table,
+after which 10 bit representations are output, etc.
+
+The  variable bit length method has three ramifications.   It  is
+particularly  helpful when encoding very short files,  where  the
+table  never even fills up.  It also provides a fixed  additional
+savings  (not  insubstantial) even when the table does  fill  up.
+Thirdly,  it  reduces the overhead associated with  an  "adaptive
+reset"  to the point where it becomes a very viable  alternative.
+"Adaptive  reset" simply means throwing out the whole  table  and
+starting over.  This can be quite advantageous when used  proper-
+ly.  CRUNCH v2.x employs this provision, which was not  incorpor-
+ated in the V1.x algorithm.
+
+"Code  reassignment" is an advancement I introduced with the  re-
+lease  of CRUNCH v2.0 based on original work.  It is not used  in
+COMPRESS,  any  MS-DOS ARC program, or [to the best of  my  know-
+ledge]  any other data compression utility  currently  available.
+There are many ways one might go about this (and at least as many
+possible pitfalls).  The algorithm I selected seemed to represent
+a good tradeoff between speed, memory used, and improved  perfor-
+mance, while maintaining "soundness of algorithm" (ie it works).
+
+
+Briefly,  it works as follows: Once the table fills up, the  code
+reassignment process begins. (At this same time, the  possibility
+of  adaptive reset is also enabled).  Whenever a new  code  would
+otherwise be made (if the table weren't full), the entries  along
+the  hash  chain  which  would normally  contain  the  entry  are
+scanned.  The first, if any, of those entries which was made  but
+never  subsequently referenced is bumped in favor of the new  en-
+try.   The uncruncher, which would not normally need  to  perform
+any  hash  type function, has an auxiliary  physical  to  logical
+translation table, where it simulates the hashing going on in the
+cruncher.   In this fashion it is able to exactly  reproduce  the
+reassignments made my the cruncher, which is essential.
+
+---
+
+I  hope to write an article soon on "Recent Advancements in  Data
+Compression".  It would cover the recent history generally, along
+with a more detailed description of some of the algorithms, and a
+series of additional ideas for future enhancement.
+
+                                              Steven Greenberg
+                                              16 November 1986

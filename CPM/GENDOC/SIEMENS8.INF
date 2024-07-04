@@ -1,0 +1,87 @@
+
+		Tips on getting the Siemens 100-8 SSDD 8 inch
+	  disk drives running with the Morrow DJDMA disk controller.
+
+     Two problems arise when configuring the 100-8 for the DJDMA.  The first
+is the jumper settings, and the second is the CP/M BIOS drive parameter tables.
+The DJDMA needs some odd (compared to other controllers) jumper settings, and
+the 100-8 drive parameters (step rate and settling time) are not always what
+Siemens' (now World Disk Drives, Irvine, California) documentation would lead
+one to expect.
+
+Jumper Settings
+
+     The DJDMA requires the following characteristics of its disk drives:
+
+          1. Radial (daisy chained) drive select
+          2. Head load when drive is selected and door is closed
+          3. In-Use LED on from drive select
+          4. Stepper power from head load
+          5. Soft sector
+          6. Terminating resistors on the last drive in the daisy chain
+
+     For the 100-8 the approriate jumper settings are:
+
+          Rad Sel     0 in drive A, 1 in drive B
+          Rad Step    2
+          12          yes
+          16          no
+          18          no
+          20          yes
+          22          yes
+          24          yes
+          34          yes
+          36          yes
+          A           no
+          B           no
+          C           no
+          D           yes
+          E           yes
+          F           no
+          G           yes
+          H           no
+          J           no
+          K           yes
+          L           yes
+          M           no
+          RI          yes
+          RR          yes
+          V           no
+          SS          yes
+          HS          no
+          Term Res.   no on drive A, yes on drive B
+          Act LED  U  no
+                   S  no
+                   R  no
+                   H  yes
+          SE          yes
+          TE          no
+
+BIOS disk parameters
+
+     The Morrow BIOS comes configured for Shugart 800/801 drives.  They
+require 8 millisecond step and settle times.  The Siemens documentation
+says that the 100-8 needs 3 to 8 milliseconds "access" (by which I think 
+they intended "step") time and 14 milliseconds settling time.  I've got the 
+feeling they reversed the numbers.  8 milliseconds was sufficient settling 
+time under all conditions.  I tried 8 milliseconds as the step parameter and 
+the operation was erratic.  More often than not the drives couldn't keep up 
+with the step rate and would fail the track seek.  I then changed the step 
+parameter to 14 milliseconds and all worked fine.  I tried reducing the step 
+parameter in 2 millisecond increments and all worked fine down to 10 
+milliseconds.  To be safe, start with 14 milliseconds and if you're 
+adventurous, try reducing it until you start getting slightly erratic seeks.
+You can tell you've gone too far if, instead of getting a clean head movement
+directly to the requested track, it tries more than once, returning to track
+0 in the process.  Back off 2 milliseconds and your drive will be seeking as
+fast as it can.  I don't know if stepping the drive at faster than 14
+milliseconds hurts the long term reliability of the drive, so if you're
+worried about such things, leave it at 14.  I used DU-V87.COM (available on
+many RCPM systems) to help pinpoint the seek problems.  It allows you to 
+command the head directly to any track.
+
+                                             Len Moskowitz
+                                             Fair Lawn, N.J.
+                                             October 1984
+
+

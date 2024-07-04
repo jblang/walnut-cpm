@@ -1,0 +1,3382 @@
+ 1-Jun-88 01:33:28-MDT,5217;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed,  1 Jun 88 01:30:13 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #136
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed,  1 Jun 88       Volume 88 : Issue 136
+
+Today's Topics:
+                Any good references for CP/M and Z80?
+                     file truncation in CP/M 2.2?
+                           STOIC Disk I/O ?
+               Thanks for Info on Ada for CP/M Systems
+                     The COMPAS Pascal Compiler.
+----------------------------------------------------------------------
+
+Date: Thursday, 26 May 1988  22:07-MDT
+From: xanth!rlb@AMES.ARC.NASA.GOV (Robert Lee Bailey)
+Subject: Any good references for CP/M and Z80?
+
+My favorite CP/M and Z80 books are as follows:
+ 
+	Mastering CP/M
+	By Alan R. Miller
+	(C) 1983 SYBEX Inc.
+ 
+	How To Program the Z80
+	By Rodney Zaks
+	(C) 1980 SYBEX Inc.
+ 
+	Z80 Assembly Language Programming
+	By Lance A. Leventhal
+	(C) 1979 Adam Osborne & Assoc. Inc.
+ 
+I don't know if the books are still available, or if they're even
+still in print. I've had these for many years.  The first two books
+are excellent and I highly recommend them. 'Mastering CP/M is the
+best CP/M programming manual that I have seen. It provides lots of 
+good examples for BDOS/BIOS calls. 'How to program the Z80' is, in my
+opinion, the best Z80 assembler book. It is even better than the
+Zilog Z80 manual (and they invented the z80). This book was also 
+available from Radio Shack but they have discontinued it.  If you
+scour some of the smaller 'Shacks you may still find it. Their 
+catalog number is 62-2006.
+ 
+Good luck in trying to find 'em!
+
+------------------------------
+
+Date: Tue, 31 May 88 17:17:52 PDT
+From: Bridger Mitchell <bridger%newton@rand-unix.ARPA>
+Subject: file truncation in CP/M 2.2?
+
+Unlike CP/M Plus, CP/M 2.2 has no truncate-file function.  This
+is a useful function when a large file (e.g. a database or library file)
+needs to be "lopped off", or packed down, and there's a lack of disk
+space to create a temporary duplicate file.
+
+Is there a portable method of truncating a CP/M 2.2 file, using only
+BDOS calls?  I believe the following approach will work so long as the
+shorter file's final physical extent (i.e. directory entry) is the
+same as the original file's:
+
+	open the file
+	get file size, to set extent, S2, and record count bytes
+	change record count to new number of records in final
+	  logical extent
+	change extent number, if necessary, to new final logical
+	  extent
+	clear bit 7 of S2, to mark the file/fcb "modified"
+	close the file
+	use function 37 to log off the drive (use the FRESET routine,
+	  or function 13, if run on the buggy DRI BDOS).
+
+The BDOS will write the changed fcb (directory entry) to the directory
+when the file is closed, then rebuild the allocation vector for the
+drive using the new number of records.
+
+BUT...what can be done if the truncation results in eliminating the
+last physical extent(s)?  The BDOS internally opens and closes each
+physical extent of a multi-extent file.  Suppose, for example, you read
+randomly the last record you wish to keep in the new file and  it's
+not in the last physical extent.  Then you use the procedure above,
+and the intermediate extent will be modified in the directory.
+
+But the final extent will remain in the directory, unchanged.  Disk
+logins will continue to keep the data groups reserved in that entry
+allocated; they are effectively stranded.  And directory utilities
+that sort extents will be badly confused.  You'd like to "erase" just
+that final extent.  But this can't be done by BDOS calls.  Or can it?
+
+-- bridger mitchell
+
+------------------------------
+
+Date: Tue, 31 May 88 19:16:28 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist / KXO)
+Subject: STOIC Disk I/O ?
+
+Has anyone ever modified the 8080 STOIC for CP/M-80 from SIG/M to read
+and write sequential text files (or written code for use from STOIC) ?
+
+It's set up to read source files like you load FORTH screen files for
+execution but appears to stop short at that.
+
+I'm looking for a minimal FORTH environment for CP/M-80 that does
+sequential text file I/O in both limited TPA and COM-size to use from
+a NEC 8500 laptop.
+
+Thanks !
+
+rcs
+
+------------------------------
+
+Date: Tue, 31 May 88 20:26:25 PDT
+From: dowst@VLSI.JPL.NASA.GOV (Henry P. Dowst)
+Subject: Thanks for Info on Ada for CP/M Systems
+
+Thanks to all of you who responded to my querry.  Much appreciated.
+
+Henry Dowst
+
+------------------------------
+
+Date: Tue, 31 May 88 13:56:56 ECT
+From: DBRAATAN%NORUNIT.BITNET@CORNELLC.CCS.CORNELL.EDU
+Subject: The COMPAS Pascal Compiler.
+
+I tried a COMPAS pascal compiler some years ago. It ran on a Scandis 80186
+computer. The computer is swedish. The compiler looked very much like
+TurboPascal from Borland (this IS many years ago, so forgive me if I am
+wrong).
+
+Yoy may buy TurboPascal Ver 3.0 from Borland.
+
+             Dag Henrik Braatane
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 2-Jun-88 01:32:43-MDT,5113;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu,  2 Jun 88 01:30:19 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #137
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu,  2 Jun 88       Volume 88 : Issue 137
+
+Today's Topics:
+      Floating point routines for the (keep standing) Z80 wanted
+                  Posting 8 bit sources and binaries
+                     SIMCPM.IDX format converter
+----------------------------------------------------------------------
+
+Date: 31 May 88 12:49:59 GMT
+From: mcvax!diku!dkuug!ambush!leif@uunet.uu.net  (Leif Andrew Rump)
+Subject: Floating point routines for the (keep standing) Z80 wanted
+
+Do you have acces or know where I can get hold on some floating point
+routines for the Z80 (or 8080). It dosn't matter if it's PD or
+something we have to pay for and it also (almost) dosn't matter if
+it's source og a library ready for linking, as long as it can do the
+following things:
+
+      - Use 8-9-10 digits
+      - Has trigonometric functions (sin, cos, ...)
+      - Has other functions that you normally find in BASIC(!)
+
+Please respond as quickly as possible!
+
+Alternative reply path: ABC BBS, 06 80 05 44, 24h, 300/1200, 2:505/38
+
+   Leif Andrew Rump, Ambrasoft A/S, Roejelskaer 15, DK-2840 Holte (Denmark)
+ UUCP: leif@ambush.dk, phone: +45 2424 111; ABC BBS: +45 68 00 544 (2:505/38)
+
+     "...with a liquid which was almost, but not quite, entirely unlike tea."
+                                   - The Hitch hicker's Guide to the Galaxy
+
+------------------------------
+
+Date: 25 May 88 13:15:23 GMT
+From: necntc!ima!cfisun!lakart!dg@ames.arc.nasa.gov  (David Goodenough)
+Subject: Posting 8 bit sources and binaries
+
+From article <2038@copper.TEK.COM>, by michaelk@copper.TEK.COM (Michael D. Kersenbrock):
+> 	.... Discussion of why usenetters can't post source & binaries to
+>		comp.os.cpm
+
+> SOLUTIONS:
+> =========
+> 	 b)  A new USENET group for binaries and sources:
+> 
+> 	 		comp.os.cpm.sources
+> 
+> 		(and allow both binaries and sources).
+> 
+> 	     This new group would NOT be gatewayed the the ARPA world.
+
+To re-iterate a suggestion of mine vis a vis the comp.binaries.cbm discussion
+would it not be possible to create a "cover-all" newsgroup, called
+comp.programs.eight-bit
+that contains everything. I.E. CP/M binaries, source, C64 / C128 BASIC
+progs, assembler source, C source, Commodore binary executables. Yeah, I
+know it'd be a real mish-mash, but there is a lot of interest in a CBM
+binaries / source group (if you don't believe me, go look at the last two
+weeks in comp.sys.cbm :-) Add to that the fact that I am now 12 mailings
+behind on getting my assembler out to .UUCP sites, gives you some idea
+of the amount of interest we have here.
+
+Please note - I have cross posted to what I believe are the relevant
+newsgroups, but followups are directed to news.groups (the correct
+place for them) Watch that space for details.
+-- 
+	dg@lakart.UUCP - David Goodenough		+---+
+							| +-+-+
+	....... !harvard!adelie!cfisun!lakart!dg	+-+-+ |
+						  	  +---+
+
+------------------------------
+
+Date: 1 Jun 88 01:44:50 GMT
+From: tektronix!midas!copper!michaelk@ucbvax.Berkeley.EDU  (Michael D. Kersenbrock)
+Subject: SIMCPM.IDX format converter
+
+NOTE: Yes, this technically is a source listing, but it is REAL short to
+be counted as just a "letter".
+
+The file SIMCPM.IDX which has a CP/M filelist (with descriptions) is in a
+DBASE-II format of some sort.  Having a copy of the file, but NOT having
+dbase results in a problem.
+
+The real-short routine below was a 10-minute hack-job that converts that
+format into a more-or-less nice readable format suitable for grepping.
+
+Just thought I'd save y'all the ten minutes I spent....:-)
+
+-----------------cut here--------------
+/*
+ * Filters SIMCPM.IDX into "nice text".
+ *
+ *			A quickie-hack by: Michael D. Kersenbrock
+ *					   Aloha, Oregon
+ *  Version 1.0  5/31/88
+ */
+#include <stdio.h>
+
+char Line[500],Drive[100],Directory[100], Name[100];
+char Description[100],Word2[100],Date[100];
+int Version,Size,Type;
+
+main() {
+	register char *ptr,*p2;
+	while (gets(Line) != NULL) {
+		for (ptr = Line ; *ptr != '\0' ; ptr++) {
+			if (*ptr == '"' || *ptr == ',') *ptr = ' ';
+		}
+		sscanf(Line,"%s %s %s %d %d %d %s %s %s",
+	        	Drive,Directory,Name,&Version,&Size,&Type,Date,
+			Description,Word2);
+		strcat(Description, " ");
+		strcat(Description, Word2);
+		for (ptr = Line ; *ptr != '\0' ; ptr++) {
+		    if (strncmp(ptr,Description,strlen(Description)) == 0) {
+			strcpy(Description,ptr);
+			break;
+		    }
+		}
+		printf("%s%11s %12s %d %3dK ",
+		    Drive,Directory,Name,Version,(Size + 512)/1024);
+		putchar(Date[2]);
+		putchar(Date[3]);
+		putchar('-');
+		putchar(Date[0]);
+		putchar(Date[1]);
+		printf(" %s\n",Description);
+	}
+}
+-- 
+Mike Kersenbrock
+Tektronix Microcomputer Development Products
+Aloha, Oregon
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 3-Jun-88 01:35:36-MDT,6317;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri,  3 Jun 88 01:30:30 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #138
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri,  3 Jun 88       Volume 88 : Issue 138
+
+Today's Topics:
+                       Help with Bradford (tm)
+                       MP/M for PCPI Applicard?
+                   Need help with Unix FTP & KERMIT
+             Posting 8 bit sources and binaries (2 msgs)
+                    Summary of CP/M Ada Responses
+----------------------------------------------------------------------
+
+Date: Thu, 02 Jun 88 17:28:30 ECT
+From: DBRAATAN%NORUNIT.BITNET@CUNYVM.CUNY.EDU
+Subject: Help with Bradford (tm)
+
+I have just got the BRADFORD program from SIMTEL20. It is in two files
+called BRAD2-A.ARK and BRAD2-B.ARK. The program is made by Aaron
+Contorer. It may bought from him together with a manual. What it
+does? It print in Near Letter Quality with your non-letter-quality
+printer.
+
+My problem: Bradford uses the backslash () as a command character.
+Command words in the middle of lines are preceded by a backslash.
+But the backslash is defined as one of the special norwegian letters
+in the norwegian ASCII code. That makes Bradford difficult for us
+in Norway (and also Denmark and Sweden).
+
+Do you know how to use another character as the command character?
+Help would be very much appreciated...
+
+        Dag Henrik Braatane
+
+------------------------------
+
+Date: 2 Jun 88 18:24:25 GMT
+From: ius3.ius.cs.cmu.edu!ralphw@pt.cs.cmu.edu  (Ralph Hyre)
+Subject: MP/M for PCPI Applicard?
+
+PCPI doesn't really do software support for the thing anymore, so I
+doubt this exists, but I just thought I'd ask. 
+
+Just thought I'd ask - I have these Apple ]['s that don't do much anymore,
+it would be interesting to play with an 8-bit multitasking system for a bit to
+see what it feels like.  The PCPI Applicard has bank-switched memory (up to
+256K in 32K banks), and a CTC chip option (for generating interrupts at 
+regular intervals) Can MP/M use existing BDOS/BIOS code?
+
+Thanks for any info.
+
+ 
+
+-- 
+					- Ralph W. Hyre, Jr.
+
+Internet: ralphw@ius2.cs.cmu.edu    Phone:(412)268-{2847,3275} CMU-{BUGS,DARK}
+Amateur Packet Radio: N3FGW@W2XO, or c/o W3VC, CMU Radio Club, Pittsburgh, PA
+
+------------------------------
+
+Date: 3 Jun 88 01:53:32 GMT
+From: ut-emx!cc.rob@sally.utexas.edu  (James P. Price)
+Subject: Need help with Unix FTP & KERMIT
+
+Help!  They're getting rid of the TOPS-20 system here, and I need
+help in getting files intact from SIMTEL20 via UNIX ftp and kermit.
+The problem I'm having is that when I've done a GET from SIMTEL20 (via
+'Type Tenex (8bit)' (ascii & binary don't work with .LBR's), and then
+download to my Kaypro via kermit, the libary is no good.
+ The .LBR directory is intact, as are all files that are normal ascii.
+ The problem is with the crunched files.  NONE of them can be typed,
+ uncrunched, or reassembled in any way.
+  Do I have to ascify, bytify, or something-ify the file before I download
+  it, or is the problem with FTP?
+    Thanks,
+       -Pat Price
+
+------------------------------
+
+Date: 2 Jun 88  9:45 -0600
+From: Ken Wallewein <kenw%noah.arc.cdn%ean.ubc.ca@RELAY.CS.NET>
+Subject: Posting 8 bit sources and binaries 
+
+>     To re-iterate a suggestion of mine vis a vis the comp.binaries. cbm
+>discussion would it not be possible to create a "cover-all" newsgroup, called
+>comp.programs.eight-bit that contains everything. I.E. CP/M binaries, source,
+>C64 / C128 BASIC progs, assembler source, C source, Commodore binary
+>executables. 
+
+  Seems to me there's already a usenet newsgroup like that:
+comp.sources.misc.
+
+/kenw
+
+------------------------------
+
+Date: 2 Jun 88 17:30:16 GMT
+From: hpl-opus!walker@hplabs.hp.com  (Rick Walker)
+Subject: Posting 8 bit sources and binaries
+
+> > 	.... Discussion of why usenetters can't post source & binaries to
+> >		comp.os.cpm
+> 
+> > SOLUTIONS:
+> > =========
+> > 	 b)  A new USENET group for binaries and sources:
+> > 
+> > 	 		comp.os.cpm.sources
+> > 
+> > 		(and allow both binaries and sources).
+> > 
+> > 	     This new group would NOT be gatewayed the the ARPA world.
+> 
+> To re-iterate a suggestion of mine vis a vis the comp.binaries.cbm discussion
+> would it not be possible to create a "cover-all" newsgroup, called
+> comp.programs.eight-bit
+> that contains everything. I.E. CP/M binaries, source, C64 / C128 BASIC
+> progs, assembler source, C source, Commodore binary executables. Yeah, I
+> know it'd be a real mish-mash, but there is a lot of interest in a CBM
+> binaries / source group (if you don't believe me, go look at the last two
+> weeks in comp.sys.cbm :-) Add to that the fact that I am now 12 mailings
+> behind on getting my assembler out to .UUCP sites, gives you some idea
+> of the amount of interest we have here.
+
+I would like to give one more vote FOR something of this sort.  The 
+ARPA CP/M archives (SIMTEL et al.) are a great public service, but
+are very inconvenient for us non-ARPA folks to use.
+
+The result is that we never see any of the new software that 
+gets absorbed into the ivory tower of the ARPA archives.
+
+It is unfortunate that this situation is perpetuated by ARPA threatening
+to drop their gateway if anyone even thinks of posting source or binaries
+on the net.
+
+A newsgroup for non-ARPA sites (specifically non-gatewayed) which
+carried sources would be a great compromise.  The situation now
+is far too biased towards the needs/wants/requirements of the ARPA
+group, to the detriment of the community at large.
+
+-Rick Walker  ...hplabs!hpl-opus!walker
+
+------------------------------
+
+Date: Thu, 2 Jun 88 13:52:33 PDT
+From: dowst@VLSI.JPL.NASA.GOV (Henry P. Dowst)
+Subject: Summary of CP/M Ada Responses
+
+There is an unvalidated Ada subset compiler called JANUS Ada available
+from Workman & Associates for about $300.  There are also apparantly 
+ads for others (Manx?) from time to time in Dr. Dobbs' Journal.  All 
+seem to be unvalidated subsets, and are probably multiple pass and 
+quite slow.
+
+Henry Dowst
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 4-Jun-88 01:31:57-MDT,4311;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat,  4 Jun 88 01:30:13 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #139
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat,  4 Jun 88       Volume 88 : Issue 139
+
+Today's Topics:
+                      Kaypro Screen Capture/Dump
+                  Need help with Unix FTP and Kermit
+                  Posting 8 bit sources and binaries
+----------------------------------------------------------------------
+
+Date: 3 Jun 88 16:47:51 GMT
+From: rochester!ciaraldi@louie.udel.edu  (Mike Ciaraldi)
+Subject: Kaypro Screen Capture/Dump
+
+Thanks for the answers to my earlier question about VT100
+terminal emulators for Kaypro.
+I tried VT100KAY from the Simtel archives and it works pretty well,
+although it sometimes messes up by doulbe-spacing when it shouldn't
+(probably wrapping around on long lines or something).
+
+Anyways, I'm now looking for a way to save screens for future reference.
+Is there a program you can load it that will give you a hot key
+that will either dump the current text screen out to the printer
+(like the PrintScreen key on an IBM PC), or capture the current screen into
+a file?
+
+I tried KPVID, but this only puts graphics screens into a file
+(at least I think that's what the documentation means), and it
+is a separate command you have to run after getting out
+of your program.
+
+Or, do any of the terminal programs people recommended to me
+have these features?  Just capturing the terminal session 
+character by character (logging) is not good enough, because the cursor
+is jumping all around the screen updating the display.
+
+Thanks again for any help you can give.
+
+Mike Ciaraldi
+University of Rochester Computer Science
+...rochester!ciaraldi or
+ciaraldi@cs.rochester.edu
+
+------------------------------
+
+Date: Fri, 3 Jun 88 15:56:00 CDT
+From: jdb@ncsc.ARPA (Brown)
+Subject: Need help with Unix FTP and Kermit
+
+It sounds like you are running kermit on the unix machine with file type
+set to text.  Since unix text format is
+
+ a line of stuff<LF>
+
+when it is sent out by things like ftp, kermit, xmodem, etc. they insert
+a <CR> in front of the <LF>'s.  This works fine for text files but
+wrecks havoc on binary files.
+
+You can either invoke kermit with
+
+kermit -xi
+
+which sets kermit into server mode (the 'x') and sets file type to binary
+(the 'i'), or run it with no parameters and do a 'set file type binary'
+before going to server mode.  This is available in all the C-Kermit
+versions that I have used. (currently using 4E(070) 29 Jan 88)
+
+If you do download a text file while set to binary, the file will
+contain no carriage returns and the lines
+					 will trail
+						   across the screen
+								    like this.
+
+There is a program available at Simtel20 that will un-unixize these
+type files by adding the <CR>'s.  I don't have my list handy so I can't
+tell you what it is called right off.
+
+hope this helps.
+david brown
+jdb@ncsc.arpa
+
+------------------------------
+
+Date: Fri, 3 Jun 1988  05:48 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: Posting 8 bit sources and binaries
+
+I spend a lot of time transferring new SIMTEL20 CP/M files to my RCP/M
+and to GEnie's CP/M RoundTable so that non-Arpanet people can access
+them.  My RCP/M is accessable via PC Pursuit and GEnie is only $5/hr
+for downloading.
+
+The "threat" of discontinuing the Usenet<-->Arpanet gateway is simply
+a reality that on the Arpanet side the CP/M newsgroup is a mailing
+list.  This sends out hundreds of copies of each posting and you can
+see what large program postings would do to us.  It would not only
+overload the mail system but it would result in many readers missing
+the regular discussions because their disk quotas would be exceeded
+and the Info-Cpm mail rejected.
+
+--Keith Petersen
+Maintainer of the CP/M archives at SIMTEL20.ARPA
+and maintainer of the Info-Cpm mailing list.
+
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 5-Jun-88 01:32:34-MDT,3774;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun,  5 Jun 88 01:30:58 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #140
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun,  5 Jun 88       Volume 88 : Issue 140
+
+Today's Topics:
+                  Posting 8 bit sources and binaries
+                            Screen Dumps 
+----------------------------------------------------------------------
+
+Date: 4 Jun 88 01:11:41 GMT
+From: tetra!budden@nosc.mil  (Rex A. Buddenberg)
+Subject: Posting 8 bit sources and binaries
+
+The users of the 'arpa' side of the internet and the 'non-arpa'
+are probably equally heterogeneous (myself, I'm actually on the
+mil side).  So saying the usenet user needs are different
+from an arpanet/simtel20 user is making a distinction where
+there probably isn't any.
+
+The problem is one of network abuse and capacity consumption.
+If you post things like binaries, all those newsgroup sites get
+tons of bits, whether the users want them or not.  The
+solution within arpanet was to use simtel20 -- you only use
+the network capacity you need to download what you want.
+
+Unfortunately, we are running into a problem.  Defense Communications
+Agency, which operates both the arpa and mil parts of DDN isn't
+really in the business of providing us comms services as a free
+good.  In a year or so, we will all be paying packet charges
+for the services -- DCA has to pass the costs back to the users.
+One of the unanswered questions is how you manage repositories like
+Simtel20 or CU20B -- the costing algorithm does not account for
+this at all.  Nobody in DCA really wants to kill them, but
+they don't have a decent way to keep them providing the services.
+Worse, while we can all see the benefits of these bboards, they
+will be difficult to justify too -- who pays the packet charges
+for bboard traffic?  The poster?  
+If the reader is to incur them, he will have to pay
+whether he actually reads or not.  Sticky.
+
+So when Keith enforces the discipline, there are some very good
+reasons.
+
+Rex Buddenberg
+
+------------------------------
+
+Date: Sat, 04 Jun 88 11:43:06 PDT
+From: Bridger Mitchell <bridger%newton@rand-unix.ARPA>
+Subject: Screen Dumps 
+
+Although best known for its task-switching features, BackGrounder ii
+(BGii) includes a screendump capability -- to file or printer.  It captures
+ascii, but not graphics, characters when the hot-key/command is
+pressed, then restores the cursor and screen to its original state.
+This feature requires a screendriver.  Drivers are included for
+both types of Kaypros ('83 and '84), Wyse 50, TVI, Heath/Zenith 19,
+and a number of other terminals, as well as info on writing a new
+driver.
+
+For Kaypros, there are at least 2 roms that contain the low-level
+primitives for dumping the screen to a character device.  The TurboRom
+is one; I forget the name of another.  Dumping to a file requires
+bdos-re-entrancy and therefore something like BGii.
+
+--bridger mitchell
+
+------------------------------
+
+Date: Sat,  4 Jun 88 09:39:12 GMT
+From: SUR6GMS%CMS1.UCS.LEEDS.AC.UK@CUNYVM.CUNY.EDU
+
+About sequential file i/o for STOIC: YES!!!
+
+An offering to the UK CP/M user group substantially updated stoic to add
+a full screen editor, sequential file i/o, floating point and a few other
+things.
+
+It is probably easiest to get in touch with the user group direct:
+    UK CP/M User Group
+    72, Mill Road
+    Hawley
+    Dartford
+    Kent DA2 7RZ
+    England
+
+You need discs UK 11 and 12.
+
+
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 6-Jun-88 01:33:22-MDT,2454;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Mon,  6 Jun 88 01:30:13 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #141
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Mon,  6 Jun 88       Volume 88 : Issue 141
+
+Today's Topics:
+                       Help with Bradford (tm)
+----------------------------------------------------------------------
+
+Date: 5 Jun 88 03:30:58 GMT
+From: xanth!rlb@ames.arc.nasa.gov  (Robert Lee Bailey)
+Subject: Help with Bradford (tm)
+
+In article <8806022304.AA25094@ucbvax.Berkeley.EDU> DBRAATAN@NORUNIT.BITNET writes:
+>I have just got the BRADFORD program from SIMTEL20. It is in two files
+>called BRAD2-A.ARK and BRAD2-B.ARK. The program is made by Aaron
+>Contorer. It may bought from him together with a manual. What it
+>does? It print in Near Letter Quality with your non-letter-quality
+>printer.
+>
+>My problem: Bradford uses the backslash () as a command character.
+>Command words in the middle of lines are preceded by a backslash.
+>But the backslash is defined as one of the special norwegian letters
+>in the norwegian ASCII code. That makes Bradford difficult for us
+>in Norway (and also Denmark and Sweden).
+>
+>Do you know how to use another character as the command character?
+>Help would be very much appreciated...
+>
+>        Dag Henrik Braatane
+
+Bradford allows the command character (\) and the lead-in character
+(.) to be redefined. Just insert the following command at the 
+beginning of your text:
+
+	.dcc~		{defines the tilde as the command char}
+	.dcl^		{defines the caret as the lead-in char}
+
+The .dcc command can be used to set any character to be the command
+character.  Just substitute the desired character for the tilde. The
+same applies for the .dcl command.
+
+Bradford is actually a lot more powerful than the .DOC file indicates.
+Many commands are not documented.  If you really find Bradford useful,
+order a manual from the author.  It fully explains the use of ALL of
+the commands.  The macro capabilities are quite extensive!  For the
+price ($25 U.S.) it is a bargain.
+
+You indicated that you got your copy from SIMTEL20.  As yet, I have not
+figured out how to access SIMTEL20.  Could you give a brief explaination
+of the commands used to access/download files?
+
+	Bob Bailey
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 7-Jun-88 01:30:40-MDT,1315;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue,  7 Jun 88 01:30:13 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #142
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue,  7 Jun 88       Volume 88 : Issue 142
+
+Today's Topics:
+                 Getting Files from SIMTEL20 via FTP
+----------------------------------------------------------------------
+
+Date: Fri, 3 Jun 88 07:38:39 PDT
+From: dowst@VLSI.JPL.NASA.GOV (Henry P. Dowst)
+Subject: Getting Files from SIMTEL20 via FTP
+
+On our VAX you have to convert a .LBR or .ARC file from TOPS20 to VAX
+file structure before downloading to a CP/M or MSDOS system with Kermit.
+There is a program in a VAX library on SIMTEL20 called BINTNXVMS that 
+does this.  First capture the .LBR file in 8 bit using ftp BINARY
+command.  Then RUN BINTNXVMS.  (Keep the file to be converted in a
+separate directory since BINTNXVMS.EXE converts everything in sight.)
+Then capture the file with Kermit.  Be sure to set the file type to 
+BINARY at both the host Kermit and the receiver Kermit.  Note that 
+XMODEM (at least the version on our VAX) won't do.  We have to use 
+Kermit.
+
+Henry Dowst
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 7-Jun-88 09:29:11-MDT,24068;000000000000
+Mail-From: KPETERSEN created at  7-Jun-88 09:26:59
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue,  7 Jun 88 09:26:58 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #143
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue,  7 Jun 88       Volume 88 : Issue 143
+
+Today's Topics:
+                 How to access the SIMTEL20 archives
+----------------------------------------------------------------------
+
+Date: Tue, 7 Jun 1988  09:24 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: How to access the SIMTEL20 archives
+
+[Here is the latest "archive blurb"]
+
+                     THE SIMTEL20 ARCHIVES
+
+OVERVIEW
+
+There is a collossal amount of free public domain software for the
+CP/M, PCDOS/MSDOS and UNIX operating systems, and for the DoD standard
+programming language, Ada, in several archives on SIMTEL20.ARPA, a
+DECsystem-20 running the TOPS-20 operating system at White Sands
+Missile Range.  Archives of correspondence for several newsgroups,
+including INFO-CPM, are also available.
+
+You can obtain these files using the InterNet file transfer
+protocol, FTP (described in a following paragraph), with user-name
+"anonymous". For a login password, use your host-name or any other
+string of printing characters.  Throughout this message, FTP
+examples are given in a GENERIC syntax.  You will have to consult
+either local documentation or your friendly system wizard to learn
+the actual syntax used with your local mainframe operating system.
+For the sake of brevity, the domain suffix ".ARPA" will be dropped
+from further references to SIMTEL20 in this discussion.
+
+To obtain directory listings, connect to SIMTEL20 via FTP and do this:
+
+  get pd2:<cpm>cpm.crclst
+  get pd2:<cpmug>cpmug.crclst
+  get pd2:<sigm>sigm.crclst
+  get pd1:<msdos>msdos.crclst
+  get pd1:<pc-blue>pc-blue.crclst
+  get pd1:<misc>misc.crclst
+  get pd2:<unix-c>unix-c.crclst
+  get pd2:<ada>ada.crclst
+
+The <CPM> archive is the one to watch for the very latest CP/M
+offerings, as it is updated frequently.  The <CPMUG>, <SIGM> and
+<PC-BLUE> archives contain software distributed by the CP/M Users
+Group, the SIG/M Users Group and the PC-Blue Users Group respectively.
+This software is available on diskettes from the associated users
+groups, and the archives are updated as new volumes are issued.  The
+<PC-BLUE> archive contains software for the IBM-PC and similar
+machines.  Some runs under CP/M, and some under PCDOS/MSDOS.  The
+<MSDOS> archive also contains software for the MSDOS and PCDOS
+operating systems; but this archive is locally managed, and therefore
+is updated more frequently than the <PC-BLUE> archive.  The <UNIX-C>
+archive contains a variety of UNIX tools.  Those which apply
+specifically to CP/M are in the directory <UNIX-C.CPM>.  The <ADA>
+archive is growing rapidly. Information about this archive is in
+directory PD2:<ADA.GENERAL>.  In general, the archived software is
+very good, having been worked-over and refined by many users.  The
+documentation and comments tend to be complete and informative.  Files
+in all of these archives can be obtained using the FTP procedures
+described in this message.
+
+PLEASE NOTE: Due to the large number of files available, the archive
+maintainers cannot possibly attempt to validate the proper operation of
+the various programs.  When a program bug is reported, immediate action
+is taken to either correct the error or remove the offending program
+from the archives.  Still, users must understand that all archive
+programs are offered AS IS, and the archive maintainers specifically
+disclaim any liability should these programs malfunction or cause
+damage, incidental or otherwise.  When testing ANY new software, be
+certain that all information stored on disk is backed-up before you
+start, so that you can recover if files are damaged or erased.  This is
+particularly true if you have a hard disk, in which case malfunctions
+can be spectacularly disasterous.
+
+FILE TYPES
+
+Files are stored in two formats: Text files such as those with names
+that end with DOC, HEX, INF and ASM are sometimes stored as ASCII
+files, but usually these files are stored in binary squeezed form.
+Binary storage is also used for executable (COM) and library files.
+Squeezed and library files are described below.  All binary data are
+stored as four 8-bit bytes per 36-bit SIMTEL20 word, with the low-order
+four bits of each word filled with zeros.  If such a file is
+interpreted as a contiguous string, as will happen if a straight binary
+transfer is made to a 16 or 32-bit UNIX machine, the four zero filler-
+bits per 36-bit group will cause rather bizarre and frustrating
+results.  The methods for dealing with this situation, which differ
+from machine to machine, are explained in a following paragraph.
+
+Squeezed and crunched files have been compressed using programs
+available in directory <CPM.SQUSQ> to obtain a significant size
+reduction.  Squeezed files can be identified by the letter Q in the
+second letter of the extension field.  For example, the file
+PD2:<CPM.ASMUTL>RMACPAT.AQM is a squeezed file.  It must be
+transferred as a binary file, and then unsqueezed.  The unsqueezing
+can be done on a CP/M system using USQ-xx.COM (where "xx" is the
+current version) from directory <CPM.SQUSQ>, or there are several
+host-based unsqueezers in the <CPM> and <UNIX-C> archives (see for
+example, directories <MISC.TOPS-20> and <UNIX-C.CPM>).  Files with
+the letter Z as the second letter of the extension field are crunched.
+Uncrunch programs can be found in the same directories as the
+unsqueezer programs.
+
+CP/M library and archive files (those with names ending in LBR and ARK)
+combine several regular CP/M files into a single BINARY file which
+contains an internal directory of its contents.  LBRs are created using
+the CP/M library utility LU310.COM or some other compatible utility.
+The complete packages for LU310 and a newer compatible program called
+NULUxx (where "xx" is the version) can be found in directory
+PD2:<CPM.ARC-LBR>.  C-language source code for compatible UNIX
+utilities for System V and Berkeley versions of UNIX are in directory
+PD2:<UNIX-C.ARC-PROGS>.
+
+For more information on ARC, ARK, LBR, squeezed and crunched files,
+get PD2:<CPM>-FILES.DOC and/or PD1:<MSDOS>-FILES.DOC.
+
+Although the type of storage used for a particular file can usually be
+inferred from the file-name, this is not always true.  It is a good
+idea to check the appropriate "crclst" file to ascertain the storage
+format used for each file of interest.  Now, and for the foreseeable
+future, storage formats for files in the <SIGM>, <CPMUG> and <PC-BLUE>
+archives can be determined from their "generation numbers", as shown by
+the FTP directory command.  For example, the FTP command:
+
+  dir pd1:<pc-blue.vol001>
+
+will yield results of the form:
+
+  -CATALOG.001.2
+  ABSTRACT.001.2
+  BW.ASM.2
+  BW.BAS.1
+  BW.EXE.1
+  COLOR.ASM.2
+  COLOR.BAS.1
+  COLOR.EXE.1
+  ...and so on
+
+All files with names ending in ".1" are stored in binary format, and
+those with names ending in ".2" are stored in ASCII.  This relationship
+will continue to apply for files in the <SIGM>, <CPMUG> and <PC-BLUE>
+archives until further notice.
+
+WARNING: Because the public domain archives on SIMTEL20 consume a huge
+amount of disk space, storage capacity will be conserved by the
+greatest practical use of libraries and squeezed files, both of which
+are stored in binary format.  If you cannot properly transfer binary
+files, you are going to be VERY FRUSTRATED!  If you need help, please
+contact your local system wizard and provide him/her with a copy of
+this message.  Having done that, if you are still unable to make things
+work correctly, send a message to INFO-CPM-REQUEST@SIMTEL20.ARPA and
+I will try to help you.  Please provide the following information:
+
+ 1. Machine and operating system  (e.g., VAX-11/780, 4.2 BSD UNIX)
+ 2. Network software in use  (e.g., 3-Com UNET)
+ 3. Complete list of available FTP commands  (e.g., GET, PUT, etc.)
+
+Important files in the <CPMUG> and <PC-BLUE> archives are the
+CATALOG files. These files, which are stored in ASCII, contain the
+"-CATALOG.nnn" files from all the volumes of their respective archives.
+To obtain these composite catalog files, connect to SIMTEL20 via FTP
+and do this:
+
+  get pd2:<cpmug>cpmug.cat
+  get pd1:<pc-blue.vol000>pcblue.cat
+
+Similar files exist for the <SIGM> archive, but they are stored in
+squeezed form.  These files, when unsqueezed, yields SIG0.CAT and
+SIG1.CAT (the catalog).  They can be obtained using the FTP command:
+
+  get pd2:<sigm.vol000>sig0.cqt
+  get pd2:<sigm.vol000>sig1.cqt
+
+(NOTE: That's "L-and-three-zeros" in "vol000")
+
+FILE TRANSFER VIA FTP
+
+FTP stands for File Transfer Protocol, a formalized procedure for
+moving files among machines on the Defense Data Network (DDN) and other
+networks that connect with the DDN.  The protocol is implemented by a
+program often called FTP.  The different mainframe operating systems
+implement FTP with variations in command syntax.  Some systems have the
+remote-file-name precede the local-file-name in the command.  Others
+reverse this order.  Some versions have the whole command on a single
+input line, while others use multiple lines.  Read the documentation
+for your local system, or consult a friendly system wizard for the
+details of your local FTP command syntax.
+
+UNIX users can do something like "man ftp" for on-line instructions.
+However, not all UNIX FTP programs are called "ftp", so you may have
+to snoop around in the system directories or ask a system wizard for
+the correct local name to use with the "man" command.  ITS users can
+do ":INFO FTP", and "HELP FTP" works on TOPS-20 and some other
+operating systems.  I will be happy to update this message with
+pointers to other sources of on-line documentation if they are sent
+to INFO-CPM-REQUEST@SIMTEL20.ARPA.
+
+FTP transfers from SIMTEL20 can be made with user-name "anonymous".
+Use GUEST for the password.  For anonymous logins, SIMTEL20 supports
+the FTP "change working directory" command.  (Your local syntax may
+be something like CD, or CWD).  Ignore the message which may appear
+that prompts you to enter a password.  This command allows you to
+specify a default SIMTEL20 directory to be used for all file
+retrievals, and thereby relieves you from having to repeatedly type
+"pdx:<whatever>" as part of each filename.  For example, you can do
+something like this:
+
+  cd pd2:<cpm.goodstuff>
+  get filename-1
+  get filename-2
+  ...and so on
+
+instead of using the longer filename forms shown in previous examples.
+
+Users of TOPS-10, TENEX, TOPS-20 or ITS systems can use "image" or
+"paged" mode for ALL transfers.  UNIX users must use "ascii" mode for
+ASCII files, and "type tenex" or "type L 8" mode for binary files.
+MULTICS users can use "ascii" mode for ASCII files, but binary files
+require special treatment that is best described by the following
+example provided by Paul Schauble <Schauble@mit-multics.arpa>:
+
+ !ftp simtel20
+  220 SIMTEL20.ARPA FTP Server Process 5Z(14)-7 at Mon 10-Sep-84 00:27-MDT
+
+  user_ftp:  !login anonymous
+  331 ANONYMOUS user ok, send real ident as password.
+  Password:  !guest
+
+  user_ftp:  !quote "type l 8" <--(NOTE: That's lowercase "L" 8.)
+  200 Type L bytesize 8 ok.
+
+  user_ftp:  !get micro:<cpm.zcpr3>alias.hlp alias.hlp
+  150 Retrieve of MICRO:<CPM.ZCPR3>ALIAS.HLP.1 started.
+  226 Transfer completed.
+  Total elapsed time:  35.7 seconds.
+  4348 bytes transferred in 18.5 seconds (1850 bits/sec).
+
+  user_ftp:  !quit
+  221 QUIT command received. Goodbye.
+
+Lines beginning with "!" are typed by the terminal user. The received
+files are stored on MULTICS with one 8-bit byte per 9-bit word, and can
+be transferred to a microcomputer with Kermit (described in a
+following paragraph).
+
+All aspects of the FTP process for UNIX machines have been automated
+to a high degree by a program in directory PD2:<UNIX-C.CPM>. With this
+program, a simple command like "mb modm700.com" can connect to
+SIMTEL20 and transfer the binary file "modm700.com" from directory
+PD2:<CPM.MODEM7> to a local file also named "modm700.com", all with no
+user intervention.  Batch command files containing multiple lines of
+the form in the above example can be run in no-hangup background mode
+to transfer whole directories without the user even remaining
+logged-in on his local system.  For more information, get the file
+PD2:<UNIX-C.CPM>AUTOFTP-DOC.TXT.
+
+PROGRAMS FOR TRANSFERRING FILES AMONG MAINFRAMES AND MICROS
+
+Christensen Protocol Mainframe Programs:
+
+For a micro to reliably exchange files with a mainframe, cooperating
+file transfer programs with automatic error detection and
+retransmission of faulty blocks must be running on both computers. One
+such family of programs uses a popular protocol created by Ward
+Christensen and enhanced by others.  Directory PD2:<UNIX-C.XYZMODEM>
+contains several programs, XMODEM, UC and the older UMODEM (all
+written in C), which implement this protocol on UNIX machines.  See
+the file PD2:<UNIX-C>UNIX-C.CRCLST for a list of other useful UNIX
+utilities.
+
+On ITS machines, file transfer using the Christensen protocol can be
+done using MMODEM (type :MMODEM for instructions), or LMODEM.
+Documentation for LMODEM is in file .INFO.;LMODEM HELP. Other useful
+ITS utilities include:
+
+ TYPE8  - types an ASCII file stored in ITS binary format.
+ TYPESQ - types an ITS binary format "squeezed" file (see the first
+          paragraph under FILE TYPES).
+ USQ    - creates an unsqueezed version of a squeezed file.
+ HEXIFY - creates an Intel hex format file from an ITS binary format
+          COM file.
+ COMIFY - creates a COM file from an Intel hex file.
+ CRC    - computes the Cyclic Redundancy Check value for a file, using
+          the same algorithm that is used by the CP/M program CRCK.
+
+Brief instructions for any of these utilities except LMODEM can be
+obtained by typing ":utility_name" (for example, :CRC).
+
+The ITS utilities listed above are also available for use with TOPS-20,
+but since ITS binary format is no longer being used for the SIMTEL20
+archives, these utilities have been converted to work with TOPS-20
+binary formats.  A collection of TOPS-20 utilities for transferring and
+manipulating files can be found in directory PD1:<MISC.TOPS-20>.  See
+PD1:<MISC>MISC.CRCLST for a list of available programs.
+
+File transfer and conversion utilities for use with VAX/VMS machines
+are contained in directory PD1:<MISC.VAXVMS>.  See MISC.CRCLST for
+details.
+
+Christensen Protocol Microcomputer Programs:
+
+An excellent program for transferring files between micros, or between
+micros and mainframes is called MODM700.  This program, often referred
+to as MODEM7 (the name of its easier to pronounce ancestor), uses the
+popular Christensen protocol to transfer files with automatic error
+detection and retransmission of erroneous blocks.
+
+To get started with MODM700, you should first FTP and examine the "DOC"
+and "MSG" files from the binary library file PD2:<CPM.MODEM7>MODM700.LBR.
+The "DOC" and "MSG" files are actually stored in the library in
+squeezed form, so you will have to perform three steps to get them:
+
+   1. FTP the binary library file.
+   2. Extract the elements having filename extensions of "DQC" and
+      "MQG". If you have no facilities for doing this on your
+      mainframe host (see the earlier comments on mainframe-based
+      library utilities), then you will have to transfer the library
+      to a microcomputer and extract the necessary elements there.
+      If this requirement seems to put you in a "Catch-22" situation
+      because you have no facilities for mainframe-to-microcomputer
+      transfers, there is a way out; read the "Getting Started"
+      section which follows.
+
+   3. Use an "unsqueezer" (described above) to convert the "DQC" and
+      "MQG" files extracted from the library into "DOC" and "MSG"
+      files. As in the case of the library extractions, unsqueezing
+      can be done on either a mainfrome host or a microcomputer,
+      depending on your circumstances.
+
+Together, these files will tell you just about all there is to know
+about getting MODM700 to run on your machine. Take the time to read
+them; they're quite informative.  You will also get some helpful
+insights from reading some of the overlay files. These overlays,
+described in file PD2:<CPM.MODEM7>M7OVL-yy.LST, are used to customize
+MODM700 for particular machines without having to edit and assemble
+the huge MODM700 source file.  Complete instructions for performing
+this procedure are contained in each overlay file.  The letters "yy"
+in the above filename should be replaced with two digits giving the
+current version number as determined from CPM.CRCLST.
+
+And then, there is MEX. MEX stands for "modem executive", and it is
+just what the name implies, a communications and file-transfer
+program with a built-in mini operating system that runs under CP/M.
+This program can do file transfers using either the Christensen or
+Compuserve protocol, and it has an enormous potential for highly
+automated operations because it can read and execute command-scripts
+pre-stored in disk files.  These scripts can include sending
+commands to a remote computer, as if they had been sent manually
+from the microcomputer in terminal-mode.  Users of this relatively
+new program are still exploring its possibilities.  For more
+information, look in CPM.CRCLST under the heading "PD2:<CPM.MEX>",
+and then get the various files that have "DQC" and "IQF" in their
+names.  These DOCumentation and INFormation files are stored in
+squeezed form (note the "Q" in the filename extensions), so you will
+have to unsqueeze them.  Overlays for MODM700 will also work with
+MEX, but they will not provide all of the extended MEX features.
+
+Kermit:
+
+Another excellent program for transferring files is called KERMIT. This
+program has the advantage of being available for an impressively large
+number of mainframes and micros. It is, for example, available for the
+IBM-PC, and it DOES NOT require CP/M.
+
+To get started with KERMIT, connect to CU20B.COLUMBIA.EDU using FTP,
+and do this:
+
+  get ker:aaaread.me
+
+Note that this file is NOT on SIMTEL20, and the name is subject to
+change.  If you cannot find a file with this name, snoop around in the
+first half-dozen or so files in the alphabetical listing obtainable
+using the FTP directory command:
+
+  dir ker:
+
+You should find something useful.
+
+  Questions can be addressed to INFO-KERMIT-REQUEST@CU20B.COLUMBIA.EDU.
+
+Getting Started:
+
+In order to get MODM700, MEX or KERMIT running on your micro, you must
+first transfer the necessary files from mainframe to micro. If you
+already have a receive-to-disk communications program of some sort, you
+can use it to move the needed files.  In the long-run it is essential
+to be able to transfer 8-bit binary files, but initially it is not
+absolutely necessary.  Some of the files are quite large.  For example,
+MODM700.COM is over 18K bytes, and the HEX file (which you will need if
+you can't transfer 8-bit files) is over 45K.  Moving large files to
+your micro without using an error detecting protocol can result in
+frustrating errors, but it can be done by receiving multiple copies and
+using manual or machine-assisted comparisons to locate and repair bad
+parts of the code.  However, there IS a better way.
+
+Directory PD2:<CPM.STARTER-KIT> contains a short starter-program called
+PIPMODEM.ASM that can be FTPed to your mainframe, printed, and then
+entered into your microcomputer by hand and assembled.  This can then
+be used to down-load either MBOOT3.ASM or BMODEM.BAS (depending on
+whether you prefer assembly language or BASIC), both of which can
+receive files using the error detecting Christensen protocol.  Once you
+have this capability, you can download the full-function file transfer
+program of your choice.  To examine this option, connect to SIMTEL20
+via FTP and do this:
+
+  get pd2:<cpm.starter-kit>pipmodem.asm
+  get pd2:<cpm.starter-kit>pipmodem.doc
+  get pd2:<cpm.starter-kit>mboot3.asm
+  get pd2:<cpm.starter-kit>bmodem.bas
+  get pd2:<cpm.starter-kit>bmodem.doc
+
+All are ASCII files.  Read PIPMODEM.DOC first, then look at MBOOT3.ASM
+and BMODEM.DOC.  PIPMODEM.DOC explains the situation very nicely.
+Questions concerning these programs should be sent to
+INFO-CPM@SIMTEL20.ARPA (NOT to INFO-CPM-REQUEST).
+
+NEWSGROUP CORRESPONDENCE ARCHIVES
+
+Copies of correspondence for several newsgroups are kept on SIMTEL20
+in directories with names of the form PD2:<ARCHIVES.KEYWORD>, where
+"KEYWORD" has been chosen to indicate the associated newsgroup. At
+present, the following correspondence archives are available:
+
+     newsgroup        mail archive filename
+  ---------------     ---------------------
+  ADA-SW              PD2:<ARCHIVES.ADA-SW>
+  AMETHYST-USERS      PD2:<ARCHIVES.AMETHYST>
+  INFO-68K            PD2:<ARCHIVES.68K>
+  INFO-APPLE          PD2:<ARCHIVES.APPLE>
+  INFO-CPM            PD2:<ARCHIVES.CPM>
+  INFO-FORTH          PD2:<ARCHIVES.FORTH>
+  INFO-HAMS           PD2:<ARCHIVES.HAMS>
+  INFO-MICRO          PD2:<ARCHIVES.MICRO>
+  INFO-XMODEM         PD2:<ARCHIVES.XMODEM>
+  INFO-MODEMXX        PD2:<ARCHIVES.MODEMXX>
+  INFO-MODULA-2       PD2:<ARCHIVES.MODULA-2>
+  NORTHSTAR-USERS     PD2:<ARCHIVES.NORTHSTAR>
+  INFO-PASCAL         PD2:<ARCHIVES.PASCAL>
+  UNIX-SW             PD2:<ARCHIVES.UNIX-SW>
+  INFO-XENIX310       PD2:<ARCHIVES.XENIX310>
+
+Descriptions of these and other newsgroups can be obtained via FTP with
+anonymous login (as for SIMTEL20) from the Network Information Center's
+host SRI-NIC.ARPA.  Ask for the file PS:<NETINFO>INTEREST-GROUPS.TXT
+(an ASCII file).  And please note, this is NOT on SIMTEL20.
+
+File names for SIMTEL20 newsgroup correspondence archives have two
+forms. For example, PD2:<ARCHIVES.CPM>CPM.ARCHIV.ymmdd is a group of
+files containing INFO-CPM correspondence going back several years. The
+characters "ymmdd" in the file names are actually digits giving the
+year, month and day of the last message in each particular file.  Current
+correspondence is kept in the file PD2:<ARCHIVES.CPM>CPM-ARCHIV.TXT, which
+is constantly changing. Although INFO-CPM has been used as an example
+here, the same naming scheme is used for the other newsgroup files as
+well.  For a complete list of available files, connect to SIMTEL20 via
+FTP and do this:
+
+  dir PD2:<ARchives>
+
+You will receive a list of names of the form:
+
+  KEYWORD.DIRECTORY.n
+
+where "n" is one or more digits.  For example, the INFO-CPM listing
+currently appears as "CPM.DIRECTORY.1"  To then get a list of files in
+a particular archive, do this:
+
+  dir PD2:<ARchives.keyword>
+
+where "keyword" (for example, "cpm") is chosen from the preceding list,
+and the word "directory" and the number "n" are not used.  At present,
+all of these files are stored in ASCII.
+
+ADDITIONS, IMPROVEMENTS AND CORRECTIONS
+
+Suggestions for additions, improvements and corrections to this message
+are always welcome. Please send them to INFO-CPM-REQUEST@SIMTEL20.ARPA.
+
+Contributions of public domain software are actively solicited.  If
+you have something that seems appropriate for inclusion in the <CPM>,
+<MSDOS> or <MISC> archives, please contact Keith Petersen
+<W8SDZ@SIMTEL20.ARPA>.  Likewise, contact Richard Conn
+<ADA-SW-REQUEST@SIMTEL0.ARPA> if you wish to contribute to the <ADA>
+archive, and Dave Curry <UNIX-SW-REQUEST@SIMTEL20.ARPA> if you have
+something for the <UNIX-C> archive.
+
+     Happy computing!
+
+     Keith Petersen
+     W8SDZ@SIMTEL20.ARPA
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 8-Jun-88 01:31:44-MDT,6537;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed,  8 Jun 88 01:30:14 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #144
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed,  8 Jun 88       Volume 88 : Issue 144
+
+Today's Topics:
+          FTPing binary files from SIMTEL20 to VAX/VMS hosts
+                 Jupiter Ace Accesories, Parts Sought
+                   Need help with Unix FTP & KERMIT
+              Posting cp/m sources and binaries (2 msgs)
+----------------------------------------------------------------------
+
+Date: Tue, 7 Jun 1988  16:00 MDT
+From: "Frank J. Wancho" <WANCHO@SIMTEL20.ARPA>
+Subject: FTPing binary files from SIMTEL20 to VAX/VMS hosts
+
+If you have been FTPing our binary files from SIMTEL20 to your VAX/VMS
+host using the Wollongong TCP/IP ftp program and either getting
+garbage or post-processing the result with the BINTNXVMS program to
+fix the file, here is the correct sequence of commands:
+
+binary
+quote "type l 8"
+get filespec    or mget filespec (if all the filespec files are binary)
+
+Do NOT use bget.  The above sequence results in correctly formatted
+files without the use of the BINTNXVMS program.
+
+There is a tenex command, but this was incorrectly implemented and
+has been fixed for the next release of TWG ftp for VAX/VMS.
+
+--Frank
+
+------------------------------
+
+Date: Tue, 7 Jun 88 13:01:32 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, DEC (USA))
+Subject: Jupiter Ace Accesories, Parts Sought
+
+Many moons ago there was a Z-80 based micro with FORTH in ROM called
+a Jupiter Ace.  If anyone out there knows where I can get accesories,
+peripherals, parts, or just wants to compare notes please get in
+touch with me.  I'm trying to build an external keyboard and serial
+interface for it, and then maybe port the FORTH to CP/M-80 and/or make
+a cross-compiling environment from CP/M-80 to use the Jupiter as a
+controller.
+
+Anybody know of a source of 22 X 2 edge card connectors ?
+
+Thanks,
+Richard
+
+------------------------------
+
+Date: 6 Jun 88 14:01:30 GMT
+From: cadnetix.COM!cadnetix!rusty@uunet.uu.net  (Rusty)
+Subject: Need help with Unix FTP & KERMIT
+
+In article <2992@ut-emx.UUCP> cc.rob@ut-emx.UUCP (James P. Price) writes:
+>Help!  They're getting rid of the TOPS-20 system here, and I need
+>help....
+
+If you are sending 8bit data, better check to be sure your modem (if it is
+a 'smart' version which puts 2 uarts between your computer and the computer
+you are modeming with) is set for 8 bits, as well as your comm program.
+
+Otherwise, you would lose bit 7 (or 8, if you like counting bits from 1, or 0
+if you count backwards) on EVERY byte.  Not bad for ascii, terrible for binary.
+
+Of course, you could 'uuencode' it, assuming that is possible on the system
+you are downloading from.  Procedure would be:  uuencode it on the host,
+send it and capture locally (it is now 'only' ascii chars), uudecode it on
+your machine.  But binary is much faster.
+---
+    Rusty Carruth	N7IKQ	DOMAIN: rusty@cadnetix.com
+    Cadnetix Corp.		UUCP:   cadnetix!rusty
+    5775 Flatiron Pkwy.	        	{uunet,boulder,nbires}!cadnetix!rusty
+    Boulder, CO 80301		(303) 444-8075
+
+------------------------------
+
+Date: 2 Jun 88 10:32:48 GMT
+From: mcvax!ukc!warwick!rolf@uunet.uu.net  (Rolf Howarth)
+Subject: Posting cp/m sources and binaries
+
+In article <2038@copper.TEK.COM> michaelk@copper.UUCP (Michael D. Kersenbrock)
+writes:
+
+>PROBLEM:
+>=======
+>	  a) People want to post and receive CP/M program source and binaries.
+>	  b) This if fine for those on the "Usenet" side of this newsgroup.
+>	  c) This is "forbidden" on the ARPA side of the newsnet gateway.
+>	  d) Nothing is posted to usenet side to keep the ARPA side happy.
+>	  e) The ARPA side has ftp access to SIMTEL20, the USENET side does
+>	     not.
+> ...
+>SOLUTIONS:
+>=========
+> ...
+>	 b)  A new USENET group for binaries and sources:
+>	 		comp.os.cpm.sources
+>		(and allow both binaries and sources).
+>	     This new group would NOT be gatewayed the the ARPA world.
+
+Hear here.
+
+This seems to be far and away the best solution. If sources are
+posted to usenet and available from simtel20 on arpa, surely that
+should keep everyone happy?  Shutting down the gateway seems rather
+drastic and unecessary, as it does operate quite satisfactorily for
+discussions.  The suggestion to put a header like "_PROGRAM_" in the
+subject field and filter such articles out at the gateway would be
+very difficult to enforce.
+
+At the moment I (and doubtless many other Usenetters) have absolutely
+no access to CPM programs, which is mildly irritating. Requests by
+mail for response from servers such as simtel20 always fail somewhere
+along the line.
+
+Will somebody formally propose a new group comp.os.cpm.sources then?
+It's not clear whether it would be best to have it moderated or
+unmoderated. Perhaps it should be moderated if the volume is likely
+to be high, to ensure it gets propagated to Europe. Any volunteers?
+
+(US usenetters complaining that people on Internet mailing lists don't
+appreciate they're only part of "the" net note: the same applies to
+them - Europe is part of the net too!)
+
+-------------------------------------------------------------------------
+Rolf Howarth,			  Tel:	  +44 203 523523 ext.2485
+Dept. of Computer Science,	  JANET:  rolf@uk.ac.warwick.flame
+University of Warwick,		  ARPA:   rolf@flame.warwick.ac.uk
+Coventry,  CV4 7AL,  England.	  UUCP:	  {uunet,mcvax}!ukc!warwick!rolf
+-------------------------------------------------------------------------
+
+------------------------------
+
+Date: Tue, 7 Jun 1988  09:47 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: Posting cp/m sources and binaries
+
+Usenet readers, if you are having no success in accessing the server
+at cicge.rpi.edu to get files from SIMTEL20 please send a note to me
+via netmail (not through the newsgroup) so I can examine your return
+address to see what the problem is.  Sometimes using another gateway
+host will solve the problem.
+
+--Keith Petersen
+Maintainer of the CP/M and MSDOS archives at SIMTEL20.ARPA [26.0.0.74]
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 9-Jun-88 01:32:54-MDT,1255;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu,  9 Jun 88 01:30:07 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #145
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu,  9 Jun 88       Volume 88 : Issue 145
+
+Today's Topics:
+                       ZCPR33 for the Kaypro 1
+----------------------------------------------------------------------
+
+Date: Wed, 8 Jun 88 12:11 CDT
+From: RICHARD KERSHENBAUM <RICHARD@kuhub.cc.ukans.edu>
+Subject: ZCPR33 for the Kaypro 1
+
+I recently bought a Kaypro 1 -- at $199 from COMB, I couldn't resist.  Shortly
+thereafter, I discovered the system-specific ZCPR3 implementation
+(pd2:<zsys.install>k1z3in.lbr) on SIMTEL20 and installed it on my machine. It
+works great and added many useful features, but unfortunately it won't run many
+of the new utilities designed specifically for ZCPR 3.3. 
+
+Is there a similar Kaypro 1 installation package for ZCPR33 elsewhere on
+SIMTEL20?  If not, could someone who's installed it make one available? 
+
+				Richard Kershenbaum   
+
+				richard@kuhub.cc.ukans.edu
+				richard@ukanvax.bitnet
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+10-Jun-88 01:34:01-MDT,4312;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 10 Jun 88 01:30:32 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #146
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 10 Jun 88       Volume 88 : Issue 146
+
+Today's Topics:
+                     file truncation in CP/M 2.2?
+         Latest Z-System for Kaypro (and All Other Machines)
+                  Posting cp/m sources and binaries
+----------------------------------------------------------------------
+
+Date: 2 Jun 88 14:25:49 GMT
+From: necntc!ima!cfisun!lakart!dg@ames.arc.nasa.gov  (David Goodenough)
+Subject: file truncation in CP/M 2.2?
+
+From article <8806010017.AA28247@newton.arpa>, by bridger%newton@RAND-UNIX.ARPA (Bridger Mitchell):
+> 
+> Unlike CP/M Plus, CP/M 2.2 has no truncate-file function.  This
+> is a useful function when a large file (e.g. a database or library file)
+> needs to be "lopped off", or packed down, and there's a lack of disk
+> space to create a temporary duplicate file.
+> 
+> Is there a portable method of truncating a CP/M 2.2 file, using only
+> BDOS calls?
+
+[description of how to do it]
+
+Yes - changing the file size (.fcb + 0fh) will do what you want - this is
+how xsub works.
+
+> BUT...what can be done if the truncation results in eliminating the
+> last physical extent(s)?
+> ..... But this can't be done by BDOS calls.  Or can it?
+
+No it can't. but it CAN be done portably with BIOS calls. By inspecting
+the bios tables (use the "get dpb address" function from bdos) you can
+figure out exactly where the directory is, and how big it is. Now keep
+on reading directory sectors using bios till you hit the one with the
+extent that you want to nuke. Now just replace the first byte in the 32
+byte entry with 0e5h, write it back (see caveat) and voila!
+CAVEAT: whatever you do, when you write this sector back, reuse the
+bios select disk, track, and sector routines, AND MAKE SURE C CONTAINS 1.
+At least one bios I've seen destroys the track/sector info on each
+read/write, so it's a good idea to reset them. Setting C to 1 forces
+the write to happen: usually on bioses where the sector size is
+greater than 128 bytes (i.e. all 5.25" DD versions) when a write happens,
+the data is just buffered, and only gets flushed when another write to a
+different sector occurs. By making C == 1, it forces the bios to write,
+hence the directory is kept up to date.
+
+Easy Huh? :-) :-)
+-- 
+	dg@lakart.UUCP - David Goodenough		+---+
+							| +-+-+
+	....... !harvard!adelie!cfisun!lakart!dg	+-+-+ |
+						  	  +---+
+
+------------------------------
+
+Date: Thu 09 Jun 1988 13:24:53 EDT
+From: <SAGE@LL.ARPA>
+Subject: Latest Z-System for Kaypro (and All Other Machines)
+
+   Richard Kershenbaum asked about ZCPR33 for his new Kaypro 1.  I would
+recommend that you order the new automatic, universal, dynamic Z-System
+called NZ-COM.  It installs automatically on a CP/M-2.2 machine, includes
+ZCPR34, and allows the operating system to be changed on the fly so that
+you can trade off system features with TPA dynamically, depending on what
+task you are working on.  I just finished the 70+ page manual today, and
+it will be on its way to the printer tomorrow.  Cost is $69.95 from me or
+from Joe Wright, Alpha Systems, 711 Chatsworth Place, San Jose, CA 95128.
+You will not be disappointed.
+ 
+                               Jay Sage
+ 
+
+------------------------------
+
+Date: 7 Jun 88 12:44:52 GMT
+From: bungia!com50!kksys!bird@umn-cs.arpa  (0000-Mike Bird)
+Subject: Posting cp/m sources and binaries
+
+If you'll be posting binaries, then I think the group should be
+moderated.  Otherwise, there'll be too great an opportunity for
+irresponsible person(s) to post malicious programs nested within
+seemingly useful utilities, etc.  
+
+Of course, there is always the problem then of who to moderate.  I'm
+afraid that this may be a stumper.
+-- 
+================================================================================
+Mike Bird (These opinions are mine, dammit!)   Mail paths:  bird@kksys.UUCP -or-
+Void where prohibited by law.                       ...rutgers!umn-cs!kksys!bird
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+11-Jun-88 01:35:06-MDT,8918;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 11 Jun 88 01:30:32 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #147
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 11 Jun 88       Volume 88 : Issue 147
+
+Today's Topics:
+        Having Compupro/Concurrent Dos problems and need help.
+                       INFO-CPM Digest V88 #145
+                 Info wanted: Mitsubishi M4854 drives
+                   PD terminal prog for C128 needed
+                  Posting 8 bit sources and binaries
+                           S-100 clearance
+                        Zcpr 3.3 (?) (2 msgs)
+----------------------------------------------------------------------
+
+Date: 10 Jun 88 22:41:54 GMT
+From: ergr@violet.Berkeley.EDU  (Energy Ergr Resources Group)
+Subject: Having Compupro/Concurrent Dos problems and need help.
+
+We at the Energy and Resources Group are having a problem with our
+Compupro 8/16 running DRI's Concurrent Dos.  All of a sudden we can
+no longer read drives C and D (our hard disk Dos partitions) and can
+no longer write our A and B drives (our hard disk CPM partitions).
+
+Our sysop hasn't done a backup in 6 months or else we'd just
+reformat and go from there.  But right now we need a hard disk recovery
+program, or at least a file recovery program to get some of this stuff
+back.  Does anyone know of such a program that runs on these hybrid DOS/
+CPM systems, and where can we get it soon?  Thanks for your help.
+Michel Gelobter, Energy and Resources Group, University of California, 
+Berkeley.
+
+------------------------------
+
+Date: Fri, 10 Jun 88 01:13:32 PDT
+From: pnet01!mwilson@nosc.mil
+Subject: INFO-CPM Digest V88 #145
+
+Richard:
+
+     Z33 can be *easily* installed into the package you already have.  If you
+have a Z3BASE.LIB file for the configuration you're running, all you have to
+do is assemble ZCPR33.Z80 with that as input.  Then slam the resulting .HEX
+file into your system image.
+
+     If you don't have Z3BASE.LIB, it gets a little more complicated.  Use
+Z3LOC to build Z3BASE.LIB.  You should have a copy of your configuration
+floating around, anyway.
+
+
+     About two years ago, I did a manual install for ZCPR3 for my Ampro
+LB/Z80.  When I got Z33, all I did was re-assemble.  It *is* a drop-in
+replacement.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marc Wilson
+     ARPA: ...!crash!mwilson@nosc.mil
+           ...!crash!pnet01!pro-sol!mwilson@nosc.mil
+     UUCP: [ cbosgd | hp-sdd!hplabs | sdcsvax | nosc ]!crash!mwilson
+     INET: mwilson@crash.CTS.COM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+------------------------------
+
+Date: 8 Jun 88 19:01:10 GMT
+From: pacbell!att!mtunx!whuts!homxb!antique!whb@ames.arc.nasa.gov  (Wilson H. Bent)
+Subject: Info wanted: Mitsubishi M4854 drives
+
+Our group is in desperate need of working Mitsubishi M4854 disk drives;
+the 1.2MB, 5 1/4" drives with the 8"-lookalike electronics.  Of the two
+we have, one is on the fritz (possibly head alignment), so repair info
+would be appreciated, but we REALLY need a total of three working drives.
+
+Mitsubishi's California headquarters says "Use the MF504A instead."
+We say "It's not 100% compatible."  They say "Tough."
+
+Additional info: these drives are for use on a Pulsar Electronics (from
+Australia) Z80 cpu card with built-in disk controller (Western Digital
+FD1797, but there's more to it than that).
+
+If you know of a source of these drives or a KNOWN GOOD repair service,
+feel free to CALL COLLECT - I work for the Right Choice.
+
+Please note that this message is being WIDELY cross-posted.  My apologies
+to those offended by this practice.
+-- 
+Wilson H. Bent, Jr.		... ihnp4!hoh-2!whb
+AT&T - Bell Laboratories	(201) 949-1277
+Disclaimer: My company has not authorized me to issue a disclaimer.
+
+------------------------------
+
+Date: 11 Jun 88 03:28:58 GMT
+From: sunybcs!bowen@boulder.colorado.edu  (Devon E Bowen)
+Subject: PD terminal prog for C128 needed
+
+I'm looking for a CP/M terminal program for the C128. It's got to be
+able to download in either xmodem or kermit format (preferably xmodem).
+Alternatively, I could use a program to convert a file on a disk in
+normal cbm format to the cbm CP/M format. Then I could download this
+stuff with any cbm terminal program and transfer it.
+
+If anyone has a terminal program that they wouldn't mind sending me
+for a SASE I'd be grateful. A conversion program could be mailed to
+me via the net and downloaded. Thanks for any help.
+
+
+Devon Bowen			Packet:    KA2NRC@WA0PTV
+University at Buffalo		BITNET:    bowen@sunybcs.BITNET
+				Internet:  bowen@cs.Buffalo.EDU
+UUCP: ...!{ames,boulder,decvax,rutgers}!sunybcs!bowen
+
+------------------------------
+
+Date: 7 Jun 88 17:03:00 GMT
+From: killer!tness7!ninja!sys1!techsup!kenb@ames.arc.nasa.gov
+Subject: Posting 8 bit sources and binaries
+
+in reference to keith's posting about the availability of sources on his
+rcpm and genie...  i've downloaded many sources he's placed there
+without problems..  in fact, i prefer it.  i don't have to worry about
+code that's gotten munged or truncated while passisng through a site, and
+in the case of binary files -- i don't need to worry about splicing all
+the parts and uudecoding.
+
+connect charges are low enough on genie at 1200 baud to make it a
+reasonable option.
+
+i really don't care to take sides on this issue, however i did feel the
+need to back up keith's claim that the files are posted, are available,
+and at what i consider to be a very reasonable price (toll call/genie).
+
+i appreciate his efforts in this area.
+
+ken brookner  n5lpi
+uucp:	...!ihnp4!techsup!kenb
+
+------------------------------
+
+Date: 8 Jun 88 06:45:03 GMT
+From: abhg!carpet!bill@lll-winken.llnl.gov  (Bill Kennedy)
+Subject: S-100 clearance
+
+I have a considerable inventory of S-100 bus components, all working
+when last used, documentation for most if not all of it.  For example,
+four Tarbell double density disk controllers (software for them too),
+Godbout Z80 CPU cards, various and sundry memory cards, I/O cards, etc.
+There's also a decent collection of CP/M and CP/M-86 software on 8"
+diskettes, all with documentation too.
+
+I need to make some room and am willing to part with these treasures
+for *very* reasonable prices.  I mean like free to a charitable outfit
+who can use it, or a youngster getting started.  Like $10-20 for a
+known-to-work 4MHz Z80 CPU, etc.  The only hitch is that no documentation
+goes without the card for which it was written :-)  There are a couple
+of Imsai chassis and DSDD 8" floppy systems too.  No doc on the Imsai's.
+
+Is anyone out there interested in such stuff?  If so, please email to
+the signature address.  I'm on the road and I don't get either of these
+groups when I'm gone.  Email will find me...
+-- 
+Bill Kennedy  Internet:  bill@ssbn.WLK.COM
+                Usenet:  { killer | att-cb | ihnp4!tness7 }!ssbn!bill
+
+------------------------------
+
+Date: 10 Jun 88 03:19:32 GMT
+From: oliveb!intelca!mipos3!cadavr!dbraun@ames.arc.nasa.gov  (Doug Braun ~)
+Subject: Zcpr 3.3 (?)
+
+In article <9600@e.ms.uky.edu> simon@ms.uky.edu (Simon Gales) writes:
+>I have a simple z80 cp/m 2.2 box, and would like to upgrade to a better
+>world.  The new world must be compatible with vanilla cp/m, and I would 
+>really have to have sources.  Zcpr seems to be just a command processor,
+>is there more to it?  How involved is the installation procedure?  Are
+>there any usefull books on any of this?
+
+Me too.  I have heard of several CP/M BDOS and BIOS replacements,
+both commercial and public domain.  Could someone post a brief list
+describing what's what?
+
+x
+x
+x
+x
+
+
+
+Doug Braun				Intel Corp CAD
+					408 765-4279
+
+ / decwrl \
+ | hplabs |
+-| oliveb |- !intelca!mipos3!cadev4!dbraun
+ | amd    |
+ \ qantel /
+
+------------------------------
+
+Date: 9 Jun 88 03:33:35 GMT
+From: simon@g.ms.uky.edu  (George Simon)
+Subject: Zcpr 3.3 (?)
+
+I have a simple z80 cp/m 2.2 box, and would like to upgrade to a better
+world.  The new world must be compatible with vanilla cp/m, and I would 
+really have to have sources.  Zcpr seems to be just a command processor,
+is there more to it?  How involved is the installation procedure?  Are
+there any usefull books on any of this?
+							Thanks in advance,
+									Simon
+
+<-------------------------------------------------------------------------->
+<---   Simon Gales@University of Ky 	            254-9387/257-3597 	--->
+<---   			[ simon@ms.uky.edu ]  |  [ simon@UKMA.BITNET ]   		--->
+<-------------------------------------------------------------------------->
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+12-Jun-88 01:33:20-MDT,3463;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 12 Jun 88 01:30:31 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #148
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 12 Jun 88       Volume 88 : Issue 148
+
+Today's Topics:
+                          Altos 580, BBS's.
+                                Help!
+                       Help with Bradford (tm)
+----------------------------------------------------------------------
+
+Date: 11 Jun 88 04:25:45 GMT
+From: killer!elg@ames.arc.nasa.gov  (Eric Green)
+Subject: Altos 580, BBS's.
+
+[munch]
+
+I have "inherited" an Altos 580. For those of you with short memories,
+this is a 4-user MP/M-II system circa 1983. It has a 10 megabyte hard
+drive, and is just sitting there, doing nothing but collecting dust
+(along with my ultra-modern Hazeltine terminal, which I similarly
+aquired). I've used the machine a little, and it's quite a neat
+machine, but I'm afraid it's a little outdated alongside of the Amiga
+on the next desk.
+
+My question: Is there a BBS program that can be used with this
+machine? I am aquainted with RCP/M and CBBS, but the only versions
+I've ever seen ran on CP/M 2.2 systems... are there MP/M versions?
+
+Seems a shame, really... can run a quite adequate BBS with a 10 meg
+drive.
+
+--
+Eric Lee Green    ..!{ames,att,decwrl,ihnp4,mit-eddie,osu-cis}!killer!elg
+          Snail Mail P.O. Box 92191 Lafayette, LA 70509              
+"Is a dream a lie if it don't come true, or is it something worse?"
+
+------------------------------
+
+Date: 9 Jun 88 22:07:56 GMT
+From: uw-entropy!dataio!pilchuck!ssc!happym!polari!L5@june.cs.washington.edu  (L5)
+Subject: Help!
+
+I just purchased a Xerox 820-II with 8'inch disk drive and internal hard
+drive. The hard drive has a few programs on it but after trying the reconfigure
+program without any manuals i changed something i shouldnt have, resulting in
+not being able to access the hard drive anymore. Its not that the drive is
+nuked or anything, i just need a dos disk - If anyone has a boot-able system
+disk for this machine PLEASE by all means leave me e-mail! Im sure i can 
+work out a means of payment. 
+ 
+Driving me crazy! I can't use the bloddy machine.. help?
+
+Logan Black
+(206) 735-9067
+
+------------------------------
+
+Date: Sat, 11 Jun 1988  17:45 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: Help with Bradford (tm)
+
+The following is relayed from GEnie's CP/M RoundTable.
+Aaron is the author of BRADFORD.
+
+---forwarded message---
+>From:   A.CONTORER              Aaron M. Contorer
+>To:     W8SDZ                   Keith Petersen, GEnie CP/M SysOp
+>Sub:    Bradford backslash character
+
+Dear Keith:
+
+Thank you for forwarding the letter from Mr. Braatane
+(Dag Henrik Braatane, DBRAATAN@NORUNIT.BITNET).  Please
+send him this reply:
+
+----------
+Like all aspects of operating Bradford, changing the command
+character is explained in the manual, which you obtain when you
+send in the $25 registration fee.  To change the command
+character, put the following command at the beginning of your
+document:  .DCC@    This will change the command character to
+be the atsign symbol.  If you prefer, use .dcc! or .dcc~ or
+whatever character you want as the command character.
+
+Aaron Contorer
+
+=END=
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+14-Jun-88 09:29:59-MDT,9725;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 14 Jun 88 09:28:05 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #149
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 14 Jun 88       Volume 88 : Issue 149
+
+Today's Topics:
+               MEX-Plus Terminal Emulation Information
+                 The New Z-Systems: NZ-COM and Z3PLUS
+----------------------------------------------------------------------
+
+Date: Mon 13 Jun 1988 13:40:36 EDT
+From: <SAGE@LL.ARPA>
+Subject: MEX-Plus Terminal Emulation Information
+
+There have been a number of requests for information about MEX-Plus and its
+terminal emulation capability.  The following is offered to answer what
+questions I can at this point.  I do not use the emulation on my CP/M
+machines, so I cannot offer comments from first-hand experience.  Even on my
+Compaq 386, I use the emulation only in its simplest form (i.e., not talking
+to programs that expect to see a real VT100 terminal).
+ 
+I finally located a copy of the MEX manual with the pages on the emulation
+package.  It is a combined manual (CP/M and IBM-PC), so I cannot be sure at
+this point that all of the features are supported in the CP/M version.
+ 
+Here is what the manual says about the DEC VT52/100 emulator (taken from
+manual -- I don't even understand what all these things mean).
+ 
+----------
+ 
+The VT52/100 emulator supports the following features of the DEC VT100
+terminal:
+ 
+    VT52 support       Cursor Up          Cursor Down        Cursor Left
+    Cursor Right       Cursor Position    Cursor Read        Newline
+    Char Insert        Char Delete        Line Insert        Line Delete
+    Reverse Screen     Scrolling Region   "Origin" Mode      Auto-Wrap
+    Cursor Pos.        Index              Reverse Index      Next-Line
+    Horiz. Tabs        Erase Line         Device Status      Dev. Attributes
+    Identify Term.     Report Cursor Pos.
+ 
+        Save/restore cursor and attributes
+        Select graphics dendition (bold/blink/reverse vid/underline)
+        Clear screen: full, start-screen-to-cursor, cursor-to-end
+        Clear line: full, start-line-to-cursor, cursor-to-end
+        Alternate character sets (excluding VT100 optional ROMs)
+ 
+Not supported are the answerback message, smooth-scroll, 132-column mode,
+printer functions, terminal self-tests, and keyboard LED's (although all the
+escape sequences associated with these functions are accepted).
+ 
+Version 1 of the VT100 emulator does not support any interactive setup; this
+will likely be added in a future release.  Also, the numeric keypad keys
+function only in "numeric" mode; "alternate" mode is not supported.
+ 
+----------
+ 
+The manual also lists the escape sequences transmitted by some of the
+special keys on the IBM PC keyboard.  I have not reproduced that information
+here.
+ 
+Unfortunately, because the manual is geared toward IBM PCs, it does not list
+the functions that must be supported by the host terminal.  From some of the
+functions listed, it would appear that beyond the ordinary ones, there
+must be support for insert and delete line and probably insert and delete
+character.
+ 
+If anyone is seriously interested in acquiring MEX-Plus with the terminal
+emulation packages, I will do some experiments or inquire of the author (Ron
+Fowler, who used to read this newsletter but appears no longer to be
+active).
+ 
+                Jay Sage
+ 
+
+------------------------------
+
+Date: Mon 13 Jun 1988 11:56:11 EDT
+From: <SAGE@LL.ARPA>
+Subject: The New Z-Systems: NZ-COM and Z3PLUS
+
+   The following item is submitted in response to a number of inquiries
+I have received over the net.
+ 
+   Joe Wright, Bridger Mitchell, and I have just completed NZ-COM and
+Z3PLUS, new versions of the Z-System that are automatic, universal, and
+dynamic.  NZ-COM runs on CP/M-2.2 computers; Z3PLUS runs on CP/M-Plus
+computers.  NZ-COM does run on Apple CP/M cards.
+ 
+   They are automatic in that no installation is required.  In particular,
+no changes have to be made in the BIOS.  There is no need for source code,
+editing, assembling, MOVCPM, SYSGEN, or DDT.  The Z-System can be removed at
+any time by issuing a command that reinstates the user's underlying CP/M
+system.  Joe Wright invented the basic technique with his Z3-DOT-COM and Z-
+COM products several years ago.  Bridger Mitchell has (hooray!) extended the
+technique to CP/M-Plus systems, and many very substantial enhancements have
+been added.
+ 
+   The new systems are universal in that system modules can be provided in a
+file format that can be used on any system with memory allocated for that
+module.  Bridger Mitchell invented a new relocatable file format which we
+call ZRL, for Z-system ReLocatable.  It is based on the seldom-used named
+common facility supported in advanced assemblers.  For example, the new
+command processor, ZCPR34, can be supplied as a small, binary file (e.g.,
+ZCPR34.ZRL) that can be loaded into any CP/M-2.2-based Z-System, no matter
+how its memory is configured (Z3PLUS has an equivalent command processor). 
+There is no longer a need to assemble from source code with a Z3BASE.LIB
+file configured to describe the user's particular system.  The same is true
+for RCPs, FCPs, DOSs, and other code modules.
+ 
+   My contribution to the effort (besides the version 3.4 command processor)
+was to make the operating systems dynamic.  It is no longer necessary to
+make a static, once-and-for-all trade-off between Z-System features and
+program memory space.  The operating system is now more like an application
+program -- it can be changed at any time, even right in the middle of a
+multiple command line.  It can be changed manually or automatically under
+the control of aliases that use the Z-System flow control facility.
+ 
+   Now you can allocate memory (1.5K typically) for an IOP (input/output
+package) only when you are actually using an IOP.  When a memory-hungry
+application program is to be run, you can drop the two largest buffers, the
+RCP and IOP, which usually take 3.5K of memory.  If you need still more
+room, you can drop the NDR and FCP.  You can make a minimum Z-System that
+takes only 1.0K and still provides its most important features.  If your
+application requires absolutely every available byte of memory, you can drop
+back to CP/M.  Using SUBMIT, even this process can be automated!  The Z-
+System can disappear, an application can run under standard CP/M, and the Z-
+System can be reestablished, all automatically as a result of a single user
+command!  You never even know that Z-System was gone.
+ 
+   With NZ-COM's system definition utility MKZCM (MaKe Z-Com) you can define
+the sizes of the following modules: CCP, DOS, BIOS, IOP, RCP (resident
+command package), FCP (flow command package), NDR (named directory
+register), shell stack, and an all-purpose user buffer.  The latter can be
+used for "above-BIOS" items like DateStamper, BYE, special drivers, and so
+on.  In the case of the shell stack, you can define both the size and number
+of stack entries supported.  And, by the way, that was not a misprint above
+-- you can define systems with nonstandard CCP, DOS, and BIOS sizes.  This
+allows for some rather interesting experiments and configurations.  Z3PLUS
+allows similar capabilities.
+ 
+   You can now have several versions of command processor or DOS and load a
+new one with a simple command.  NZCOM is supplied with four significant
+variants of the command processor; Z3PLUS includes two versions, one of
+which puts the time in the prompt.  Similarly, with NZ-COM you can switch
+between ZRDOS (supplied with NZ-COM) and other versions of the DOS now (or
+soon) available, such as P2DOS, Z80DOS, ZSDOS, and ZDDOS.  (Z3PLUS uses the
+CP/M-Plus DOS.)
+ 
+   Each product includes an extensive manual (more than 70 pages in 'IBM'
+format binder, written by me and Bridger Mitchell) covering the particular
+product and Z-System in general.  There are many examples and hints.  Each
+product is priced at $69.95 for the standard version including the necessary
+operating system files and a minimum set of Z utilities.  NZ-COM is offered
+in a version with some sources (including the source to ZCPR34) at $99.95. 
+Eventually there will probably be some higher priced versions that include a
+more extensive set of Z utilities on diskette.  For those who have access to
+Z-Nodes, Royal Oak, or Simtel20, there will be no need to spend the extra
+money on these versions.  For those who for some unusual reason cannot use
+NZ-COM (or for the stubborn who insist on an inferior, manually installed
+system), the source to ZCPR34 is available separately at $49.95.
+ 
+   For those who have not heard, Joe Wright's Alpha Systems has taken over
+the marketing of Z-System from Echelon, which is essentially out of
+business.  Orders for the new products can be placed with any of the
+following sources:
+ 
+        Alpha Systems (Joe Wright)
+        711 Chatsworth Place
+        San Jose, CA 95128
+        408-297-5583 (voice)
+ 
+        Sage Microsystems East
+        1435 Centre Street
+        Newton Centre, MA 02159
+        617-965-3552 (voice -- but a recorder except evenings, since my wife
+                is now away [as I will be from 6/23 to 7/14])
+        617-965-7259 (modem, 24 hr, pw=DDT, VISA/MC orders
+                and download delivery)
+ 
+        Plu*Perfect Systems (Bridger Mitchell, for Z3PLUS)
+        410 23rd Street
+        Santa Monica, CA 90402
+ 
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+15-Jun-88 01:32:15-MDT,2283;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 15 Jun 88 01:30:52 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #150
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 15 Jun 88       Volume 88 : Issue 150
+
+Today's Topics:
+                               MEX-Plus
+                      Osborne I comm programs(?)
+                              PX-8 BBSes
+----------------------------------------------------------------------
+
+Date: Tue, 14 Jun 88 13:47:48 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, DEC (USA))
+Subject: MEX-Plus
+
+	Is MEX-Plus for CP/M-80 PD or do you buy it from NiteOwl ?
+	I'd love to have it... I use straight PD MEX v1.14 now.
+
+	rcs
+
+------------------------------
+
+Date: Mon, 13 Jun 1988 08:11 PAC
+From: Marty Zimmerman  <POSTMAST%IDUI1.BITNET@CICGE.RPI.EDU>
+Subject: Osborne I comm programs(?)
+
+This is a plea for help from anyone with knowledge of the Osborne I and
+it's communications ports.  A co-worker has one of these machines and
+needs to use it as a simple dumb-terminal.  The machine has a serial
+port that is connected to an Osborne internal modem, but we have been
+unable to make the modem work with the version of Kermit for the Osborne.
+
+1) Does anyone know the dialing commands for the Osborne internal modem?
+
+2) Is there other PD/Shareware communications software that will work on
+   an Osborne?
+
+3) Are there any good sources for information on Osborne questions?
+
+Forgive me if these questions are a bit broad.  My experience with CP/M
+machines is limited to a DEC Rainbow.  That means I usually give up
+on any question I can't answer myself, since the manufacturer has
+declared its product officially dead! :-)
+
+Thanks in advance,
+
+Marty Zimmerman <POSTMAST@IDUI1.BITNET>
+
+------------------------------
+
+Date: Tue, 14 Jun 88 07:02:31 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, DEC (USA))
+Subject: PX-8 BBSes
+
+	FYI according to the latest copy of Pico magazine:
+
+	"PXDOCK" exclusively devoted to the Epson PX-8 Geneva -
+	300/1200/2400 bps, 24 hours
+
+	313/538-6968
+
+	rcs
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+16-Jun-88 01:33:38-MDT,7789;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 16 Jun 88 01:31:11 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #151
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 16 Jun 88       Volume 88 : Issue 151
+
+Today's Topics:
+                             APL for Z-80
+                 Communication Programs for Osborne-1
+                   Looking for MICROEMACS - editor
+                               MEX-Plus
+                       otrona attache (2 msgs)
+               SIGM missing from the Bitnet file server
+----------------------------------------------------------------------
+
+Date: Wed, 15 Jun 88 07:23:12 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, Digital Equip. Corp. USA)
+Subject: APL for Z-80
+
+Hopped on Royal Oak the other day and to my surprise there's an APL
+for Z-80s using CP/M-80.  Has anybody played with it ?
+
+You really need an APL terminal to use it, shifting in and out to
+the APL character set. Has anybody ROMed or softwared an APL
+terminal for an Apple //e, Xerox 820, or NEC 8500 ?  I have an
+APL terminal program for my Commodore-64 but that's only 40
+columns (I snarfed it from CompuServe).  I don't have a IBM-PC or
+clone yet but if APL things can be had for that beast I'd be 
+interested in that too.
+
+I know you can buy APLs for the Atari 520/1040, Amiga, Mac, and
+PCs... but I'm just interested in playing terminal to use the
+Z-80 one.
+
+Thanks,
+
+rcs
+
+ARPA:		secrist%msdsws.dec@decwrl.dec.com
+DEC E-net:	msdsws::secrist
+USEnet:		{ decvax, allegra, ucbvax... }!decwrl!msdsws.dec.com!secrist
+
+"Go FORTH and Conquer !"
+
+------------------------------
+
+Date: Wed 15 Jun 1988 09:24:44 EDT
+From: <SAGE@LL.ARPA>
+Subject: Communication Programs for Osborne-1
+
+   Marty Zimmerman asked about information and communications programs for      
+the Osborne-1.  The First Osborne Group (FOG) has an extensive network of       
+bulletin board systems that support Osborne computers.  The Boston Computer     
+Society has an Osborne Group, now merging along with my CP/M Group into the     
+Kaypro Group.  I do not have the appropriate phone numbers handy right now,     
+but I could get them if you are interested (I don't know where you are          
+located).                                                                       
+   There certainly are versions of MDM740, IMP, and MEX114 communication        
+programs with overlays for the Osborne.  If you have access to SIMTEL20,        
+you can get any of them.  I am not sure what complications are introduced       
+by the use of the internal modem.                                               
+                                                                                
+           Jay Sage                                                             
+ 
+
+------------------------------
+
+Date: Wed, 15 Jun 88 15:40:12 MEZ
+From: UZR50D%DBNRHRZ1.BITNET@CUNYVM.CUNY.EDU
+Subject: Looking for MICROEMACS - editor
+
+Hi 'Microemacs' - people,
+I found in the PD:<MISC.MICROEMACS> library at the Simtel20 archive 57
+ASCII entries for the MICROEMACS program and 1 BINARY file "ME1040.PRG".
+On what machine runs the above PRG - file and is the rest the sources
+for the MICROEMACS - editor? Because I come from BITNET and have no
+direct access to the Simtel20 archive I have to use the File Server
+at RPICICGE in BITNET which accepts only a few requests per day, user
+and host.
+
+Has anybody in netland yet ordered the above stuff and perhaps made an
+ARC - or LBR - file to compress the whole (in the archive there are
+as already mentioned only ASCII - files; that's to big to order) ?
+If so could she/he then post it to me ?
+
+I would be glad if somebody could anwer me for the above theme.
+
+
+Thanks so long     Ralf Schukey  (UZR50D@DBNRHRZ1.BITNET)
+
+------------------------------
+
+Date: Wed 15 Jun 1988 09:24:36 EDT
+From: <SAGE@LL.ARPA>
+Subject: MEX-Plus
+
+   Perhaps I should have said it clearly in my previous message, but MEX-Plus   
+is the commercial (non-public-domain) version of MEX.  It costs $59.95 from     
+NiteOwl Software or its dealers.  With MEX-Pack, which includes the terminal    
+emulation modules and a module for remote operation, the price is $99.95.       
+The main differences that I can think of now between MEX114 and MEX-Plus        
+(version 1.65B) are: much more extensive scripting capability, support for      
+YMODEM batch and 1K-block protocols, support for Kermit and Compuserve          
+protocols, fancier video displays.                                              
+                                                                                
+   The address and phone number I have for NightOwl are:                        
+                                                                                
+              NightOwl Software, Inc.                                           
+              Route 1, Box 7                                                    
+              Fort Atkinson, WI 53538                                           
+              1-800-NITEOWL (i.e., 1-800-648-3695) but not in Wisconsin         
+              1-414-563-4013 (Wisconsin or elsewhere)                           
+                                                                                
+   My wife's company, Sage Microsystems East (SME), is a dealer.  For orders    
+placed and delivered by modem, the number is 1-617-965-7259 (password is        
+DDT, 24-hour operation, 300/1200/2400 bps).  For download orders, SME can       
+generally deliver within one day (you leave your order with credit card         
+information, and a private file is left for downloading by the next day).       
+However, we will both be away from June 23 to July 15.                          
+                                                                                
+    Jay Sage                                                                    
+ 
+
+------------------------------
+
+Date: 14 Jun 88 17:53:13 GMT
+From: ellis@YALE-BULLDOG.ARPA  (Douglas Ellis)
+Subject: otrona attache
+
+I have the following problem:
+
+I have an Otrona Attache which is a CP/M machine whose
+company folded a while ago. I have several floppies which
+have WORDSTAR files on them. I need to get these files
+onto a system I can use (unix based if possible). My drives
+are broken. Is there a way to transfer something like this to
+a unix system. Can it be done without the machine itself.
+
+Thanks for any info.
+
+
+ellis-douglas@cs.yale.edu
+
+------------------------------
+
+Date: 15 Jun 88 10:46:40 GMT
+From: wilker@tcgould.tn.cornell.edu  (Clarence W. Wilkerson Jr.)
+Subject: otrona attache
+
+Or get my program readcpm off GENIE PC roundtable to read CP/M disks on IBM PC.
+Or if you have patience, send me the disks at 
+Clarence Wilkerson, Dept. Math., Cornell University,
+Ithaca New York, 14853
+Please send copies only. I'll be out of the country til 2oth July
+However.
+
+------------------------------
+
+Date: Wed, 15 Jun 88 11:13:57 EDT
+From: "John S. Fisher"  <FISHER%RPICICGE.BITNET@CICGE.RPI.EDU>
+Subject: SIGM missing from the Bitnet file server
+
+Through some as yet unknown program bug, the directory list for SIGM has
+vanished from the file server at RPICICGE.BITNET.  At present, all requests
+for SIGM files or directory lists receive the cryptic reponse "Cannot seem
+to find SIGM".  The condition is temporary; as soon as a new copy of the
+SIGM file list can be fetched from Simtel20, service will be restored.
+
+Sorry for the inconvenience.
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+17-Jun-88 01:34:27-MDT,8504;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 17 Jun 88 01:30:51 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #152
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 17 Jun 88       Volume 88 : Issue 152
+
+Today's Topics:
+            Micro Cornucopia SOG VII Technical Conference
+----------------------------------------------------------------------
+
+Date: 15 Jun 88 21:51:11 GMT
+From: tektronix!tekgen!tekred!billr@ucbvax.Berkeley.EDU  (Bill Randle)
+Subject: Micro Cornucopia SOG VII Technical Conference
+
+	MICRO CORNUCOPIA  SOG VII, TECHNICAL CONFERENCE
+	JULY 14-16			   BEND, OREGON
+
+SOG (the Semi-Official Get-Together) is Micro Cornucopia's annual
+conference for the hardware and software designers who need to
+get away from their benches and into the Oregon Cascades.
+
+This is the place where leading edge technical folks can relax,
+let the chips fall where they may, and join discussions that carry
+through to dawn.
+
+Thursday has always meant white water rafting on the Deschutes
+River followed by a western cookout. This year, you've got a choice
+for Thursday. We're also offering a full-day, hands on introduction
+to desktop publishing (includes lunch and the western cookout).
+
+Friday and Saturday are filled with information. Speakers from through-
+out the U.S. (and the world) bring their expertise to the podiums
+at Central Oregon Community College (COCC). From 8 a.m. to 5 p.m.
+we're offering a wide selection of topics. After 5, of course,
+the talk gets serious and the serious get talking.
+
+Saturday evening's the final event and it's always been great fodder
+for discussion. Jim Warren, founder of the West Coast Computer
+Faire, will be here to stir up our ideas of computers.
+
+So join Jim, and Microsoft, and Oregon Software, and Intel, and
+Logitech, and, well, everyone else and help us continue our trad-
+itionally non-traditional technical forum.
+
+		ABOUT BEND
+
+We hold SOG in Bend beacuse Bend is a great place to hold things.
+The campus looks out across national forest to the Three Sisters.
+We've got lakes, quiet mountain streams, some of the most famous
+fly fishing waters in the country, internationally known rock climbing,
+Lava Caves National Depressions, the Pine Mountain Observatory,
+and real wilderness only 20 minutes away.
+
+In fact, when iot comes down to it, the reason why many attendees
+return year after year (and bring spouses or special others) might
+just be the beauty of the area. That's why Micro Cornucopia is
+here. Really.
+
+		REGISTRATION HOURS
+
+Our registration table will be set up at Pinckney Center starting
+Wednesday, July 13 at noon. Thursday registration hours will start
+at 6:30 a.m.-5:00 p.m.. Friday and Saturday hours will run from
+7:30 a.m. to 5:30 p.m..
+
+		ACTIVITIES
+
+THURSDAY, JULY 14
+
+Rafting:
+You can choose between a 2 1/2 hour raft trip with 3 miles of class
+I-III rapids. Your price of $32 per person includes the Old Fashioned
+Barbeque. Check in at the Pinckey Ceneter registration table before
+11 a.m. Thursday for raft scheduling. OR... An all day expedition
+down the lower Deschutes River Canyon approximately 1 1/2 hours
+from Bend. This trip includes class I-IV whitewater with 7 major
+rapids. A deli lunch and the Old Fashioned Barbeque are included
+in the $70 per person price. Busses leave Thursday morning at 7:30
+a.m. sharp. Check in at the registration table by 7:00 a.m. for
+a head count and bus loading.
+
+Intro to Desktop Seminar:
+A day-long introduction to desktop publishing. You'l be introduced
+to "scanning", "Ventura'ing", "PageMaking", computer graphics gen-
+eration...the works. You'l break into groups for design competitions
+and problem solving. Plus you'll get fed! Included in the $65 price
+are lunch and the barbeque cookout. This seminar must be prepaid
+and will run from 9 a.m. to 5 p.m. Check in at the registration
+desk Thursday morning.
+
+Old Fashioned Barbeque:
+Will be held at Shevlin Park Thursday evening. Price for the bar-
+beque is $10 for adults. Thursday night Barbeque is included in the
+price of all raft trips.
+
+FRIDAY, JULY 15 & SATURDAY, JULY 16
+
+Lectures and Workshops:
+(See below for speaker list.) These two days will be filled with
+lectures, workshops, and forums. We'll be discussing new C compilers,
+C++, a new AI language, and more. For you hardware people PC Tech
+will be there in force to talk about graphics and extended memory
+boards. We'll continue with parallel processing and the transputer
+and delve into desktop publishing, fractals and packet radio.
+
+Second Annual Build Your Own System:
+Friday night, MicroSphere will be hosting another "Build Your Own
+Computer" night at SOG. They will be offering 8088 based XT, 80286
+based AT, and 80386 kits at special SOG proces. As with last year,
+shipping the system home can be arranged. Contact Dave Thompson
+or Cindy Johnson of MicroSphere at 503-388-1194 for more information
+and a registration form.
+
+Saturday Night Banquet:
+An all you can eat affair at the college with Keynote speaker Jim
+Warren, founder of the West Coast Computer Faire. Cost for the
+banquet is $12 for adults.
+
+		LIST OF TALKS
+FRIDAY, JULY 15
+"How To Get Your Tachnical Book Published," Louis Baker
+"Generic Microprocessors/Hitachi HD641016," Joe Bartel, Hawthorne Technology
+"Why C Is Not The Devil's Programming Language," Bill Weinmann
+"Chaos 101", Mike Sequeira
+TBA, Jim Warren
+"C++ Grows Up," Bruce Eckel, Micro C Writer
+"Micro Channel Architecture," Gregg Tolleson, Intel Corp.
+"All About SCSI", Bill Davidson, PC Tech
+"3D Graphics On The 34010,", Earl Hinrichs, PC Tech
+"Inside Logitech's Modula 2," Willy Steiger, Logitech
+"The Design Of Programming Languages," Greg Lobdell, Microsoft
+"Drive Diagnostics," Allyn Franklin, Drive Masters
+"Staff Forum," Micro C Staff
+"Stress And The Entreprenuer," Reese Sheperd
+
+SATURDAY, JULY 16
+"Psuedo-Concurrency Using Turbo Pascal," Mike Donovan
+"Diagnostic Software For The XT & AT," Don Doerr, National Advancement Corp.
+"Numerical Applications," Tom Ochs, Scientific Software, Inc.
+"C Compilers And C Tools," Scott Ladd
+"Neural Control And Parallel Programming With Transputers," Andy Bakkers
+"Communications Protocols," Chuck Forsberg
+"Starlan, Ethernet, & Cheapernet," Greg Wolfson & Earl Brabandt, Intel Corp.
+"Trilogy: Designing A New Language," Paul Voda, Comlete Logic Systems
+"Advanced Graphics Processors," Dean Klein, PC Tech
+"Loran Systems," Bill Davidson, PC Tech
+"Packet Radio," Mike Vore
+Software Forum: "Object Oriented Languages," Panel Discussion
+
+	------------------------------------------------
+		REGISTRATION FORM
+
+Number		Events				Price	Total
+---------------------------------------------------------------------
+_______|___All day raft trip & BBQ____________|_$70.00_|_____________
+       |				      |        |
+_______|___2 1/2 hour raft trip & BBQ_________|_$32.00_|_____________
+__Adult|				      | Adult  |
+_______|___BBQ Only_(incl. in raft trips)_____|_$10.00_|_____________
+       |				      |        |
+___________Thursday Desktop Seminar___________|_$65.00_|_____________
+__Adult|				      | Adult  |
+_______|___Saturday night banquet_____________|_$12.00_|_____________
+       |				      |        |
+_______|___Non-subscriber attendance fee______|_$25.00_|_____________
+
+Check enclosed_______   Register by July 1, 1988        Total
+			Number attending in group____	Enclosed_____
+Exp__________		Signature____________________
+Card Number______-________-_______-__________
+Name_________________________________________
+Company______________________________________
+Address______________________________________
+City___________________ State____ Zip________
+
+Micro Cornucopia  P.O. Box 223   Bend, Oregon     1-503-382-5060
+
+Some Micro C suggestions for motels. Other extremes in price and
+luxury are also available.
+
+Bend Riverside Motel, $28-$44, 389-BEND
+Dunes Motel, $31-$39, 382-6811
+Plaza Motel, $21-$24, 382-1621
+Thunderbird Motel, $35-$60, 389-7011
+Pilot Butte Motor Inn, $20-$24, 382-1411
+Red Lion Motel, $44-$56, 382-8384
+Best Western Woodstone Inn, $38-$48, 382-1515
+Lara House (B & B), $45-$60, 388-4064
+[Also, brand new, just opened:
+ Super 8 Motel, ?, ?
+ Hampton Inn (mini-suite w/breakfast), $35-$45, ?
+]
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+18-Jun-88 01:35:33-MDT,2880;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 18 Jun 88 01:30:17 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #153
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 18 Jun 88       Volume 88 : Issue 153
+
+Today's Topics:
+                             KAYPRO help
+                    Mod7 or Kermit for Xerox 16/8
+            Need info on Osborne-1 power supply? (2 msgs)
+----------------------------------------------------------------------
+
+Date: Fri 17 Jun 88 08:09:09-PDT
+From: D-ROGERS@EDWARDS-2060.ARPA
+Subject: KAYPRO help
+
+I have a friend who obtained a used Kaypro with no documentation, same-same
+the NEC Spinwriter.  Can someone share suitable settings for baud rate,
+parity, etc. so that the two will talk to each other?  what switch settings
+will yield, for example, 1200 baud, 1 stop bit, no parity on the Spinwriter;
+and how do we set up the Kaypro to send the char's that way?
+
+*ALSO*, anyone know where documentation for these beasties can be purchased?
+
+advTHANXance, friends, 			[dale]
+-------
+
+------------------------------
+
+Date: Fri, 17 Jun 88 8:11:25 EDT
+From: "Paul V. Pullen" <pvpullen@CRDEC-VAX2.ARPA>
+Subject: Mod7 or Kermit for Xerox 16/8
+
+Does anyone on the net own a Xerox 16/8 and have either MDM7XX or Kermit that
+operates on it.  If so, could we send a disk to get a copy of the com file?
+
+Please send answers direct to:
+
+		gecook@crdec-vax1.arpa
+
+Thank you!
+
+------------------------------
+
+Date: 16 Jun 88 17:28:53 GMT
+From: astroatc!niemi@speedy.cs.wisc.edu  (Bob Niemi)
+Subject: Need info on Osborne-1 power supply?
+
+Once again the Astec power supply in my Osborne 1 has gone south for the
+winter without waiting for winter.  Thought I would try to fix it instead 
+of shotgunning it this time, but I have no information, schematics, etc.
+I would appreciate if someone could mail me a print, or tell me where to
+get one.  
+
+Also, I recall an article (in FOGHORN?) identifying the cause of
+frequent power supply failures, but I can't find it in my limited
+resources.  If anyone can help me I would appreciate it.  Thanks.
+
+Bob Niemi, Astronautics, 5800 Cottage Grove Rd., Madison, WI 53716
+Phone (608) 221 9001, Home (608) 592 3462,  ...uwvax!astroatc!niemi
+
+------------------------------
+
+Date: 17 Jun 88 15:54:10 GMT
+From: wilker@tcgould.tn.cornell.edu  (Clarence W. Wilkerson Jr.)
+Subject: Need info on Osborne-1 power supply?
+
+I bought a non-functioning Osborne I at a garage sale. Where
+is a source of technical information ( schematics, etc? );
+This one works as far as showing the initial prompt. However,
+it flickers badly if the keyboard is attached, and will not
+boot. Clarence Wilkerson
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+19-Jun-88 01:35:55-MDT,1885;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 19 Jun 88 01:30:32 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #154
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 19 Jun 88       Volume 88 : Issue 154
+
+Today's Topics:
+                    Compupro CPU-Z Board For Sale
+----------------------------------------------------------------------
+
+Date: 13 Jun 88 21:32:28 GMT
+From: att!mtunx!pacbell!nonvon!apn@ucbvax.Berkeley.EDU  (Alex P Novickis)
+Subject: Compupro CPU-Z Board For Sale
+
+I have a few S100 items for sale.
+
+Morrow 6mhz z80 card, excelent for firmware development, since
+memory mapping and HARDWARE breakpoints/traps are included.
+$50.00
+
+Fulcrum Floppy disk controller, caching w/CPU on bpard. Controls
+4 8's  4 5's and up to 4 hard disks... also supports ram drives.
+Supports MS-DOS and/ro  CP/M
+$70.00
+
+256k 8mhz ram cards Piceeon systems. Works with 16 bit or 8 bit.
+$40.00 (No ram) Usess 4164's
+$50.00 With RAM
+
+
+Many many others , please inquire.
+
+Alex P Novickis [software engineering consultant]            +1 707 575 9616
+UUCP: {ames,sun,lll-crg,pyramid}!pacbell!nonvon!apn          CS: [76056,601]
+USMAIL: 1635 Ditty Ave, Santa Rosa, CA 95403	    BITNET: EEFA02P@CALSTATE
+| Only those who attempt the absurd     I think, I think it's in my basement|
+|  ..will achieve the impossible.       Let me go upstairs and check. -esher|
+
+
+
+
+-- 
+Alex P Novickis [software engineering consultant]            +1 707 575 9616
+UUCP: {ames,sun,lll-crg,pyramid}!pacbell!nonvon!apn          CS: [76056,601]
+USMAIL: 1635 Ditty Ave, Santa Rosa, CA 95403	    BITNET: EEFA02P@CALSTATE
+| Only those who attempt the absurd     I think, I think it's in my basement|
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+20-Jun-88 01:31:19-MDT,4865;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Mon, 20 Jun 88 01:30:30 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #155
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Mon, 20 Jun 88       Volume 88 : Issue 155
+
+Today's Topics:
+       Epson runoff print formatter now available from SIMTEL20
+         WADE interactive sumbolic Z80 debugger now available
+----------------------------------------------------------------------
+
+Date: Sun, 19 Jun 1988  17:27 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: Epson runoff print formatter now available from SIMTEL20
+
+Now available via standard anonymous FTP from SIMTEL20.ARPA...
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD2:<CPM.LIST>
+EP-COMS.ARK.1			BINARY	 28692  1F3EH <--excecutables
+EP-DOCS.ARK.1			BINARY	 77649  1BC5H <--documentation
+EP-ECHED.ARK.1			BINARY	 28914  AF71H <--font editor
+EP-FONTS.ARK.1			BINARY	204330  B08BH <--the fonts
+EP-INFO.ARK.1			BINARY	  6117  9052H <--describes all this
+EP-MISC.ARK.1			BINARY	 18675  AC74H <--misc compiler files
+EP-SRC.ARK.1			BINARY	138938  F053H <--BDS-C lang. source
+Directory PD2:<CPM.BDSC-2>
+L2-225.ARK.1			BINARY	 66141  B7F3H <--needed to link
+
+EP (Epson print) is a runoff printer formatter which formats and
+prints texts using proportionally spaced fonts of characters on an
+Epson MX-80, FX-80, and probably on other Epson-compatible printers.
+EP's formatting is controlled by commands which are placed in the
+text.  Many fonts are supplied (around 50), and you can design your
+own.  The characters of a single font can be modified by being
+italicized, underlined, emphasized, enlarged, compressed, etc.
+
+Executables, documents, fonts, a font editor, and BDS-C source code
+are included with this distribution.
+
+Many thanks to the author, Greg Lee, for submitting it to our
+archives; to Bill Swan for converting it to 9-track tape to get it
+to us; and to Frank Wancho for loading the tapes on SIMTEL20.
+
+--Keith Petersen
+Maintainer of the CP/M and MSDOS archives at SIMTEL20.ARPA [26.0.0.74]
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+
+------------------------------
+
+Date: Sun, 19 Jun 1988  18:19 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: WADE interactive sumbolic Z80 debugger now available
+
+Now available via standard anonymous FTP from SIMTEL20.ARPA...
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD2:<CPM.DEBUG>
+WADE.LBR			BINARY	 77824  D35DH <--com and docs
+WADESRC.LBR			BINARY	 99584  2A9BH <--source code
+
+WADE is an interactive symbolic Z80 debugger with full assembly and
+disassembly using standard ZILOG mnemonics.  Up to eight conditional
+and/or unconditional breakpoints plus a temporary breakpoint may be
+defined.  Full tracing with or without list and with real-time
+execution of subroutines on command or automatic is provided.  Tracing
+may be controlled by instruction count or a conditional expression.  A
+full set of operators provides for arithmetic, logical, shift, and
+relational operations on hex, decimal, binary, and character data, and
+on registers, variables, and symbols, including embedded assignments
+to registers and variables.
+
+For those unable to access SIMTEL20 because of network restrictions,
+please remember that MOST of the new files announced to Info-Cpm are
+also available on my RCP/M Royal Oak (MI) which may be accessed at
+300 bps (Bell 103a), 1200 bps (Bell 212a), 2400 bps (V.22 bis), or
+9600 bps (HST).  The telephone number is (313) 759-6569 (now reachable
+on PC Pursuit at 2400 bps).  They are also available from the CP/M
+RoundTable on General Electric Information Services' GEnie.
+
+The directories on my RCP/M have been recently reorganized.  The MAP
+command will produce the following display:
+
+              RCP/M Royal Oak Wall Map
+              ------------------------
+ 
+A1: Utilities                F1: Editors / WP / Text utilities
+ 
+B1: More Utilities           G1: ZCPR3
+ 
+C1: Communications           H1: High Level Languages
+ 
+D1: Catalog/Printer/Docs     I1: Misc.
+ 
+E1: Database/Spreadsheets    J1: RCP/M Utilities
+ 
+There are ten logical drives on the system (still 64 Megabytes).
+All files are in user 1.  The system should be faster now since
+the directories are smaller.
+
+--Keith Petersen
+Maintainer of the CP/M and MSDOS archives at SIMTEL20.ARPA [26.0.0.74]
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+21-Jun-88 01:32:16-MDT,3177;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 21 Jun 88 01:30:19 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #156
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 21 Jun 88       Volume 88 : Issue 156
+
+Today's Topics:
+                     Quest for a PASCAL Compiler?
+   Request for Z80 Floating Point Arithmetic package : late reply.
+                            The Organizer
+----------------------------------------------------------------------
+
+Date: Mon, 20 Jun 88 12:58:53 IST
+From: "Jacques J. Goldberg" <PHR00JG%TECHNION.BITNET@CUNYVM.CUNY.EDU>
+Subject: Quest for a PASCAL Compiler?
+
+Has anybody out there ever met the Danish PolyPascal (alias COMPAS)
+Compiler for CP/M-80?
+
+I have the CP/M-86 and MS-DOS versions. The doc explicitly quotes a CP/M-80
+version, operationally identical. I found the 8086 versions to be an unusual
+tool.
+
+The manufacturer does not answer mail, almost certainly out of business.
+Furthermore the 8086 MS-DOS version is available in network public domain
+software servers.
+
+Can anybody help me find that Compiler?
+                               JJG-  [phr00jg@technion.bitnet
+                                         ^^
+                                         || zeroes !! ]
+
+------------------------------
+
+Date: Mon, 20 Jun 88 12:53:10 IST
+From: "Jacques J. Goldberg" <PHR00JG%TECHNION.BITNET@CUNYVM.CUNY.EDU>
+Subject: Request for Z80 Floating Point Arithmetic package : late reply.
+
+I failed to answer directly (e-mail gates barriers).
+
+Why not use the excellent, complete, reliable, well-documented, Microsoft
+FORTRAN-80 Library ? The guide gives all details required to interface to
+any language. It has 7 digits (single prec) or 16 (double) and all trigon.
+and transcendant functions.
+I use it a lot with the compiler, get same results as on our IBM3081 and
+VAX785.
+                          JJG-Prof,Physics [phr00jg@technion.bitnet]
+
+------------------------------
+
+Date: Mon, 20 Jun 88 09:04 N
+From: <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject: The Organizer
+
+Is someone out there who has experience with the "The Organizer" by
+Tim McNeal ?  It is a PD program from Simtel20, which keeps track of
+all your files in one big data file.
+I've got a problem to get this program going:
+   By startup of the program it prompts the user for how many disks
+he is using; so far so good.
+   The program finds the data file 'Organize.dat' in drive A; telling
+me he is initializing something and then after a few seconds it is
+thanking me for using the ORGANIZER and quits.
+   What is going on ?
+
+   Allthough I carefully followed the instructions...
+   Maybe one remark: I think the author means with 'BIOS.SYS' file
+after a SYSGEN must be on disk, that it must be a bootable disk...
+   One last remark: It seems to me that Tim wrote the Organizer
+in Turbo Pascal ?  It is extremely pitty he didn't included the
+source code.
+
+   ******************* Gratien  D'haese **********************
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+22-Jun-88 01:32:59-MDT,2945;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 22 Jun 88 01:30:27 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #157
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 22 Jun 88       Volume 88 : Issue 157
+
+Today's Topics:
+            Need info on Osborne-1 power supply? (2 msgs)
+----------------------------------------------------------------------
+
+Date: 20 Jun 88 22:44:47 GMT
+From: cadnetix.COM!cadnetix!rusty@uunet.uu.net  (Rusty)
+Subject: Need info on Osborne-1 power supply?
+
+In article <1061@astroatc.UUCP> niemi@astroatc.UUCP (Bob Niemi) writes:
+><question about osborne hardware info>
+
+Also, in another, unrelated article, someone asks for hardware info on
+the osborne 1...
+
+Amazingly enough, the Osborne 1 is one of the few computers for which
+you can get a Sams (r) Photofact (r) 'thingie'.  Complete schematics!
+
+Go look in your local public library for this little gem.  The Phoenix
+public library in Phx Az (not much use to you, probably.:-) had a complete
+set of Sams Photofact (r).  If you are really lucky, your local library
+will too.
+
+Good luck.  BTW, did you put any sort of spike protection on the power
+supply?  I put 2 or 3 MOVs inside the case, and never had any problems.
+
+Also, I assume you know about the jumper which will make the serial
+port be 600/2400 baud instead of 300/1200?  I mounted a switch on the
+case so I could easily switch between 300/1200/2400 (who needs 600, 
+anyway? :-)
+-----
+    Rusty Carruth	N7IKQ	DOMAIN: rusty@cadnetix.com
+    Cadnetix Corp.		UUCP:   cadnetix!rusty
+    5775 Flatiron Pkwy.	        	{uunet,boulder,nbires}!cadnetix!rusty
+    Boulder, CO 80301		(303) 444-8075
+
+------------------------------
+
+Date: 17 Jun 88 13:42:38 GMT
+From: mtunx!whuts!homxb!ho7cad!wjc@rutgers.edu  (Bill Carpenter)
+Subject: Need info on Osborne-1 power supply?
+
+In article <1061@astroatc.UUCP>, niemi@astroatc (Bob Niemi) writes:
+>Once again the Astec power supply in my Osborne 1 has gone south for the
+>winter without waiting for winter.  Thought I would try to fix it instead 
+>of shotgunning it this time, but I have no information, schematics, etc.
+>I would appreciate if someone could mail me a print, or tell me where to
+>get one.  
+
+Sam's Photo-Facts now has a spinoff  called Sam's Computer Facts which
+give complete schematics,   test  point    voltages, etc.   Most  real
+electronics stores (like where  a  TV repairman or  Ham operator might
+shop)  carry bunches of these  and can order any  they don't  have.  I
+have a hazy memory of a note that Radio Shack now also carries them.
+
+Yes, I know Sam's  has one for the  O-1.   Sorry I can't give  you the
+specific number.  I think it cost $10-15.
+
+-- Bill Carpenter         att!ho5cad!wjc  or  attmail!bill
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+23-Jun-88 01:33:53-MDT,4861;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 23 Jun 88 01:30:09 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #158
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 23 Jun 88       Volume 88 : Issue 158
+
+Today's Topics:
+                    Mod7 or Kermit for Xerox 16/8
+                            Small C wanted
+----------------------------------------------------------------------
+
+Date: 21 Jun 88 03:19:17 GMT
+From: unisoft!hoptoad!xanth!rlb@ucbvax.Berkeley.EDU  (Robert Lee Bailey)
+Subject: Mod7 or Kermit for Xerox 16/8
+
+I have a Xerox 820-I.  It is my understanding that the Xerox 820-II
+uses the same I/O ports as the 820-I.  I believe that the Xerox 16/8
+is really an enhanced version of the 820-II, therefore, Modem7 or
+Kermit for the 820-II (or 820-I) should run on your 16/8.  I have
+both Modem7 and IMP for my 820-I.  I would be glad to make a copy
+for you if you want it.  If you have any technical docs for your
+16/8 check to see if the following specs match your machine.
+
+	Xerox 820-I Specs for Comm port:
+
+	Comm Chip - Z-80 SIO-0
+	Baud rate chip - 8116
+	
+	Port 0-3  -  Chan. A Baud rate
+	Port 4    -  SIO Chan. A Data
+	Port 5    -  SIO Chan. B Data
+	Port 6    -  SIO Chan. A Control
+	Port 7    -  SIO Chan. B Control
+	Port C-F  -  Chan. B Baud Rate
+
+If these specs match the 16/8, and I think they do, then my version
+should work on your machine.  Mine is configured to use Channel A,
+but it can also be configured to use Channel B (Z-80 assembler required).
+
+Let me know if you want it, and I'll try to get it out to you.  If you
+reply to this msg, it may be a while before I respond again.  I am
+usually on this network only once or twice each week.  
+
+		Bob Bailey
+
+------------------------------
+
+Date: 20 Jun 88 09:38:21 GMT
+From: coplex!alan@bloom-beacon.mit.edu  (Alan Bunch)
+Subject: Small C wanted
+
+Hello there netland !
+
+What I am looking for is the Small C compiler from the Dr. Dobbs
+
+I know that I can get the book and start typing but I want to be able to 
+program with the package before I am too old to remember to turn this thing on
+I know about the Simtel20 archives but I have heard of the stink that has arisen
+about the popularity of the mail server so I dont want to get in the middle
+of that.  If some kind soul would e-mail the sources in whole or in peices
+to conserve netwidth I would be very greatful. 
+
+I will use a Plexis P/75 that runs System V.2 with some Berkley throun in
+to compile the first version.  After that I will download to a 
+Televideo 802H running CP/M 2.2 as a target machine.  This has a Z-80 cpu
+so if you happen to have the opcode tables for a Z-80 please send them
+also.
+
+I know that I should really come into the real world and stop using this
+antuiqe but this is a step up from the dumb terminal that I was using (it
+was borrowed) but this machine runs and was free, two things I look for 
+in a system.
+
+Please e-mail me first so that I can verify the mail path and not 
+get a gazillion copies that waste bandwidth.
+
+Thank you very much in advance.
+
+
+Alan Bunch  ( yes as in bananas )          | Hack till   |Your favorite
+      gatech--\                            | you crack ! |goes here !
+UUCP: mit-eddie!bloom-beacon!coplex!alan   |-------------|--------------------
+                                           |This opinion |This segment reserved
+DISCLAMER: Opinions expressed are rented.  |  for rent.  |for useful data.
+
+------------------------------
+
+Date: Wed, 22 Jun 88 09:17:35 EDT
+From: SOERENSE%DMZRZU71.BITNET@CICGE.RPI.EDU
+
+Need help with ZCPR33!
+
+I am using a Tandy Model 4 at home, for which I tried to install ZCPR33.
+I followed the steps in the ZCPR3 manual by Richard Conn, modified the BIOS,
+made room for the ZCPR3 buffers and initialized them. The system would boot up
+normally and everything was fine. After assembling ZCPR33.Z80 I was unable to
+write the new system to the system tracks with SYSGEN and the computer locked
+up. Then I tried to save ZCPR33.HEX to a COM-file with MLOAD and put it on the
+system record directly with a small program. ZCPR33 then booted correctly, but
+most of the utilities did not run, although they were properly installed.
+This is true for LDR, also. Since I knew the addresses of the ZCPR33 buffers,
+I could instead load the system segments via GET, which was built into the CCP.
+Now ZCPR33 is working and runs ALIASES. But still most of the utilities won't.
+Surprise! When I run the utilities from ZSID, they work fine!
+
+What went wrong?
+
+Thanks in advance, Ruediger.
+
+
+Ruediger Soerensen, Uni Mainz Germany
+                    Dpt. Meteorology
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+24-Jun-88 01:31:55-MDT,873;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 24 Jun 88 01:30:07 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #159
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 24 Jun 88       Volume 88 : Issue 159
+
+Today's Topics:
+                               MAIL232
+----------------------------------------------------------------------
+
+Date: 22 Jun 88 21:46:07 GMT
+From: cfa!cfa250!mcdowell@husc6.harvard.edu  (Jonathan McDowell)
+Subject: MAIL232
+
+Does anyone out there have experience with a communications
+program called MAIL232? It came, documentationless, with my
+CP/M based Amstrad PCW9512 (OK, don't laugh too much, it's cheap!)
+
+Jonathan McDowell (mcdowell@cfa200.harvard.edu)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+25-Jun-88 01:33:17-MDT,1514;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 25 Jun 88 01:31:02 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #160
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 25 Jun 88       Volume 88 : Issue 160
+
+Today's Topics:
+                 Listing of PD1: and PD2: Directories
+                      Looking for BDS C compiler
+----------------------------------------------------------------------
+
+Date: Fri, 24 Jun 88 13:57:20 PDT
+From: dowst@VLSI.JPL.NASA.GOV (Henry P. Dowst)
+Subject: Listing of PD1: and PD2: Directories
+
+Could someone post the latest list of the top level subdirectories
+in the PD1: and PD2: roots on SIMTEL20?
+
+Thanks
+Henry Dowst
+
+------------------------------
+
+Date: 23 Jun 88 16:51:54 GMT
+From: killer!pollux!dalsqnt!rpp386!pigs!haugj@ames.arc.nasa.gov  (The Beach Bum)
+Subject: Looking for BDS C compiler
+
+This is my second attempt at finding an source for the BDS C compiler.  The
+system which will be running the compiler is a DEC VT 180, a Z-80 based
+CP/M system.
+
+Send you replies by mail as I don't read this newsgroup.
+
+- John.
+-- 
+ The Beach Bum                                 Big "D" Home for Wayward Hackers
+ UUCP: ...!killer!rpp386!jfh                          jfh@rpp386.uucp :SMAILERS
+
+ "You are in a twisty little maze of UUCP connections, all alike" -- fortune
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+26-Jun-88 01:33:47-MDT,2135;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 26 Jun 88 01:30:29 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #161
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 26 Jun 88       Volume 88 : Issue 161
+
+Today's Topics:
+                         MP/M RCP/M systems?
+ PS:<SAC.HQSAC-DOCT>[--QUEUED-MAIL--].NEW-134342436034-HERMES-J16.1
+----------------------------------------------------------------------
+
+Date: 25 Jun 88 05:52:48 GMT
+From: killer!elg@ames.arc.nasa.gov  (Eric Green)
+Subject: MP/M RCP/M systems?
+
+I asked before, but nobody answered.... if you're out there, and
+didn't answer because you were certain my mailbox would be deluged, go
+ahead, I love deluges.... anyhow....
+
+Has anybody ever run a RCP/M system on an old MP/M ][ system? In
+particulr, an Altos 580 (4 user, 10 megabyte hard drive, circa 1983).
+
+--
+Eric Lee Green    ..!{ames,decwrl,mit-eddie,osu-cis}!killer!elg
+          Snail Mail P.O. Box 92191 Lafayette, LA 70509              
+"Is a dream a lie if it don't come true, or is it something worse?"
+
+------------------------------
+
+Date: Sat 18 Jun 88 08:26:15-CDT
+From: The Mailer Daemon <Mailer@E.ISI.EDU>
+Subject: PS:<SAC.HQSAC-DOCT>[--QUEUED-MAIL--].NEW-134342436034-HERMES-J16.1
+
+No such host as "SIMTEL20.ARPA",
+bad queue file follows:
+-------
+SIMTEL20.ARPA
+info-cpm
+
+Date: 18 Jun 1988 08:24-CDT
+Sender: SAC.HQSAC-DOCT@E.ISI.EDU
+Subject: Osborne 1 External Monitor
+From:  John A. Wright <SAC.HQSAC-DOCT@E.ISI.EDU>
+To: info-cpm@SIMTEL20.ARPA
+Cc: sac.hqsac-doct@E.ISI.EDU
+Message-ID: <[E.ISI.EDU]18-Jun-88 08:24:30.SAC.HQSAC-DOCT>
+
+I  have  two  Osborn  Is  at the Office.  One works fine, but the
+other has a bad CRT.  Does anyione know a source  for  the  cable
+that will allow me to connect an external monitor to these.
+
+I  have seen one so I know they exist, just cna't seem to be able
+to find a source or the pinouts to make one.
+
+Thanks in advance
+
+-------
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+27-Jun-88 01:32:15-MDT,1630;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Mon, 27 Jun 88 01:30:26 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #162
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Mon, 27 Jun 88       Volume 88 : Issue 162
+
+Today's Topics:
+                    Osborne-1 Monitor Replacement
+                           Small C Compiler
+----------------------------------------------------------------------
+
+Date: Sun, 26 Jun 88 10:02:10 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, Digital Equip. Corp. USA)
+Subject: Osborne-1 Monitor Replacement
+
+I thought their was a place called Lanngley-St.Clair that sold
+amber and green tubes of all shapes and sizes as upgrades...
+perhaps you could just replace the monitor instead of going
+external.
+
+rcs
+
+ARPA:		secrist%msdsws.dec@decwrl.dec.com
+DEC E-net:	msdsws::secrist
+USEnet:		{ decvax, allegra, ucbvax... }!decwrl!msdsws.dec.com!secrist
+
+"Go FORTH and Conquer !"
+
+------------------------------
+
+Date: Sunday, 26 June 1988  11:16-MDT
+From: "John A. Wright" <SAC.HQSAC-DOCT@E.ISI.EDU>
+Subject: Small C Compiler
+
+I am looking for a Small-C compiler that will run on a 8088
+co-processor.  I have found one form the SIGM files that was written
+for an 8086 cpu, but it doesn't seem to run on my machine.
+
+Doe3es anyone know of the whereabouts of a PD C compiler for CP/M-86
+with a good documentation file?
+
+Thanks in advance
+
+John
+
+************************************
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+28-Jun-88 01:32:47-MDT,1092;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 28 Jun 88 01:30:20 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #163
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 28 Jun 88       Volume 88 : Issue 163
+
+Today's Topics:
+                      Epson Qx-10 (x)bios calls
+----------------------------------------------------------------------
+
+Date: 26 Jun 88 18:45:54 GMT
+From: spl1!ddsw1!koala@lll-winken.llnl.gov  (Karl Meiser)
+Subject: Epson Qx-10 (x)bios calls
+
+Im new to my qx,  but not new to assembly language.
+
+With the C i have (Aztec C II) it comes very bare,  but with an xbios
+function.  How I send a character to the modem, how how do i read a
+character from the modem?  Or do i need to insert #asm  and  #endasm
+around assembly code?  If so,  how do I get one of the registers into
+a variable?
+
+
+--
+
+Karl Meiser    ..!att!spl1!ddsw1!koala
+
+I said that??  I musta been sleeping!
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+30-Jun-88 01:34:22-MDT,2568;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 30 Jun 88 01:30:21 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #164
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 30 Jun 88       Volume 88 : Issue 164
+
+Today's Topics:
+           My request for a lead to Polydata COMPAS (Z-80)
+----------------------------------------------------------------------
+
+Date: Mon, 27 Jun 1988 16:24:34 IST
+From: "Jacques J. Goldberg" <PHR00JG%TECHNION.BITNET@CUNYVM.CUNY.EDU>
+Subject: My request for a lead to Polydata COMPAS (Z-80)
+
+Two of you have answered, proposing to give me Polydata's new address.
+I replied privately following the e-mailer reply path shown: the NORDITA
+mailer rejected the mail. I tried an alternate, got no reply from you:
+Ole Lennert and/or Kristian Damm Jensen, THANK YOU FOR ANSWERING.
+Please write me the address of Polydata; if easy for you, please PHONE
+them, ask if COMPAS-80 still available and at what cost (I can read just
+about any CPM/80 5in1/4 diskette.)
+
+Bill Pechter quoted that COMPAS and Turbo-Pascal could have some family
+relationship. I confirm, comparing MSDOS-COMPAS with TurboPascal-3.00!
+When two compilers produce the same expected result, there is no proof
+that they have anything in common, but when both produce the same UNEXPECTED
+result, there MAY be something in common...
+
+Try this with your Pascal system [taken from a Pascal course semestrial test,
+where probably the author of the question, what does it do, hadn't tried out..]
+
+program tryit(input,output);
+procedure readwrite;
+var nextchar:char;
+begin
+  read(nextchar); if nextchar <> ' ' then readwrite; write(nextchar);
+end;
+begin
+writeln('Type in a sweet word, end with one space');
+readwrite
+end.
+
+What does it do?
+The intention is, store the word typed until a space is met, then write
+it reversed, preceded by a space.
+In fact, it does not work on any of the machines I tried.
+Usually ( Unix, VAX-VMS, IBM-PASCALVS, Waterloo-Pascal, Microsoft PASCAL
+under MS-DOS), it works Ok but only after the input string is followed
+by a carriage return (that is, writing does NOT start as soon as the
+terminating space is typed - systemwise, this makes sense, by the way).
+TurboPascal and COMPAS produce only the first character of the original
+string, that is, that one which should have been shown last.
+
+Jacques Goldberg [phr00jg@technion.bitnet]
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************

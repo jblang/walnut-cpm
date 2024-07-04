@@ -1,0 +1,53 @@
+;
+; B3C-KCT1.INS
+;  07/17/85		A TIME insert for BYE335 and up
+;
+;  This insert is for the Z80 piggyback clock chip from:
+;	Kenmore Computer Technology
+;	20 Londers Rd.
+;	Kenmore, N.Y.
+;	(716) 877-0617
+;
+; If your computer uses a Z80 chip and does not have a clock
+; then this is the clock for you.  It installs in minutes.
+; Just remove your Z80 chip, install this chip and reinstall
+; your Z80 on top.  Use an external program to initialize this
+; clock prior to loading BYE.  (See Z-TIMEn.LBR for this initialization
+; program).
+;
+;
+;  RTCBUF will have HH, MM, SS, YY, YY, MM, DD as BCD values (see label)
+;  CCMIN is address for storing current minutes in binary
+;  CCHOUR is address for current hour in binary.
+;
+;***********************************************************************
+ZPORT	EQU	0E0H		; Board shipped with this as default address
+				; Change address if you change address jumpers
+CENTURY	EQU	019H		; Change this in year 2000
+;
+	 IF	RTC
+TIME:	IN	ZPORT+2		; Seconds
+	STA	RTCBUF+2
+	IN	ZPORT+3		; Get BCD value for minutes
+	STA	RTCBUF+1
+	CALL	BCDBIN		; Convert BCD minutes to binary
+	STA	CCMIN		; Update the current minute
+	IN	ZPORT+4		; Get BCD value for hour
+	STA	RTCBUF
+	CALL	BCDBIN		; Convert BCD hour to binary
+	STA	CCHOUR		; Update the current hour
+	IN	ZPORT+6		; Day of month
+	STA	RTCBUF+6
+	IN	ZPORT+7		; Month of year
+	STA	RTCBUF+5
+	IN	ZPORT+9		; Year of century
+	STA	RTCBUF+4
+	MVI	A,CENTURY	; Set to 19 now
+	STA	RTCBUF+3
+	RET			; Return
+	 ENDIF	;RTC
+;
+;  End of TIME routine 
+;------------------------------------------------------------------------
+;
+

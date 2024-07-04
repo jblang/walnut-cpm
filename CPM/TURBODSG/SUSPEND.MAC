@@ -1,0 +1,95 @@
+	title	"suspend slave program"
+;
+;	(c) 1985 S. Kluger. All Rights Reserved.
+;
+;	Suspends slave
+;
+cr	equ	0dh
+lf	equ	0ah
+tfunc	equ	50h
+jconv	equ	10958
+;
+.z80
+.request syslib
+;
+	dseg
+;
+@dcfld::db	'00/00/00 at ',0
+id:	db	'.tShell.'
+offset:	db	0
+;
+;
+	cseg
+;
+start:	ld	de,80h
+	ld	hl,id
+	ld	bc,8
+	ldir
+	ld	bc,41
+	ld	l,0
+	call	tfunc
+	or	a
+	jp	z,fatal
+	ld	(offset),a
+	call	print##
+	cr,lf
+	'Current time: ',0
+	ld	c,10
+	call	tfunc
+	push	hl
+	call	time
+	call	print##
+	cr,lf
+	'Suspend till: ',0
+	ld	hl,5dh
+	call	eval10##
+	push	af
+	ld	hl,6dh
+	call	eval10##
+	pop	af
+	ld	d,a
+	pop	hl
+	ld	bc,0
+	ld	(80h),hl
+	ld	(82h),de
+	call	time
+	ld	bc,41
+	ld	a,(offset)
+	add	a,17
+	ld	l,a
+	call	tfunc
+	call	print##
+	cr,lf,lf,7,0
+	rst	0
+;
+time:	push	bc
+	push	de
+	ld	de,-jconv
+	add	hl,de
+	call	@dcvrt##
+	ld	hl,@dcfld
+	call	pstr##
+	pop	de
+	ld	a,d
+	call	..10
+	ld	a,':'
+	call	cout##
+	ld	a,e
+	call	..10
+	ld	a,':'
+	call	cout##
+	pop	bc
+	ld	a,b
+..10:	cp	10
+	jr	nc,..10.
+	push	af
+	ld	a,'0'
+	call	cout##
+	pop	af
+..10.:	jp	pafdc##
+;
+fatal:	call	print##
+	cr,lf,lf,7
+	'ERROR: tShell not installed',cr,lf,lf,0
+	rst	0
+	end

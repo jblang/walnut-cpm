@@ -1,0 +1,234 @@
+
+			    MEX Newsletter #004
+
+Date:	  07-03-84       From:  Ron Fowler               MEX rev:  1.00
+
+			    Batch bug Fix
+		       MEX 1.10 pushed back
+		    More on Fort Fone File Folder
+		     Useable operating systems
+			   M7 overlay notes
+			     HELP bug
+			    ALDS support
+			      Support 
+
+This is the fourth in a series of (hopefully) informative notes for users of
+the MEX communications program.  These newsletters will provide bug fixes,
+tips, and applications information.
+
+------------------------------------------------------------
+
+
+Batch Bug Fix
+-------------
+
+The following bug is potentially quite serious; the patch should be in-
+stalled as soon as possible if you use batch file transfers.
+
+				-----
+
+I've discovered a pointer calculation error in the batch file-lookup
+routine.  This affects batch receive (only), and is only a problem if
+the incoming batch file already exists on the disk.  In some circumstances,
+the existing file will be left on the disk, and the succeeding file in
+the directory will be erased and replaced with the incoming file.
+
+To fix this, execute the following command, either from a READ file or
+by typing it in at command level:
+
+		POKE $429A $3C $00 $C8
+
+(and then, of course, use the CLONE command to create a new MEX).
+
+MEX 1.10 / 2.0:
+---------------
+
+At the moment, I'm involved in a full-scale TurboDOS implementation, which
+is eating up most of my spare time.  Thus, I've had to push MEX 1.10 back
+a month or two.  Hopefully I'll be able to get back to MEX development in
+the next few weeks.
+
+Contrary to rumor, MEX 1.10 will not be the commercial version hinted at
+in the MEX documentation. The 1.10 release will fix all known bugs and add
+a feature or two.
+
+			   <soap-box dept>
+
+Speaking of a "commercial" version, I've been accused of "using the entire
+user community as a beta-test group in the eventual marketing of MEX".  Rather
+than let this accusation go unchallenged, I'd like to mention the futility
+of selling a program that I've already given away with no strings attached.
+I will definitely not charge anybody anything for a bug-fix release.
+
+It is likely, however, that MEX 2.0 will be a commercial effort; I think the
+difference between MEX 2.0 and MEX 1.x will be as dramatic as that between
+MEX and MODEM7 (it would have to be to find any significant customer base).
+Among the things I'm considering for MEX2 are nested READS, full-blown
+interpreted READ files (with incoming string-analysis conditionals and
+success-codes returned by most commands), "background" printer support with
+adjustable left, right, top and bottom margins, optional terminal support
+(cursory x-y, insert/delete line, highlighting, etc), "server" mode, LBR
+and SQ support, and an "overlay" structure (which would allow most of the
+commands to be pulled out of the main program, shrinking it down to perhaps
+10-14K).
+
+Thus it would appear that MEX2 will require as much or more effort than
+MEX1.  If this didn't justify at least a small return for my development
+time, then I doubt if I would make the effort at all.
+
+
+Fort Fone File Folder:
+----------------------
+
+Our local RCPM system is now up on brand new hardware, running a 40MB hard
+disk (works out to about 36.5 MB after formatting).  Fort Fone is the best
+(and perhaps the only) way to get timely answers to MEX questions.
+
+The MEX documentation incorrectly listed the number of FFFF.  The number
+is (414) 563-9932.
+
+
+Useable operating systems:
+--------------------------
+
+I failed to mention in the original documentation that MEX does not run
+under CP/M 1.4 (I was surprised to find that there is still a significant
+CPM 1.4 user community!).  My apologies to anyone this inconvenienced.
+
+In general MEX will run correctly under MP/M and TurboDOS, but requires
+that the modem be interrupt-driven with minimum input queue size of 134
+characters (single-tasking TurboDOS excluded).  I've written a TurboDOS
+overlay that uses the built-in COMM channels for I/O, but it's a little
+sluggish because of the overhead involved in the calling the O/S for modem
+status ... I'll be adding some hooks in 1.10 to make this work better.
+
+MEX should work correctly under CDOS (later releases) ... there is a flag
+byte in MEXPAT (CDOSFL) that should be turned on under CDOS to prevent MEX
+from making a disk-parameter request (which is not supported by CDOS).
+
+
+M7 Overlay Notes
+----------------
+
+There are problems with a few MDM7 overlays when used with MEX.  Since I
+seem to be answering these questions over and over, I'll go over them here,
+and refer any future questions to this newsletter.
+
+1) After installing my overlay, when I go into terminal mode, I get the
+   message "modem overlay not installed".
+
+   The problem is with the bit-status tests in the modem overlay.  I trapped
+   all seven in the un-installed MEX, figuring all overlays would at least
+   leave a "RET ! NOP ! NOP" in the associated jump table entries.  Not so.
+   To fix this problem, simply modify your modem overlay to make sure that
+   at least a "RET" is generated in any unused jumps.  These entries are
+   located as follows:
+
+	012AH   (in-modem-control-port)
+	0134H   (out-modem-data-port)
+	013EH   (in-modem-data-port)
+	0148H   (mask-receive-ready)
+	014BH   (test-receive-ready)
+	014EH   (mask-send-ready)
+	0151H   (test-send-ready)
+
+2) Whenever I exit with the CP/M command, the modem disconnects.
+
+   This one is a result of confusion between two overlay entry points.  The
+   routine jumped to by the JMP$GOODBYE vector (0168H, called GOODBV in MEX
+   overlays) should not disconnect the overlay -- this is the job of the
+   JMP$DISCONNECT entry (0165H, called DISCV in MEX overlays).  GOODBYE is
+   called expressly for overlays that need to "clean up" before returning
+   to CP/M, and is called immediately before exiting to the operating sys-
+   tem.  Some overlays use the same routine for both entry points, something
+   that MDM7 allows for some reason.  To fix this, change the JMP$GOODBYE
+   to point to a RET instruction.
+
+3) My overlay works fine, but when I enter a baudrate into the phone num-
+   ber library, it's ignored by MEX.
+
+   Only MXO overlays are capable of changing baudrate from a phone library
+   entry (and then, only if the overlay author writes the code).  This fea-
+   ture uses a jump table entry present in MDM7 overlays, but implemented
+   only for the PMMI modem, called PBAUD.  If you'd like to implement this
+   feature, see the example code and notes in MXO-PMxx.ASM and MXO-GBxx.ASM,
+   both of which have this feature included.
+
+
+4) The overlay works fine, but using <esc>-P in terminal mode, to turn on
+   the printer, doesn't have any effect.  The printer never outputs anything.
+
+   The most common cause of this is a BIOS with list-status improperly NOT
+   implemented (no typo there, read on...).  A CP/M BIOS that does not im-
+   plement the list device status routine should always return A=0FFH (the
+   ready condition); many, however, return A=0 (not ready).  Thus MEX never
+   sees the printer as being ready, and never outputs characters.
+
+   You can fix this by overlaying the LSTS vector in MEXPAT (located at 0D11H
+   within MEX) with the address of a replacement routine in your overlay.
+   For example, the following might be added to your overlay:
+
+		PRTSTS: IN  PRPORT		;input status port
+			ANI 80H			;test ready bit
+			RZ			;return A=0 if not ready
+			MVI A,0FFH		;else return A=255
+			RET
+	;
+			ORG 0D11H		;patch the MEX vector
+			DW  PRTSTS		
+
+
+HELP bug
+--------
+
+A minor bug has been reported with open HELP files: if you do a READ (or
+LOAD/SAVE) with an open HELP file, succeeding HELP commands get lost, and
+print out garbage.  To recover from this, simply use the LOG command to
+cause HELP to re-open its file with the next HELP command.
+
+
+ALDS Support
+------------
+
+Apparently, I neglected to mention in any of the documentation files that
+MEX supports Alternate Long Distance Service, up to a maximum of two such
+numbers (although, for some reason, it doesn't seem to work with the An-
+chor modem).  So I'll do it here.
+
+To enter an ALDS number into your phone library, enter it as you would any
+other number, except that its name must be '<' (left arrow) or '>' (right
+arrow).  These two specially-named numbers may then be called out as a
+prefix to any other number (whether in the phone library or entered on the
+command line).
+
+For example, let's say you access Sprint through the number 555-1234 and you
+also have MCI service available through 555-4321. Enter the numbers in
+the library this way:
+
+		PHONE >=555-1234,,,,,99999   <=== include delays + user code
+		PHONE <=555-4321,,,,,88888
+
+Now, to route any call thru Sprint, simply prefix with a '>'.  For example,
+
+		CALL >808-555-99999
+		CALL >TECHCBBS
+		CALL <CONOGA		<<--- this one uses MCI
+	
+You can also enter numbers in the library with a "built-in" sprint code:
+
+		PHONE TECHCBBS=<909-555-3333
+
+Support
+-------
+
+Finally, a short note about support for various overlays, machines, and so
+on.  I've gotten several requests from people to write overlays for specific
+machines, and some phone calls from people asking for help with debugging
+their overlays.  The latter I don't mind doing, as time permits (but *please*
+use the RCPM system instead of my voice line!); I don't have the time or
+inclination, however, to write custom overlays.
+
+
+
+----------------------------< MEXNEWS.004 >------------------------------
+

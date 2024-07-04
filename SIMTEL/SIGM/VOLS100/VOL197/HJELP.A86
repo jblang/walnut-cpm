@@ -1,0 +1,1337 @@
+
+;	--------------------------------------------------------------
+;	HJELP.ASM is a derivative of HELP8080.ASM (SIG/M 122.03),
+;	which was gotten by disassembling HELP8080.COM (SIG/M 122.04),
+;	inserting UNSQ.LIB (this disk), and making all the adjustments
+;	required to ensure the compatibility of the two. The objective
+;	of this procedure was to obtain a version of HELP which would
+;	work with squeezed HELP files, and to correct minor errors in
+;	the original program.
+;
+;	HELP8080.ASM in turn has a history, of having been derived from
+;	a Z80 version which forms part of Richard Conn's ZCPR2 package
+;	(SIG/M 98-107 and others). In the documentation for these
+;	programs he makes the requirement that their contents not be
+;	propagated for commercial purposes without his express written
+;	consent, but permitting their non-commercial usage or their
+;	incorporation as a necessary part of a new program. HJELP.ASM
+;	contains about 50% new or revised code, and in time may evolve
+;	into still less dependence. In the meantime we feel that it
+;	should continue to carry the requirements of the original author.
+;
+;	Besides incorporating a pipeline through which the Huffman code
+;	of a squeezed file can be decoded, the principal changes made
+;	to HELP8080 consist in establishing a directory and pushdown
+;	list to locate the beginnings of information sections and of
+;	individual panels. Besides speeding up the program, they are
+;	required by the Huffman code because the sign bit can no longer
+;	be used to flag these locations.
+;
+;	Minor errors in HELP8080 which were corrected include: 1) The
+;	option "L" did not always back up to panel 1 properly. 2) The
+;	option to list a single panel on the printer did not always
+;	work if the panels were not separated by form feeds.
+;
+;	For consistency with its acceptance of squeezed HELP files,
+;	HJELP will search for HQP as well as HLP files when summoned
+;	with a null command line.
+;
+;	HJELP.A86 was derived from HJELP.ASM by an application of
+;	80T86.CNV, followed by a manual revision to improve the code.
+;	The ZCPR2 mechanism was left intact, because it can be used
+;	for local paths if that is desired. CP/M86 does not use 0004H
+;	to record the default disk; a call to BDOS function 25 must
+;	be used instead.
+;
+;	[Harold V. McIntosh, July 20, 1984]
+;	--------------------------------------------------------------
+
+bdos	equ	224			;bdos interrupt
+
+CR	equ	0DH
+VT	equ	0CH
+LF	equ	0AH
+HT	equ	09H
+
+X0005	equ	0005H			;BDOS entry point
+
+NH	equ	6		;number of HELP file names to print per line
+ND	equ	10		;maximum node depth
+NS	equ	9		;bytes to save for panel markers
+
+csiz	equ	256
+psiz	equ	50*NS		;textpointer pushdown size
+
+;	-------------
+	org	0100H
+;	-------------
+
+X0100:	jmp	X017B
+
+;	A data area which is specific to ZCPR2 and which
+;	defines the parameters needed for HELP.COM to
+;	interact with ZCPR2.
+
+X0103	db	000H			;00/FF = no/external path available
+X0104	dw	0040H			;address of external path if used
+X0106	db	00,00			;disk, user for first path
+	db	00,00			;second path
+	db	00,00
+	db	00,00
+	db	00,00
+	db	00,00
+	db	00,00
+	db	00,00			;eighth path
+	db	00			;end of path
+	db	0FFH			;00/FF = multiple command line buffer
+	dw	0FF00H			;its address if present
+	db	04			;max number of disks
+	db	31			;max user number
+	db	0FFH			;00/FF = can/'t change disk
+	db	0FFH			;00/FF = can/'t change user
+	db	10			;begnning of privleged user area
+	db	'chdir'			;password for privleged area
+	rb	36			;remainder of 41 char buffer
+X0148	db	'$'			;usual value for path expressions
+	dw	0080H			;DMA for disk = tbuf
+	dw	0000			;address of named directory
+	db	64			;maximum number of directory names
+	db	'NAMES   DIR'		;name.ext of disk name file
+	db	0FFH			;00/FF = y/n external path
+	db	00			;multiple command line
+	db	00			;max user/disk
+	db	00			;user/disk change
+	db	00			;privileged user
+	db	00			;current indic and dma
+	db	00			;named directories
+	db	05			;class 5
+	db	'ZCPR2'
+	rb	10			;reserved spaces
+
+;	Default file name.
+
+X0170	db	'HELP    '
+X0178	db	'HLP'			;default ext
+X0179	db	'HQP'			;default squeezed file
+
+;	Program begins here.
+
+X017B:	mov	stak,sp			;save stack
+
+	mov	cl,25			;(19) get default disk
+	int	bdos
+	mov	dbyt,al			;Disk Byte
+
+	mov	dl,0FFH
+	mov	cl,32			;(20) Set/Get User Code
+	int	bdos			; B D O S
+	mov	X0C62,al		;user code
+
+	mov	bx,(offset X0005+2)
+	mov	al,[bx]
+	sub	al,0AH
+	mov	X0C63,al		;memory pages
+
+	mov	X0C6D,0			;z/nz = not/default file
+	mov	X0C71,0			;level #
+
+	mov	dx,(offset X08BE)	;'signon'
+	call	mssg			;message to console
+
+;	Use default if no file specified.
+
+	mov	bx,(offset 005CH+1)	;TFCB+1
+	cmp	(byte ptr[bx]),' '
+	jnz	X01BB			;loop
+	mov	si,(offset X0170)	;'HELP    HLP'
+	mov	cx,11			;bytes in disk name
+	call	miuc
+	mov	X0C6D,1			;z/nz = not/default file
+
+;	Loop.
+
+X01BB:	mov	sp,stak
+	mov	bx,(offset 005CH)	;TFCB
+	mov	(byte ptr[bx]),000H
+	add	bx,(offset 000CH)
+
+	mov	cx,018H			;24
+X01C9:	mov	(byte ptr[bx]),000H
+	inc	bx
+	loop	X01C9
+
+	mov	bx,(offset 005CH+1)	;TFCB+1
+	mov	cx,11			;bytes in disk name
+X01D5:	mov	al,[bx]
+	and	al,07FH
+	cmp	al,'?'
+	jz	X0227
+	inc	bx
+	loop	X01D5
+
+	mov	bx,(offset 005CH+9)
+	cmp	(byte ptr[bx]),' '
+	jnz	X01EE
+	mov	si,(offset X0178)	;default ext
+	mov	cx,003H
+	call	miuc
+
+X01EE:	cmp	X0C6D,0			;z/nz = not/default file
+	jnz	X0230
+	mov	bx,(offset X0106)
+	cmp	X0103,0
+	jz	X0202
+	mov	bx,X0104
+X0202:	mov	dx,(offset 005CH)	;TFCB
+	call	X0408			;search through users/disks
+	jz G6 ! jmp X0323 ! G6:		;load file
+	cmp	X0103,0
+	jz	X021E
+	mov	bx,(offset X0106)
+	mov	dx,(offset 005CH)	;TFCB
+	call	X0408			;search through users/disks
+	jz G8 ! jmp X0323 ! G8:		;load file
+X021E:	mov	bx,(offset 005CH+10)
+	mov	al,'Q'
+	cmp	al,[bx]
+	jz	X021F
+	mov	[bx],al
+	jmp	X01EE
+
+X021F:	mov	dx,(offset X0AA1)	;'File Not Found'
+	call	mssg			;message to console
+	jmp	exit			;return to CP/M
+
+X0227:	mov	dx,(offset X0A6E)	;'File Name w/Wildcard'
+	call	mssg			;message to console
+	jmp	exit			;return to CP/M
+
+X0230:	mov	dx,(offset X08DC)	;'Default HELP'
+	call	mssg			;message to console
+	call	X02A9			;reset HELP file names/line
+	call	X03F3			;restore user/disk
+	call	X02AF			;locate available HLP files
+	mov	bx,(offset X0104)
+	cmp	X0103,0
+	jnz	X0275
+	call	X03F3			;restore user/disk
+	mov	bx,(offset X0106)
+	call	X0275
+	call	X03F3			;restore user/disk
+	mov	dx,(offset X091C)	;'Type Any Char for Default Info'
+	call	mssg			;message to console
+	call	X046B			;read char from console
+	cmp	al,003H			;^C
+	jnz G11 ! jmp exit ! G11:	;return to CP/M
+	mov	X0C6D,0			;z/nz = not/default file
+
+	mov	si,(offset X0170)	;'HELP    HLP'
+	mov	bx,(offset 005CH+1)	;TFCB+1
+	mov	cx,11			;bytes in disk name
+	call	miuc
+
+	jmp	X01EE
+
+X0275:	mov	al,X0148
+	mov	ch,al
+	mov	al,[bx]
+	and	al,07FH
+	or	al,al
+	jnz G12 ! ret ! G12:
+	cmp	al,ch
+	jnz	X0288
+	mov	al,dbyt			;Disk Byte
+	inc	al
+X0288:	dec	al
+	mov	dl,al
+	mov	cl,14			;(0E) select disk
+	call	X045D			;generic BDOS call
+	inc	bx
+	mov	al,[bx]
+	inc	bx
+	and	al,07FH
+	cmp	al,ch
+	jnz	X029B
+	mov	al,X0C62		;user code
+X029B:	mov	dl,al
+	mov	cl,32			;(20) Get/Set User Code
+	call	X045D			;generic BDOS call
+	push	bx
+	call	X02AF			;locate available HLP files
+	pop	bx
+	jmp	X0275
+
+;	Set number of HELP file names to be typed per line.
+
+X02A9:	mov	X0C6C,NH		;HELP file names/line
+	ret
+
+;	Search out the available HLP files
+
+X02AF:	mov	bx,(offset 005CH)	;TFCB
+	mov	(byte ptr[bx]),000H
+	mov	cx,008H
+	inc	bx
+X02B7:	mov	(byte ptr[bx]),'?'
+	inc	bx
+	loop	X02B7
+
+	push	bx
+	mov	si,(offset X0178)	;default ext
+	mov	cx,003H
+	call	miuc
+
+	call	X02C0
+	mov	dx,(offset shlp)	;'squeezed HELP files'
+	call	mssg
+
+	pop	bx
+	mov	si,(offset X0179)	;default squeezed extension
+	mov	cx,003H
+	call	miuc
+
+X02C0:	mov	cx,018H
+X02CA:	mov	(byte ptr[bx]),000H
+	inc	bx
+	loop	X02CA
+	mov	dx,(offset 005CH)	;TFCB
+	mov	cl,17			;(11) search for first
+	int	bdos			; B D O S
+	cmp	al,0FFH
+	jz	G17
+X02DC:	call	X02ED			;pick up file name, type it
+	mov	dx,(offset 005CH)	;TFCB
+	mov	cl,18			;(12) search for next
+	int	bdos			; B D O S
+	cmp	al,0FFH
+	jnz	X02DC
+G17:	ret
+
+;	Pick file name out of directory, type it.
+
+X02ED:	ror	al,1
+	ror	al,1
+	ror	al,1
+	and	al,060H
+	mov	ah,0
+	mov	bx,(offset 0081H)
+	add	bx,ax
+	mov	cx,008H
+X02FE:	mov	al,[bx]
+	and	al,07FH
+	inc	bx
+	call	cona			;char to console
+	loop	X02FE
+	mov	al,' '
+	call	cona			;char to console
+	call	cona			;char to console
+	call	cona			;char to console
+	dec	X0C6C			;HELP file names/line
+	jnz	G20
+	call	X02A9			;reset HELP file names/line
+	call	X04F4			;type options at bottom of panel
+G20:	ret
+
+;	Open file, load it, close it.
+
+X0323:	mov	dx,(offset 005CH)	;TFCB
+	mov	cl,15			;(0F) open file
+	int	bdos			; B D O S
+	mov	bx,(offset X0D33)	;free memory
+	mov	X0C6E,bx		;ptr end of text
+X0331:	call	X04AC			;read record from disk
+	jz	X0331
+	mov	dx,(offset 005CH)	;TFCB
+X033A:	mov	cl,16			;(10) close file
+	int	bdos			; B D O S
+	call	X03F3			;restore user/disk
+
+;	Decide whether it is a squeezed file.
+
+	mov	bx,(offset X0D33)
+	mov	tptr,bx			;text pointer
+	mov	xptr,bx			;ptr to bgn of HELP file
+	mov	dens,0			;z/nz = normal/squeezed file
+	mov	wflg,0			;z/nz = no/byte left waiting by abyt
+	call	iwor			;one word, direct or through onsq
+	cmp	bx,0FF76H
+	jz	unii
+	mov	tptr,(offset X0D33)	;text pointer
+	jmp	gogo
+
+;	Squeezed, so go through initialization
+
+unii:	mov	rcnt,0			;repetition count
+	mov	roco,1			;bit rotation counter
+
+;	The "squeezed" marker is followed by a two-byte checksum,
+;	which is the simple sum of all the one-byte characters in
+;	the source file, carried as a two byte sum modulo 2**16.
+
+rchk:	call	iwor			;fetch two bytes from input stream
+
+;	Unsqueezed file name. It is an ASCII sequence, may be lower
+;	case if SQ.COM received it in response to a prompt, ending
+;	with a zero byte.
+
+luup:	call	gbyt			;fetch one byte from input stream
+	or	al,al
+	jnz	luup
+
+;	Load code dictionary. It is preceded by its two-byte length,
+;	and consists of a series of pairs of two-byte addresses. For
+;	each bit in the code, select the first element (0) or the
+;	second (1) element of the pair. If the pair is positive, it
+;	is the table entry (code + 4*index) at which to continue with
+;	the next bit. If the pair is negative, it is the complement
+;	of the coded ASCII character (low order byte except for [end]).
+
+ldic:	call	iwor			;fetch two bytes from input stream
+	add	bx,bx
+	add	bx,bx
+	mov	dx,tptr			;text pointer
+	mov	cptr,dx			;Huffman code table
+	add	bx,dx
+	mov	tptr,bx			;text pointer
+	mov	xptr,bx			;ptr to bgn of HELP file
+	mov	dens,0FFH		;z/nz = normal/squeezed file
+
+;	Scan the HELP text to find and record the section headings.
+
+gogo:	mov	pptr,(offset pudl)	;pushdown pointer
+	mov	mopt,'A'		;A, not @, to make <cmp m, jnc> work
+	call	abyt			;lookahead one byte
+	cmp	al,':'
+	jz	gogu
+gugu:	call	rbyt			;fetch one byte
+	cmp	al,LF
+	jnz	gigi
+	call	rbyt			;fetch one byte
+	cmp	al,':'
+	jz	gege
+gigi:	cmp	al,1AH
+	jz	gogu
+	jmp	gugu
+
+gege:	call	pupu
+	inc	mopt			;maximum option
+	jmp	gugu
+
+gogu:	mov	bx,pptr			;pushdown pointer
+	mov	zptr,bx			;ptr to bgn of info sect
+	mov	bx,xptr			;ptr to bgn of HELP file
+	mov	tptr,bx			;text pointer
+	mov	roco,1			;bit rotation counter
+	mov	wflg,0			;z/nz = no/byte left waiting by abyt
+
+;	Display menu. Here we distinguish between a simple HELP
+;	file which begins with a colon and has only one section,
+;	and an indexed HELP file, which starts out with a list of
+;	section descriptors.
+
+;X0342:	mov	sp,(offset stak)	;stack
+X0342:	mov	sp,stak
+	mov	X0C72,0			;panel #
+	call	abyt			;lookahead one byte
+	cmp	al,':'
+	jnz	X036A			;show menu, request option
+	call	rbyt			;fetch one byte
+	call	X05E5			;initialize new section
+	cmp	X0C71,0			;level #
+	jz	exit			;return to CP/M
+	jmp	X07ED			;go up one level
+
+;	Return to CP/M
+
+exit:	call	X03F3			;restore user/disk
+	mov	sp,stak			;save stack
+	mov	dl,0
+	mov	cl,0
+	int	bdos
+
+;	Show menu, request option.
+
+X036A:	call	X058D			;run through the menu
+	push	cx
+	call	crlf			;CR,LF
+	call	X0859			;type level I.D.
+	mov	dx,(offset X0C19)	;'Type [^C]'
+	call	mssg			;message to console
+	mov	dx,(offset X0C27)	;'Type [level or root]'
+	cmp	X0C71,0			;level #
+	jz	X0387
+	call	mssg			;message to console
+X0387:	mov	dx,(offset X0C37)	;'Enter Selection'
+	call	mssg			;message to console
+	pop	cx
+	call	X046B			;read char from console
+	cmp	al,003H			;^C
+	jz	exit			;return to CP/M
+	cmp	al,'.'
+	jnz G33 ! jmp X07E1 ! G33:	;back to root
+	cmp	al,'^'
+	jnz G34 ! jmp X07ED ! G34:	;go up one level
+	push	ax
+	call	crlf			;CR,LF
+	pop	ax
+	mov	bx,(offset mopt)	;maximum option
+	cmp	al,[bx]
+	jnc	X03AE
+	sub	al,'@'
+	jc	X03AE
+	jz	X03AE
+	call	anth			;access nth option
+	call	X05E5			;initialize new section
+	jmp	X036A			;show menu, request option
+
+X03AE:	mov	dx,(offset X0AC6)	;'Invalid Response'
+	call	mssg			;message to console
+	jmp	X036A			;show menu, request option
+
+;	Restore user/disk.
+
+X03F3:	mov	dl,dbyt			;Disk Byte
+	mov	cl,14			;(0E) select disk
+	int	bdos			; B D O S
+	mov	dl,X0C62		;user code
+	mov	cl,32			;(20) Get/Set User Code
+	int	bdos			; B D O S
+	ret
+
+;	Search through users/disks.
+
+X0408:	mov	X0469,bx		;save FCB addr
+	mov	cl,17			;(11) search for first
+	call	X045D			;generic BDOS call
+	inc	al
+	jnz	X0459
+	mov	X0467,dx		;save DE after 'search first'
+	mov	bx,X0469		;save FCB addr
+X041B:	mov	ch,X0148
+	mov	al,[bx]
+	and	al,07FH
+	or	al,al
+	jnz	X0428
+	xor	al,al
+	ret
+
+X0428:	cmp	al,ch
+	jnz	X0432
+	mov	al,dbyt			;Disk Byte
+	inc	al
+X0432:	dec	al
+	mov	dl,al
+	mov	cl,14			;(0E) select disk
+	call	X045D			;generic BDOS call
+	inc	bx
+	mov	al,[bx]
+	and	al,07FH
+	inc	bx
+	cmp	al,ch
+	jnz	X0445
+	mov	al,X0C62		;user code
+X0445:	mov	dl,al
+	mov	cl,32			;(20) Get/Set User Code
+	call	X045D			;generic BDOS call
+	mov	dx,X0467		;save DE after 'search first'
+	mov	cl,17			;(11) search for first
+	call	X045D			;generic BDOS call
+	inc	al
+	jz	X041B
+X0459:	mov	al,0FFH
+	or	al,al
+	ret
+
+;	Generic BDOS call.
+
+X045D:	push	bx
+	push	dx
+	push	cx
+	int	bdos			; B D O S
+	pop	cx
+	pop	dx
+	pop	bx
+	ret
+
+X0467	rw	1			;save DE after 'search first'
+X0469	rw	1			;save FCB addr
+
+;	Read a character from the console.
+
+X046B:	push	cx
+	push	dx
+	push	bx
+	mov	cl,1			;(01) console input
+	int	bdos			; B D O S
+	pop	bx
+	pop	dx
+	pop	cx
+	push	ax
+	call	crlf			;CR,LF
+	pop	ax
+X047B:	and	al,07FH			;upper case fold
+	cmp	al,'a'
+	jc	X047F
+	cmp	al,'{'
+	jnc	X047F
+	and	al,05FH
+X047F:	ret
+
+;	Character to console.
+
+cona:	push	ax
+	push	cx
+	push	dx
+	push	bx
+	mov	cl,2			;(02) console output
+	mov	dl,al
+	int	bdos			; B D O S
+	pop	bx
+	pop	dx
+	pop	cx
+	pop	ax
+	ret
+
+;	Message to Console.
+
+mssg:	push	cx
+	push	dx
+	push	bx
+	mov	cl,9			;(09) print string to $
+	int	bdos			; B D O S
+	pop	bx
+	pop	dx
+	pop	cx
+	ret
+
+;	Move cx bytes from [si] to [bx].
+
+miuc:	mov	al,[si]
+	mov	[bx],al
+	inc	si
+	inc	bx
+	loop	miuc
+	ret
+
+;	Move cx bytes from [bx] to [si]
+
+mduc:	dec	bx
+	dec	si
+	mov	al,[bx]
+	mov	[si],al
+	loop	mduc
+	ret
+
+;	Initialize pudl.
+
+izpu:	mov	cx,NS
+	mov	si,(offset lach)
+	mov	bx,zptr			;ptr to bgn of info sect
+	call	miuc
+	mov	yptr,bx			;zptr+NS
+	mov	pptr,bx			;pushdown pointer
+	mov	X0C72,1			;panel #
+	ret
+
+;	Restore to the head of pudl.
+
+rspu:	mov	cx,NS
+	mov	bx,yptr			;zptr+NS
+	mov	pptr,bx			;pushdown pointer
+	mov	si,(offset lach+NS)
+	call	mduc
+	mov	X0C72,0			;panel #
+	ret
+
+;	Access nth option.
+
+anth:	mov	ah,0
+	mov	bx,ax
+	add	bx,bx
+	add	bx,bx
+	add	bx,bx
+	add	bx,ax
+	add	bx,(offset pudl)
+	mov	si,(offset lach+NS)
+	mov	cx,NS
+	call	mduc
+	mov	bx,zptr			;ptr to bgn of info sect
+	mov	pptr,bx			;pushdown pointer
+	mov	X0C72,1
+	ret
+
+;	Push state onto pudl.
+
+pupu:	mov	bx,pptr			;pushdown pointer
+	cmp	bx,(offset pudl+psiz)
+	jnc	pupr
+	mov	cx,NS
+	mov	si,(offset lach)
+	call	miuc
+	mov	pptr,bx			;pushdown pointer
+	inc	X0C72			;panel #
+pupr:	ret
+
+;	Pop state from pudl.
+
+popu:	mov	bx,pptr			;pushdown pointer
+	cmp	zptr,bx
+	jnc	popr
+	mov	cx,NS
+	mov	si,(offset lach+NS)
+	call	mduc
+	mov	pptr,bx			;pushdown pointer
+	mov	al,X0C72		;panel #
+	or	al,al
+	jz	popr
+	dec	X0C72			;panel #
+popr:	ret
+
+;	Read one record from the disk.
+
+X04AC:	mov	cl,20			;(14) read one record
+	mov	dx,(offset 005CH)	;TFCB
+	int	bdos			; B D O S
+	push	ax
+	mov	bx,X0C6E		;ptr end of text
+	mov	al,X0C63		;memory pages
+	cmp	al,bh
+	jz	X04D1
+	mov	si,(offset 0080H)
+	mov	cx,080H
+	call	miuc
+	mov	(byte ptr[bx]),01AH	;^Z
+	pop	ax
+	or	al,al
+	mov	X0C6E,bx		;ptr end of text
+	ret
+
+X04D1:	mov	dx,(offset X0BDC)	;'Not Enough Room'
+ferm:	call	mssg			;message to console
+	jmp	exit			;return to CP/M
+
+onsq:	mov	al,rcnt			;repetition count
+	or	al,al
+	jnz	onsr
+	call	dnch			;decode next character
+	jc	vchk			;verify the checksum
+	cmp	al,090H			;repeat last character
+	jnz	onsu			;normal character
+	call	dnch			;decode next character
+	or	al,al
+	jz	onss
+	dec	al
+onsr:	dec	al
+	mov	rcnt,al			;repetition count
+	mov	al,lach
+	ret
+
+onss:	mov	al,090H
+	ret
+
+onsu:	mov	lach,al			;last character typed
+	ret
+
+;	Verify the checksum.
+
+vchk:	mov	al,01AH			;simulate ^Z
+	ret
+
+;	Decode next character.
+
+dnch:	mov	bx,cptr			;Huffman code table
+dncr:	call	ibit			;read next bit
+	jnc	dncs			;skip for 1, stay for 0
+	inc	bx
+	inc	bx
+dncs:	mov	bx,[bx]			;get next offset
+	cmp	bx,0FEFFH		;FEFF means [end]
+	jz	dnct
+	or	bx,bx
+	jns	dncu			;p means new offset
+	mov	al,bl
+	not	al			;m means complemented char
+	stc
+	cmc
+	ret
+
+dnct:	stc				;flag [end] with carry bit
+	ret
+
+;	Calculate <code>+4*<offset>.
+
+dncu:	add	bx,bx
+	add	bx,bx
+	add	bx,cptr
+	jmp	dncr
+
+;	Read one bit at a time.
+
+ibit:	dec	roco			;bit rotation counter
+	jnz	ibiu
+	mov	roco,8			;bit rotation counter
+	call	ibyt			;fetch one byte from input stream
+	mov	roby,al			;rotating byte
+ibiu:	rcr	roby,1			;rotating byte
+	ret
+
+;	Read one word.
+
+iwor:	call	ibyt			;fetch one byte from input stream
+	mov	bl,al
+	push	bx
+	call	ibyt			;fetch one byte from input stream
+	pop	bx
+	mov	bh,al
+	ret
+
+;	Read-ahead of one byte.
+
+abyt:	cmp	wflg,0			;z/nz = no/byte left waiting by abyt
+	jz	abyy
+	mov	al,wbyt			;byte left waiting by abyt
+	ret
+
+abyy:	dec	wflg
+	call	gbyt			;one byte, direct or through onsq
+	mov	wbyt,al			;byte left waiting by abyt
+	ret
+
+rbyt:	cmp	wflg,0			;z/nz = no/byte left waiting by abyt
+	jz	gbyt			;one byte, direct or through onsq
+	mov	wflg,0			;z/nz = no/byte left waiting by abyt
+	mov	al,wbyt			;byte left waiting by abyt
+	ret
+
+gbyt:	cmp	dens,0			;one byte, direct or through onsq
+	jz	ibyt
+	jmp	onsq 			;one byte from squeezed file
+ibyt:	mov	si,tptr			;fetch byte from the input stream
+	mov	al,[si]
+	inc	tptr			;text pointer
+	ret
+
+;	Type line, solicit option.
+
+X04DA:	call	rbyt			;fetch one byte
+	cmp	al,CR
+	jz	X04F4			;type options at bottom of panel
+	cmp	al,LF
+	jz	X04F5			;type options at bottom of panel
+	cmp	al,01AH			;^Z
+	jz	X04F5			;type options at bottom of panel
+	call	cona			;char to console
+	jmp	X04DA			;type line, solicit option
+
+;	Type the options at bottom of panel.
+;	Entry point according to how line ended.
+
+X04F4:	call	rbyt			;decomission following LF
+X04F5:	call	crlf			;CR,LF
+	mov	bx,(offset X0C6B)	;console remaining lines
+	dec	(byte ptr[bx])
+	jz G66 ! ret ! G66:
+
+;	Solicit options (without marking or incrementing line).
+
+X0504:	call	X0859			;type level I.D.
+	mov	dx,(offset X097A)	;'^C = Exit'
+	call	mssg			;message to console
+X050D:	mov	dx,(offset X0983)	;'[level, root]'
+	cmp	X0C71,0			;level #
+	jz	X0521
+	call	mssg			;message to console
+X0521:	mov	dx,(offset X0993)	;'[option list]'
+	call	mssg			;message to console
+	call	X046B			;read char from console
+	mov	char,al			;char read from console
+	cmp	al,'M'
+	jnz	pnla
+	jmp	X0342			;display menu
+
+pnla:	cmp	al,003H			;^C
+	jnz	pnlb
+	jmp	exit			;return to CP/M
+
+pnlb:	cmp	al,'P'
+	jnz	pnlc
+	jmp	X06FE			;fulfil PRINT request
+
+pnlc:	cmp	al,'.'
+	jnz	pnld
+	jmp	X07E1			;back to root
+
+pnld:	cmp	al,'^'
+	jnz	pnle
+	jmp	X07ED			;go up one level
+
+pnle:	cmp	al,'L'
+	jnz	pnlf
+	call	popu
+	call	popu
+	jmp	pnlg
+
+pnlf:	cmp	al,'S'
+	jnz	pnlg
+	call	rspu			;restore start of info section
+pnlg:	call	pupu			;save reference to section head
+	call	X0587			;reset line count
+	jmp	crlf			;CR,LF
+
+;	CR, LF.
+
+crlf:	mov	al,CR
+	call	cona			;char to console
+	mov	al,LF
+	jmp	cona			;char to console
+
+;	Reset line count.
+
+X0587:	mov	X0C6B,23		;console remaining lines
+	ret
+
+;	Run through the menu.
+
+X058D:	mov	X0C72,0			;panel #
+	mov	bx,xptr			;ptr to bgn of HELP file
+	mov	tptr,bx			;text pointer
+	mov	roco,1			;bit rotation counter
+	mov	wflg,0			;z/nz = no/byte left waiting by abyt
+	call	X0587			;reset line count
+	dec	X0C6B			;console remaining lines
+	mov	X0C68,'A'		;option letter
+	mov	dx,(offset X0954)	;'Selections are ...'
+	call	mssg			;message to console
+	mov	cl,000H
+X05AC:	call	abyt			;lookahead one byte
+	cmp	al,':'
+	jz	X05D4			;finish panel w/CR,LF's
+	cmp	al,01AH			;^Z
+	jnz G76 ! jmp exit ! G76:	;return to CP/M
+	inc	cl
+	mov	al,X0C68		;option letter
+	call	cona			;char to console
+	inc	al
+	mov	X0C68,al		;option letter
+	mov	al,'.'
+	call	cona			;char to console
+	mov	al,' '
+	call	cona			;char to console
+	call	X04DA			;type line, solicit option
+	jmp	X05AC
+
+;	Finish out panel with CR, LF's.
+
+X05D4:	mov	al,X0C6B		;console remaining lines
+	mov	cl,al
+	mov	ch,00
+	jcxz	X05DE
+X05DD:	call	crlf			;CR,LF
+	loop	X05DD
+X05DE:	ret
+
+;	A loop which will print out an information section. It calls
+;	X04DA, which will count out lines as it types them. If the
+;	line it has just typed is the last one of the panel, it
+;	will pause for the panel to be read, having solicited some
+;	indication of whether it should procede, repeat the last panel,
+;	go back to the beginning, or go back to the menu.
+
+
+X05E5:	call	X075D			;is section disk file?
+	call	izpu
+	call	X0587			;reset line count
+X05FA:	call	abyt			;lookahead one byte
+	cmp	al,01AH			;^Z
+	jz	X0624			;mark panel, type legend, read option
+	cmp	al,':'
+	jz	X0624			;mark panel, type legend, read option
+	cmp	al,VT			;form feed
+	jz	X05FB
+	call	X04DA
+	jmp	X05FA
+
+X05FB:	call	rbyt			;fetch one byte
+	mov	al,X0C6B		;console remaining lines
+X061A:	push	ax
+	call	X04F5			;type options at bottom of panel
+	pop	ax
+	dec	al
+	jnz	X061A
+	jmp	X05FA
+
+;	Mark panel, type legend, select option.
+
+X0624:	call	rbyt			;fetch one byte
+X0628:	call	crlf			;CR,LF
+	dec	X0C6B			;console remaining lines
+	jnz	X0628
+X0635:	call	X0859			;type level I.D.
+	mov	dx,(offset X0976)	;'EOI & ^C'
+	call	mssg			;message to console
+	call	X050D
+	mov	al,char			;char read from console
+	cmp	al,'L'
+	jz	X05FA
+	cmp	al,'S'
+	jz	X05FA
+	cmp	al,'P'
+	jz	X05FA
+	ret
+
+;	Send line to LST:, check for interrupt request.
+
+X06B3:	call	rbyt			;fetch one byte
+	cmp	al,CR
+	jz	X06CE			;list CR, LF's at end of line
+	cmp	al,LF
+	jz	X06CF			;list CR, LF's at end of line
+	cmp	al,01AH			;^Z
+	jz	X06CF			;list CR, LF's at end of line
+	call	X06E4			;list output, read status
+	jnz	X06B3			;line to LST:
+	ret
+
+;	Type CR, LF at end of line. Entry point according
+;	to whether CR, LF, or ^Z was encountered.
+
+X06CE:	call	rbyt			;decomission following LF
+X06CF:	mov	al,CR
+	call	X06E4			;list output, read status
+	jz	X06F0			;to catch a ^C between CR, LF
+	mov	al,LF
+X06E4:	push	bx
+	push	dx
+	push	cx
+	mov	dl,al
+	mov	cl,5			;(05) list output
+	int	bdos			; B D O S
+	mov	dl,0FFH
+	mov	cl,6			;(06) direct console I/O
+	int	bdos			; B D O S
+	pop	cx
+	pop	dx
+	pop	bx
+	cmp	al,003H
+X06F0:	ret
+
+;	Respond to PRINT request.
+
+X06FE:	mov	dx,(offset X09DE)	;'Set Top-of-Form'
+	call	mssg			;message to console
+	mov	X0C61,0			;z/nz = panel/section (P)
+	call	popu
+	call	pupu
+	call	X046B			;read char from console
+	cmp	al,003H			;^C
+	jz	X071B
+	cmp	al,'S'
+	jz	X0718
+	call	rspu
+	call	pupu
+	mov	X0C61,0FFH		;z/nz = panel/section (P)
+X0718:	call	X0730
+X071B:	call	popu
+	jmp	pnlg
+
+X0730:	mov	dx,(offset X09B2)	;'Printing in Progress ...'
+	call	mssg			;message to console
+	call	X0587			;reset line count
+X0739:	call	X06B3			;line to LST:
+	cmp	al,003H			;^C
+	jz	G94
+	call	abyt			;lookahead one byte
+	cmp	al,01AH			;^Z
+	jz	G94
+	cmp	al,':'
+	jz	G94
+	cmp	al,VT			;Form Feed
+	jnz G97 ! call X06CF ! G97:	;list CR, LF's at end of line
+	cmp	X0C61,0			;z/nz = panel/section (P)
+	jnz	X0739
+	dec	X0C6B			;console remaining lines
+	jnz	X0739
+G94:	ret
+
+;	Check whether section is a disk file.
+
+X075D:	call	abyt			;lookahead one byte
+	cmp	al,':'
+	jz G100 ! ret ! G100:
+	mov	al,X0C71		;level #
+	cmp	al,ND			;maximum depth
+	jnz	X0776			;read file, type name
+	mov	dx,(offset X0B4A)	;'Node Limit'
+	call	mssg			;message to console
+	jmp	exit			;return to CP/M
+
+;	Read file, type name.
+
+X0776:	call	X0845			;locate file name on stack
+	mov	si,(offset 005CH+1)	;TFCB+1
+	mov	cx,11			;bytes in file name
+	call	miuc
+	inc	X0C71			;level #
+	mov	dx,(offset X0C4C)	;'Loading HELP File'
+	call	mssg			;message to console
+	call	rbyt			;fetch one byte
+	mov	bx,(offset 005CH+1)	;TFCB+1
+	mov	cx,008H
+	call	X07AB			;parse field
+	mov	al,'.'
+	call	cona			;char to console
+	mov	cx,003H
+	call	X07AB			;parse field
+	call	crlf			;CR,LF
+	jmp	X01BB			;loop
+
+;	Read and parse field in file name.
+;	B is field length, HL beginning of field.
+
+X07AB:	push	bx
+	push	cx
+	call	rbyt			;fetch one byte
+	pop	cx
+	pop	bx
+	cmp	al,'.'
+	jz	X07D6			;end field w/blanks
+	cmp	al,'!'
+	jc	X07D6			;end field w/blanks
+	call	X047B			;upper case fold
+	call	cona			;char to console
+	mov	[bx],al
+	inc	bx
+	loop	X07AB			;parse field
+	call	rbyt			;fetch one byte
+	cmp	al,'.'
+	jz	G105
+	cmp	al,'!'
+	jc	G105
+	mov	dx,(offset X0B81)	;'Invalid File Name'
+	call	mssg			;message to console
+	jmp	exit			;return to CP/M
+
+;	Fill out field with blanks
+
+X07D6:	mov	(byte ptr[bx]),' '
+	inc	bx
+	loop	X07D6
+G105:	ret
+
+;	Go back to root.
+
+X07E1:	mov	al,X0C71		;level #
+	or	al,al
+	mov	al,00
+	jnz	X07FE
+	jmp	X0342			;display menu
+
+;	Go up one level.
+
+X07ED:	mov	al,X0C71		;level #
+	or	al,al
+	jnz	X07FD			;revert to last level
+	mov	dx,(offset X0BAD)	;'No Higher Level'
+	call	mssg			;message to console
+	jmp	X0342			;display menu
+
+;	Revert to upper level, type name.
+
+X07FD:	dec	al
+X07FE:	mov	X0C71,al		;level #
+	call	X0845			;locate file name on stack
+	push	bx
+	mov	dx,(offset X0C4C)	;'Loading HELP File'
+	call	mssg			;message to console
+	mov	cx,008H
+X080D:	mov	al,[bx]
+	inc	bx
+	cmp	al,' '
+	jz	X081E
+	call	cona			;char to console
+	loop	X080D
+	jmp	X0826			;type extension
+
+X081E:	dec	cx
+	jz	X0826			;type extension
+	inc	bx
+	jmp	X081E
+
+;	Type extension.
+
+X0826:	mov	al,'.'
+	call	cona			;char to console
+	mov	cx,003H
+X082D:	mov	al,[bx]
+	inc	bx
+	call	cona			;char to console
+	loop	X082D
+	call	crlf			;CR,LF
+	pop	si
+	mov	bx,(offset 005CH+1)	;TFCB+1
+	mov	cx,11			;bytes in file name
+	call	miuc
+	jmp	X01BB			;loop
+
+;	Locate file name on stack.
+
+X0845:	call	X084D			;bx=al*11
+	add	bx,(offset X0C73)	;PDL for HELP file names
+	ret
+
+;	HL = A*11
+
+X084D:	mov	ah,000H
+	mov	bx,ax
+	add	bx,bx
+	add	bx,bx
+	add	bx,bx
+	add	bx,ax
+	add	bx,ax
+	add	bx,ax
+	ret
+
+;	Type level identification.
+
+X0859:	cmp	X0C71,0			;level #
+	jz	X0872
+	mov	dx,(offset X0C0C)	;'Level'
+	call	mssg			;message to console
+	mov	al,X0C71		;level #
+	call	X0881			;translate level # to ASCII
+	mov	dx,(offset X0C13)	;'/ '
+	call	mssg			;message to console
+X0872:	mov	al,X0C72		;panel #
+	cmp	al,00
+	jz	X0873
+	call	X0881			;translate level # to ASCII
+	mov	dx,(offset X0C16)	;': '
+	call	mssg			;message to console
+X0873:	ret
+
+;	Translate level number to ASCII string.
+
+X0881:	mov	X0C70,0			;z/nz = 1/2 digit number
+	mov	ch,100			;one hundred
+	call	X0896			;type A as decimal number
+	mov	ch,10			;ten
+	call	X0896			;type A as decimal number
+	add	al,'0'
+	jmp	cona			;char to console
+
+;	Type A as decimal number.
+
+X0896:	mov	cl,000H
+X0898:	sub	al,ch
+	jc	X08A0
+	inc	cl
+	jmp	X0898
+
+X08A0:	add	al,ch
+	mov	ch,al
+	cmp	X0C70,0			;z/nz = 1/2 digit number
+	jnz	X08B6
+	mov	al,cl
+	mov	X0C70,al		;z/nz = 1/2 digit number
+	or	al,al
+	jnz	X08B6
+	mov	al,' '
+	jmp	X08B9
+
+X08B6:	mov	al,cl
+	add	al,'0'
+X08B9:	call	cona			;char to console
+	mov	al,ch
+	ret
+
+X08BE	db	'HELP (from ZCPR2) Modified for squeezed HELP files.',CR,LF,'$'
+X08DC	db	CR,LF,'Default HELP Facility Invoked',CR,LF
+	db	' - Available HELP Files are -',CR,LF,CR,LF,'$'
+shlp	db	CR,LF,CR,LF,' - Squeezed HELP Files -',CR,LF,CR,LF,'$'
+X091C	db	CR,LF,CR,LF,'  Type Any Character for Default Info'
+	db	' (^C to Quit) - $'
+X0954	db	CR,LF,'  HELP File Selections are --',CR,LF,'$'
+X0976	db	'EOI '
+X097A	db	'^C=Exit $'
+X0983	db	'^=Level .=Root $'
+X0993	db	'M=Menu S=Start L=Last P=Print $'
+X09B2	db	'Printing in Progress -- Strike ^C to Quit $'
+X09DE	db	'Please Set Top-of-Form on Printer',CR,LF
+	db	'  Strike S to Print this Screen Only,'
+	db	' ^C to Quit, or',CR,LF
+	db	'  Any Other Char to Print Entire Information Section - $'
+X0A6E	db	CR,LF,'HELP FATAL ERROR -- File Name Contains Wild Card$'
+X0AA1	db	CR,LF,'HELP FATAL ERROR -- File not Found$'
+X0AC6	db	CR,LF,'HELP ERROR -- Invalid Response',CR,LF,'$'
+X0AE9	db	CR,LF,'HELP ERROR -- EOF on HELP File',CR,LF,'$'
+X0B4A	db	CR,LF,'HELP ERROR -- Node Level Limit Reached'
+	db	' -- Returning to CP/M',CR,LF,'$'
+X0B81	db	CR,LF,'HELP ERROR -- Invalid File Name in Load',CR,LF,'$'
+X0BAD	db	CR,LF,'HELP ERROR -- No Higher Level to Return to',CR,LF,'$'
+X0BDC	db	CR,LF,'HELP ERROR -- Not Enough Room for HELP File',CR,LF,'$'
+X0C0C	db	'Level $'
+X0C13	db	'/ $'
+X0C16	db	': $'
+X0C19	db	'Type  ^C=Exit$'
+X0C27	db	' ^=Level .=Root$'
+X0C37	db	' or Enter Selection $'
+X0C4C	db	CR,LF,'Loading HELP File $'
+
+X0C61	rb	1			;z/nz = panel/section (P)
+X0C62	rb	1			;user code
+X0C63	rb	1			;memory pages
+X0C68	rb	1			;option letter
+X0C6B	rb	1			;console remaining lines
+X0C6C	rb	1			;HELP file names/line
+X0C6D	rb	1			;z/nz = not/default file
+X0C6E	rw	1			;ptr end of text
+X0C70	rb	1			;z/nz = 1/2 digit number
+X0C71	rb	1			;level #
+X0C72	rb	1			;panel #
+X0C73	rb	190			;PDL for HELP file names/stack
+stak	rw	1			;save stack pointer
+dbyt	rb	1			;disk byte
+lach	rb	1			;%; last character typed	S
+rcnt	rb	1			;%; repetition count		E
+roco	rb	1			;%; rotating bit counter	Q
+roby	rb	1			;%; rotating byte		U
+dens	rb	1			;%; z/nz=normal/squeezed file	E
+wflg	rb	1			;%; z/nz=no/byte awaiting abyt	N
+wbyt	rb	1			;%; byte left waiting by abyt	C
+tptr	rw	1			;%; text pointer		E
+xptr	rw	1			;ptr to bgn of HELP file
+yptr	rw	1			;zptr+NS
+zptr	rw	1			;ptr to bgn of info sect
+cptr	rw	1			;Huffman code table
+pptr	rw	1			;pushdown pointer
+mopt	rb	1			;maximum option
+char	rb	1			;char read from console
+pudl	rb	NS*50			;pushdown for section heads
+X0D33	rb	0			;free memory
+
+;	Layout of pudl and pointers:
+;
+;		pudl:	menu
+;			...
+;			menu
+;		zptr->	panel 1
+;		yptr->	panel 2
+;			...
+;		pptr->	panel n
+;			x
+;			x
+;			x
+;		X0D33:	x
+;			x
+;		cptr->	Huffman code
+;			x
+;			x
+;		xptr->	HELPfile text
+;			x
+;			x
+;		tptr-> 	x
+;			x
+;			x
+
+	end
+

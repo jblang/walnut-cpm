@@ -1,0 +1,47 @@
+
+Note : This fix will be in the next NUBYE release [tmb]
+
+Date : 09/21/86
+From : Bob Clyne, CoSysop Royal Oak RCP/M (313) 759-6569
+Re   : NUBYE v1.01 bug report/fix
+
+   When ASKNUL is set to YES, the NULTRY counter is not being
+reset between calls.  The fix is marked with "==>>".
+
+;
+ANSW:	 IF	NOT CPM3
+	CALL	BDCHEK
+	 ENDIF
+;
+	 IF	MOTOR
+	CALL	DSKON		; Turn on drives
+	 ENDIF
+;
+	 IF	(NOT USEZCPR) AND (ZCPR2 OR ZCPR3)
+	MVI	A,MAXUSR	; Reset maximum user area
+	STA	MXUSR		; Set it in bye
+	INR	A		; Bump it
+	STA	MAXUSER		; Set it in ZCPR
+	MVI	A,MAXDRV-'@'	; Reset maximum drive
+	STA	MXDRV
+	DCR	A
+	STA	MAXDRIV
+	 ENDIF
+;
+	 IF	CHGPATH
+	CALL	REMPAT		; Set up the secure path for caller
+	 ENDIF
+;
+	XRA	A
+	STA	CDOFF		; Limit for waiting for c/r
+	STA	FKFLAG		; F-key lead-in flag
+	STA	LFEEDS		; Turn LF's on again
+==>>	 IF	ASKNUL
+==>>	STA	NULTRY		; Reset nulls-try counter
+==>>	 ENDIF
+	STA	TWIT		; Initiate this flag off, always
+;
+	 IF	ZCPR2 OR ZCPR3
+	STA	WHEEL		; Initiate with WHEEL off, always
+	 ENDIF
+;

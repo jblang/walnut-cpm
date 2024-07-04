@@ -1,0 +1,186 @@
+
+; B5US-1.INS - US Robotics S100 modem insert for BYE5 - 07/17/85
+;
+;	     US Robotics S100 modem Interface routines
+;
+;	     Note:  This is an insert, not an overlay.
+;
+;		*********************************
+;		*				*
+;		*   DOES NOT SUPPORT 2400 BPS	*
+;		*				*
+;		*********************************
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Modified for use with BYE5		- Irv Hoff
+; 03/11/85  Adapted to BYE331			- Joe Wright
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Port equates
+;
+PORT	EQU	0C0H		; Modem data port
+MDCTL1	EQU	PORT+1		; Status port and control port #1
+;
+;
+; Bit functions
+;
+BDIV64	EQU	04FH		; 8 data bits, no parity, 1 stop, div 64
+BDIV16	EQU	04EH		; 8 data bits, no parity, 1 stop, div 16
+BRESET	EQU	040H		; Reset 8251A
+;
+BANHI	EQU	035H		; Answer phone, RTS high (300/1200 baud)
+BANLOW	EQU	015H		; Answer phone, RTS low  (110/600 baud)
+DTR	EQU	002H		; DTR bit in command word for off-hook
+				;   control
+;
+;-----------------------------------------------------------------------
+;
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Read port
+	ANI	80H		; Check DSR for carrier detect
+	STA	CARFLG+1	; Remember it
+	RET
+;.....
+;
+;
+; Return previous carrier status
+;
+CARFLG:	MVI	A,0		; Immediate value set by MDCARCK
+	ORA	A		; Set the flags
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	CALL	MDCARCK		; Do we have a carrier?
+	JZ	IMINIT		; No carrier, initialize the modem
+	CALL	MDRESET		; Hang up
+	JMP	MDINIT		; Try it again
+;.....
+;
+;
+;Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Read port
+	ANI	02H		; Check receive ready bit
+	RZ			; Return if no character
+	ORI	0FFH
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Read port
+	ANI	01H		; Check transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	CALL	IMQUIT		; Tell modem to shut down
+;
+MDSTOP:	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET2400	EQU	$
+;
+SETINV:	ORI	0FFH		; Make sure the zero flag isn't set
+	RET
+;.....
+;
+;
+; The pairs of XCHG instructions in the following code are to allow
+; for the reported slowness of the 8251a command/status port.
+;
+; Note:  Asserting DTR during 8251 initialization will hang up the phone.
+; To keep the phone off-hook if carrier is present, DTR is asserted or
+; not, depending on the last condition of the carrier detect flag.
+;
+MDRESET:CALL	INITUSR		; Initialize the modem and hang up
+	MVI	A,BDIV16	; 1200 bps
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	MVI	A,BANHI+DTR	; Put phone on-hook
+	JMP	SENBAUD
+;
+SET300:	CALL	INITUSR		; Initialize Robotics
+	MVI	A,BDIV64	; Set mode and divide by 64 (300 baud)
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	CALL	CARFLG		; Data carrier detect
+	MVI	A,BANHI		; Set RTS high (300 baud)
+	JNZ	ST3		; If carrier, leave phone off-hook
+	ORI	DTR		; Otherwise leave it on-hook
+;
+ST3:	JMP	SENBAUD
+;
+SET1200:CALL	INITUSR		; Initialize Robotics
+	MVI	A,BDIV16	; Set mode and divide by 16 (1200 bps)
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	CALL	CARFLG
+	MVI	A,BANHI		; Set RTS high (1200 bps)
+	JNZ	SENBAUD
+	ORI	DTR
+;
+SENBAUD:OUT	MDCTL1		; Send the command byte
+	XCHG
+	XCHG
+	CALL	DLP		; Let the modem settle down for 1 second
+	XRA	A		; Clear flags to indicate good baud
+	RET			;   change
+;.....
+;
+;
+INITUSR:XRA	A
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	MVI	A,BRESET	; Send reset code to 8251
+	OUT	MDCTL1
+	XCHG
+	XCHG
+	XRA	A		; Says baudrate change was ok
+	RET
+;....
+;
+;			       end
+;-----------------------------------------------------------------------
+

@@ -1,0 +1,330 @@
+
+
+
+
+
+
+
+
+
+                   CCPx2+ - An alternitive CCP for CP/M-68K                   CCPx2+ - An alternitive CCP for CP/M-68K                   CCPx2+ - An alternitive CCP for CP/M-68K
+
+                                 Robert Heller                                 Robert Heller                                 Robert Heller
+                      Sun Feb 15, 1987 ***First Draft***                      Sun Feb 15, 1987 ***First Draft***                      Sun Feb 15, 1987 ***First Draft***
+
+                (c) 1987 By Robert Heller. All rights reserved.                (c) 1987 By Robert Heller. All rights reserved.                (c) 1987 By Robert Heller. All rights reserved.
+
+
+
+
+
+
+
+
+               ABSTRACT.  This  document  describes  design notes               ABSTRACT.               ABSTRACT.
+               for CCPx2+, an alternitive CCP for CP/M-68K.
+
+
+
+
+               CONTACT INFO. I can be reached as follows:               CONTACT INFO.               CONTACT INFO.
+
+               ARAPNet:      Heller@UMass.CS.EDU
+               BITNET:       Heller@UMass.BITNET
+               BIX:          heller
+               GEnie:        RHELLER
+               FidoNet:      101/27 (Dave's Fido)
+                          or 101/147 (Orange Fido)
+               CompuServe:   71450,3432
+               U.S. Mail:    Robert Heller
+                             Star Route Box 51A
+                             Wendell, MA 01379
+               Voice Phone:  617-544-6933, early evenings
+                                           (before 7:30 PM
+                                           Eastern), and
+                                           weekends.
+                             413-545-0528, Monday to Friday
+                                           8:00 AM to 4:00 PM
+                                           Eastern.
+               Data Phone:   617-544-6933, 7:30 PM to 7:00 AM
+                                           Eastern.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        Page 2        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***
+
+
+                               1: Introduction.                                  Introduction.                                  Introduction.
+
+               These design notes are intended to put  in  writing  my
+          ideas  for  an  improved CCP (Console Command Processor) for
+          CP/M-68K.  I'd like to circulate  these  ideas  through  the
+          CP/M-68K  user  community  and  get  some  feedback on these
+          ideas.  I don't know if I will implement all  of  the  ideas
+          presented   here,   but  I  indend  to  implement  the  more
+          important ones.    I  intend  to  produce   this   code   as
+          shareware,  with  object  code  and  documentation available
+          free, with source code available for a small fee.
+
+                              2: Major Features.                                 Major Features.                                 Major Features.
+
+               The major features of CCPx2+ are:
+
+                  o Forground/Backgound Tasks.  The  main  feature  of                    Forground/Backgound Tasks.                    Forground/Backgound Tasks.
+          CCPx2+   will   be   a   dual   TPA   system,  allowing  two
+          core-resident tasks  to  be  run.     It   won't   be   true
+          multi-tasking,  just a way to suspend a forground task (such
+          as an editor) and run a background task (such as  getting  a
+          directory listing or compiling a program).
+
+                  o  Command Line Recall. A history mechanism, simular                     Command Line Recall.                     Command Line Recall.
+          to VMS's DCL - will use control  characters  to  recall  and
+          edit (as a one-line screen editor) previous command lines.
+
+                  o  Nested  Submit  Files.  This  simply  means  that                     Nested  Submit  Files.                     Nested  Submit  Files.
+          submit  files  will  behave  like  subroutines,   with   the
+          neccessary context saved on a pushdown stack in the CCP.
+
+                  o   Flow  Control  in  Submit  Files.  Simple  "if",                      Flow  Control  in  Submit  Files.                      Flow  Control  in  Submit  Files.
+          "goto", and labels.  Should be enough for most purposes.
+
+                  o "Lexical Functions". These  will  be  builtin  CCP                    "Lexical Functions".                    "Lexical Functions".
+          commands with  a  functional  syntax.  Things like file name
+          parsing,  file  tests  (exists,  size,  etc.)   and   system
+          interegation (user number, current drive, etc.)
+
+                  o  User  Interface  Hacks.  Things  like  control of                     User  Interface  Hacks.                     User  Interface  Hacks.
+          command  line  echoing  while  executing  submit  files  and
+          command prompt.
+
+                  o  CCP  Call  Back.  There  will  be  a way for user                     CCP  Call  Back.                     CCP  Call  Back.
+          programs to "call back" the CCP for various functions  (such
+          as running a background task, etc.)
+
+                  o  Aliases.  User definable symbols for commands and                     Aliases.                     Aliases.
+          CCP variables.
+
+                  o Program Search Path. A list of  drives  to  search                    Program Search Path.                    Program Search Path.
+          for command and submit files.
+
+
+
+
+
+
+
+
+
+
+
+        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        Page 3        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***
+
+
+                        3: Forground/Background Tasks.                           Forground/Background Tasks.                           Forground/Background Tasks.
+
+               I  plan  to have the CCP divide the TPA into two parts:
+          a forground part and a background part.  The relative  sizes
+          will  be  determined  by the BIOS, through the use of global
+          parameters, much like the auto start is  presently  handled.
+          The  default  will  be to cut the TPA into two equal pieces.
+          Normally,  keyboard  commands  will  be  executed   in   the
+          forground TPA.   A user-program will be able to pass control
+          to a background task with a CCP call  back  function.    The
+          call  back  function  will take a CCP command line (or blank
+          for an interactive background task) with optional  arguments
+          for  a  conin  and  conout  functions  (this  allows  simple
+          pipes).
+
+                            4: Command Line Recall.                               Command Line Recall.                               Command Line Recall.
+
+               I plan on implementing  something  like  VMS's  command
+          line recall.   VMS implements command line recall by binding
+          control characters to functions  which  recall  the  command
+          line(s)  and allow for one-line "screen" editing (inserting,
+          deleting, and replacing of characters).
+
+                            5: Nested Submit Files.                               Nested Submit Files.                               Nested Submit Files.
+
+               This is simply a matter of having  the  SUBMIT  command
+          maintain a stack of pending submit file states.
+
+                       6: Flow Control in Submit Files.                          Flow Control in Submit Files.                          Flow Control in Submit Files.
+
+               This  will  consist  of  a  contitional command (IF), a
+          branching command (GOTO),  and  allowing  for  command  line
+          labels.  This is probably suffientent for most purposes.
+
+                             7: Lexical Functions.                                Lexical Functions.                                Lexical Functions.
+
+               I have these functions in mind:
+
+                  o  F$ACCESS(filename,mode)  - Just like the access()                     F$ACCESS(filename,mode)                     F$ACCESS(filename,mode)
+          function. Returns a boolean  value  depending  on  the  file
+          access.  Modes are:    READ, WRITE and SYSTEM.  Returns 1 if
+          access is allowed (WRITE if RO bit clear, SYSTEM if SYS  bit
+          set,  and  READ  if  file  exists)  or  0  if  access is not
+          allowed.
+
+                  o F$SIZE(filename) - Returns the size  of  the  file                    F$SIZE(filename)                    F$SIZE(filename)
+          in sectors.
+
+                  o  F$PARSE(filename,default,field) - Parses filename                     F$PARSE(filename,default,field)                     F$PARSE(filename,default,field)
+          and optionally fills in missing  fields  (drive,  name,  and
+          type) from  default.    Returns the whole file specification
+          or selected parts (drive, name, or type) if  field  argument
+          is non-empty.
+
+                  o  F$LOCATE(substring,string) - Returns the location                     F$LOCATE(substring,string)                     F$LOCATE(substring,string)
+          of substring in string or the length of string if  substring
+          is not in string.
+
+
+
+
+
+
+        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        Page 4        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***
+
+
+                  o  F$EXTRACT(start,length,string)  -  Returns length                     F$EXTRACT(start,length,string)                     F$EXTRACT(start,length,string)
+          characters from string starting at start.
+
+                  o F$LENGTH(string)  -  Returns  the  length  of  the                    F$LENGTH(string)                    F$LENGTH(string)
+          string.
+
+                  o F$USER() - Returns the current user number.                    F$USER()                    F$USER()
+
+                  o F$DRIVE() - Returns the current drive letter.                    F$DRIVE()                    F$DRIVE()
+
+                  o  F$BACKGROUNDP() - Returns TRUE (1) if executed in                     F$BACKGROUNDP()                     F$BACKGROUNDP()
+          the context of the background task.
+
+
+               The  arguments  (if  any)  to   these   functions   are
+          considered expressions,  which are evaluated.  Alias symbols
+          can be used as variables.    These  lexical  functions  will
+          work,  along  with infix arithmetical operators (+, -, *, /,
+          =, <>, <=, >=), only on IF, ALIAS, SETPROMPT,  SETECHO,  and
+          USER commands, and in argument expressions.
+
+                           8: User Interface Hacks.                              User Interface Hacks.                              User Interface Hacks.
+
+               This will consist of the commands:
+
+                  o  SETPROMPT  string  -  set  the  command prompt to                     SETPROMPT  string                     SETPROMPT  string
+          string.
+
+                  o SETECHO flag - set  submit  file  echoing  on  (if                    SETECHO flag                    SETECHO flag
+          flag is non-zero) or off (if flag is zero).
+
+                  o SAVEECHO symbol - save echo state in symbol.                    SAVEECHO symbol                    SAVEECHO symbol
+
+                               9: CCP Call Back.                                  CCP Call Back.                                  CCP Call Back.
+
+               This  will  consist of some functions invoked with TRAP
+          #1.  Included will be:
+
+                  o Start Background Task  -  start  up  a  background                    Start Background Task                    Start Background Task
+          task. Takes  three  optional  arguments:    a pointer to the
+          command line to execute (NULL meaning start  an  interactive
+          background  task), and pointers to functions (to be executed
+          in the foreground  context)  to  handle  console  input  and
+          output functions (NULL meaning use standard console I/O).
+
+                  o  Get  Symbol  Alias  Value - fetch the value of an                     Get  Symbol  Alias  Value                     Get  Symbol  Alias  Value
+          alias symbol.
+
+                  o Set Symbol Alias Value  -  set  the  value  of  an                    Set Symbol Alias Value                    Set Symbol Alias Value
+          alias symbol.
+
+
+
+
+
+
+
+
+
+
+
+
+
+        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        Page 5        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***        CCPx2+ - An Alternitive CCP for CP/M-68K ***First Draft***
+
+
+                                 10: Aliases.                                     Aliases.                                     Aliases.
+
+               This  will  be  some sort of hybred of C-Shell and DCL.
+          Probably the  syntax  of  the  C-Shell  (sort  of)  and  the
+          functionallity  of  DCL.  I haven't fully figured out what I
+          will do here.  Need  to  maintain  some  sort  of  syntactic
+          compatablity with DRI's CCP.
+
+                           11: Program Search Path.                               Program Search Path.                               Program Search Path.
+
+               There  will  be  commands  to  set,  show, and edit the
+          command search path.  This path  is  a  list  of  drives  to
+          search  for  commands  to  execute.  I  will  also implement
+          command name abbreviation hacking (probably by  filling  out
+          the command name in the FCB with '?' instead of blanks).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

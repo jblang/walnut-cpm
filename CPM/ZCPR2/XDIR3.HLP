@@ -1,0 +1,629 @@
+Overview of XDIR3
+Basic Use of XDIR3 under ZCPR2
+XDIR3 Output Control Options
+XDIR3 File Selection Options
+XDIR3 File Name Buffer Facility
+Use of XDIR3 on Secure Systems
+Overview of XD
+Installation of XDIR3 and XD
+:Overview of XDIR3
+
+     XDIR³  ió aî extendeä directorù displaù utilitù designeä  tï 
+ruî  undeò CP/Í 2.² anä supporô somå oæ thå extendeä featureó  oæ 
+ZCPR² aó well®  Anù conventionaì CP/Í 2.² useò maù uså XDIR3¬ buô 
+hå  shoulä makå surå hå turnó ofæ thå ZCPR2-specifiã featureó  bù 
+runninç  thå  ZCPR² Installatioî Program¬  GENINS¬  oî XDIR³  anä 
+manuallù turninç theí ofæ beforå usinç XDIR3.
+
+     XDIR³  automaticallù  adaptó tï anù Org-° CP/Í  2.²  system¬ 
+regardlesó oæ thå sizå oæ itó disks®  Iô readó thå disë parameteò 
+blocë informatioî froí thå operatinç systeí tï determinå whaô thå 
+attributeó  oæ  thå  disë iô ió workinç witè  are¬  anä  iô  theî 
+presentó itó displaù informatioî accordingly.
+
+     XDIR3 runs in two basic modes:
+          . as a directory display utility
+          . as a file scanner utility (File Name Buffer Facility)
+
+     XDIR³  ió á ZCPR² utilitù whicè supportó thå extendeä  ZCPR² 
+features¬ particularlù nameä directories.
+
+     Aó   á  directorù  displaù  utility¬   iô  displayó  tï  yoõ 
+informatioî  abouô  thå fileó oî á particulaò disë  iî  alì  useò 
+areaó  oò  á particulaò useò area®   Iô giveó yoõ  thå  followinç 
+information:
+          . Name of File
+          . Size of File (in K bytes)
+          . Attributes of File (Read/Only or System)
+          . Sum of Sizes of All Files Displayed
+          . Total Number of Files on Disk
+          . Amount of Space Remaining on Disk
+          . What Disk and What User Area you are looking at
+
+     Aó á filå scanneò utility¬ iô doeó thå following:
+          . Logs a group of selected files to disk for later scan
+          . Prints the contents of such a log file
+          ® Scanó á loç filå anä compareó iô witè thå fileó
+               selected by you, telling you what files are
+               missing and what files are additional
+
+     XDIR³ ió quitå human-oriented¬  witè manù built-iî  featureó 
+whicè  providå  á  human-interfacå typå oæ servicå tï  thå  user®  
+Some of these include:
+
+          . Named Directories may be specified
+          . The file listing is alphabetized by file name and
+               type or file type and name, depending on user
+               preference
+          . The file listing is organized vertically or
+               horizontally, depending on user preference
+          . Output may also be sent to disk or printer
+          ® XDIR³ ió designeä tï ruî quickly
+
+:Basic Use of XDIR3 under ZCPR2
+
+     XDIR3 is invoked by one of the following command lines:
+
+          XDIR afn oooo... or XDIR afn /oooo...
+and
+          XDIR /oooo...
+
+where all elements after the XDIR command are optional.
+
+     'afn§  ió aî ambiguouó filå reference¬  aó describeä oî  thå 
+followinç frames®   'o§ ió aî optioî letter¬ whicè ió onå oò morå 
+oæ  thå optionó describeä oî thå nexô frame®   Notå thaô sincå  á 
+slasè denoteó thaô aî optioî follows¬ aî afî maù noô begiî witè á 
+slash®   Thió  caî bå changeä bù aî equatå iî thå sourcå codå  oæ 
+XDIR3 if desired.
+
+
+          Aa - Set the attributes of the files to be displayed
+               a=S for System Files, a=N for Non-System Files
+               a=A for All Files (Non-System and System)
+          D  - Send Output to Disk
+          Ff - Engage File Name Buffer Facility
+               f=L to Log File Names to FNAMES.DIR
+               f=P to Print Names Stored in FNAMES.DIR
+               f=S to Scan Disk and Compare to FNAMES.DIR
+          I  - Inspect files selected by FL option
+          N  - Negate Selection; select those files which do NOT
+                    match the ambiguous file name
+          Oo - Toggle Output Control Options
+               o=A for File Attributes, o=F for Form Feed
+               o=G for Grouping, o=H for Horiz/Vert Format
+          P  - Send Output to Printer
+          PF - Same as POF (Abbreviated Form)
+
+
+     'afn' is an ambiguous file reference, of the general form:
+
+          dir:filename.typ
+
+where
+     filename.typ   is a conventional CP/M ambiguous file name
+                         (wild card characters of ? and * are OK,
+                         but file name must NOT start with /)
+     dir:           is a ZCPR2 directory specification, which may
+                         be one of the following forms:
+          d:        where 'd' is a disk letter (A-P) to indicate
+                         the current user area on that disk
+          u:        where 'u' is a user number (0-31) to indicate
+                         that user on the current disk; 'u' may
+                         be a '?', in which case all user areas
+                         are selected
+          du:       where 'du' specifies both disk and user
+          name:     where 'name' is the name of a directory
+                         (disk/user area)
+
+     Examples of an ambiguous file reference are:
+
+          A:FILE.TXT          A4:FILE.TXT
+          ROOT:FILE.TXT       A?:*.COM
+          12:*.*              A12:SYSLIB*.*
+
+     Examples of an XDIR3 command are:
+
+          XDIR ROOT:*.COM AAN
+               -- Select All Files in directory ROOT which do
+                  NOT match *.COM
+          XDIR B10: ASD
+               -- Select the System Files in B10, and send
+                  output to disk as well as console
+          XDIR /AADP
+               -- Select All Files in current directory, and
+                  send output to disk and printer as well as
+                  console
+:XDIR3 Output Control Options
+
+     These options are:
+
+          D  - Send Output to Disk
+          Oo - Output Control
+               OA - Toggle Display of File Attributes
+               OF - Toggle Send of Form Feed with Print
+               OG - Toggle File Grouping (name/type or type/name)
+               OÈ - Togglå Formaô (Horizontaì oò Vertical)
+          P  - Send Output to Printer
+          PF - Same as POF, which sends output to printer and
+               form feeds when done
+
+     Ä anä Ğ arå fairlù obvious®   Iæ Ğ ió specified¬  thå outpuô 
+goeó tï youò printeò (CP/Í LSTº  device© aó welì aó youò console®  
+Iæ  Ä ió specified¬  thå outpuô goeó tï youò currenô directorù aó 
+thå filå XDIR.DIR®  Iæ XDIR.DIÒ alreadù exists¬ iô ió replaced.
+
+     Alì  oæ  thå  Oï optionó arå toggled®   If¬  viá  GENINÓ  aô 
+installatioî time¬ yoõ selecteä nï displaù oæ filå attributes¬ OÁ 
+wilì  causå  thió defaulô tï bå toggleä anä thå  filå  attributeó 
+displayed.  The same is true with the OF, OG, and OH forms.
+
+     OÁ  allowó  yoõ tï selecô youò displaù tï includå  thå  filå 
+attributeó field®   Thió field¬  whicè occuró afteò thå filå sizå 
+ió printeä foò eacè file¬  optionallù containó thå letteró Ò  anä 
+S¬  indicatinç  thaô  thå preceedinç filå waó Read/Onlù  (iæ  thå 
+letteò  Ò appears© anä thaô thå preceedinç filå waó á Systeí filå 
+(iæ thå letteò Ó appears)®   Iæ Ò ió noô present¬ thå filå ió NOÔ 
+Read/Onlù (iô ió Read/Write)¬  anä iæ Ó ió noô present¬  thå filå 
+is Non-System.
+
+     OÆ  allowó  yoõ tï selecô aî automatiã forí  feeä  wheî  thå 
+directorù  displaù ió senô tï thå printer®   Iæ printeò outpuô ió 
+selecteä (Ğ option© ANÄ thå forí feeä flaç ió ON¬  theî thå  lasô 
+linå  oæ thå printouô wilì bå followeä bù á forí feeä  character®  
+Manù  printeró responä tï thió characteò bù advancinç tï thå  toğ 
+oæ thå nexô page®   Noteº  thå speciaì forí PÆ ió provideä tï acô 
+thå  samå aó Ğ (foò turninç oî printeò output© anä OÆ (tï  togglå 
+the form feed function).
+
+     OÇ  allowó yoõ tï selecô youò displaù tï bå alphabetizeä  bù 
+filå  namå anä typå oò typå anä name®   Iæ bù filå namå anä type¬ 
+theî AA.TXÔ comeó beforå BB.COM®   Iæ bù filå typå anä name¬ theî 
+BB.COÍ  comeó beforå AA.TXT®   Alphabetizatioî bù filå  namå  anä 
+typå groupó fileó oæ thå samå namå togetheò (FÎ fields¬  likå alì 
+XDIR3.ª  files)¬  whilå bù filå typå anä namå groupó fileó oæ thå 
+samå typå togetheò (FÔ fields¬ likå alì *.TXÔ files).
+
+     OÈ allowó yoõ tï selecô youò alphabetizeä fileó tï bå listeä 
+dowî  thå  screeî (vertical© oò acrosó thå  screeî  (horizontal)®  
+Thå screeî ió divideä intï threå columns¬  anä á verticaì listinç 
+alphabetizeó dowî thå firsô column¬ theî thå second¬ anä theî thå 
+third¬ whilå á horizontaì listinç alphabetizeó first¬ second¬ anä 
+thirä columnó oî thå firsô line¬ anä sï oî witè eacè line.
+
+     É  likå tï grouğ mù listingó bù filå typå  first¬  anä  theî 
+name¬  anä  É alsï prefeò thå verticaì displaù format®   Herå  ió 
+sucè á listing (generated by the command line "XDIR"):
+
+XDIR III, Version 1.6    Vertical Listing by File Type and Name
+ Disk: B  User:   7, File Attributes:  Non-System
+
+Filename.Typ Size K RS   Filename.Typ Size K RS   Filename.Typ Size K RS
+-------- --- ------ --   -------- --- ------ --   -------- --- ------ --
+BIO     .DOC      4      GAUDE   .TXT      4      SWCT    .TXT      8      
+XDIR3   .HLP     24      SCCE    .TXT      8      SWDISTCT.TXT      4      
+BIO     .TXT      4      SCOST   .TXT      4      TRPT    .TXT      4      
+BOOKCT  .TXT     12      STATUS  .TXT      8      UNIX    .TXT     24      
+CARTERS .TXT      4      
+   13 Files Occupying   112K,    96 Files on Disk and  4088K Free
+
+     Note that we are alphabetized down the columns by file type.
+
+     Somå  prefeò  noô  tï seå thå Filå  Attributeó  Fieldó  (thå 
+columnó  headeä bù RS)®   É caî togglå thió ofæ (foò thió displaù 
+only© bù usinç thå OÁ optioî (generateä bù thå commanä linå "XDIÒ 
+/OA"):
+
+XDIR III, Version 1.6    Vertical Listing by File Type and Name
+ Disk: B  User:   7, File Attributes:  Non-System
+
+Filename.Typ Size K   Filename.Typ Size K   Filename.Typ Size K
+-------- --- ------   -------- --- ------   -------- --- ------
+BIO     .DOC      4   GAUDE   .TXT      4   SWCT    .TXT      8   
+XDIR3   .HLP     24   SCCE    .TXT      8   SWDISTCT.TXT      4   
+BIO     .TXT      4   SCOST   .TXT      4   TRPT    .TXT      4   
+BOOKCT  .TXT     12   STATUS  .TXT      8   UNIX    .TXT     24   
+CARTERS .TXT      4   
+   13 Files Occupying   112K,    96 Files on Disk and  4088K Free
+
+     Noteº   thå  RÓ  columnó arå no÷ removed®   Á GENINÓ  optioî 
+existó whicè allowó yoõ tï seô thió typå oæ displaù aó default.
+
+     Froí thió poinô forward¬  foò thå conveniencå oæ thå displaù 
+size¬  É  wilì uså thå OÁ option®   Somå prefeò tï alphabetizå bù 
+filå name®   É aí usinç thå OÇ optioî tï fliğ thió (generateä  bù 
+thå commanä linå "XDIÒ /OAOG"):
+
+XDIR III, Version 1.6    Vertical Listing by File Name and Type
+ Disk: B  User:   7, File Attributes:  Non-System
+
+Filename.Typ Size K   Filename.Typ Size K   Filename.Typ Size K
+-------- --- ------   -------- --- ------   -------- --- ------
+BIO     .DOC      4   SCCE    .TXT      8   SWDISTCT.TXT      4   
+BIO     .TXT      4   SCOST   .TXT      4   TRPT    .TXT      4   
+BOOKCT  .TXT     12   STATUS  .TXT      8   UNIX    .TXT     24   
+CARTERS .TXT      4   SWCT    .TXT      8   XDIR3   .HLP     24   
+GAUDE   .TXT      4   
+   13 Files Occupying   112K,    96 Files on Disk and  4088K Free
+
+     Again¬  wå arå alphabetizeä dowî thå columns¬  buô thå ordeò 
+ió bù filå namå anä theî filå type.
+
+     Finally¬  somå  prefeò  horizontaì aó  opposeä  tï  verticaì 
+listings®   Herå  ió  anotheò  listinç whicè  ió  horizontaì  anä 
+grouped by file name first (generated by "XDIR /OAOH"):
+
+XDIR III, Version 1.6    Horizontal Listing by File Type and Name
+ Disk: B  User:   7, File Attributes:  Non-System
+
+Filename.Typ Size K   Filename.Typ Size K   Filename.Typ Size K
+-------- --- ------   -------- --- ------   -------- --- ------
+BIO     .DOC      4   XDIR3   .HLP     24   BIO     .TXT      4   
+BOOKCT  .TXT     12   CARTERS .TXT      4   GAUDE   .TXT      4   
+SCCE    .TXT      8   SCOST   .TXT      4   STATUS  .TXT      8   
+SWCT    .TXT      8   SWDISTCT.TXT      4   TRPT    .TXT      4   
+UNIX    .TXT     24   
+   13 Files Occupying   112K,    96 Files on Disk and  4088K Free
+
+     Thå  OÆ  forí ió noô illustrateä herå sincå iô resultó iî  á 
+forí   feeä  oî  thå  printeò  anä  doeó  noô  lenä   itselæ   tï 
+demonstratioî oî thå CRÔ likå thå others®  Thå format¬ oæ course¬ 
+is similar to the others.
+:XDIR3 File Selection Options
+
+     Thå  followinç  optionó (anä thå DIRº  field©  controì  filå 
+selection:
+
+          Aa - Set the attributes of the files to be displayed
+               a=S for System Files, a=N for Non-System Files
+               a=A for All Files (Non-System and System)
+          N  - Negate Selection; select those files which do NOT
+                    match the ambiguous file name
+
+     Thå Î optioî negateó youò ambiguouó filå namå reference¬ buô 
+iô  stayó  iî thå SAMÅ seô oæ systeí oò  non-systeí  files®   Foò 
+instance¬  XDIÒ  *.COÍ /NAÓ selectó alì SYSTEÍ fileó whicè dï NOÔ 
+matcè *.COM®  Iæ yoõ havå installeä XDIR³ tï automaticallù selecô 
+botè SYSTEÍ anä NON-SYSTEÍ files¬  theî XDIÒ *.COÍ /Î wilì selecô 
+all non-COM files in your current directory.
+
+
+     Thå  Á  optioî  setó  thå attributeó  oæ  thå  fileó  tï  bå 
+displayed®   Iæ AÁ ió presented¬  theî botè Non-Systeí anä Systeí 
+fileó wilì bå displayed®   Iæ AS¬  theî jusô Systeí files¬ anä iæ 
+AN¬ theî jusô Non-System®
+
+     Yoõ  caî  seô  thå  defaulô filå  attributå  displaù  tï  bå 
+whateveò   yoõ  desire®    Usinç  GENINS¬   yoõ  caî  havå  XDIR³ 
+automaticallù selecô jusô thå Systeí files¬  jusô thå  Non-Systeí 
+files¬  oò  botè Non-Systeí anä Systeí fileó wheneveò yoõ ruî  iô 
+withouô usinç thå Á option.
+
+
+B7>xdir root:*.com aanoa
+
+XDIR III, Version 1.6    Vertical Listing by File Type and Name
+ Disk: A  User:  15, File Attributes:  Non-System System
+
+Filename.Typ Size K   Filename.Typ Size K   Filename.Typ Size K
+-------- --- ------   -------- --- ------   -------- --- ------
+VITALS  .BAD      4   VFILER  .CMD      4   SYSIO   .IO       4   
+ASM     .CFG      4   CPZM    .CPM     12   EBCDIC  .XLT      4   
+C       .CFG      4   CPZMH   .CPM     12   MULTICS .XLT      4   
+DBASE   .CFG      4   LD      .DIR      4   PARITYEV.XLT      4   
+PASCAL  .CFG      4   NAMES   .DIR      4   PARITYOD.XLT      4   
+STD     .CFG      4   BAD     .DOC      8   NEWDISK .ZEX      4   
+TEXT    .CFG      4   NOTESHD .DOC     16   
+   20 Files Occupying   112K,   303 Files on Disk and  1884K Free
+
+     Thió selectó alì non-COÍ fileó iî thå directorù ROOT®   Botè 
+Systeí anä Non-Systeí fileó arå selected.
+
+
+B7>xdir root:*.com asnoa
+
+XDIR III, Version 1.6    Vertical Listing by File Type and Name
+ Disk: A  User:  15, File Attributes:  System
+No files selected --  1884K Free
+
+     Thió selectó thå non-COÍ Systeí fileó iî thå directorù ROOT®  
+Note that no files matched that selection.
+
+
+B7>xdir root:*.com noa
+
+XDIR III, Version 1.6    Vertical Listing by File Type and Name
+ Disk: A  User:  15, File Attributes:  Non-System
+
+Filename.Typ Size K   Filename.Typ Size K   Filename.Typ Size K
+-------- --- ------   -------- --- ------   -------- --- ------
+VITALS  .BAD      4   VFILER  .CMD      4   SYSIO   .IO       4   
+ASM     .CFG      4   CPZM    .CPM     12   EBCDIC  .XLT      4   
+C       .CFG      4   CPZMH   .CPM     12   MULTICS .XLT      4   
+DBASE   .CFG      4   LD      .DIR      4   PARITYEV.XLT      4   
+PASCAL  .CFG      4   NAMES   .DIR      4   PARITYOD.XLT      4   
+STD     .CFG      4   BAD     .DOC      8   NEWDISK .ZEX      4   
+TEXT    .CFG      4   NOTESHD .DOC     16   
+   20 Files Occupying   112K,   303 Files on Disk and  1884K Free
+
+     Thió  selectó thå non-COÍ fileó iî thå directorù ROOÔ  whicè 
+are Non-System.  Non-System is my selected default for XDIR3.
+
+:XDIR3 File Name Buffer Facility
+
+     Thå  optionó oæ XDIR³ whicè deaì witè thå Filå  Namå  Buffeò 
+Facility are:
+
+          Ff - Engage File Name Buffer Facility
+               f=L to Log File Names to Disk
+               f=P to Print Names Logged to Disk
+               f=S to Scan Disk for File Names and Compare to
+                    Log
+          I  - Inspect files selected by FL option
+
+     Thå  filå selectioî optionó comå intï plaù aó welì witè  thå 
+FÌ  optioî  tï selecô thå fileó tï bå placeä intï thå  loç  file¬ 
+FNAMES.DIR.
+
+
+     Thå  FÌ optioî writeó thå useò numberó anä filå nameó oæ thå 
+selecteä  fileó  tï  disë intï thå  filå  nameä  FNAMES.DIR®   Iæ 
+FNAMES.DIÒ alreadù exists¬  theî iô ió rewritten®  Thå FNAMES.DIÒ 
+files is used by the FP and FS options.
+
+     Thå  É  optioî  (foò inspect© allowó thå  useò  tï  manuallù 
+approve each file before its name is placed into FNAMES.DIR.
+
+     Thå  FĞ optioî simplù printó ouô thå useò numberó anä  nameó 
+oæ alì thå fileó storeä iî FNAMES.DIR®   Iæ FNAMES.DIÒ ió noô  iî 
+thå currenô directory¬  FĞ wilì searcè alonç thå ZCPR² patè untiì 
+it finds it or reaches the end of the path.
+
+     Thå FÓ optioî scanó FNAMES.DIÒ anä thå fileó selecteä bù thå 
+useò  (oò implieä iæ nï specifiã filå selectioî optioî ió  given© 
+anä compareó them®  Iæ á filå existó iî FNAMES.DIÒ buô noô iî thå 
+selecteä files¬ itó namå ió printeä aó á missinç file®  Iæ á filå 
+existó  oî disë buô noô iî thå FNAMES.DIÒ file¬  theî itó namå ió 
+printed as an additional file.
+
+     Notå  thaô thå useò shoulä keeğ iî minä whaô hå ió  scanninç 
+foò wheî hå useó thå Filå Namå Buffeò Facility®  Foò instance¬ iæ 
+hå  selectó botè Non-systeí anä Systeí fileó witè thå  FÌ  optioî 
+anä theî defaultó tï Non-Systeí witè thå FÓ option¬  theî severaì 
+files will come up missing while this is not necessarily true.
+
+     Usinç GENINS¬  thå Installatioî Prograí foò ZCPR2¬  yoõ  caî 
+creatå  twï  differenô  versionó oæ XDIR³  -- onå  foò  Directorù 
+Displaù   operationó  anä  onå  foò  Filå  Namå  Buffeò  Facilitù 
+functions®  Iæ yoõ dï this¬ theî yoõ coulä alsï seô thå Directorù 
+Displaù versioî tï worë witè Non-Systeí fileó bù  default¬  whilå 
+yoõ  coulä seô thå Filå Namå Buffeò Facilitù versioî tï worë witè 
+botè Non-Systeí anä Systeí files.
+
+
+     Thå followinç ió á samplå terminaì sessioî whicè illustrateó 
+thå  uså oæ thå XDIR³ Filå Namå Buffeò  Facility®   Commentó  arå 
+placeä ouô tï thå sidå oæ thå commandó anä arå denoteä bù "<--".
+
+B7>xdir /fli        <-- Log Files to Disk and Inspect
+
+XDIR III, Version 1.6
+Inspection of Files for Logging to Disk
+Log  7 DU2     .HLP   to Disk (Y/N/<CR>=Y)? Y
+Log  7 S100    .TXT   to Disk (Y/N/<CR>=Y)? N
+Log  7 STD     .MSG   to Disk (Y/N/<CR>=Y)? N
+Log  7 SYSLIB  .ART   to Disk (Y/N/<CR>=Y)? N
+Log  7 TALK    .SUM   to Disk (Y/N/<CR>=Y)? N
+Log  7 TEMP    .TXT   to Disk (Y/N/<CR>=Y)? Y
+Log  7 XDIR3   .HLP   to Disk (Y/N/<CR>=Y)? Y
+Log  7 Z2CON   .WS    to Disk (Y/N/<CR>=Y)? Y
+Log  7 Z2CON   .WSH   to Disk (Y/N/<CR>=Y)? Y
+Log  7 Z2INS   .WS    to Disk (Y/N/<CR>=Y)? Y
+Log  7 Z2INS   .WSH   to Disk (Y/N/<CR>=Y)? Y
+
+Logging File Names to Disk --
+         7 File Names to be Logged to Disk
+     Horizontal Listing by File Name and Type
+ U Filename.Typ   U Filename.Typ   U Filename.Typ   U Filename.Typ
+ - -------- ---   - -------- ---   - -------- ---   - -------- ---
+ 7 DU2     .HLP   7 TEMP    .TXT   7 XDIR3   .HLP   7 Z2CON   .WS   
+ 7 Z2CON   .WSH   7 Z2INS   .WS    7 Z2INS   .WSH  
+
+B7>xdir /fp         <-- Print out the names of the logged files
+XDIR III, Version 1.6
+
+Printout of Recrded File Names --
+         7 File Names Recorded
+     Horizontal Listing by File Name and Type
+ U Filename.Typ   U Filename.Typ   U Filename.Typ   U Filename.Typ
+ - -------- ---   - -------- ---   - -------- ---   - -------- ---
+ 7 DU2     .HLP   7 TEMP    .TXT   7 XDIR3   .HLP   7 Z2CON   .WS   
+ 7 Z2CON   .WSH   7 Z2INS   .WS    7 Z2INS   .WSH  
+
+
+B7>era temp.txt          <-- Erase one of the logged files
+TEMP    .TXT             <--   for this demo
+B7>xdir /fs              <-- Scan the disk
+
+XDIR III, Version 1.6
+File Name Scanner
+Files Named in FNAMES.DIR missing from Disk --
+     Horizontal Listing by Fie Name and Type
+ U Filename.Typ   U Filename.Typ   U Filename.Typ   U Filename.Typ
+ - -------- ---   - -------- ---   - -------- ---   - -------- ---
+ 7 TEMP    .TXT  
+Additional Files on Disk NOT in FNAMES.DIR --
+     Horizontal Listing by File Name and Type
+ U Filename.Typ   U Filename.Typ   U Filename.Typ   U Filename.Typ
+ - -------- ---   - -------- ---   - -------- ---   - -------- ---
+ 7 FNAMES  .DIR   7 S100    .TXT   7 STD     .MSG   7 SYSLIB  .ART  
+ 7 TALK    .SUM  
+File Scan Complete
+
+:Use of XDIR3 on Secure Systems
+
+     Oî Securå Systems¬ sucè aó Remotå CP/Í Systems¬ XDIR³ maù bå 
+configured¬  viá GENINS¬  tï providå á securå directorù  utility®  
+Somå ideaó alonç thió linå include:
+
+          . You can install XDIR3 so that it cannot look at any
+               directory other than the one it is in
+          . You can install XDIR3 so that you can look at the
+               current user area on any disk, but not in other
+               user areas
+          . You can install XDIR3 so that you can look at all
+               user areas on the current disk, but not on any
+               other disk
+          . You can install XDIR3 so that you cannot look at any
+               System files
+          . You can install XDIR3 so that none of the F options
+               are available
+          ® Yoõ caî instalì XDIR³ sï thaô useró maù lisô thå
+               files (FP) or scan the disk (FS), but not log
+               files to disk (FL)
+
+     Theså arå jusô somå oæ thå wayó É havå designeä XDIR³ tï  bå 
+flexiblå iî theså typeó oæ environments®   Iî á morå conventionaì 
+environment¬  sucè  aó  á softwarå developmenô  environment¬  yoõ 
+woulä  probablù  wanô  XDIR³  tï  givå  yoõ  completå  accesó  tï 
+everything.
+
+     Seå  thå  nexô sectioî oî installatioî foò morå  detailó  oî 
+setting XDIR3 capabilities and defaults.
+
+:Overview of XD
+
+     Witè  usage¬  iô haó beeî noteä thaô mosô oæ thå morå exotiã 
+featureó oæ XDIR³ arå noô useä 99¥ oæ thå time®   Iî  particular¬ 
+theså featureó includå thå Filå Scanneò anä Disë Outpuô facility®  
+Becauså  theså featureó cosô iî termó oæ thå sizå oæ XDIR.COÍ anä 
+itó executioî speed¬  anotheò versioî oæ XDIR.COM¬ calleä XD.COM¬ 
+has been created.
+
+     XÄ  ió  completelù  compatablå witè XDIÒ  iî  termó  oæ  thå 
+optionó  iô  acceptó anä ho÷ iô operates®   Thå onlù  differenceó 
+betweeî  thå  twï  ió  thaô thå  Filå  Scanneò  anä  Disë  Outpuô 
+facilitieó havå beeî removeä froí XD®   Hence¬  thå D¬  F¬  anä É 
+optionó  arå noô available®   Everù otheò optioî oæ XDIÒ ió stilì 
+intact¬  however¬  anä performó iî thå samå way®  Aó á result¬ XÄ 
+is notable smaller than XDIR.
+
+
+     XÄ  displayó  tï thå useò informatioî abouô thå fileó  oî  á 
+particulaò disë iî alì useò areaó oò á particulaò useò area®   Iô 
+giveó hií thå followinç information:
+
+          . Name of File
+          . Size of File (in K bytes)
+          . Attributes of File (Read/Only or System)
+          . Sum of Sizes of All Files Displayed
+          . Total Number of Files on Disk
+          . Amount of Space Remaining on Disk
+          . What Disk and What User Area you are looking at
+
+
+     XÄ  ió  quitå human-oriented¬  witè manù  built-iî  featureó 
+whicè  providå  á  human-interfacå typå oæ servicå tï  thå  user®  
+Somå oæ theså include:
+
+          . Named Directories may be specified
+          . The file listing is alphabetized by file name and
+               type or file type and name, depending on user
+               preference
+          . The file listing is organized vertically or
+               horizontally, depending on user preference
+          . Output may also be sent to disk or printer
+          ® XDIR³ ió designeä tï ruî quickly
+
+
+     XD is invoked by one of the following command lines:
+
+          XD afn oooo... or XD afn /oooo...
+and
+          XD /oooo...
+
+where all elements after the XD command are optional.
+
+     'afn§  ió aî ambiguouó filå reference¬  aó describeä oî  thå 
+followinç frames®   'o§ ió aî optioî letter¬ whicè ió onå oò morå 
+oæ  thå optionó describeä oî thå nexô frame®   Notå thaô sincå  á 
+slasè denoteó thaô aî optioî follows¬ aî afî maù noô begiî witè á 
+slash®   Thió  caî bå changeä bù aî equatå iî thå sourcå codå  oæ 
+XD if desired.
+
+
+     XD options are:
+
+          Aa - Set the attributes of the files to be displayed
+               a=S for System Files, a=N for Non-System Files
+               a=A for All Files (Non-System and System)
+          N  - Negate Selection; select those files which do NOT
+                    match the ambiguous file name
+          Oo - Toggle Output Control Options
+               o=A for File Attributes, o=F for Form Feed
+               o=G for Grouping, o=H for Horiz/Vert Format
+          P  - Send Output to Printer
+          PF - Same as POF (Abbreviated Form)
+
+
+
+:Installation of XDIR3 and XD
+
+     GENINÓ  ió thå installatioî prograí whicè comeó  alonç  witè 
+ZCPR²  anä  allowó thå useò tï definå thå basiã capabilitieó  anä 
+defaulô  functionó  executeä  bù á particulaò  copù  oæ  á  ZCPR² 
+utility®   GENINÓ ió awarå oæ thå specifiã requirementó oæ alì oæ 
+thå keù ZCPR² utilities¬  includinç XDIR³ anä XD¬  anä adaptó foò 
+eacè utility'ó specifiã needs.
+
+     Wheî  GENINÓ ió executed¬  iô askó thå useò foò thå namå  oæ 
+thå filå tï bå installed®   Thå useò maù specifù thió filå iî thå 
+normaì ZCPR² format:
+
+          dir:filename.typ
+
+
+     GENINÓ  wilì  reaä  thå  firsô blocë  oæ  thió  file¬  whicè 
+containó thå customizatioî information¬  anä theî allo÷ yoõ tï dï 
+onå oæ threå thingó (itó basiã commanä prompt):
+
+          . Display the Current Features
+          . Set the Features of the program to the user's liking
+          . Exit and optionally create a new COM file
+
+     Thå  featureó  whicè maù bå seô bù thå systeí manageò  undeò 
+GENINS for XDIR3 and XD are:
+
+          . Whether the user may specify a directory (disk/user)
+          . If directory specification is allowed, whether the
+               user may specify just disk or just user (but not
+               necessarily both)
+          . Whether the user may employ any of the F options
+          . If the F options may be used, if the user may employ
+               the FL option specificially
+
+Features to be Set, Continued:
+
+          . Whether the user may employ the AS option
+          . Whether XDIR3 will perform a Directory Display
+               of File Name Buffer Facility function by default
+          . Whether XDIR3 or XD will display Non-System or System
+               files (or both) by default
+          . Whether the alphabetization will be by file name and
+               type or type and name by default
+          . Whether the listing will be vertical or horizontal by
+               default
+          ® Whetheò ZCPR² Externaì Pathó arå available¬ and¬ iæ
+               so, what the base path address is
+          . Whether the File Attributes will be included in the
+               display by default
+          . Whether printer output will be followed by a form
+               feed by default
+
+
+     Iæ  thå useò ió noô runninç ZCPR2¬  hå shoulä disablå alì oæ 
+thå  ZCPR²  features®   Thió shoulä bå donå iî thå  usuaì  manneò 
+under GENINS (see the GENINS manual).
+
+
+

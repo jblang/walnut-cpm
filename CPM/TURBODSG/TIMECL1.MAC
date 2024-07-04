@@ -1,0 +1,76 @@
+; TIMECL - time addition to command line in TurboDOS
+; This is version 1.2
+;
+; Written : 08-23-84 by S. Kluger
+; Updated : 08-25-84 (added station display, made version independent)
+;
+.z80
+;
+; unserialized for general distribution
+;
+; The following effect is achieved by integrating TIMECL
+; into the SYS file:
+;
+; Before:
+; 0A}
+; After:
+; [17:23 A] 0A}
+;	 ^station number
+; use CMDINT + 0C = TIMECL in .PAR file
+;
+	cseg
+;
+	extrn	cintry		;C-funtion entry point
+	extrn	otntry		;T-function entry point
+	extrn	clblen		;a pointer
+	public	timecl
+;
+timecl:	ld	c,12		;TD version call
+	call	otntry
+	ld	a,c
+	cp	14h		;if not 1.4...
+	jr	nz,dotime	;...then do it no matter what
+	ld	a,(clblen+9)
+	or	a		;if prompt inhibit...
+	jr	nz,skip		;...then don't display time
+dotime:	ld	c,105		;time call
+	ld	de,time		;work area
+	call	cfcn
+	ld	hl,timst+1
+	ld	a,(time+2)	;get hours
+	call	bytout		;output hours
+	inc	hl
+	ld	a,(time+3)	;get minutes
+	call	bytout		;output minutes
+	ld	c,12
+	call	cfcn
+	ld	a,e
+	add	a,'@'
+	ld	(sta),a
+	ld	c,9
+	ld	de,timst
+	call	cfcn
+skip:	ld	c,32		;get user code
+	ld	e,0ffh
+cfcn:	ld	a,0ffh
+	jp	cintry
+;
+bytout:	push	af
+	rra
+	rra
+	rra
+	rra
+	call	nybout
+	pop	af
+nybout:	and	0fh
+	add	a,'0'
+	ld	(hl),a
+	inc	hl
+	ret
+;
+	dseg
+;
+time:	db	0,0,0,0,0
+timst:	db	'[00:00 '
+sta:	db	'A] $'
+	end

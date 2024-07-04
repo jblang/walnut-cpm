@@ -1,0 +1,76 @@
+;RETBIT.MAC by ESKAY
+;
+.z80
+;
+; Purpose:
+; return or set bit at bit map address
+; IX points to start of bit map
+; DHL holds 24-bit address
+; for PUTBIT, C holds bit
+; Preserve all registers
+;
+	public	getbit,putbit
+;
+	cseg
+;
+getbit:	xor	a
+	jr	gpbit
+;
+putbit:	ld	a,0ffh
+gpbit:	ld	(getput),a
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	ld	a,l
+	or	a
+	ld	b,3
+lp1:	rr	d
+	rr	h
+	rr	l
+	djnz	lp1
+	and	7
+;
+; HL = offet into bit map, a=bit number
+;
+	ex	de,hl
+	add	ix,de
+	ld	b,a		;bit number into b
+	inc	b		;set up for pre-test
+	ld	a,(getput)
+	or	a
+	jr	nz,putc
+	ld	a,(ix+0)
+	rlca
+loop:	dec	b
+	jr	z,done
+	rlca
+	jr	loop
+;
+done:	and	1
+done1:	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	ret
+;
+putc:	ld	a,b
+	ld	b,8
+..putl:	rlc	(ix+0)
+	dec	a
+	call	z,..srs
+	djnz	..putl
+	jr	done1	
+;
+..srs:	ld	a,c
+	or	a
+	ld	a,0ffh
+	jr	z,..res
+	set	0,(ix+0)
+	ret
+;
+..res:	res	0,(ix+0)
+	ret
+;
+getput:	db	0
+	end

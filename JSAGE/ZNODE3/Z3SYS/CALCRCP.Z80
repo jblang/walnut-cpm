@@ -1,0 +1,906 @@
+; CALCRCP.Z80 Version 1.0          
+; October 31, 1986 by Carson Wilson.       
+;
+; Please leave any problems, comments, or suggestions at
+; Lillipute Z-Node, Chicago, 312-649-1730 or 312-664-1730.
+;
+; This is a combination of elements from Paul Pomerleau's
+; SLTRAP.LBR and Eric Meyer's HP.COM. When assembled into a
+; Resident Command Package (RCP) for ZCPR3, it becomes a "pop-up"
+; calculator modelled on the principles of Eric Meyer's HP+.COM
+; for CP/M Plus.
+;
+; To use, first put this file and Z3BASE.LIB for your system on
+; the current drive and assemble and load to CALC.RCP. Then load
+; CALC.RCP with LDR.COM. Use the "H" command to display help on
+; usage. The calculator won't become active until activated by
+; the command "CALC" from your system's operating system prompt. 
+; Thereafter, whenever a CONTROL-] is detected, the calculator
+; will become active. The calculator can thus be activated from
+; the middle of any program which tests for console input, which
+; means any interactive program. 
+
+; WARNING: BECAUSE THIS RCP LINKS UP WITH YOUR SYSTEM'S BIOS, IT
+; IS NECESSARY TO TURN IT OFF BY USING THE "CALC" COMMAND AGAIN
+; BEFORE LOADING ANOTHER RCP. 
+
+; To make the CALC.RCP even more versatile, create an alias named
+; RCP.COM which will respond to commands to automatically go to
+; the proper directories, get the proper RCP and load it.
+
+; For example, my CALC.COM contains the following:
+
+; IF EX LOAD:$1.RCP
+; ROOT:LDR LOAD:$1.RCP
+; FI
+; H
+
+; This enables me to type "RCP CALC," thereby commanding my
+; system to get CALC.RCP from the proper directory, load it, and
+; display its built-in help. When I'm through with CALC, I first type
+; CALC to turn it off, then "RCP SYS" to reload my normal RCP. 
+
+; Like HP+.COM, this calculator may not work with a very few
+; programs such as WordStar, which interact directly with the
+; BIOS. See HP+.DOC for more on this. For information on how the
+; calculator works, see HP.DOC by Eric Meyer. Both of these files
+; are found in HP.LBR.
+
+vers	equ	10  
+BDOS	equ	5
+
+maclib	Z3Base.lib	; use base addresses
+
+;
+; System entry point
+;
+	org	RCP		; Passed from Z3Base
+	db	'Z3RCP'		; Flag for package loader
+	db	04		; How long each name is
+ctab:
+	db	'H   '	; Help for RCP
+	dw	CList
+	db	'CALC'	; Enable/Disable trigger key
+	dw	TrigOn
+ctab1:
+	db	0
+;
+;  Banner name of RCP:
+;  Command list routine
+;
+CList:
+	ld	de,RCP$name
+	jp	string
+;
+; Routines for trapping I/O.
+;
+Trigger	equ	']'-'@'	; control-] is current trigger key
+;
+TrigOn:	ld	a,(IsOn)
+	cp	1		; key detection on?
+	jp	z,TrigOff	; yes, turn off
+	ld	a,1		; no, flip flag to ON
+	ld	(IsOn),a	; & fall through  
+;
+; ENABLE Trigger Key Detection
+;
+; First, replace BIOS jump to its "console in" routine with jump
+; to RCP routine, and save the addresses of the BIOS jump and the
+; routine. 
+;
+	ld	hl,(1)		; Get boot location
+	ld	de,07h		; Offset for location of "JP CONIN" in BIOS
+	add	hl,de		; hl now holds BIOS "jump" location
+	ld	(JConIn),hl	; Save location for BIOS jp to console in
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)		; Move to de
+	ld	(ConIn),de	; Save BIOS ConIn routine address
+	ld	de,NewIn
+	ld	(hl),d		; Replace BIOS "jump" with ours
+	dec	hl
+	ld	(hl),e		; Fill our NewIn location in
+;
+; Now save the address of the BIOS conout routine.
+;
+  	ld	hl,(1)		; Get boot location
+  	ld	de,0ah		; Offset for location of "JP CONOUT" in BIOS
+  	add	hl,de		; hl now holds BIOS "jump" location 
+  	ld	e,(hl)
+  	inc	hl
+ 	ld	d,(hl)		; Move to de
+	ld	(con),de	; Save BIOS ConOut routine address
+;
+	ld	a,(on)		; Is the calculator running?
+	or	a
+	ret	nz 		; Yes, don't print "Trigger Key Enabled" msg.
+	ld	de,OnMsg	; Else tell user trigger key activated
+	jp	string
+	ret
+;
+NewIn:	call	OrigIn		; Bring key in
+      	cp	Trigger		; Is it the trigger key?
+	ret	nz		; No - business as usual 
+;
+	ld	(SavStk),sp	; Yes, run calculator
+	ld	sp,newstk
+;
+	push	ix
+	push	iy	
+	push	af
+	push	bc
+	push	de
+	push	hl	
+;
+	ld	a,(on)
+	cpl	
+	ld	(on),a		; Flip calculator running flag
+;
+	call	TrigOff		; Turn off trigger key detection
+				; and fall through to calculator
+
+;
+; ********** Begin Calculator *********
+;
+; This is a modified disassembly of HP.COM by Eric Meyer.  In place
+; of the HP prompt, I have substituted a more informative one. 
+; Relative jumps are substituted for absolute ones where possible. 
+; The exit and entry routines have been replaced by my own routines
+; which appear immediately before and after the calculator routine.
+; The exit key has been changed from ^C to ^] to maintain
+; consistency with the trigger key.  Finally, direct BIOS calls
+; replace BDOS calls to conin and conout, and a routine which
+; replaces echoed characters from BDOS conin is no longer
+; necessary (commented out).
+;
+	jr	start
+signon:	db	0dh,'CALC-RCP (^] = Off)   '
+	db	'         ',0
+	ld	a,(de)
+start:	xor	a
+  	ld	(r17),a
+s9:	ld	hl,signon
+	call	StrOut
+	call	s2
+	ld	hl,(r4)
+	call	s3
+	ld	hl,r5
+	ld	b,8		; Print 8 spaces 
+prompt:	ld	(hl),' '
+	inc	hl
+	dec	b
+	jr	nz,prompt
+	ld	hl,r5		; Print prompt "H>"
+	call	StrOut
+	xor	a
+	ld	(r3),a
+getin:	call	s4	; Get input from BIOS 
+	cp	Trigger	; RCP trigger key
+	jp	z,quit	; End program
+	cp	1bh
+	jp	z,esc
+	cp	'+'
+	jp	z,plus
+	cp	'-'
+	jp	z,minus
+	cp	'*'
+	jp	z,times
+	cp	'^'
+	jp	z,exp
+	cp	'/'
+	jp	z,div
+	cp	'%'
+	jp	z,remain
+	cp	'&'
+	jp	z,bitand
+	cp	'|'
+	jp	z,bitor
+	cp	'~'
+	jp	z,negate
+	cp	0dh
+	jp	z,run
+	cp	8
+	jr	z,backsp
+	cp	'='
+	jp	z,equals
+	cp	18h	; ^X
+	jr	z,clear
+	cp	'S'
+	jp	z,save
+	cp	's'
+	jp	z,save
+	cp	'R'
+	jp	z,recall
+	cp	'r'
+	jp	z,recall
+	cp	'!'		; Space or control char?
+	jp	c,illegal	; Yes - error
+s23:	ld	hl,r7
+	ld	de,r5
+	ld	bc,7
+	ldir
+	ld	(r8),a
+	ld	a,0ffh
+	ld	(r3),a
+s8:	ld	hl,signon	; Reprint prompt
+	call	StrOut
+	call	s2
+	ld	hl,r5
+	call	StrOut
+	jp	getin		; Get input
+backsp:	ld	a,(r3)
+	or	a
+	jr	z,s7
+	ld	hl,r9
+	ld	de,r8
+	ld	bc,7
+	lddr
+	ld	a,' '
+	ld	(r5),a
+	jr	s8
+s7:	ld	hl,0
+	ld	(r4),hl
+	ld	a,0ffh
+	ld	(r17),a
+	jp	s9
+clear:	ld	hl,r4		; Clear registers 
+	ld	b,10h		; (16 bytes)
+s10:	ld	(hl),0
+	inc	hl
+	dec	b
+	jr	nz,s10
+	jp	s9
+run:	call	s11
+	call	s12
+	ld	a,0ffh
+	ld	(r17),a
+	jp	s9
+equals:	call	s11
+	ld	hl,(r4)
+	ex	de,hl
+	ld	hl,(r10)
+	ex	de,hl
+	ld	(r10),hl
+	ex	de,hl
+	ld	(r4),hl
+	jp	start
+negate:	call	s11
+	ld	hl,(r4)
+	ld	a,h
+	cpl
+	ld	h,a
+	ld	a,l
+	cpl	
+	ld	l,a
+	inc	hl
+	ld	(r4),hl
+	jp	start	
+bitor:	call	s11
+	call	s14
+	ld	a,h
+	or	d
+	ld	h,a
+	ld	a,l
+	or	e
+	ld	l,a
+s16:	ld	(r10),hl
+	call	s15
+	jp	start
+bitand:	call	s11	; bitwise and
+	call	s14
+	ld	a,h
+	and	d
+	ld	h,a
+	ld	a,l
+	and	e
+	ld	l,a
+	jr	s16
+remain:	call	s11	; remainder
+	call	s14
+	call	s17
+	jp	c,s18
+	ex	de,hl
+	jr	s16
+div:	call	s11
+	call	s14
+	call	s17
+	jp	c,s18
+	jr	s16
+times:	call	s11
+	call	s14
+	call	s19
+	jp	c,s18
+	jr	s16
+exp:	call	s11
+	call	s14
+	ld	a,d
+	or	e
+	jr	nz,s20
+	ld	hl,1
+	jr	s16
+s20:	ld	b,d
+	ld	c,e
+	ld	d,h
+	ld	e,l
+s21:	dec	bc
+	ld	a,b
+	or	c
+	jr	z,s16
+	push	bc
+	push	de
+	call	s19
+	pop	de
+	pop	bc
+	jp	c,s18
+	jr	s21
+minus:	call	s11
+	call	s14
+	sbc	hl,de
+	jr	s16
+plus:	call	s11
+	call	s14
+	add	hl,de
+	jp	s16
+save:	call	s11
+	call	s4
+	cp	'4'	; Legal register?
+	jp	nc,s18
+	sub	'1'	; Legal register?
+	jp	c,s18
+	add	a,a
+	ld	e,a
+	ld	d,0
+	ld	hl,r11
+	add	hl,de
+	ld	a,(r4)
+	ld	(hl),a
+	inc	hl
+	ld	a,(r12)
+	ld	(hl),a
+	jp	start
+recall:	call	s11
+	call	s4
+	cp	'4'
+	jp	nc,s18
+	sub	'1'
+	jp	c,s18
+	add	a,a
+	ld	e,a
+	ld	d,0
+	ld	hl,r11
+	add	hl,de
+	ld	a,(r17)
+	or	a
+	jr	nz,s22
+	push	hl
+	call	s12
+	pop	hl
+s22:	ld	a,(hl)
+	ld	(r4),a
+	inc	hl
+	ld	a,(hl)
+	ld	(r12),a
+	jp	start
+chars:	db	'+-*^/%&~=|SsRr'	; Legal commands
+esc:	call	s4
+	ld	hl,chars
+	ld	b,0eh
+s24:	cp	(hl)
+	jp	z,s23
+	inc	hl
+	dec	b
+	jr	nz,s24
+	and	5fh
+	push	af
+	call	s11
+	pop	af
+	cp	'H'	; Switch to hex
+	jr	z,hex
+	cp	'D'	; Switch to decimal 
+	jr	z,dec
+	cp	'B'	; Switch to binary
+	jr	z,bin
+	cp	'C'	; Switch to character
+	jr	z,char
+	jr	s18
+hex:	ld	hl,s25
+	ld	de,s26
+	jr	s27
+dec:	ld	hl,s28
+	ld	de,s29
+	jr	s27
+bin:	ld	hl,s30
+	ld	de,s31
+	jr	s27
+char:	ld	hl,s32
+	ld	de,s33
+s27:	ld	(r13),a
+	ld	(scale),hl	; Store current scale = hex, dec, etc.
+	ex	de,hl
+	ld	(r14),hl
+	jp	start
+s14:	ld	hl,(r4)
+	ex	de,hl
+	ld	hl,(r10)
+	ret
+s11:	ld	a,(r3)
+	or	a
+	ret	z
+	ld	hl,r5
+	call	s35
+	jr	c,s36	; Illegal - ring bell
+	ld	a,(r17)
+	or	a
+	jr	nz,s37
+	push	hl
+	call	s12
+	pop	hl
+s37:	ld	(r4),hl
+	xor	a
+	ld	(r17),a
+	ret
+s36:	pop	hl
+illegal:ld	a,7	; Ring bell
+	call	CharOut
+	jp	s8
+s18:	ld	a,7
+	call	CharOut
+	jp	start
+s15:	ld	hl,r10
+	ld	de,r4
+	ld	bc,0eh
+	ldir
+	ret
+s12:	ld	hl,r15
+	ld	de,r16
+	ld	bc,0eh
+	lddr
+	ret
+s2:	ld	a,(r13)
+	call	CharOut
+	ld	a,'>'	; Prompt
+	call	CharOut
+	ld	a,' '	; Prompt: "H> "
+	call	CharOut
+	ret
+s19:	ld	c,l
+	ld	b,h
+	ld	hl,0
+	ld	a,0fh
+s40:	push	af
+	or	d
+	jp	p,s38
+	add	hl,bc
+	jp	c,s39
+s38:	add	hl,hl
+	jp	c,s39
+	ex	de,hl
+	add	hl,hl
+	ex	de,hl
+	pop	af
+	dec	a
+	jr	nz,s40
+	or	d
+	ret	p
+	add	hl,bc
+	ret
+s17:	ld	a,e
+	or	d
+	jp	z,s41
+	ld	c,l
+	ld	b,h
+	ld	hl,0
+	ld	a,10h
+	or	a
+s43:	ld	(r20),a
+	rl	c
+	rl	b
+	rl	l
+	rl	h
+	ld	(r21),hl
+	sbc	hl,de
+	ccf
+	jr	c,s42
+	ld	hl,(r21)
+s42:	ld	a,(r20)
+	dec	a
+	jr	nz,s43
+	ex	de,hl
+	rl	c
+	ld	l,c
+	rl	b
+	ld	h,b
+	or	a
+	ret
+s35:	push	hl
+s45:	ld	a,(hl)
+	or	a
+	jr	z,s44
+	cp	' '
+	jr	nz,s44
+	ld	(hl),'0'
+	inc	hl
+	jr	s45
+s44:	pop	hl
+    	db	0c3h	; jp
+scale:	dw	s25	; Current scale (hex default)
+s25:	ld	b,04h
+	call	s46
+	call	s47
+	ret	c
+	ld	d,a
+	inc	hl
+	call	s47
+	ret	c
+	ld	e,a
+	ex	de,hl
+	or	a
+	ret
+s47:	call	s48
+	ret	c
+	rlca
+	rlca
+	rlca
+	rlca
+	inc	hl
+	ld	e,a
+	call	s48
+	ret	c
+	add	a,e
+	or	a
+	ret
+s48:	ld	a,(hl)
+	and	7fh
+	cp	'A'
+	jr	c,s49
+	and	5fh
+	sub	7
+s49:	sub	'0'
+	jp	m,s41
+	cp	10h
+	jr	nc,s41
+	or	a
+	ret
+s39:	pop	bc
+s41:	scf
+	ret
+s46:	ld	a,(hl)
+	cp	'0'
+	jr	nz,s39
+	inc	hl
+	dec	b
+	jr	nz,s46
+	or	a
+	ret
+s28:	ld	b,3
+	call	s46
+	ld	de,0
+	ld	bc,2710h	; constant
+	call	s50
+	ld	bc,03e8h
+	call	s50
+	ld	bc,64h
+	call	s50
+	ld	bc,0ah
+	call	s50
+	ld	bc,1
+	call	s50
+	ex	de,hl
+	or	a
+	ret
+s50:	ld	a,(hl)
+	cp	':'
+	jr	nc,s39
+	sub	'0'
+	jp	m,s39
+	ex	de,hl
+	or	a
+s52:	jr	z,s51
+	add	hl,bc
+	jr	c,s39
+	dec	a
+	jr	s52
+s51:	ex	de,hl
+	inc	hl
+	ret
+s30:	ld	b,0
+	ld	c,80h
+s56:	ld	a,(hl)
+	inc	hl
+	cp	'0'
+	jr	z,s53
+	cp	'1'
+	jr	z,s54
+	jr	s41
+s54:	ld	a,b
+	or	c
+	ld	b,a
+s53:	ld	a,c
+	cp	1
+	jr	z,s55
+	rrca
+	ld	c,a
+	jr	s56
+s55:	ld	l,b
+	ld	h,0
+	or	a
+	ret
+s32:	ld	b,7
+	call	s46
+	ld	a,(hl)
+	and	7fh
+	ld	l,a
+	ld	h,0
+	or	a
+	ret
+s3:	db	0c3h	; jp	
+r14:	dw	s26
+s26:	ld	b,4
+	call	s57
+	ld	a,h
+	call	s58
+	ld	a,l
+	call	s58
+	ret
+s58:	push	af
+	and	0f0h
+	rra
+	rra
+	rra
+	rra
+	call	hexout
+	pop	af
+	and	0fh
+	call	hexout
+	ret
+hexout:	add	a,'0'
+	cp	':'		; Arabic number output?
+	jp	c,CharOut	; Yes
+	add	a,7		; No - get char. A-F for hex output
+	jp	CharOut
+s57:	ld	a,' '
+	call	CharOut
+	dec	b
+	jr	nz,s57
+	ret
+s29:	ld	b,3
+	call	s57
+	ld	c,0
+s74:	ld	a,h
+	cp	''''
+	jr	c,s60
+	jr	nz,s61
+	ld	a,l
+	cp	10h
+	jr	c,s60
+s61:	inc	c
+	ld	de,0d8f0h	; Constant
+	add	hl,de
+	jr	s74
+s60:	ld	a,'0'
+	add	a,c
+	call	CharOut
+	ld	c,0
+s63:	ld	a,h
+	cp	3
+	jr	c,s62
+	jr	nz,s75
+	ld	a,l
+	cp	0e8h
+	jr	c,s62
+s75:	inc	c
+	ld	de,0fc18h	; Constant
+	add	hl,de
+	jr	s63
+s62:	ld	a,'0'
+	add	a,c
+	call	CharOut
+	ld	c,0
+s66:	ld	a,h
+	or	a
+	jr	nz,s64
+	ld	a,l
+	cp	64h
+	jr	c,s65
+s64:	inc	c
+	ld	de,0ff9ch	;Constant	
+	add	hl,de
+	jr	s66
+s65:	push	af
+	ld	a,'0'	;30h
+	add	a,c
+	call	CharOut
+	pop	af
+	ld	c,0
+s68:	cp	0ah
+	jr	c,s67
+	inc	c
+	sub	0ah
+	jr	s68
+s67:	push	af
+	ld	a,'0'
+	add	a,c
+	call	CharOut
+	pop	af
+	add	a,'0'
+	call	CharOut
+	ret
+s31:	ld	c,80h
+	ld	b,l
+s70:	call	s69
+	ld	a,c
+	cp	1
+	ret	z
+	rrca
+	ld	c,a
+	jr	s70
+s69:	ld	a,b
+	and	c
+	ld	a,'0'
+	jr	z,s71
+	ld	a,'1'
+s71:	call	CharOut
+	ret
+s33:	ld	b,7
+	call	s57
+	ld	a,l
+	and	7fh
+	cp	7fh
+	jr	z,s72
+	cp	' '
+	jr	nc,CharOut
+	or	'@'
+	jr	s73
+s72:	ld	a,'?'
+s73:	push	af
+	ld	a,8	; Backspace
+	call	CharOut
+	ld	a,5eh
+	call	CharOut
+	pop	af
+	jr	CharOut
+CharOut:
+	push	bc
+	push	de
+	push	hl
+	ld	c,a	; Put char. in C, and	
+	call	OrigOut	; BIOS console out
+	pop	hl
+	pop	de
+	pop	bc
+	ret
+StrOut:	xor	a	; Print string
+	add	a,(hl)
+	ret	z
+	push	hl
+	call	CharOut
+	pop	hl
+	inc	hl
+	jr	StrOut
+s4:	call	OrigIn
+	and	7fh	; Strip high bit
+;
+; Since we are calling BIOS directly, characters are
+; no longer echoed to the screen, so they needn't be erased
+;
+;	cp	'!'	; printable character?
+;	ret	c	; yes 
+;	push	af	; no- delete present character
+;	ld	a,8	; backspace
+;	call	CharOut
+;	ld	a,' '	; space
+;	call	CharOut
+;	pop	af
+;
+	ret
+r4:	db	0	; Registers cleared by "^X"
+r12:	db	0
+r10:	ds	11
+r15:	dw	0
+r16:	db	0
+;
+r11:	ds	6
+r13:	db	'H'	; Hex scale is default
+r5:	db	0
+r7:	db	0,0,0,0,0
+r9:	db	0
+r8:	dw	0
+r3:	db	0
+r17:	db	0
+r20:	db	0
+r18:	db	0
+r21:	dw	0
+;
+; ********* End Calculator *********
+;
+
+quit:	; Turn off calculator
+
+	ld	a,0dh
+	call	CharOut		; Print carriage return to indicate
+				; Return to normal
+	call	TrigOn		; Enable trigger key checking,
+				;  now that calculator no longer active.
+;				; "On" flag tells TrigOn to enable checking 
+	ld	a,(on)
+	cpl	
+	ld	(on),a		; Flip calc. running flag to off
+;
+	pop	hl	; Restore registers 
+   	pop	de
+	pop	bc
+	pop	af
+	pop	iy
+	pop	ix
+;
+	ld	sp,(SavStk)	; Restore stack pointer
+;
+	jp	OrigIn		; = Call BIOS ConIn, ret to transient program 
+;
+;
+TrigOff:	; DISABLE trigger key detection 
+
+	ld	a,(IsOn)	; Is key detection off?
+	cp	0
+	jp	z,TrigOn	; Yes, turn on
+	ld	a,0		; No, flip flag and turn it off
+	ld	(IsOn),a
+	ld	hl,(JConIn)	; Get place in BIOS to restore jump 
+	ld	de,(ConIn)	; Get location of BIOS routine 
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d		; Put in a jp and the location
+;
+	ld	a,(on)		; Is calculator running?
+	or	a
+	ret	nz 		; Yes, just resume key detection,
+				;  don't tell user 
+	ld	de,OffMsg	; Tell user trigger key de-activated
+	call	string
+	ret
+
+string:	ld	c,9
+	jp	BDOS
+OnMsg:
+	db	'Trigger Key Enabled - Disable Before Re-loading RCP.$'
+OffMsg:
+	db	'Trigger Key Disabled.$'
+RCP$name:
+	db	'CALC-RCP ',(vers/10)+'0'
+	db	'.0',13,10	;
+	db	'H',13,10
+	db	'CALC      - Enable/Disable Trigger Key',13,10
+	db	'Control-] - Calculator On/Off.$'
+OrigOut:
+	db	0c3h	; Jp	
+con:	dw	0	; Store BIOS console out routine address
+;
+IsOn:	db	0	; Trigger-key detection on flag
+;
+OrigIn:
+	db	0c3h	; jp
+ConIn:	dw	0	; Store BIOS console in routine address  
+JConIn:	dw	0	; Store BIOS jump to console in address
+;
+on:	db	0	; Calculator running flag
+;
+SavStk:	ds	2	; Save incoming stack pointer
+;
+	ds	32
+NewStk	equ	$	; Our own stack
+	
+;
+; Size error test
+;
+	if	($ gt (RCP+RCPs*128-1))
+SizErr	equ	novalue		; RCP is too large for buffer
+	endif
+;
+	end
+
+	
+;
+; Size error test
+;
+	if	($ gt (RCP+RCPs*128-1))
+SizErr	equ	noval

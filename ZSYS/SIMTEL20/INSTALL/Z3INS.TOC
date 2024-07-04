@@ -1,0 +1,207 @@
+.OP
+               T A B L E   O F   C O N T E N T S 
+
+  1. OVERVIEW of ZCPR3 INSTALLATION.............................1
+     1.1. Introduction..........................................1
+          1.1.1. Operating System Memory Images.................1
+          1.1.2. System Segments................................2
+                 1.1.2.1. Flow Command Packages.................2
+                 1.1.2.2. Input/Output Packages.................3
+                 1.1.2.3. Resident Command Packages.............3
+                 1.1.2.4. Environment Descriptor and Z3TCAP.....3
+                 1.1.2.5. ZCPR3 Named Directories...............3
+          1.1.3. Utilities......................................4
+          1.1.4. Other Basic Concepts...........................4
+                 1.1.4.1. Command Search Hierarchy..............4
+                 1.1.4.2. Command Search Path...................5
+     1.2. SYSGEN Memory Images..................................6
+     1.3. System Segments.......................................7
+     1.4. Utilities.............................................7
+     1.5. Installation Steps....................................9
+     1.6. Operational ZCPR3 System.............................10
+          1.6.1. Memory Image..................................10
+          1.6.2. System Segments...............................11
+          1.6.3. Utilities.....................................12
+     1.7. Software Required for Installation...................12
+          1.7.1. Commercial Software...........................12
+          1.7.2. System Segment Software.......................13
+          1.7.3. Other Useful Files............................13
+          1.7.4. Files Required for Installing ZEX.............14
+          1.7.5. Required Distribution Files...................14
+          1.7.6. Useful Distribution Files.....................14
+     1.8. Required Hardware....................................15
+          1.8.1. Hardware Required for Installation............15
+          1.8.2. Hardware Required for Running ZCPR3...........15
+
+  2. STEP 1: SELECTING the FEATURES............................16
+     2.1. Features of ZCPR3....................................16
+     2.2. Standard Overhead....................................16
+          2.2.1. External Stack................................17
+          2.2.2. Command Line Buffer...........................17
+          2.2.3. Memory-Based Named Directory..................17
+          2.2.4. External File Control Block...................18
+          2.2.5. Message Buffers...............................18
+          2.2.6. Shell Stack...................................19
+          2.2.7. Environment Descriptor........................19
+     2.3. Flow Command Packages................................19
+     2.4. Input/Output Packages................................20
+     2.5. Resident Command Packages............................20
+     2.6. Other Buffers........................................20
+          2.6.1. External Path.................................20
+          2.6.2. Wheel Byte....................................20
+.PA
+  3. STEP 2: ZCPR3 MEMORY STRUCTURE............................21
+     3.1. Z3BASE.LIB...........................................21
+     3.2. Z3BASE Header........................................21
+     3.3. Z3BASE Body..........................................23
+          3.3.1. Version Numbers, Memory Size, and CP/M Base...23
+          3.3.2. Processor Selection...........................23
+          3.3.3. External Path.................................24
+          3.3.4. Wheel Byte....................................24
+          3.3.5. CCP Location..................................24
+          3.3.6. RCP Location..................................25
+          3.3.7. IOP Location..................................25
+          3.3.8. FCP Location..................................25
+          3.3.9. ENV Location..................................25
+          3.3.10. Shell Stack..................................26
+          3.3.11. ZCPR3 Messages...............................26
+          3.3.12. External FCB.................................26
+          3.3.13. Named Directory Buffer.......................26
+          3.3.14. Command Line Buffer..........................27
+          3.3.15. External Stack...............................27
+          3.3.16. User Equates.................................27
+
+  4. STEPS 3-6: INSTALLATION...................................28
+     4.1. Step 3: Modifying the BIOS Cold Boot Routine.........28
+          4.1.1. CBIOSHDR.LIB -- BIOS Configuration File.......28
+          4.1.2. CBIOSZ -- Selections from a ZCPR3 BIOS........31
+     4.2. Step 4: Editing Z3HDR.LIB............................43
+          4.2.1. Basic System Definitions......................43
+          4.2.2. Default File Types............................44
+          4.2.3. SUBMIT File Processing........................44
+          4.2.4. Command Prefix................................44
+          4.2.5. Command Attributes............................44
+          4.2.6. ZCPR3 Resident Command Activation and Wheels..45
+          4.2.7. ZCPR3 Resident Command Table..................46
+          4.2.8. Controls on ZCPR3 Resident Commands...........48
+          4.2.9. Path Definition...............................50
+          4.2.10. DU and DIR Controls..........................52
+          4.2.11. Command Line Buffer Control..................54
+          4.2.12. CMDRUN -- ZCPR3 Extended Command Processing..55
+          4.2.13. Flow Command Facility........................55
+          4.2.14. Miscellaneous Equates........................56
+     4.3. Step 5: Overlaying the old BIOS and the CCP..........57
+     4.4. Step 6: Implanting the Operating System Image........57
+     4.5. Sample Session.......................................57
+          4.5.1. Assembling SYSENV.............................58
+          4.5.2. Assembling SYSNDR.............................59
+          4.5.3. Assembling SYSIOP.............................60
+          4.5.4. Assembling SYSRCP.............................61
+          4.5.5. Assembling SYSFCP.............................62
+          4.5.6. Creating MYTERM.Z3T via TCSELECT..............63
+          4.5.7. Recap.........................................64
+          4.5.8. Assembling the CBIOS..........................64
+          4.5.9. Assembling the ZCPR3 Command Processor Replac.64
+          4.5.10. Obtaining the Operating System Image.........65
+          4.5.11. Patching the CP/M System Image...............66
+          4.5.12. Placing the Operating System Image...........67
+
+  5. STEP 7: SYSTEM SEGMENTS...................................68
+     5.1. Resident Command Packages............................68
+          5.1.1. CP Command....................................69
+          5.1.2. DIR Command...................................69
+          5.1.3. ERA Command...................................70
+          5.1.4. LIST and TYPE Commands........................71
+          5.1.5. PEEK and POKE Commands........................72
+          5.1.6. PROT Command..................................73
+          5.1.7. REN Command...................................73
+          5.1.8. REG Command...................................74
+          5.1.9. WHL Command...................................74
+          5.1.10. NOTE Command.................................76
+          5.1.11. ECHO Command.................................76
+     5.2. Flow Command Packages................................77
+          5.2.1. IF Negation...................................77
+          5.2.2. IF:  T (True) or F (False)....................78
+          5.2.3. IF:  EM (Empty)...............................78
+          5.2.4. IF:  ER (Error)...............................78
+          5.2.5. IF:  EX (Exist)...............................79
+          5.2.6. IF:  IN (Input)...............................79
+          5.2.7. IF:  NU (Null)................................79
+          5.2.8. IF:  n (Register Value).......................80
+          5.2.9. IF:  WH (Wheel)...............................80
+          5.2.10. IF:  TC (TCAP)...............................80
+          5.2.11. IF:  fcb1=fcb2...............................81
+          5.2.12. COMIF - Run IF.COM...........................81
+          5.2.13. NOISE - Have FCP Print IF Status Messages....81
+     5.3. Input/Output Packages................................82
+     5.4. Named Directory Files................................82
+     5.5. TCAP Files...........................................84
+     5.6. Environment Descriptor...............................84
+
+  6. STEP 8: UTILITY INSTALLATION..............................89
+     6.1. The Z3INS Utility....................................89
+     6.2. Sample Session.......................................90
+     6.3. Assembling Distribution Files........................91
+
+  7. The Z3TCAP FACILITY.......................................92
+     7.1. ZCPR3 Terminal Capabilities (TCAP)...................92
+     7.2. Internal Structure of a Z3T File.....................93
+          7.2.1. Terminal Name.................................94
+          7.2.2. Arrow Keys....................................94
+          7.2.3. Function Delays...............................95
+          7.2.4. Clear Screen Sequence.........................95
+          7.2.5. Cursor Motion (GOTOXY) Sequence...............96
+                 7.2.5.1. Cursor Motion Interpreter Commands...97
+                 7.2.5.2. %R Command...........................97
+                 7.2.5.3. %I Command...........................97
+                 7.2.5.4. Output Commands......................98
+          7.2.6. Clear to End of Line..........................99
+          7.2.7. Begin and End Highlighting (Standout Mode)....99
+          7.2.8. Terminal Initialization and Deinitialization.100
+     7.3. Terminal Control Sequences 1 (General)..............100
+     7.4. Terminal Control Sequences 2 (Cursor Motion)........101
+     7.5. Overview of VLIB....................................103
+     7.6. Standard ZCPR3 TCAP File............................103
+     7.7. TCAP Check Program..................................103
+     7.8. TCAP Entry Definition Program.......................104
+     7.9. TCAP Entry Selection Program........................108
+
+  8. DOCUMENTATION............................................112
+
+  9. REFERENCES...............................................113
+     9.1. ZCPR2 and SYSLIB2 Publications and Documentation....113
+          9.1.1. ZCPR2 Manuals................................113
+          9.1.2. SYSLIB2 Manuals..............................113
+          9.1.3. Software Upgrades to SYSLIB2 and ZCPR2.......113
+          9.1.4. Sources......................................114
+          9.1.5. CP/M Books...................................114
+     9.2. ZCPR3 Sources.......................................115
+          9.2.1. Selected Computer Clubs......................115
+                 9.2.1.1. ACGNJ and SIG/M.....................115
+                 9.2.1.2. New York Amateur Computer Club......115
+          9.2.2. Echelon, Inc.................................116
+          9.2.3. New York Zoetrope, Inc.......................117
+.PA
+                 L I S T   O F   F I G U R E S 
+
+ 1-1: CP/M and ZCPR3-based SYSGEN Memory Images.................6
+ 1-2: SYSGEN Memory Image Addresses.............................6
+ 1-3: ZCPR3 System Memory Image (Z3BASE1.LIB)..................10
+
+ 3-1: Z3BASE.LIB Comment Header................................22
+
+ 4-1: ZCPR3 Resident Command Naming............................47
+
+ 5-1: Named Directory Structure................................82
+
+ 6-1: Sample Z3INS Installation File...........................89
+ 6-2: Sample Run of Z3INS......................................90
+
+ 7-1: Z3T File Structure, Overview.............................93
+ 7-2: Z3T Records..............................................93
+ 7-3: Wordstar Movement Convention.............................94
+ 7-4: Summary of Cursor Motion Interpreter Commands...........102
+.PA
+.FO
+.HE
+.PN 1

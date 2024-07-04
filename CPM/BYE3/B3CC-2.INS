@@ -1,0 +1,178 @@
+
+; B3CC-2.INS - BYE3 insert for CCS-2719 and SDS Z80-SIO - 07/30/85
+;
+;		  Z80-SIO and 8430 CTC timer
+;
+; This version is for both the CCS-2719 and Sierra Data Science S-100
+; serial I/O boards.  Note:  This is an insert, not an overlay.
+;
+;    In order to use the CCS-2719 with the Smartmodem,  we must
+;    change the hardware somewhat.  The header block on the 2719
+;    must be turned over so the port configuration is for DTE
+;    (DATA TERMINAL EQUIPMENT).  Further, the standard CCS-2719
+;    presents DSR from the DB25 to DCD of the SIO. Bye3 requires
+;    the actual DCD from pin 8 of the DB25, Therefore we must
+;    remove the jumper in the header block from pins 1 and 15 and add
+;    a wire from pin 15 of the flat cable header.  (Pin 8 of the DB25)
+;    to pin 1 of the header block.  This will put the modem's DCD signal
+;    to the SIO's DCD input. Refer to the CCS-2719 schematic in your user's
+;    manual.				- Joe Wright
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Select one of the following with YES or NO
+;
+CCS	EQU	YES		; CCS2719 at 3.6864 MHz for Counter mode
+SIERRA	EQU	NO		; Sierra Data Science at 4.000 MHz
+;
+; Set base port for SIO & CTC chips
+;
+	 IF	CCS
+DPORT	EQU	54H		; Data port
+SPORT	EQU	DPORT+1		; Modem satus port
+BRPORT	EQU	50H		; Baud rate generator port (CTC)
+	 ENDIF			; CCS
+;
+	 IF	SIERRA
+DPORT	EQU	82H		; Data port
+SPORT	EQU	DPORT+1		; Modem status port
+BRPORT	EQU	89H		; Baud rate generator port (CTC)
+	 ENDIF			; SIERRA
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00000100B	; Transmit buffer empty
+DCD	EQU	00001000B	; Data carrier detect
+				; [If you have problems, change to 00100000B]
+;
+; To access CTC baud rate command - Note, the CCS 2719 uses the 3.6864
+; MHz xtal for the counter mode and the 4.000 MHz xtal for the timer
+; mode.  The SDS board uses the 4.000 MHz master clock for both.
+;
+; The following assume CCS2719 oscillator at 1.8432 MHz.
+;
+	 IF	CCS
+BD300	EQU	0734H		; 300 baud  (4.000 xtal, rest 1.8432)
+BD1200	EQU	4760H		; 1200 baud
+BD2400	EQU	4730H		; 2400 baud
+	 ENDIF
+;
+; The following assume	SIERRA DATA SCIENCE oscillator at 4.000 MHz.
+;
+	 IF	SIERRA
+BD300	EQU	0734H		; 300 baud
+BD1200	EQU	4768H		; 1200 baud
+BD2400	EQU	4734H		; 2400 baud
+	 ENDIF
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	SPORT
+	IN	SPORT		; Get status
+	ANI	DCD		; Check for carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Setup to write register 0
+	OUT	SPORT
+	MVI	A,18H		; Reset channel
+	OUT	SPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	SPORT
+	MVI	A,44H		; Set 16x, 1 stop bit, no parity
+	OUT	SPORT
+	MVI	A,3		; Setup to write register 3
+	OUT	SPORT
+	MVI	A,0C1H		; 8 bits, Rx enable
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; DTR off
+	OUT	SPORT
+;
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0E8H		; Turn DTR back on
+	OUT	SPORT
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available. If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Got a character
+	RZ			; Return if none
+	ORI	255		; Otherwise set the proper flag
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT		; Get status
+	ANI	TBMT		; Ready for a character?
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Turn off DTR until next time
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	LXI	H,BD300		; Set for 300 baud
+	JMP	SETBAUD
+;
+SET1200:LXI	H,BD1200	; Set for 1200 baud
+	JMP	SETBAUD
+;
+SET2400:LXI	H,BD2400	; Set for 2400 baud
+;
+SETBAUD:MOV	A,H
+	OUT	BRPORT		; Set CTC mode
+	MOV	A,L
+	OUT	BRPORT		; Set actual speed
+	XRA	A		; Say rate is ok
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

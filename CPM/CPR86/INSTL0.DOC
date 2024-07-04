@@ -1,0 +1,294 @@
+To accomodate the Compuserve maximum filename length of 6 characters,
+I plan to name the files CPR860.BIN, OVL0.BIN, CPR860.DOC and INSTL0.DOC.
+Any of these could turn out to be a conflict with an existing file, and
+may thus vary slightly. The final '0', of course, will be the version
+number.
+(Note: the .BIN file type is necessary on Compuserve only)
+
+In any case, the file OVL0.BIN MUST be renamed to OVERLAY.CMD, as this
+is the name CPR86 will be looking for when it attempts to load it.
+CPR860.BIN should be renamed to CPR860.CMD.
+
+-------------------------------------------------------------------------
+
+INSTALLATION AND PATCHES FOR CPR86
+
+Installation requires about 1 minute, once you've done it a few times,
+but for the first time, go slow and double check everything, because
+you're probably not too familiar with DDT86 patching proceedures.
+
+Start with a new disk that has a loader on the system tracks, CPM.SYS,
+DDT86, CPR86?.CMD, and OVERLAY.CMD Then do:
+
+DDT86                      ;call up ddt86
+rCPR86?.CMD                ;read in cpr86  (DDT86 CPR86.CMD will not work)
+
+You will recieve a message telling you where the program has been loaded.
+This can be different on systems with different amounts of memory. On
+my system I get:
+
+         START             END
+         03D3:0000         03D3:097f
+
+03D3 is the paragraph number (absolute addr. 3D30), and the code runs from
+0000 to 097F offset from 03D3.
+
+Write these numbers down!
+
+Then do:
+
+rCPM.SYS                   ;read in cpm also - both files now in memory
+
+I get:   START             END
+         0443:0000         046B:30FF
+
+Write these numbers down!
+
+In the following steps, the numbers shown in brackets have to be changed
+based on what start and end addresses you received.
+
+Next, erase the current CCP by filling the area with 00's.
+
+f[0443]:80,0A7F,00         ;replace the start paragraph number for CPM.SYS
+
+Then, move the code from CPR86.CMD to CPM.SYS.
+
+m[03D3]:80,[097F],[0443]:80
+
+The first bracketed number is the starting paragraph for CPR86.
+The second bracketed number is the end offset of CPR86 (length).
+The third bracketed number is the starting paragraph for CPM.SYS.
+
+The :80 is required because the "r" command also reads in the first sector
+.CMD file header, so the actual code is offset by one sector, or 80H.
+
+Now to save the patched image of CPM.SYS, simply do:
+
+wCPM.SYS
+
+DDT86 knows how many "pages" to save, because CPM.SYS was the last file
+loaded by the "r" command. In other words, if you rCPM.SYS first, the patch
+will bomb.
+
+Now, hit the reset button, and you're running CPR86.
+
+===========================================================================
+
+CPR86 and OVERLAY PATCHES
+
+Listings are included at the end of this file which show the data areas
+for CPR86.CMD and OVERLAY.CMD. The patching proceedure uses
+DDT86, reading in the appropriate file with the 'R' command, making the
+changes with the 'S' command, then rewriting the file with the 'W'
+command. Finding the exact location of the data area is a matter of
+scanning through the file until you locate it. Though I'll give you some
+hints.
+
+CPR86.CMD
+
+CPR86 (the actual CCP replacement) needs only the default search path
+specified. After CPR86.CMD has been patched into CPM.SYS, use DDT86 to
+read ('R') CPM.SYS. At an offset of approxamately 07A0H you'll find the
+line where the path is set. Note that the default search path immediately
+follows the ASCII string 'CMD'.
+
+The default tables are in the form DU, DU, DU, DU, FF, where FF indicates
+end of the path. An ascii '$' character in any D or U position signifies
+the logged in disk or user for that particular path stop. In all cases,
+the path automatically begins with the logged DU, so the default table
+should begin with the desired second stop. D is in the form A = 0, B = 1.
+U is in the form 0 thru 31, both D&U being binary numbers.(not ascii)
+
+The path set in the distribution version is $,0,0,0,0FFh. This translates
+to current disk - user 0, disk A: - user 0.
+
+With my hard disk I use 3,0,2,0,0FFh. This translates to disk D: - user 0,
+disk C: - user 0.
+
+OVERLAY.CMD
+
+The cursor control commands are contained in the overlay, as well as
+the CHASFLG, BMFLG, FDSK and LDSK. References from ID_NUM through HI_MSG
+are not supported in your version of CPR86, so they can be ignored. CPR86
+is harware dependent, and it's important that you make these patches for
+proper operation.
+
+Read in OVERLAY.CMD using DDT86 and 'R' command. The clrscrnf line
+begins at an offset of approx. 1040H. The FDSK - LDSK line is about
+10A0H. Note the ASCII string '<-LDSK' is inserted in the data to aid in
+location.
+
+In the following, TRUE = 0FFh, and FALSE = 0
+
+Enter the particular character strings for your terminal which will:
+
+clrscrnf = return cursor to home and clear the screen
+curupf   = move cursor up one line
+eosf     = erase from cursor position to end of SCREEN (not line)
+
+All sequences MUST end with the ASCII '$' character.
+Current settings are for a H/Z19 or H/Z29 terminal.
+
+To accomodate individual tastes, setting the CHASFLG true will defeat
+the clear screen on DIR, and also defeat the DU login on DIR. Current
+setting is false.
+
+The BMFLG is to accomodate my block mode terminal which produces a
+LF along with each CR. You probably want BMFLG false, unless your
+terminal is set to produce a LF. Current setting is false.
+
+PLENGTH and PWIDTH are the screen size, 80 characters by 24 lines.
+If your terminal is different, change these numbers, but I can't
+guarantee the results. NOTE THEY ARE WORD VALUES, NOT BYTES!!!
+
+FDSK is the first hard disk to be scanned with the FIND command.
+LDSK is the last hard disk to be scanned.
+
+If you dont have a hard disk, these can be set to A: and B:, but if
+you dont have a disk in B:, you will get a SELECT ERROR, or whatever
+it's called.
+
+In all cases, A=0, B=1, C=2, D=3, E=4 etc....
+
+FDSK and LDSK are located 80H AFTER the start of the overlay data area.
+They do not come right after PWIDTH. To aid in location, they are
+now set to 0 and 1. (A: and B:)
+
+We can work out any problems via CP-MIG.
+
+GOOD LUCK
+=========================================================================
+;
+; Data area for CPR86.A86
+;
+SPOT     EQU      $
+         DSEG              ;so that CS: override prefixes are not generated
+         ORG      OFFSET SPOT
+;
+; The following makes up a far call address block for transient program
+;
+TRANS     DW       0        ;transient program offset (IP)
+TRAN_CSEG DW       0        ;transient program code segment
+;
+TRAN_DSEG DW       0        ;transient program data segment
+;
+OVL_DSEG DW       0        ;filled in after overlay load
+;
+FTYPE    DB       'CMD'
+DFLTTAB  DB       $,0,0,0,0FFH,0,0,0,0,0,0   ;A=0, B=1 etc. 5 stops + FF
+COMADDR  DW       COMBUF
+STADDR   DW       COMBUF
+COMSTRT  DW       COMBUF
+DCNT     DB       0                 ;holds return code from func calls
+CDISK    DB       0                 ;logged disk
+CUSER    DB       0                 ;logged user
+SDISK    DB       0
+SUSER    DB       0                 ;selected user
+TDISK    DB       0
+TUSER    DB       0
+SUBTYPE  DB       'ZIP'
+COMTYP   DB       'COM'
+OVLNAME  DB       'OVERLAY',0       ;OVERLAY.CMD auto-start
+OVLFLG   DB       0                 ;overlay in memory flag
+SWFLG    DB       0
+;
+  IF SWW
+SWFCB    DB       0,'SW!     CMD',0,0,0,0
+         DB       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+SWCR     DB       0
+  ENDIF
+;
+; Direct bios call control block
+;
+IOBUF    DB       0
+PARAMCX  DW       0
+PARAMDX  DW       0
+;
+; Memory allocation information
+;
+MEMBASE  DW       0        ;base of memory
+MEMLEN   DW       0        ;memory len-OVL
+;
+DELIMS   DB       ' =..:;<>,'       ;delimeter string (removed '_')
+;
+INTR_TAB DB       'FIND'            ;#8 overlay
+  IF BYEE
+         DB       'BYE '            ;#7 overlay
+  ENDIF
+  IF NOT BYEE
+         DB       0,0,0,0           ;cant match 4 nulls
+  ENDIF
+         DB       'ZIP '            ;#6 in CPR86 and overlay
+         DB       'SETP'            ;#5 in CPR86
+         DB       'ERA '            ;#4 overlay
+         DB       'REN '            ;#3  "
+         DB       'TYPE'            ;#2  "
+         DB       'DIRS'            ;#1  "
+         DB       'DIR '            ;#0  "
+;
+;
+  IF SWW
+MSG002   DB       'Cannot locate SW!.CMD',CR,LF,EOM
+  ENDIF
+MSG003   DB       'CPR86 unable to load file',CR,LF,EOM
+MSG004   DB       'Read error',CR,LF,EOM
+MSG005   DB       'OVERLAY.CMD not found',CR,LF,EOM
+MSG010   DB       'CPR86 requires contiguous memory',CR,LF,EOM
+MSG011   DB       LF,'Enter up to 5 path stops',CR,LF,EOM
+MSG012   DB       'Incorrect format, path erased',CR,LF,EOM
+;
+;        command file control block
+;
+FCB      DB       0                 ;disk request
+         DB       '           '     ;11 spaces
+         DB       0,0,0,0           ;4 zeros
+FCB1     DB       0
+         DB       '           '     ;11 more spaces (rename format)
+         DB       0,0,0,0           ;4 zeros (1+11+5+11+4 = 32)
+FCBCR    DB       0                 ;current record to read/write
+RANDRN   DW       0                 ;random record number
+RANDOF   DB       0                 ;random rec overflow
+;
+; getcom buffer, can double as stack area, since only used after SP reset.
+;
+COMBUF1  DB       81       ;aux combuf
+         DB       0
+BUFF     RB       81
+         DB       0        ;this reserves memory for combuf
+;
+;        end
+========================================================================
+
+The following is the partial data area for OVERLAY.CMD. Note this program
+was produced in object module format using RASM86 and LINK86, and
+contains both a code and data segment. It might look different to
+you under DDT86 than a 'normal' 8080 model program.
+
+;---------------------------------------------------------------------------
+ID_NUM   DW       0        ;0 to 64K random record number
+PASSWORD RB       8        ;8 byte password
+LAST_ON  RB       10       ;ie. 09:45 03/30/84
+START    RB       4        ;ie. 10:45
+FINISH   RB       4        ;ie. 11:45
+TOTAL    RB       4        ;ie   1+00 this will be cumulative
+HI_MSG   DW       0        ;ie. msg 1 thru 64k
+MAXDSK   DB       16       ;maximum disk access  A = 0, B = 1 etc
+;
+CLRSCRNF DB       ESC,'E','$',0,0   ;clear screen, cursor home.
+CURUPF   DB       ESC,'A','$',0,0   ;cursor up one line.
+EOSF     DB       ESC,'J','$',0,0   ;erase from cursor to end of SCREEN.
+CHASFLG  DB       0                 ;set to 0FFH to defeat dir login, else 0.
+BMFLG    DB       0                 ;set to 0FFH for block mode, else 0.
+PLENGTH  DW       24
+PWIDTH   DW       80
+;
+         ORG      80H      ;base page is not included in org statement using
+;                          ;LINK86. Actual ORG here is 180H.
+FDSK     DB       0                 ;first hard disk A=0, B=1 etc
+LDSK     DB       1                 ;last hard disk
+         db       '<-LDSK'          ;to aid in location
+
+The data shown from ID_NUM through MAXDSK is not used in CPR860, and can be
+ignored.
+
+end instl.doc

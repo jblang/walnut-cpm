@@ -1,0 +1,203 @@
+*****************************************************************
+                       Documentation for:
+
+                           LSWEEP.COM
+                              v1.1
+
+                   A Program For Manipulating
+                      Novosielski Libraries
+                        (i.e. LBR Files)
+
+                           Joe Vogler
+                         January 8, 1984
+                    (Written in BDS C v1.50)
+*****************************************************************
+   This program is in the public domain and may be used or 
+modified freely.  It may not be sold.  Significant portions of 
+this program were borrowed from:
+
+     Gary P. Novosielski     (LDIR.C, LTYPE.C)
+     Dick Greenlaw           (USQ.C)
+     Bob Mathias             (TYPESQ.C)
+
+No portion of this program be incorporated into another program 
+if that program is to be sold for profit.
+*****************************************************************
+
+INTRODUCTION
+============
+
+   LSWEEP stands for Library SWEEPer.  To the user, it looks a 
+lot like SWEEP, DISK76, NSWEEP, or WASH.  That is because I wrote 
+it to be that way. Instead of file names, the user scans a list 
+of member names.  When the user enters a command, it operates on 
+the 'current' selection.  That is the last member name displayed 
+by LSWEEP.  Available commands are VIEW, EXTRACT, HELP, and EXIT.  
+   VIEW is analagous to TYPE.  If the file is squeezed, the file 
+is unsqueezed before it is displayed.
+   EXTRACT is a combination of the '-e' command of Lu (Library 
+Utility) and UNSqueeze.  If the member is squeezed, EXTRACT will 
+create an unsqueezed file with the pre-squeeze name.
+   Quite honestly, if you have used the programs mentioned above, 
+you should feel comfortable with LSWEEP.
+
+
+HOW TO USE LSWEEP
+=================
+
+   The program is run this way:
+
+     A> lsweep <lbrname> [<lbrname> ..... <lbrname>]<cr>
+
+Example:
+
+     A> lsweep justone<cr>
+     A> lsweep onesy twosy threesy<cr>
+     A> lsweep b:this c:that another d:last<cr>
+
+   You can name as many Libraries as you can fit on the command 
+line.  You can specify Libraries on different drives.  You must 
+specify at least one Library.  The program will 'process' the 
+Library names in the order specified.  When you are done with 
+one, it continues on to the next, or exits after the last one.You 
+can  also use wildcards.   This was not the case with v1.0.   The 
+wildcards are expanded by the program.   You'll get lots of  non-
+library names if you forget to use '.LBR' when using wildcards.
+   For each Library, he program builds a list of member names & 
+file sizes and displays one after another, as you hit the RETURN 
+key (or any key not set up as a command key).  There are only 
+three command keys:
+
+    ? - Displays HELP menu
+    V - Views the 'current' member
+    E - Extracts the 'current' member
+    X - eXits the current Library and proceeds to 
+        the next one or quits, if there are no more.
+
+   When viewing a file, the program pauses every 16 lines.  The 
+number was chosen to suit me, since I like to read in paragraphs 
+and paragraphs don't end on 22-line boundaries.  When the display 
+pauses, you can continue a line at a time by pressing the space 
+key.   You can advance another 16 lines by pressing any other 
+key, except for Control-X.  That selection will abort the View 
+and return you to the menu.  When you return, the current member 
+is the same one you just viewed.  I did this because you cannot 
+yet go backwards through the menu.   
+   Extraction can be directed to any drive.  The program asks for 
+a drive.  This is one of the two 'opportunities' you have to 
+abort the program with a Control-C.  Hit return for the default 
+drive.  You will have to remember which drive is the default.
+   Extraction ALWAYS creates an UNSQUEEZED version of the member.   
+Future modifications will include a COPY command which will allow 
+you to decide whether to unsqueeze. If the member was not 
+squeezed, the member is copied verbatim.
+   Also, the program doesn't respect files with the same names as 
+those it wants to create.  Again, future mods may include 
+verification before deleting a file.
+   When a file is EXTRACTED, the entire contents of the original 
+are sent to the external file.  I have done some testing and have 
+found that the files make by LSWEEP have the same CRC's as the 
+source members  (See LIMITATIONS).
+
+LIMITATIONS
+===========
+
+   Thats just about it.  Now for the things that the program 
+should do but does not yet.
+
+   1. The files created are not verified (e.g. using CRC).  I 
+have done a bit of testing and found that the CRC's of the files 
+LSWEEP creates are the same as the originals.  The soundness of 
+your system will most probably determine how reliable LSWEEP is 
+in this respect.
+   2.  No tagging of members.
+   3.  No going backwards through the menu.  If you overshoot, 
+you have to continue around the ring.  
+   4.  You cannot direct file output to other user areas.  This 
+is probably the next thing I will do.
+   5.  It would be nice if the program allowed you to 'log' onto 
+another Library, instead of proceeding through the command line 
+arguments.  This is my second todo.
+   6.  LSWEEP offers absolutely no way to modify the Library 
+itself.  This 'feature' was given conciously.  I see no reason to 
+attempt to rewrite LU.
+   7.  The unsqueeze routines are written in C.  If the new 
+assembler unsqueeze code had been used, the program would run 
+much faster and the code size would be reduced several Kbytes.
+
+
+   I make no apologies for the above 'deficiencies'.  The program 
+is much better than nothing.  If you reeeealy want something 
+else, modify it.  You might let me know what your intentions are;  
+no sense in two people working on the same improvement.
+
+
+HOW TO MODIFY
+=============
+
+   The source for LSWEEP10 includes these files:
+
+                  LSWP1.C   LSWP1I.C   LSWP1H.C
+
+The main file, LSWP1, has #include directives to pull in the 
+others.  After modifying, recompile only the file that you 
+changed.  If you modify the header file LSWP1H.C, then you need 
+to recompile LSWP1.C and LSWP1H.C.  To recompile the programs:
+
+		A> CC lswp1
+		A> CC lswp1i
+
+   The link step is done this way:
+
+                A> CLINK lswp1 lswp1i [-n]
+
+The '-n' option causes the COM file to exit without a warm boot.
+
+
+BACKGROUND
+==========
+
+   This program was inspired by the recent infusion of new Public 
+Domain programs which function like WASH and SWEEP.  I use LBR 
+files extensively.  Every time I used SWEEP, or its look-alikes, 
+I would imagine that I had a program that would work the same way 
+on Libraries.
+   It is somewhat inconvenient to deal with Libraries.  Consider 
+just how much trouble it is to extract a Library member that is 
+squeezed.  First, the member must be extracted with LU.  Then, it 
+must be unsqueezed.  Now, there are three versions of the member 
+on your system:  the Library member, a squeezed (external) file 
+and an ASCII file.  What a pain!
+   Since I had modified the original C language version of LDIR 
+(1), I felt comfortable enough to do it myself.  The first step 
+was to modify the C language version of LTYPE so that it created 
+a disk file instead of dumping the text to the screen.  I almost 
+stopped there.  It looked pretty nice having a program that would 
+EXTRACT a squeezed Library member and UNsqueeze it at the same 
+time.  After some thought, I came back to the basic problem:  my 
+new program was another batch program.  If anything went wrong, I 
+would have to run the program again.
+   So the reasonable thing to do was to combine LDIR and LTYPE to 
+form a program that would:
+
+     1. Build a list of members for the user.
+     2. Use the entries in the list as pointers to members.
+     3. Type squeezed and unsqueezed files on the screen.
+     4. Extract those members, unsqueezing if necessary.
+
+   The main function is a slightly modified version of the LDIR 
+main.  The real changes are in DIRLIST.  Fortunately, READDIR was 
+already setup to create a memory image of the Library's 
+directory.  It was only necessary to change some of the call 
+argument names to correspond to LDIR and to keep track of what 
+the user had asked the program to do.  QCAT and ACAT were 
+modified to allow directing output to disk or screen.  The SWITCH 
+done for each character is probable slowing down the program, but 
+I doubt that the effect is severe.
+
+
+NOTES
+-----
+(1) - See CATLBR.LBR on Rio Lobo RCP/M, Kingwood, TX  
+(713)358-7104.
+

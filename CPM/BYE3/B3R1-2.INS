@@ -1,0 +1,120 @@
+
+; B3R1-1.INS - TRS-80 Model I insert for BYE3 - 08/01/85
+;
+;	  TR1602 I/O and BR19411 baudrate generator
+;
+;	   Note:  This is an insert not an overlay
+;
+;----------------------------------------------------------------
+;
+; 08/01/85 Upgraded for v337		- pst
+; 06/25/83 Originally written		- pst
+;
+;----------------------------------------------------------------
+;
+; Modem port equates
+;
+DPORT	EQU	0EBH		; Modem port
+SPORT	EQU	DPORT-1		; Status port
+BPORT	EQU	DPORT-2		; Baud rate port
+RPORT	EQU	DPORT-3		; Reset port
+;
+DAV	EQU	10000000B	; Data available
+TBMT	EQU	01000000B	; Xmit buffer empty
+DCD	EQU	00100000B	; Data carrier detect
+;
+B300	EQU	055H		; 300 baud
+B1200	EQU	077H		; 1200 bps
+B2400	EQU	0AAH		; 2400 bps
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:IN	RPORT		; Read port
+	ANI	DCD		; Mask carrier detect
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,01		; Reset UART, enable modem control
+	OUT	RPORT
+	MVI	A,68H		; DTR, RTS off to hang up phone
+	OUT	SPORT
+;
+	PUSH	B
+	MVI	B,20		; 2 seconds to let modem settle down
+OFFTI:	CALL	DELAY
+	DCR	B
+	JNZ	OFFTI
+	POP	B
+;
+	MVI	A,6BH		; Turn DTR back on
+	OUT	SPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Read port
+	ANI	DAV		; Mask crap
+	RZ			; Nope, nothing there
+	ORI	255		; We got something...
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT		; Read port
+	ANI	TBMT		; Mask crap
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Tell smartmodem to shut down
+	 ENDIF			; IMODEM
+;
+; Called by main program after caller has typed BYE
+;
+MDSTOP:	MVI	A,68H		; Turn off DTR so that modem will quit
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	A,B300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,B1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,B2400
+;
+SETBAUD:OUT	BPORT
+	XRA	A
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

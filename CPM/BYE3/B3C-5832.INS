@@ -1,0 +1,99 @@
+;
+;	Generic OKI Semiconductor MSM5832 Clock Routine for BYE3
+;
+;	The 5832 is wired with a 74LS138, 74LS85 and input tristate gate
+;	based at 0F0h. 0F0h is the seconds 'units' and 0FCh is the year
+;	'tens' place. In all cases, the least significant nibble is used
+;	for the clock data, the most significant nibble is garbage. Yea, I
+;	know it is not the most elegant way to do it, but it is cheap. Of
+;	this there is no doubt. My implementation is on the unused prototype 
+;	area of a Mullen S100 bus extender. 5 chips, one oddball crystal - 
+;	32khz -  and a couple of hearing aid batteries for power down standby 
+;	(my clock has been running for over two years without changing them) 
+;	... well under 20 bucks and an hour to build. Nothing fancy, but
+;	it does work very well.
+;
+;	Leave me a message in my MINIRBBS and Ill drop ya a drawing of it.
+;
+;							JP Sojak - sysop
+;							Smokin Silicon RCPM
+;							(312) 941-0049 
+;
+; Real-Time clock buffer - is organized as HH:MM:SS YYYY/MM/DD
+;
+;RTCBUF:
+;	DB	99H,99H,99H	;HH:MM:SS (BCD 24HR TIME) 00:00:00-23:59:59
+;	DB	19H,84H,01H,31H ;YYYY/MM/DD (BCD ISO DATE)
+;
+; BYE3 saves and restores registers before/after calling TIME.
+;
+CBASE	EQU	0F0h
+;
+	 IF	RTC
+TIME:	IN	CBASE+5		; Hours tens place
+	ANI	00000011B
+	MOV	B,A
+	IN	CBASE+4		; Hours ones place
+	CALL	SHFTIT
+	STA	RTCBUF+0
+;
+	IN	CBASE+3		; Now the tens of minutes
+	ANI	00000111B
+	MOV	B,A		; save it at <b> 
+	IN	CBASE+2	
+	CALL	SHFTIT		
+	STA	RTCBUF+1
+;
+	IN	CBASE+1		; Now the tens of seconds
+	ANI	00000111B
+	MOV	B,A
+	IN	CBASE+0		; now the ticks
+	CALL	SHFTIT
+	STA	RTCBUF+2
+;
+;	DB	19H,84H,01H,31H ;YYYY/MM/DD (BCD ISO DATE)
+;	
+	MVI	A,19H
+	STA	RTCBUF+3
+	MVI	A,84H
+	STA	RTCBUF+4
+;
+	IN	CBASE+0Ah	; Now the tens of month3
+	ANI	00000001B
+	MOV	B,A
+	IN	CBASE+9		; ones of months
+	CALL	SHFTIT
+	STA	RTCBUF+5
+;
+	IN	CBASE+8		; Now the day
+	ANI	00000011B
+	MOV	B,A
+	IN	CBASE+7
+	CALL	SHFTIT
+	STA	RTCBUF+6
+;
+CLKEXIT:
+	LDA	RTCBUF		; Pick up BCD HH
+	CALL	BCDBIN		; Convert to binary
+	STA	CCHOUR		; For BYE3
+	LDA	RTCBUF+1	; Pick up BCD MM
+	CALL	BCDBIN		; Convert to binary
+	STA	CCMIN		; For BYE
+	RET			; And return (for now..)
+
+SHFTIT:	PUSH	PSW		; Save the units digit
+	MOV	A,B		; Recover the Tens
+	RLC
+	RLC
+	RLC
+	RLC			; made it the MSN
+	MOV	B,A		; save tens here
+	POP	PSW		; get the units again
+	ANI	00001111B	; and mask crap off
+	ORA	B		; OR in the tens place 
+	RET			; and return with it in <a>
+	 ENDIF	;RTC
+;
+;		end
+;----------------------------------------------------------------
+

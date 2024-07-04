@@ -1,0 +1,37 @@
+EXTENDED CMDRUN PROCESSING VIA AN ALIAS AND FLOW CONTROL
+--------------------------------------------------------
+ALIAS, Version 1.1
+ Alias Name: CMDRUN  
+ Old Alias Command Line:
+  1 --> IF EX A0:$1.ZEX;	|I keep ZEX files on A0:       
+  2 --> ZEX $*;			|invoke ZEX with full command tail        
+  3 --> ELSE;			|no ZEX file?                  
+  4 --> LRUN $*;		|try COMMAND.LBR for a COM file
+  5 --> FI			|(with full command tail)
+____________________________________________________________
+
+The above ALIAS script is an extension of the ZCPR3 CMDRUN
+processor.  It allows both ZEX and LRUN (LRUN22 or LRUNZ302)
+to act as dual extended command processors through the use 
+of parameter passing and ZCPR3 Flow Commands.  When I first
+attempted something of this sort, it provoked some strange
+responses from some of the COM files in COMMAND.LBR, so I
+gave up on the idea.  Then I saw a rather simplified version of
+the concept in a note by Dreas Nielsen on Norman Beeler's
+Zee-Machine Z-Node.  Dreas said something like "use as many
+parameters as you want" and then it hit me: why use
+individual parameters at all, except to check for the existence
+of a ZEX file?  Apparently, an ALIAS file passes empty
+parameters, in some cases, as ASCII spaces (20h) and some
+programs are written to respond to any character as a passed
+parameter.  By using the ALIAS `$*' parameter (thank you, Rick
+Conn!) we can make sure that only existing parameters are passed
+and solve the problem.  ZEX is much more tolerant of being
+passed `spacey' parameters, but `$*' is more elegant there too.
+I'd like to see alternate CMDRUNs implemented in ZCPR3 itself -
+this approach is a bit slow for my floppy-based system, but
+will have to do for now - you lucky hard disk owners will
+probably hardly notice the 25% speed penalty when compared to
+LRUN22 or ZEX used alone as CMDRUN.COM.
+
+				Bruce Morgen	5/14/85

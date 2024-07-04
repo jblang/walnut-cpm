@@ -1,0 +1,714 @@
+title KAYPRO CBIOS for CP/M 2.2
+;###############################################################
+;##      KAYPRO 10      CBIOS for CP/M 2.2                    ##
+;##      Copyright (C) 1982 By Non-Linear Systems, Inc.       ##
+;##      No warranty is made, expressed or implied.           ##
+;###############################################################
+;##	Last Update: 10/20/83      	[01]		      ##
+;###############################################################
+;
+;History:
+;	Add secondary xlate table and build in ability to have
+;	function keys.
+;				Steven R. Fabian	
+;	Initialization of modem port on a cold boot.
+;				Steven R. Fabian
+;	Add Parallel port driver using a time delay.
+;				Steven R. Fabian
+;
+true	equ 	0ffh
+false	equ	0
+;
+;****************************************************************
+;*								*
+;*  This BIOS can support versions D, F and G versions of the	*
+;*  Kaypro 10 CP/M system, if the proper equates are set.  Set	*
+;*  one and only one of the following three equates to true;	*
+;*  be sure the other two are false.				*
+;*								*
+versd	equ	false	; for version 2.2D			*
+versf	equ	false	; for version 2.2F			*
+versg	equ	true	; for version 2.2G			*
+;*								*
+;****************************************************************
+;
+;
+;****************************************************************
+;*								*
+;*  Set the following equate to false if a standard CP/M BIOS	*
+;*  is desired.  Set it to true for ZCPR3 buffer initialization *
+;*								*
+zcpr3	equ	true	;					*
+;*								*
+;****************************************************************
+;
+;	Version 3.0
+;	Initial version customized for ZCPR3.
+;	John C. Smith		July 23, 1984
+;
+;	Version 3.1
+;	Added code to support ZCPR3 from floppy.  Requires
+;	LDR SYS.RCP,SYS.ENV,SYS.FCP,NAMES.NDR be executed
+;	from the boot floppy.  Path is changed to B$,B0
+;	when booted from floppy to be consistent with
+;	hard disk path of A$,A0.  Also, added code and
+;	conditional equates to support CP/M versions 2.2D
+;	and 2.2G.
+;	John C. Smith		August 5, 1984
+;
+zvers	equ	31		; ZCPR version number
+;
+;
+	.Z80			; Z80 CPU
+hdisk	equ	-1		; -1 for hard disk, 0 for floppy
+
+	if	zcpr3
+msize	equ	58		; system memory size in k (ZCPR3)
+	else
+msize	equ	60		; system memory size in k (CP/M)
+	endif
+
+vers	equ	22		; CP/M version number
+bias	equ	(msize-20)*1024	; bias for systems larger than 20k
+ccp	equ	3400H+bias	; start of CCP
+bdos	equ	ccp+806H	; start of BDOS (The resident portion of CP/M)
+bios	equ	ccp+1600H	; start of Basic I/O Subsystem (BIOS)
+cpml	equ	bios-ccp	; length of CP/M system in bytes (less BIOS)
+nsects	equ	cpml/128	; length of CP/M system in sectors (less BIOS)
+	if	hdisk
+trksec	equ	68		; sectors/track
+	else
+trksec	equ	40
+	endif
+;
+;	ZCPR3 BUFFERS
+;
+WHEEL	EQU	3EH		; LOCATION OF WHEEL BYTE
+EXTPATH EQU	40H		; START OF EXTERNAL PATH
+GRAF	EQU	4FH		; LOCATION OF GRAPHICS BYTE
+MCMD	EQU	0F600H		; MUTLI-COMMAND BUFFER
+;
+;
+;
+bitport	equ	14H		; status/control bit maped port
+baudA	equ	0		; baud rate port (modem)
+baudB	equ	8		; baud rate port (printer)
+baud30	equ	05H		; 300 baud rate
+iobyte	equ	3		; logical to physical map
+rom	equ	00000H		; base of rom
+time	equ	8000H		; time out rate
+fox	equ	0		; set to 0
+siokb0	equ	07H		; keyboard channel command/status
+siosp0	equ	0EH		; serial printer command/status channel
+siom0	equ	06H		; modem channel command/status 
+reset	equ	18H		; channel reset 
+wr1	equ	01H		; interrupt enable and wait/ready modes
+tid	equ	00H		; transmitter interrupt disable
+rid	equ	00H		; recieve interrupt disable
+wr3	equ	03H		; receiver logic control parameters
+re	equ	01H		; receiver enable
+autoe	equ	20H		; auto enable (use dcd and cts to enable recv 
+				; and xmt 
+rbits8	equ	0C0H		; 8 bits/character
+wr4	equ	04H		; control bits that affect both xmt and recv
+sbits1	equ	04H		; 1 stop bit
+cr16	equ	40H		; x16
+wr5	equ	05H		; control bits that affect xmt
+te	equ	08H		; transmit enable
+tbits8	equ	60H		; 8 bits/character
+dtr	equ	80H		; DTR output
+pfdat	equ	24		; cent out data port (8 bit latch)
+pstrob	equ	3               ; bit in bit port 
+;	aseg
+;	org	bios
+	.phase  bios
+
+	jp	boot		; arrive here from cold start
+	jp	wboot		; arrive here for warm start
+	jp	const		; console status return in A FF=ready, 00=not
+	jp	conin		; console char in
+	jp	conout		; console char out
+	jp	list		; listing char out
+	jp	punch		; punch char out
+	jp	reader		; reader char in
+	jp	home		; move to track 0 on selected disk drive
+	jp	seldsk		; select disk drive
+	jp	settrk		; set track #
+	jp	setsec		; set sector #
+	jp	setdma		; set DMA address
+	jp	read		; read selected sector
+	jp	write		; write selected sector
+	jp	listst		; list status (Ready to print a char)
+	jp	sectran		; sector translate
+ioconfig: defb	10000001B	; initial value for i/o byte (may be patched)
+wrtsafe: defb	0		; write safe flage 0=false
+vtab:	defb	11, 10, 8, 12	; vector pad xlate table ^k ^j ^h ^l
+	defb	'0', '1', '2', '3'
+	defb	'4', '5', '6', '7'
+	defb	'8', '9',  0 ,  0
+	defb	0DH, '.'
+baudrt:	defb	baud30		; baud rate (modem)
+	defb	baud30		; baud rate (printer)
+
+	defb	(sndtab-vtab)
+
+sioint:				;i/o device initialization table
+				;first byte is number of bytes to send
+				;second byte is port to send out to
+				;third byte is data
+	;init sio channel for serial printer
+	defb	09H
+	defb	siosp0
+	defb	reset			;reset sio channel
+	defb	wr4	
+	defb	sbits1 or cr16		;one stop bit 16x clock
+	defb	wr3
+	defb	re or rbits8 or autoe	;recv enable, 8bits/char
+	defb	wr5
+	defb	te or tbits8 or dtr 	;xmt enable, 8bits/char,assert dtr
+	defb	wr1
+	defb	tid or rid		;xmt & recv interrupts disabled
+
+	;init sio channel for modem
+	defb	09H
+        defb	siom0
+	defb	reset			;reset sio channel
+	defb	wr4	
+	defb	sbits1 or cr16		;one stop bit 16x clock
+	defb	wr3
+	defb	re or rbits8 or autoe	;recv enable, 8bits/char
+	defb	wr5
+	defb	te or tbits8 or dtr 	;xmt enable, 8bits/char,assert dtr
+	defb	wr1 
+	defb	tid or rid		;xmt & recv interrupts disabled
+
+siotbnd:defb	0			;end of table
+
+sndtab:	defb	0,0,0,0		; up arrow key
+	defb	0,0,0,0		; down arrow key
+	defb	0,0,0,0		; left arrow key
+	defb	0,0,0,0		; right arrow key
+	defb	0,0,0,0		; 0 key on numeric pad
+	defb	0,0,0,0		; 1 key on numeric pad
+	defb	0,0,0,0		; 2 key on numeric pad
+	defb	0,0,0,0		; 3 key on numeric pad
+	defb	0,0,0,0		; 4 key on numeric pad
+	defb	0,0,0,0		; 5 key on numeric pad
+	defb	0,0,0,0		; 6 key on numeric pad
+	defb	0,0,0,0		; 7 key on numeric pad
+	defb	0,0,0,0		; 8 key on numeric pad
+	defb	0,0,0,0		; 9 key on numeric pad
+	defb	'dir',0DH	; - key on numeric pad
+	defb	'swp',0DH	; , key on numeric pad 
+	defb	0,0,0,0		; <cr>	"	"	
+	defb	0,0,0,0		; . key on numeric pad
+
+	if	versg
+mdmflg:	defb	0ffh		;Internal modem flag 0=none present
+	endif
+
+subttl Cold and Warm boot entry points	defb
+page
+; Cold boot entry point, set up system pointers and pass control to the CCP
+boot:	call	diskint
+	xor	a		; clear system disk number
+	ld	(4),a
+
+	if	zcpr3
+	LD	(GRAF),A	; reset graphics byte
+	CPL
+	LD	(WHEEL),A	; set wheel byte
+	LD	HL,PATH		; initialize path
+	LD	DE,EXTPATH
+	LD	BC,7
+	LDIR
+	LD	HL,CMD		; initialize multi-command line buffer
+	LD	DE,MCMD
+	LD	BC,0CH
+	LDIR
+	LD	HL,0E600H	; initialize ZCPR3 RCP buffer by
+	LD	A,8		; filling memory with 0
+	CALL	ZLOOP
+	endif
+
+	if	zcpr3 and not hdisk	; if boot from floppy, initialize
+	LD	HL,0F100H	; all other buffer spaces since
+	LD	a,5		; there will be no load from the
+	CALL	ZLOOP		; "putovl" track.
+	endif
+
+	ld	a,(ioconfig)	; init value for i/o byte
+	ld	(iobyte),a
+	ld	hl,sioint	; initialize i/o devices
+iolp:	ld	b,(hl)		; number of bytes to send
+	inc	hl
+	ld	c,(hl)		; port to send
+	inc	hl		; address of byte being sent
+	otir
+	ld	a,(hl)		; get this byte
+	or	a		; clean test
+	jr	nz,iolp		; if more tables then do 
+
+	if	versd and hdisk
+	IN	A,(BITPORT)	;2.2D PATCH
+	OR	4		;2.2D PATCH
+	OUT	(BITPORT),A	;2.2D PATCH
+	endif
+
+	ld	a,(baudrt)	; set baud rates
+	out	(baudA),a
+	ld	a,(baudrt+1)
+	out	(baudB),a
+	call	print
+	defb	1AH, 0DH, 0AH
+	defb	'KAYPRO 10 '
+	defb	msize/10+'0', msize mod 10+'0'
+	defb	'K CP/M Version '
+	defb	vers/10+'0', '.', vers mod 10+'0'
+
+	if	versd
+	defb	'D'
+	endif
+	if	versf
+	defb	'F'
+	endif
+	if	versg
+	defb	'G'
+	endif
+
+	if	zcpr3
+	defb	' & ZCPR Version ' 
+	defb	zvers/10+'0', '.', zvers mod 10+'0'
+	defb	' JCS'
+	endif
+
+	defb	0DH, 0AH, 00H
+
+goccp:	ld	hl,time		; reset disk time out
+	ld	(count),hl
+
+	ld	a,0C3H		; set up CP/M jumps to bdos and wboot
+
+	ld	hl,bios+3	; wboot entry point
+	ld	(0),a
+	ld	(1),hl
+
+	ld	hl,bdos		; entry point to bdos
+	ld	(5),a
+	ld	(6),hl
+
+	ld	a,(4)		; last logical disk unit used
+	ld	c,a
+	and	0FH		; valid disk?
+	cp	3
+	jp	c,ccp
+	ld	a,c		; no, so go to drive 0
+	and	0F0H
+	ld	c,a		; pass to ccp to select
+	jp	ccp		; pass control to ccp
+
+; Warm boot entry point, re-load the CCP and BDOS
+wboot:	
+	if	versg
+	ld	a,(mdmflg)
+	cp	0
+	call	nz,mdmnit
+	endif
+
+	ld	c,0		; select drive A:
+	call	seldsk
+	call	home
+	call	diskint
+	call	print
+	defb	0DH, 0AH, 'Warm Boot', 0DH, 0AH, 00H
+wb0:	ld	sp,100H		; re-set stack
+	ld	bc,0		; set track
+	call	settrk
+	ld	bc,ccp		; first memory location to load
+	ld	(dmaadr),bc
+	call	setdma
+	ld	bc,nsects*256+1
+wb1:	push	bc		; save sector count and current sector
+	call	setsec		; select sector
+	call	read
+	pop	bc
+	or	a
+	jr	nz,wb0		; oops, error on warm boot
+	push	bc
+	ld	hl,(dmaadr)	; update dma address for next sector
+	ld	de,128		; new dma address
+	add	hl,de
+	ld	b,h
+	ld	c,l
+	ld	(dmaadr),hl
+	call	setdma
+	pop	bc
+
+	if	not zcpr3
+	xor	a
+	ld	(ccp+7),a
+	endif
+
+	dec	b
+	jp	z,goccp		; done loading
+	inc	c		; bump sector count
+	if	not hdisk
+	ld	a,trksec	; next track?
+	cp	c
+	jr	nz,wb1
+	ld	c,16		; next sector to read
+	push	bc
+	ld	c,1
+	call	settrk		; set track number
+	pop	bc
+	endif
+	jr	wb1
+
+subttl logical to physical devices CON:, PUN:, RDR:, and LST:
+page
+; logical devices are con: rdr: pun: and lst:
+; physical devices are:
+;	crt:	video and kbd
+;	tty:	serial
+;	lpt:	centronics
+;	ul1:	serial with cts as busy
+;	pun:	same as ul1
+;
+;con:	tty, crt
+;rdr:	tty
+;pun:	tty, pun
+;lst:	tty, crt, lpt, ul1
+
+const:	ld	hl,(count)	; time out motors?
+	dec	hl
+	ld	(count),hl
+	ld	a,h
+	or	l
+	call	z,diskoff
+	ld	a,(cnt)		;load function counter
+	or	a		;clean test
+	jr	nz,loadup	;set to do function if not 0
+	ld	a,(iobyte)	; get i/o byte
+	and	03H		; strip to con bits
+	ld	l,rom+33H	; serial status
+	jp	z,callrom
+	ld	l,rom+2AH	; assume CRT
+	jp	callrom
+
+loadup:	ld	a,0ffh		;set for get character
+	or	a		;clean test
+	ret
+
+conin:	call	const		; key press?
+	or	a
+	jr	z,conin
+	ld	a,(cnt)		;get counter value
+	or	a		;clean test
+	jr	nz,frjp		;do function if not 0
+	ld	a,(iobyte)	; go get character
+	and	03H		; check i/o byte
+	ld	l,rom+36H	; serial input
+	jp	z,callrom
+	ld	l,rom+2DH	; assume input from kbd
+	call	callrom		; go get char
+	or	a
+	ret	p		; msb not set
+	and	01FH		; form table index to vtab
+	ld	hl,vtab
+	ld	c,a
+	ld	b,0
+	add	hl,bc
+	ld	a,(hl)		; pick up xlated character
+	or	a		; clean test
+	ret	nz		; if valid character value return
+
+sectab:	ld	hl,sndtab	;set to new table value
+	ld	a,c		;get character position
+	sla	a		;shift left to
+	sla	a		;mult by 2, again
+	ld	c,a		;get new character position
+	add	hl,bc		;set hl to character position
+	ld	(pntr),hl	;store position in pointer
+	ld	a,4		;set to this value
+	ld	(cnt),a		;initialize counter to 4
+				;continue process of function
+
+frjp:	ld	hl,(pntr)	;get pointer value
+	ld	c,(hl)		;load character into c reg
+	inc	hl		;increment pointer
+	ld	(pntr),hl	;save this value off
+	ld	a,(cnt)		;retrieve current counter value
+	dec 	a		;decrement this value
+	ld	(cnt),a		;save this value off
+	ld	a,c		;move character into a
+	ret	z		;return if zero
+	ld	a,(hl)		;get next byte value
+	cp	fox		;compare to 0
+	ld	a,c		;move value in c to a
+	ret	nz		;return if not zero
+	xor	a		;clear accumulator
+	ld	(cnt),a		;clear counter value
+	ld	a,c		;move value in c to a
+	ret
+
+diskoff:ld	l,rom+27H
+	jp	callrom
+
+conout: 
+	if	zcpr3
+	LD	A,(GRAF)	; check graphics byte
+	OR	A		; is it set?
+	JR	NZ,R1		; allow eighth bit if it is
+	LD	A,C		; otherwise, mask it out
+	AND	7FH
+	LD	C,A
+R1:	
+	endif
+	
+	ld	a,(iobyte)	; check i/o byte
+	and	03H
+	ld	l,rom+39H	; serial output
+	jp	z,callrom
+	ld	l,rom+45H	; assume video
+	jp	callrom
+
+reader:	ld	l, rom+36H	; serial input
+	jp	callrom
+
+;punch:	ld	a,(iobyte)	; check i/o byte
+;	and	30H
+;	ld	l,rom+39H	; serial punch
+;	jp	z,callrom
+;	ld	l, rom+42H	; serial with cts as busy
+;	jp	callrom
+punch:
+	ld	l,rom+39h	;serial punch
+	jp	callrom
+;
+
+list:	ld	a,(iobyte)
+	and	0C0H		; check i/o byte
+	ld	l,rom+39H	; serial
+	jp	z,callrom
+	cp	80H		; centronics
+	jp	z,lstdev	; time delay routine for output
+	ld	l,rom+45H	; video
+	cp	40H
+	jp	z,callrom
+;	ld	l, rom+42H	; assume serial with cts as busy
+	ld	l, rom+39h	;ul1: default to serial
+	jp	callrom
+
+listst:	ld	a,(iobyte)	; check i/o byte
+	and	0C0H
+	ld	l,rom+42H	; serial
+	jp	z,callrom
+	ld	l,rom+3CH	; centronics
+	cp	80H
+	jp	z,callrom
+	xor	a		; 0=ready
+	ret
+
+lstdev:	call	listst		; is printer busy
+	jr	nz,lstdev	; if not return
+	ld	a,c		; move character into a
+	out	(pfdat),a	; output character to printer
+	in	a,(bitport)	; strb. printer
+	res	pstrob,a
+	out	(bitport),a
+	set	pstrob,a
+	out	(bitport),a
+	ret
+
+	if	versg
+mdmnit:	ld	a,0fh		; set up pio
+	out	(23h),a
+	ld	a,87h		; and interrupt vector
+	out	(23h),a
+	ld	a,4ah		; set modem on-hook
+	out	(21h),a
+	endif
+
+subttl Disk I/O and ROM dispatch
+page
+diskint:ld	l,rom+03H	; re-set disk software sub-system
+	jr	callrom
+
+home:	ld	l,rom+0CH	; home disk drive rom routine
+	jr	callrom
+
+seldsk:	ld	l,rom+0FH	; select disk drive
+	jr	callrom
+
+settrk:	ld	l,rom+12H	; seek track
+	jr	callrom
+
+setsec:	ld	l,rom+15H	; set sector number
+	jr	callrom
+
+setdma:	ld	l,rom+18H	; set dma address
+	jr	callrom
+
+read:	ld	hl,time		; reset time out
+	ld	(count),hl
+	ld	l,rom+1BH	; read a logical sector
+	jr	callrom
+
+write:	ld	hl,time		; reset time out
+	ld	(count),hl
+	ld	l,rom+1EH	; write a logical sector
+	ld	a,(wrtsafe)	; write safe flag
+	or	a		; true or false
+	jr	z,callrom	; normal operation
+	ld	c,1		; directory write code (forces write op)
+	jr	callrom
+
+sectran:ld	l,rom+21H	; xlate logical to physical sector
+	jr	callrom
+
+callrom:exx			; save cp/m arguments
+	in	a,(bitport)	; turn rom on
+	set	7,a
+	out	(bitport),a	
+	ld	(savsp),sp	; save current stack (may be under rom)
+	ld	sp,stack	; set a local stack
+	ld	de,biosret	; rom to "RET" here
+	push	de
+	exx			; restore cp/m arguments and call loc
+	ld	h,0
+	jp	(hl)		; to rom routine specified in hl
+biosret:ex	af,af'		; save reg A
+	ld	sp,(savsp)	; restore stack
+	in	a,(bitport)	; off the rom
+	res	7,a
+	out	(bitport),a
+	ex	af,af'		; restore reg A
+	ret			; done with rom routine
+
+print:
+	ex	(sp),hl	; pop return address, points to text to print
+	ld	a,(hl)	; get a byte of text, stop on zero byte
+	inc	hl
+	ex	(sp),hl	; save new return address
+	or	a	; is it a zero byte?
+	ret	z
+	ld	c,a	; no, so print it
+	call	conout
+	jr	print
+
+	if	zcpr3
+ZLOOP:	LD	B,0FFH
+ZERO:	LD	(HL),0
+	INC	HL
+	DJNZ	ZERO
+	DEC	A
+	JR	NZ,ZLOOP
+	RET
+	endif
+
+	if	hdisk and zcpr3
+PATH:	DEFB	1,'$',1,0,0,0,0,0,0,0,0		; search path
+	else
+PATH:	DEFB	2,'$',2,0,0,0,0,0,0,0,0
+	endif
+
+	if	zcpr3
+CMD:	DEFB	4,0F6H,0C8H,0,'STARTUP',0	; mcl buffer
+pntr:	defw	0	; pointer for function key routine
+cnt:	defb	0	; character counter for function routine
+count:	defs	2	; disk time out counter
+savsp:	defs	2	; current spact pointer during rom call
+dmaadr:	defs	2	; dma address for warm boot
+	db	'END'	; end of BIOS marker
+stack	equ	$+64	; a local stack
+
+	else
+
+; Patch CCP to display user # and search user 0 for a COM file.
+
+openf	equ	15		; open disk function
+bdosent	equ	5		; entry point to bdos
+ccperr	equ	ccp+7EEH
+ccpfcb	equ	ccp+7CDH
+ccpco	equ	ccp+8CH
+ccpread	equ	ccp+0F9H
+ccpp1	equ	ccp+0392H
+ccpp2	equ	ccp+00D7H
+ccpp3	equ	ccp+06E9H
+
+getusr	macro	x
+	.xlist
+	ld	e,-1
+	ld	c,32
+	call	bdosent
+	ld	(x),a
+	.list
+	endm
+
+setusr	macro	x
+	.xlist
+	ld	a,(x)
+	ld	e,a
+	ld	c,32
+	call	bdosent
+	.list
+	endm
+
+p1:	ld	c,32		; show user#, get current one
+	ld	e,-1		; e=255 is get user code
+	call	bdosent
+	cp	10		; if a>10 then print first digit
+	jr	c,pmt0
+	sub	10
+	push	af		; save second digit
+	ld	a,'1'
+	call	ccpco
+	pop	af
+pmt0:	add	a,'0'		; for ascii digit
+	call	ccpco
+	ld	a,'>'
+pmt2:	jp	ccpco
+
+p2:	getusr	curuser
+	ld	(fcbuser),a
+	ld	de,ccpfcb
+	ld	c,openf		; open a file (check user 0 if not found)
+	call	bdosent
+	ld	(ccperr),a
+	inc	a
+	ret	nz		; nz=file opened
+	ld	a,(curuser)	; get current user #
+	or	a
+	jr	z,nogd		; in user 0, file open no good
+	xor	a
+	ld	(fcbuser),a	; try user 0
+	setusr	fcbuser
+	ld	de,ccpfcb	; try to open file
+	ld	c,openf
+	call	bdosent
+	ld	(ccperr),a	; ccp error return
+	setusr	curuser		; restore user #
+nogd:	ld	a,(ccperr)	; was open ok?
+	inc	a
+	ret			; back to ccp
+
+p3:	setusr	fcbuser		; read a sector
+	ld	de,ccpfcb
+	call	ccpread
+	push	af
+	setusr	curuser
+	pop	af
+	ret
+pntr:	defw	0	; pointer for function key routine
+cnt:	defb	0	; character counter for function routine
+curuser:defs	1	; current user
+fcbuser:defs	1	; user # of load file
+count:	defs	2	; disk time out counter
+savsp:	defs	2	; current spact pointer during rom call
+dmaadr:	defs	2	; dma address for warm boot
+stack	equ	$+64	; a local stack
+	endif
+
+	end
+
+

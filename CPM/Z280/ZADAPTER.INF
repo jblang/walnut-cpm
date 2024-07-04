@@ -1,0 +1,272 @@
+GENERAL INFORMATION ON Z280 TO Z80 ADAPTERS:
+
+There are two versions of the adapter board.  Both these boards are the
+same size: 4.28" in length, 2.24" in width, and approx. 3/4" deep.  The
+basic layout looks like this (as best as can be presented in ASCII:
+
+
+
+
+                   View from short side:
+
+
+                        |---- 2.24 " -----|
+
+                    |
+                    |      Component side
+                    |   -------------------    --->> PCB Board
+                    |         ======           --->> Male socket to plug
+                  3/4"                               into your Z80 socket.
+                  high
+
+                   View from long side:
+
+
+                 |------------ 4.28" -----------|
+
+                 -------------------------------- --->> PCB Board
+                        ==================        --->> Male Z80 socket
+
+
+The Z80 socket is approximately centered on the PCB, in both directions.
+
+THE "ZIP 280":
+
+This is the direct adapter version of the board.  It totally replaces
+the Z80 in your system.  The basic diagram of this board is:
+
+
+
+                  --------- clock       ------------ clock  ---
+                  | Z280  |-------------| PHASE    |--------|Z|
+                  | CPU   |             | LOCK     |        |8|
+                  |       |             | LOOP     |        |0|
+                  |       |             ------------        | |
+                  |       |                                 |S|
+                  |       | address     ------------ address|O|
+                  |       |-------------| ADDRESS  |--------|C|
+                  |       |             | LATCH    |        |K|
+                  |       |             ------------        |E|
+                  |       |                                 |T|
+                  |       | Signals     ------------        | |
+                  |       |-------------| ADAPTION |--------| |
+                  |       |             | LOGIC    |        | |
+                  ---------             ------------        ---
+                      |
+                  ---------
+                  | 256kb/|
+                  | 1mb   |
+                  | DRAM  |
+                  ---------
+
+
+All Z80 signals coming at the socket are "cleaned" versions of the Z280
+signals, operating in the Z80 bus mode.  The 64kb address space of the
+Z280 is mapped into the first 64kb of the Z280 16 meg space.  The Z280
+comes up on with all modes set to look like a standard Z80 (see the Z280
+technical technical manual).  Therefore, after changing out the system
+Z80 for the adapter, the system software should run as before.  All the
+Z280 resources, such as onboard DMA, timers, uart, etc.  are available
+for use in the system address space on proper programming.  Also, the
+new Z280 instructions can be utilized with new system software.
+
+As an additional upgrade aid, a special surface mount 256kb/1mb dram
+package is included on the board.  This allows the extension beyond the
+64kb limit of the Z80 address space, while still keeping the Z80 signal
+format (which has only 16 address bits).  The onboard dram is operated
+on anytime the Z280 fetches/writes to the upper 8 meg of its address
+space (address bit 23 set). During this onboard access, the Z80 signals
+at the socket are kept inactive, so that accesses to the onboard memory
+are completely transparent.
+
+There is no way for the Z280 signals/instruction fetch mechanism to be
+made 100% Z80 compatible.  However, the onboard adaption logic does help
+with the conversion.  Specifically, the onboard PLL matches the Z280
+input clock to the lower Z80 clock provided at the Z80 socket (the Z280,
+using the normal modes, runs at a clock speed, or XTAL speed, 4 times
+the Z80 clock speed).  Also, The timing at which the Z80 "wait" line is
+acknowledged is adjusted to match the Z80 (the Z280 accepts waits one
+cycle later than the Z80).  The possible incompatibilities with this
+board are:
+
+    1.  Timing loops.  Any attempt to determine a fixed length of
+        time via measurement of time taken to execute an instruction
+        will not work.  Such loops would be invalidated by a change in
+        the Z80 clock speed, by use of "wait" cycles, or by DMA or other
+        CPU parallel access.  On the Z280, the instruction time cannot
+        even be measured reliably; The cache and pipeline make the time
+        to execute an instruction dependent on the "history" of activity
+        before.  Since timing loops are already considered very bad
+        coding practice, this can be taken as a signal to get rid of
+        them once and for all.
+
+    2.  If the code contains very strange self - modifying code.
+        Self - modifying code is forbidden absolutely in the Zilog Z280
+        technical reference manual, but we have determined that the
+        chance of writing such code that can cause Z280 malfunction is
+        slight in any case.  Example:
+
+                  ld a,$c3       ! get a "JP" instruction
+                  ld (loc),a     ! place ahead of us
+             loc: nop            ! instruction that is modified
+                  dw address     ! address to jump to
+
+        This would malfunction on the Z280 because by the time the store
+        of $c3 to "loc" occurs, the Z280 "pipelining" mechanism would
+        have already fetched the "nop" which was supposed to be
+        modified.
+
+    3.  The Z80 "R" register.  This register on the Z80 contains the
+        current refresh address, and so will appear to change
+        continually to the program running.  Some programs have used
+        this to generate random numbers (of which it makes a VERY poor
+        random number generator).
+
+    4.  Utilization of "undocumented" instructions.  Some Z80 code
+        sequences which evaluate to illegal instructions have a CPU
+        result which some programs use.  In no way will the Z280 react
+        the same way as a Z80 here, and in fact, these can change
+        between different "brands" of Z80 CPU's.  This is a total misuse
+        of the Z80; do not expect these to work.
+
+    5.  Use of the "M1" line.  The Z280 does not generate a true M1
+        signal, and in fact cannot do so.  Since the M1 line was not a
+        signal commonly required to use the Z80, dependencies on the M1
+        line should be small.
+
+    6.  Assumption of "dead" lines.  When none of the Z80
+        (translated) signal lines are active, this DOES NOT mean that
+        the address/data lines are floating.  In fact, the lower byte of
+        the address is being passed to a latch during this time.
+        Although the Z80 lines WOULD float during this time, this
+        consitiutes an illegal use of the Z80 signals. Example: the
+        Cromemco ZPU card has a "auto - jump" option to transfer to a
+        specific location on reset.  It relies on the ability to force a
+        jump instruction into the data lines, regardless of whether or
+        not the Z80 is actually executing an instruction fetch.  This
+        forced data collides with the low address byte coming from the
+        Z280.
+
+    7.  Assumption of inactive "wait" line between bus cycles. If
+        the wait generation circuit assumes that the wait line can be
+        set to any value if no Z80 access signals are active, when the
+        Z280 accesses the onboard memory, the Z280 may be put into
+        perpetual wait.  This is because it will acknowledge an active
+        wait during this internal cycle.  The Zip adapter DOES NOT issue
+        any active signals to the Z80 socket during these accesses.
+        Only affects people using the onboard extension memory.
+
+The Zip 280 is the board for anyone who is upgrading to the Z280 part in
+an existing design.  With perhaps a small amount of modification to
+cover the incompatibilities given above, you can test the Z280 out in
+your existing design, and either ship the system with the adapter in
+place, or go on to design a version of your product incorporating the
+Z280 CPU. For persons attempting to upgrade a system with Zip 280, the
+basic requirements are full hardware and software knowledge of the
+system to be adapted (SCHEMATICS AND SOFTWARE LISTINGS), and a senior
+level engineering knowledge of computer hardware AND software.
+
+This board is considered an AID to Z280 upgrade, and in no way do we
+warrant it as a guaranteed Z80 replacement.
+
+COPROCESSOR VERSION (Accel 280):
+
+Our field tests to determine applicability of the Zip 280 (direct)
+adapter board to existing CP/M upgrade yielded the the following result:
+one or two jumpers and careful check of the system software for timing
+loops, etc. were required on 90% of the systems.  I believe this is
+accounted for by two reasons:
+
+    1.  Many typical CP/M implementations consist of an "all in one"
+        package consisting of the video screen, disk drives and keyboard
+        integrated into a single enclosure.  There is considerable
+        incentive in such a unit to take shortcuts on the design,
+        usually to save on chip count.  Quirks in the Z80 timing and
+        modes are used.
+
+    2.  Since the standard Z80 has a very long history, there has
+        been considerable incentive to assume that the Z80 would never
+        change.
+
+Although the best solution is to directly REPLACE the Z80 by the Z280,
+for people who do not have specific details on their machine (schematics
+and software listings) or the expertise to diagnose problems, a
+virtually 100% compatible solution is provided by the coprocessor
+version of the adapter board.  In this version, the Z80 from the system
+is plugged back into the top of the board, then the board inserted into
+the system:
+
+
+                             -------
+                             | Z80 |       --->> Z80 from present system
+                        ------------------ --->> PCB
+                             =======       --->> Z80 socket
+
+                                ||
+                                \/
+
+                                To
+                              system
+                              Z80 socket
+
+
+The basic block diagram of the Accel 280 is:
+
+
+               --------- data  -------------------- data   ---
+               | Z280  |-------| BIDIRECTIONAL    |--------|Z|
+               | CPU   |       | BUS COMMUNICATOR |        |8|
+               |       |       |                  |        |0|
+               |       |       --------------------        | |    -------
+               |       |                                   |S|    | Z80 |
+               |       |       ------------                |O|<<--| CPU |
+               |       |-------| 256KB/   |                |C|    |     |
+               |       |       | 1MB      |                |K|    -------
+               |       |       | DRAM     |                |E|
+               |       |       ------------                |T|
+               |       |                                   | |
+               |       |                                   | |
+               ---------                                   ---
+
+
+The Z280 is completely isolated from the Z80 CPU here.  It executes from
+and makes data accesses to its own DRAM module only.  The Z80 CPU
+running the system is the same Z80 as was unplugged before the board was
+inserted. Communication with the Z280 CPU and memory is accomplished via
+an 8 - bit "port".  This port is the only interface between the two
+processors.  Both processors run CONCURRENTLY.  The installation of the
+board is completed by either picking an UNUSED port in the Z80 system,
+or using the default port of $fe.  The Z80 CPU, and the system in
+general, operates as a I/O slave CPU.  The Z280 CPU runs programs in its
+own DRAM space.  When the Z280 requires I/O service, a "request" packet
+is passed to the Z80 CPU, which reads or writes the requested data, and
+returns the results to the Z280 CPU. What is required here is a software
+program run on the Z80 side to operate the coprocessor interface.  We
+provide this, in conjunction with the RP/M o/s that provides interface
+via the CP/M BIOS routines.  This board is usually used to support CP/M
+based environments, therefore.  Support for other interfaces would
+require custom software construction.
+
+Using the RP/M operating system, standard CP/M applications can be run
+on the Z280.  The restrictions here are:
+
+    1.  The application program may not perform direct I/O to system
+        devices.  It may however, use I/O based devices in the Z280 CPU
+        itself; these include timers, DMA, etc.
+
+    2.  Timing loops will be invalidated in an application program.
+        Since timing loop are usually associated with I/O, this is less
+        of a problem a - priori.
+
+    3.  The system I/O (the BIOS program) cannot make use of Z280
+        DMA, timer and other devices, or use Z280 advanced instructions.
+
+Note that the BIOS code still runs on the Z80 processor, and has no
+restrictions.
+
+The main penalty for coprocessor operation is the overhead for
+coprocessor interface data passage.  This can be offset, however, by the
+effect of having the Z80 CPU process I/O in parallel to the Z280 CPU,
+and also because the Z280 can be operated at full potential speed (since
+it does not have to match clocks with the Z80 side).
+

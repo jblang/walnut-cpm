@@ -1,0 +1,77 @@
+; Patches to NULU 1.51 (to 1.52) for faster CRC generation, and to
+; allow CCITCRC use (the last two bytes of the file are not included
+; in its internal CRC self-check, allowing them to be patched to the
+; CCITCRC checksum, causing CCITCRC to report 0). Load time cut from
+; 4.9 secs to 2.3 secs on 2.5 Mhz Kaypro 4 of which 1.2 is load time.
+; C.B. Falconer, 680 Hartford Tpk, Hamden Conn. 06517 (203) 281-1438
+;
+; Suggest changing the Y command so that it reports the library
+; directory (if open) in a compact form, unless a drive spec is used,
+; when it reports the drive directory.  Analogous to the D command.
+;
+; The only video characteristic I have is FLASHING.  Useless with
+; the present setup.   If used to report attribute bits, the headers
+; flash.  Suggest two more strings, and define them by system usage
+; rather than terminal characteristics.  Seems to be 1: Sweep header
+; 2: attribute bits 3: directory headers, with 2 and 3 merged now.
+; Attribute bits could be reported by setting the file character to
+; lower case (a blank becomes a `).  Could be conditioned by a
+; user settable patch, i.e. 0..5 = none, video case 1, 2, 3, lowcase.
+;
+	org	010ch;		Revised sign-on, ISO std. date
+	db	'2 (86/2/23)  '
+;
+	org	0149h;		Revised self-check range and CRC
+	lxi	b,03a7fh
+	ds	3;		unchanged orig. call
+	lxi	d,0da91h;	revised crc checksum for file
+;
+	org	01a60h
+; crc for (bc) bytes from (hl) up, initialized to (de)
+; leaves de pointing past last byte.  Result in hl, bc=0
+; a,f,b,c,d,e,h,l
+.crcrg:	xchg
+crcrg1:	mov a,c ! ora b ! rz;	zero range, exit
+	push	d;		CRC push/pop d moved to here
+	ldax d	! call .crc
+	pop	d
+	inx d	! dcx b
+	jmp	crcrg1
+;
+	org	03a11h
+; This algorithm needs no final zeroes injected, but returns
+; with the bytes interchanged from the slow routine.
+.fincrc:
+	push	psw
+	mov a,h ! mov h,l ! mov l,a
+	pop	psw
+	ret
+;
+	org	03b14h;		for NULU 1.51 to 1.52 patch
+; This crc routine updates the checkword in (bc) using the byte
+; passed in (a). The checkwords computed are suitable for IBM
+; floppy disk communications. The two byte checkword is the word
+; produced by the generating polynomial x**16 + x**12 + x**5 + 1.
+; The checksum should be initialized to 0ffffh (i.e. 0ffffh is
+; passed in bc when the checksum sequence is started) to detect
+; variations in length of initial zero strings. The new checksum
+; is returned in (bc).
+; a,f,b,c-->		FOR NULU patch, hl for bc, de modified.
+.crc:	;push	d;	changes to alter i/o reg bc/hl. bc in PASCLIB
+	xra	l;			c/l
+	mov	d,a
+	rrc ! rrc ! rrc ! rrc
+	ani 0fh	! xra d ! mov e,a
+	rrc ! rrc ! rrc
+	mov	d,a
+	ani 1fh	! xra h ! mov l,a;	b/h, c/l
+	mov a,d	! ani 0e0h
+	xra e	! mov h,a;		b/h
+	mov	a,d
+	rrc
+	ani 0f0h ! xra l ! mov l,a;	c/l
+;	pop	d;		<-- REMOVED TO FIT IN NULU space.
+	ret
+;
+	end
+e#

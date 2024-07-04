@@ -1,0 +1,182 @@
+30-Aug-80 15:42:00,281;000000000000
+Date: Saturday, 30 August 1980  15:42-MDT
+From: Mike Leavitt <LEAVITT at USC-ISI>
+Sender: LEAVITT at USC-ISI
+To:   INFO-CPM at MC
+Subject: CP/M WITH APPLE
+
+HAS ANYONE HAD EXPERIENCE WITH THE APPLE AND THE MICROSOFT CP/M
+CARD?  DOES IT WORK AS ADVERTISED?  ANY LIMITATIONS?
+31-Aug-80 05:00:00,5885;000000000000
+Date: Sunday, 31 August 1980  05:00-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Kick-off
+
+Kicking this off:
+
+CP/M 2.2 has a known bug in that the CCP does not properly retain the
+USER number (across resets, I believe).  (Does any use, or plan to use
+USER numbers other than 0 or set the option bits - for the in-memory
+copy of the directory only for R/O, $DIR, $SYS, etc.?  Those option
+bits should be a part of the actual directory entry on disk anyway!)
+
+There is an inconsistency between disk drive numbering used by SELDSK
+and the others.  SELDSK is zero-based numbering (A=0, B=1, etc.),
+while the other functions use 0 in the FCB to mean the default drive,
+then A=1, B=2, etc.  My SELDSK, when used under a 1.4 system, simply
+takes that byte from the FCB and decrements it for use in the BDOS
+call.  (Using SELDSK is optional for 2.2 since the functions pick up
+the disk drive from the FCB (Byte 0) - unless you want to actually
+change the default drive in your program - and then change it back,
+just as for 1.4.  Does anyone NOT take the JMP 0 exit from their
+programs?)
+
+Digital Research's next project is CP/M for 8086 machines.  Apparently
+they think that will be the next darling of the industry.
+
+Once that CP/M for the 8086 is off the ground, Version 3.0 is next in
+sight.  It will have a number of MP/M features retrofitted, and a five
+byte TOD entry put in an as yet undetermined place in the directory
+entry.  The format is a two-byte date (in address format, MSB first)
+with Day 1 = January 1, 1978, and each of the hours, minutes and
+seconds as two BCD digits.
+
+Earlier this week, I received a fresh-off-the-press copy of "The CP/M
+Handbook (with MP/M)" by Rodney Zaks.  As usual in this industry, it
+was advertised before it was available.  It is very well done to the
+point that you can throw away most of the manual that comes with the
+CP/M package.  (The CP/M 2.2 is the same manual as for 1.4 except for
+the last two "sections", and those sections have more(!) examples of
+actual code, especially for how to use the random record access
+features.)  I was disappointed that Zak's book did not give a hacker's
+insight to more of the CCP other than how to do that auto-start I
+asked about, and it detailed alot about using ED - but no code worth
+mentioning.
+
+The handbook also details more about MP/M than I wanted to know -
+mainly because I now know what I am missing - with a number of
+features which I don't see why they can't be used in regular CP/M,
+such as GENHEX (make a HEX file out of a COM or PRL file suitable for
+relocation with GENCOM).  SPOOLER builtin.  A time-of-day scheduler.
+And others...maybe that is what they have in mind for 3.0??
+
+(A personal comment here: I can't see really using MP/M in any current
+micro, given the address space limits - even with bank-switching,
+unless you are willing to tolerate the time it takes to switch.  It
+would be more cost-effective to share the relatively expensive
+peripherals such as a printer and hard disk, than to time-share a
+micro.  Even better would be to add more dedicated micros such as you
+already have for the disk I/O controller, and "front-end" the
+terminal, printer, and modem I/O functions - even above
+interrupt-driven I/O.)
+
+We also got in a copy of TPM from Computer Design Labs (for Z80's only
+- sorry).  I have not had a chance to completely check it out yet.  I
+can say this:  it was no sweat to bring it up just like that.
+SYSGENning a new system is an integrated on-step process.  It has an
+entry to set and read time, a fixed location with fixed time, and can
+be patched to actually read your clock board, if you have one.  It
+will run most, if not all CP/M 1.4 programs, but not vice-versa.  It
+has most of the same extensions that 2.2 has, but not in the same
+entry points - in fact, it has more.  Noteable are:
+
+ 6 - Get TPM Serial Number
+28 - Read Console with no echo
+29 - Get Date
+30 - Get Time
+31 - Trap Control (for ^C)
+32 - Set Date/Time
+33 - Chain Program
+34 - Get TPM Version Number
+35 - Do Direct Disk I/O
+36 - Create FCB
+37 - Return Time in MS. (hardware required)
+38-40 Reserved
+
+I am especially attracted to Chain Program.
+
+A while back I saw ads for OS1 in which they were offering to throw in
+the source code for CP/M, probably 1.3.  Does anybody know where I can
+obtain a preferably commented listing of CCP - any version?  Some
+people simply overlay CCP and write their own versions of whatever
+they need that may already be available in CCP.  I would rather leave
+CCP around and find a way to hand it stuff and return to my program
+when done - especially if I load my stuff just under CCP... and chain,
+if required...Anybody got any ideas on this?
+
+Finally, I would urge you to read Alan Miller's CP/M product reviews
+and other related tidbits in Interface Age - the October issue
+includes his CBIOS (again) now with code for interrupt-driven,
+buffered console input and an article describing how it works.  He is
+also reachable by phone, when he doesn't have his modem plugged into
+the campus computer, and talks to the Lifeboat and other people around
+the country on a regular basis.  (The campus computer is a DEC, which
+doesn't have paper tape I/O - one of his machines is the DEC paper
+tape reader/punch...)  (I dropped my charter subscription to IA before
+I latched onto CP/M, and now his articles would be the only reason for
+resuming it.)
+
+That's all I have for now.  If there are no objections, I would like
+to make this correspondence available to my Digital Research contact
+who is also much interested in suggestions for documentation
+improvements (but that was before I received Zak's book...).  Also,
+would someone care to relate to us those portions of interest from
+Lifeboat's LifeLine?
+
+--Frank
+31-Aug-80 13:29:00,1461;000000000000
+Date: Sunday, 31 August 1980  13:29-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: STAT in 2.2
+
+Before I get beat about the head and shoulders about STAT's setting of
+the individual file attributes in 2.2, let me correct myself now:
+STAT indeed does set those parameters on the disk copy of the
+directory entry itself.  (This is opposed to 1.4 STAT which only sets
+the whole disk as R/O or R/W and only until the next boot.)  You must
+(in either level) do a disk system reset (and reselect the saved
+default if 2.2) if you change disks while your program is running, or
+do a DIR in CCP, or the changed disk will be assumed to be R/O!
+
+This was particularly annoying with ED when I was creating the dummy
+entries for the master cataloger programs, although I appreciate the
+protective approach.
+
+--Frank
+
+P.S.  There is some confusion, still, about CP/M records (128 bytes
+each), used by the read and write functions, and the SAVE built-in
+command, which uses 256-byte pages, and the actual disk I/O.  For
+example, my N* double-density system uses 512-byte blocks.  Does this
+mean that for each disk access, my BDOS and disk controller interface
+selects which CP/M record I want out of the four records in the
+512-byte block, reading or writing 512-byte blocks for each disk
+access regardless of what may already be in the buffer from the last
+request?  Can anybody explain what is really going on here?
+31-Aug-80 15:16:00,272;000000000000
+Date: Sunday, 31 August 1980  15:16-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Typo
+
+In my first message describing the TOD format, that date will be in
+address format alright, but that is LSB (not MSB) first, of course.
+
+--Frank
+31-Aug-80 15:39:00,572;000000000000
+Date: Sunday, 31 August 1980  15:39-MDT
+From: Lauren at UCLA-SECURITY (Lauren Weinstein)
+To:   FJW at MIT-MC
+cc:   INFO-MICRO at AI
+Subject: Kick-off
+
+Don't go anywhere near OS1!!!  In a previous message, I recounted what
+I discovered about the organization selling that dog when I flew up
+north to meet with them once.  The "CP/M source" they offer is no CP/M
+source at all, it is simply the source of the CP/M emulator that lets
+OS1 run some CP/M 1.4 type programs.  It has nothing to do with real
+CP/M as far as I can tell.  Do not be misled!
+
+--Lauren--

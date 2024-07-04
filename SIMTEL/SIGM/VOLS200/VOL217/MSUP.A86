@@ -1,0 +1,1791 @@
+
+title	' Modem Supervisor for Compupro MPM 8-16'
+
+;-----------------------------------------------------------------------;
+;    MSUP - Modem SUPervisor						;
+;									;
+;    Version 1.1	08/22/84       <AKS>				;
+;									;
+;    Copyright (C) 1984	 Alex Soya, PO Box 121, Melbourne Beach,	;
+;						Fl, 32951		;
+;									;
+;	MSUP is released to the public domain. Anyone who wishes to	;
+;	USE MSUP on his system may do so.  The author assumes no	;
+;	responsibility or liability for use of MSUP.			;
+;									;
+;	The author, Alex Soya, has sole rights to this program. MSUP	;
+;	may not be sold without the express, written permission by	;
+;	the author.							;
+;									;
+;    Purpose:								;
+;		To intercept Console I/O functions to the XIOS and	;
+;	handle them localy. To supervise the allocation of Comunication ;
+;	channels to modem programs.					;
+;									;
+;		This version is for the CompuPro interfacer 3/4		;
+;	serial board. Up to two boards (max 16 devices) are supported	;
+;	The boards must have interrupt jumpers and switches set		;
+;	as per CompuPro's instructions. The received data is buffered   ;
+;	in a local queue structure. This RSP can also be used with any	;
+;	standard terminal if a modem is not connected. The only		;
+;	difference is that the received data does not have the		;
+;	parity bit removed which is infact an annoying feature in the	;
+;	XIOS by CompuPro.						;
+;									;
+;	The mapping of MPM console numbers to Interfacer 3/4		;
+;	relative user nos uses the same translation as that of		;
+;	CompuPro for compatibility reasons:				;
+;									;
+;	Interfacer 3/4 relative user:	 MPM Console:  MPM Printer:	;
+;  F	-----------------------------	 ------------  ------------	;
+;  I				    7		    1		-	;
+;  R				    6		    2		-	;
+;  S	Interfacer 3 & 4	    5		    -		1	;
+;  T				    4		    -		0	;
+;	---------------------------------------------------------	;
+;  B				    3		    3		-	;
+;  O	Interfacer 3 only	    2		    4		-	;
+;  A				    1		    5		-	;
+;  R				    0		    6		-	;
+;  D									;
+; --------------------------------------------------------------------	;
+;  S				    8		    -		 2	;
+;  E	Interfacer 3 & 4	    9		    7		 -	;
+;  C				   10		    8		 -	;
+;  O				   11		    9		 -	;
+;  N	----------------------------------------------------------	;
+;  D				   12		   10		 -	;
+;	Interfacer 3 only	   13		   11		 -	;
+;  B				   14		   12		 -	;
+;  O				   15		   13		 -	;
+;  A									;
+;  R									;
+;  D									;
+;									;
+;	To customize this map change the CTRMAP AND RTCMAP tables.	;
+;					       =====			;
+;-----------------------------------------------------------------------;
+
+
+
+true	equ	-1
+false	equ	not true
+
+
+cr	equ	13		; Carriage Return
+lf	equ	10		; Line Feed
+eof	equ	1ah		; End Of File marker
+xon	equ	'Q'-40h		; ^Q
+xoff	equ	'S'-40h		; ^S
+
+
+
+; Consoles handled by RSP:
+;
+;
+lowcon	  equ	  1		; Lowest Console number handled
+highcon	  equ	  13		; Highest Console number handled
+lowprnt	  equ	  0		; Lowest Printer handled
+highprnt  equ	  2		; Highest Printer handled
+
+qdepth	equ	128			; Lenght of circular que buffers
+
+
+
+
+; Interrupt Vector addresses:
+; The interfacer 3/4 uses VI2 for receive and VI3 for transmit. The particular
+; Usart or device that interrupted must be determined in the corresponding
+; ISR
+;
+;
+;
+rint2	equ	(40h+2)*4		; Receive interrupt vector address VI2
+tint3	equ	(40h+3)*4		; Transmit interrupt vect. address VI3
+
+
+
+; Flags used by this RSP:
+; flags 30h through 50h are used by this rsp and should not be used by any
+; other processes.
+;
+;
+;
+fbase  equ	30h			; lowest flag used
+fwait  equ	fbase			; Flag to wait for ever
+			; fbase+1h through fbase+16 are for receive
+			; ready, fbase+17 through fbase+32  are for
+			; transmit ready on devices 1 - 16
+
+
+
+; MPM function numbers
+;
+;
+f_open	equ	15		; Open Disk File Function
+f_close equ	16		; Close Disk File
+f_rseq	equ	20		; Read Sequential from Disk file function
+f_dmao	equ	26		; Set DMA Offset
+f_dmab	equ	51		; Set DMA Base
+f_poll	equ	131		; Poll Device
+waitf	equ	132		; Wait for selected flag to set
+setf	equ	133		; Set selected flag to wake up waiting process
+f_mkque equ	134		; Make a Que
+f_opque equ	135		; Open Que
+f_wrque equ	139		; Write Que
+getsys	equ	154		; Get sysdat segment to ES
+
+
+
+; SYSDAT offsets
+;
+;
+supentr equ	0		; Supervisor entry offset
+xiossys equ	28h		; offset to XIOS entry in system data area
+dispsys equ	38h		; offset to dispatcher entry address
+
+
+
+; Interrupt controller comands
+;
+;
+;
+nseoi	equ	20h		; none specific End of Interrupt
+
+				; This is for the PICs located on the
+				; System Support 1 board. If you use
+				; a different Interrupt Controller you need
+				; to modify any of the PIC dependent routine
+				; (service) for your environment
+
+
+
+; System Support I  PIC ports:
+;
+;
+;
+ss1base equ	50h		; System Support I base port
+mpic0	equ	ss1base+0	; Master PIC port 0
+mpic1	equ	ss1base+1	; Master PIC port 1
+spic0	equ	ss1base+2	; Slave PIC port 0
+spic1	equ	ss1base+3	; Slave PIC port 1
+
+
+
+; CompuPro Interfacer 3/4 ports:
+;
+;
+;
+i4base	equ	10h		; Interfacer 3/4 base port
+i4data	equ	i4base		; Data port
+i4stat	equ	i4base+1	; Status port
+i4mode	equ	i4base+2	; Usart mode register
+i4comd	equ	i4base+3	; Usart Command register
+i4tint	equ	i4base+4	; Transmit interrupt status register
+i4rint	equ	i4base+5	; Receive Interrupt status register
+i4slct	equ	i4base+7	; Relative user select register
+
+
+
+; Status port bit maps (on read):
+;
+;
+;
+i4tbmt	equ	01h		; Transmit buffer empty
+i4dav	equ	02h		; Data available
+i4txem	equ	04h		; Change in DSR or DCD or Transmit shift empty
+i4pe	equ	08h		; Parrity error on character received
+i4or	equ	10h		; Overrun error
+i4fe	equ	20h		; framing error
+i4dcd	equ	40h		; Data Carrier Detect condition
+i4dsr	equ	80h		; Data Set Ready Condition
+
+
+; Set up file constants:
+;
+;
+;
+lnlen	equ	80		; max line length of COMCH, TTYS or LPRS entry
+
+
+
+;-----------------------------------------------------------------------;
+; exec: Rsp execution entry.						;
+;									;
+;	The RSP starts executing here. Here the COMCH, TTYSC and LPRSC	;
+;	files are read and used to set up the interrupt masks for the	;
+;	Interfacer 3/4 board.						;
+;									;
+;	The Mutual eXclusion ques MXmodem1 through MXmodem8 are made	;
+;	and written to if the corresponding console number in the	;
+;	COMCH file exists. The modem program must open the MXmodemN	;
+;	ques with N beeing the number of a Comm. channel. If the modem	;
+;	program reads from the que it effectively blocks any other	;
+;	process to gain access to that que and thus the corresponding	;
+;	Communication Channel.						;
+;									;
+;	Also the XIOS entry point is moved to the local XIOS function	;
+;	intercepter.							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+exec:	mov	ax,cs			; set up 8080 model (cs=ds)
+	pushf				; disable interrupts while messing
+	cli				; with stack regs
+	mov	ss,ax
+	mov	sp,offset lstack
+	mov	ds,ax
+
+	mov	cl,146			; Attach Console so Shell does not
+	int	224			; grab it.
+
+	popf
+	mov	cl,getsys		; Get SYSDAT to ES
+	int	224
+	pushf				; stop interrupts again
+	cli				; while changing interrupt vectors
+
+	push	ds			; set up interrupt vector addresses
+	mov	ax,0			; vectors are in segment 0
+	mov	ds,ax
+	mov	word ptr .rint2,offset i4rxint	; receive interrupt handler
+	mov	word ptr .rint2+2,cs	; and our segment
+	mov	word ptr .tint3,offset i4txint	; transmit interrupt handler
+	mov	word ptr .tint3+2,cs	; and segment
+	pop	ds
+ 
+	mov	ax,es:.xiossys		; get current XIOS offset
+	mov	xios,ax			; build real xios dispatch address
+	mov	ax,es:.xiossys+2	; get segment of real xios
+	mov	xios+2,ax
+	mov	ax, offset xintcpt	; overlay xios interceptors address
+	mov	es:.xiossys,ax		; to old xios vectors
+	mov	ax,cs
+	mov	es:.xiossys+2,ax
+
+	mov	ax,es:.supentr+2	; get segment of MPM supervisor
+	mov	supvsr+2,ax		; and keep to us
+
+	mov	ax,es:.dispsys		; Now get dispatchers offset
+	mov	disp,ax
+	mov	ax,es:.dispsys+2	; and its segment
+	mov	disp+2,ax
+
+	popf				; now we can resume with interrupts
+
+
+	call	rdsetup			; set up MXmodemN ques and prepare
+					; masks for interfacer 3/4
+	mov	cl,9			; send message: 'we are active' to
+	mov	dx, offset hellomsg	; system console
+	int	224
+
+	mov	cl,147			; detach from Console, so Shell can
+	int	224			; get a hold of it.
+
+forever:mov	cl,waitf		; CODE MAY BE ADDED HERE TO ALLOW
+	mov	dl,fwait		; REMOTE TERMINALS TO BE MONITORED FOR
+	int	224			; PROCCESS ABORTION ON LOSS OF CARRIER
+	jmps	forever			; AND LOGON PROGRAM LOAD
+
+
+
+hellomsg	db	cr,lf,' Msup - Modem Supervisor active. (C) Alex Soya'
+		db	cr,lf,'$'
+
+
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; rdsetup:   Read the set up files TTYSC, LPRSC, and COMCH		;
+;									;
+;	     These files contain the parameters for the Consoles,	;
+;	     Printers, and Comunication Channels.			;
+;	     They are read in here to determine which channels		;
+;	     on the Interfacer 3/4 board are used so that the proper	;
+;	     Interrupt mask can be set up.				;
+;									;
+;	     The files TTYSC and LPRSC are as per COMPUPROS specs for	;
+;	     their TTYS and LPRS files used by SHELL.			;
+;									;
+;	     The file COMCH is used to determine which Interfacer 3/4	;
+;	     device is used as a Communications Channel for the		;
+;	     Modem. Proper Mutual EXclusion Ques are set up depending	;
+;	     on the COMCH file entries.					;
+;									;
+;	     The COMCH format is as:					;
+;									;
+;	     N: Comment <CR><LF>					;
+;									;
+;	     Where N = the Console number corresponding to the		;
+;	     Modem Port.						;
+;									;
+;	     eg:							;
+;		 2: Phone line 1					;
+;		 3: Phone line 2					;
+;									;
+;	     will turn consoles 2 and 3 into Comm. channels. DO NOT	;
+;	     include these into the TTYS and TTYSC files as they will	;
+;	     then be grabed by the shell.				;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+rdsetup:
+	mov	fopflg,0		; File is still closed
+nxcom:	mov	dx,offset comfcb	; Open COMCH file and prepare to read
+	call	getline			; one line.
+	jne	ttyf			; No more in ComCH file.
+	call	parscom			; proccess one line
+	jmps	nxcom			; and get next line
+
+ttyf:	mov	fopflg,0		; File Closed now
+nxtty:	mov	dx,offset ttyfcb	; now process the TTYS file
+	call	getline
+	jne	lprf
+	call	parstty
+	jmps	nxtty
+;
+lprf:	mov	fopflg,0		; File Closed again
+nxlpr:	mov	dx, offset lprfcb	; and finaly the LRPS file
+	call	getline
+	jne	done
+	call	parslpr
+	jmps	nxlpr
+done:	ret
+;
+;
+;
+;-----------------------------------------------------------------------;
+; getline:    Get one line from file of which the FCB is in DX.		;
+;	      If fopflg = 0, the file is closed and is opened first	;
+;	      to read the next line.					;
+;	      Closes file if no more data available.			;
+;									;
+; Entry	 ->  DX = FCB offset						;
+;	     fopflg = 0 if file closed, Not 0 if file already open	;
+;									;
+; Return ->  lnbuff  contains one physical line including cr,lf to	;
+;		     indicate the end of the line.			;
+;									;
+;	     fopflg = FFh after file was opened.			;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+getline:
+	push	dx			; save FCB offset
+	mov	di, offset lnbuff	; point to line buffer
+	mov	si,dmasrc		; get dma posit from last move
+	mov	bx,dmaoff		; and the count
+	cmp	byte ptr fopflg,0	; first line we are getting ?
+	jne	search			; no, see whats in dma buffer
+
+	mov	dx, offset dmabuf	; Yes, open file first 
+	mov	cl, f_dmao
+	int	224
+;
+	mov	dx,cs			; Set DMA Segment address
+	mov	cl, f_dmab
+	int	224
+;
+	pop	dx ! push dx		; get FCB offset
+	mov	cl, f_open		; open the file
+	int	224
+;
+	mov	di, offset lnbuff	; init line buffer offset
+	cmp	al,0ffh
+	jne	rdnxt			; if open successfull, read record
+	or	al,al
+	pop	dx
+	ret				; else return to caller
+;
+;
+;
+rdnxt:	mov	fopflg,-1		; the file is open now
+beatme: pop	dx ! push    dx		; Read next record of file
+	mov	cl, f_rseq
+	int	224
+	xor	bx,bx
+	or	al,al
+	mov	si, offset dmabuf	; start at beginning of buffer
+	je	srterm			; if good read, move one line to line
+	jmp	clcom			; buffer, else close file.
+;
+srterm: mov	ax,ds			; force es=ds
+	mov	es,ax
+;
+search: cmp	dmabuf[bx],lf		; search for end of line marker
+	je	lf_fnd			; or until end of buffer is reached
+	cmp	dmabuf[bx],eof		; is it the end of the file
+	je	clcom			; that means we are done
+	cmp	bx,127			; end of buffer reached ?
+	je	en_buf
+	inc	bx
+	jmps	search			; nope... keep looking
+;
+en_buf: inc	bx
+	mov	dx,si
+	sub	dx, offset dmabuf
+	mov	cx,bx			; get # of bytes to move
+	sub	cx,dx			; adjust for last move
+rep	movsb				; copy part of line over to lnbuffer
+	jmp	beatme			; get rest of line and copy it.
+;
+lf_fnd: inc	bx
+	mov	dx,si
+	sub	dx, offset dmabuf
+	mov	cx,bx 
+	sub	cx,dx
+rep	movsb
+;
+	pop	dx			; get back FCB
+	xor	al,al			; tell caller new line is ready
+	mov	word ptr dmasrc,si	; save si for next time round
+	mov	word ptr dmaoff,bx	; same with bx
+	ret
+;
+;
+clcom:	pop	dx			; close file
+	mov	cl, f_close
+	int	224
+	mov	al,-1			; and indicate to caller
+	or	al,al			; that its all over
+	ret				; and all done
+;
+;
+;
+parscom:mov	al,lnbuff		; get first charcter in line
+	cmp	al,30h+1			; is it in range ?
+	jl	pdn
+	cmp	al,30h+8		; we support up to 8 com channels
+	jg	pdn
+	mov	qpdnam+7,al
+	mov	cl,f_mkque			; and make the que
+	push	bx
+	sub	al,30h				; Form interrupt mask
+	call	formsk
+	dec	al
+	rol	al,1				; compute que descriptor
+	mov	bl,al				; offset
+	mov	bh,0
+	mov	dx,qdtbl[bx]
+	pop	bx
+	int	224
+	mov	cl,f_opque			; open the que 
+	mov	dx, offset mxqpb
+	int	224
+	mov	cl,f_wrque			; Write to que
+	mov	dx, offset mxqpb		; so now its available
+	int	224
+pdn:	ret	
+;
+;
+parstty:
+	mov	al,lnbuff		; get the first char in a line
+	cmp	al,30h+lowcon
+	jl	ttyld
+	cmp	al,30h+9		; in range ?
+	jg	ttyld			; nope... skip it
+	sub	al,30h			; make device number
+	call	formsk			; yeap, add to interrupt mask
+	call	protc			; determine protocoll used
+ttyld:	ret				; done with this line.
+;
+;
+parslpr:
+	mov	al,lnbuff		; get the first char in a line
+	cmp	al,30h+lowprnt
+	jl	lprld
+	cmp	al,30h+highprnt		; in range ?
+	jg	lprld
+	sub	al,30h-highcon-1	; make a device number
+	call	formsk
+	call	protc			; determine protocoll used
+lprld:	ret
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; formsk:	Form Interrupt Mask					;
+;									;
+; Entry	 -> al = device number (1 to 16)				;
+;									;
+; return -> imask = imask or (bit corresponding to device number)	;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+formsk: push	ax
+	push	cx			; save'm
+	mov	cl,al			; convert to exact user number
+	call	conctr
+	mov	ax,1			; make mask for this user number
+	rol	ax,cl
+	or	word ptr imask,ax	; or mask into present mask
+	pop	cx
+	pop	ax			; get'm back
+	ret				; and we are done
+;
+;
+
+
+imask	dw	0		; mask to enable interrupts on I3/4 Interrupt
+				; mask registers
+				; low byte  = first board 
+				; high byte = second board
+
+;-----------------------------------------------------------------------;
+;									;
+;  protc:   Determine the protocol used on device			;
+;									;
+;  entry  ->  al= device number						;
+;	      lnbuff = input line from set up file TTYSC or LPTSC	;
+;									;
+;  return ->  fills in table hndshk for the device			;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+protc:	push	ax
+	push	bx
+	push	ax
+	mov	bx, offset lnbuff	; point to line buffer and
+	call	fndel			; and find first delimiter
+	call	fndel			; find second delimiter
+	inc	bx			; now we should have handshake value
+	mov	al,byte ptr [bx]
+	pop	bx			; bx=device number
+	xor	bh,bh			; make 16 bit index
+	sub	al,30h			; got handshake, deasccie
+	cmp	al,3			; in range ?
+	jg	def			; nope, use default
+	cmp	al,0
+	jb	def
+	mov	byte ptr hndshk[bx],al	; and stuff handshake argument
+	pop	bx
+	pop	ax
+	ret
+;
+def:	mov	byte ptr hndshk[bx],0	; default is no handshake
+	pop	bx
+	pop	ax
+	ret
+;
+;
+fndel:	inc	bx			; skip first one
+	cmp	byte ptr [bx],':'	; match ?
+	jne	fndel			; Nope, try next one
+delfn:	ret				; yeap.. return to caller, bx=match
+;
+;
+;
+hndshk	db	0,0,0,0		; hand shake table 0= no hand shake
+	db	0,0,0,0		;		   1 = DTR
+	db	0,0,0,0		;		   2 = Xon Xoff
+	db	0,0,0,0		;		   3 = DTR & Xon Xoff
+	db	0		; bit 7 indicates X-ON awaited
+	db	0		; for device 1 through 16 (0 handled in XIOS)
+
+
+
+
+qdtbl	dw	offset mxqd1			; Que descriptor table
+	dw	offset mxqd2
+	dw	offset mxqd3
+	dw	offset mxqd4
+	dw	offset mxqd5
+	dw	offset mxqd6
+	dw	offset mxqd7
+	dw	offset mxqd8
+
+quebuf	rb 10			; que descriptors must be unique in RSPs
+
+mxqd1	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem1'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd2	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem2'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd3	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem3'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd4	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem4'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd5	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem5'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd6	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem6'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqd7	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem7'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+;
+;
+mxqd8	dw	0		; Mutual exclusion que descriptior
+	dw	0
+	dw	3		; a Mutual exclusion que that can not be
+	db	'MXmodem8'	; be deleted
+	dw	0		; message lenght is 0
+	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	offset quebuf	; must point to buffer for RSP
+
+
+mxqpb	dw	0		; MXmodemn Que Parameter Block
+	dw	0
+	dw	1
+	dw	offset quebuf
+qpdnam	db	'MXmodem '
+;
+;
+;
+;
+comfcb	db	1,'COMCH   '	; dr,f1-f8
+	db	'   '		; t1-t3
+	db	0		; ex
+	db	0,0		; cs,rs
+	db	0		; rc
+	db	0,0,0,0,0	; d0
+	db	0,0,0,0,0	; d5..
+	db	0,0,0,0,0	; d10
+	db	0		; dn
+	db	0		; cr
+	db	0,0,0		; r0,r1,r2
+;
+;
+;
+ttyfcb	db	1,'TTYSC   '	; dr,f1-f8
+	db	'   '		; t1-t3
+	db	0		; ex
+	db	0,0		; cs,rs
+	db	0		; rc
+	db	0,0,0,0,0	; d0
+	db	0,0,0,0,0	; d5..
+	db	0,0,0,0,0	; d10
+	db	0		; dn
+	db	0		; cr
+	db	0,0,0		; r0,r1,r2
+;
+;
+;
+lprfcb	db	1,'LPRSC   '	; dr,f1-f8
+	db	'   '		; t1-t3
+	db	0		; ex
+	db	0,0		; cs,rs
+	db	0		; rc
+	db	0,0,0,0,0	; d0
+	db	0,0,0,0,0	; d5..
+	db	0,0,0,0,0	; d10
+	db	0		; dn
+	db	0		; cr
+	db	0,0,0		; r0,r1,r2
+;
+;
+;
+fopflg	db	0		; fopflg to flag if first time access to file
+dmabuf	rb	128		; dma buffer
+dmasrc	dw	0		; filled in later
+dmaoff	dw	0		; same with him
+lnbuff	rb	lnlen		; 80 byte line buffer.
+
+
+
+
+
+
+;-----------------------------------------------------------------------;
+; xintcpt: Intercept calls to the xios and pass control to internal	;
+;	   handler.							;
+;									;
+; Entry	   ->  al =  XIOS function number				;
+;	       cx =  First Argument					;
+;	       dx =  Second Argument					;
+;									;
+; Return   ->  ax = bx - return value or error code			;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+xintcpt:push	ds		; save DS of caller (saved on his stack)
+	push	es		; es must be the same when returning to SUP
+	mov	bx,cs		; we need our own DS here
+	mov	ds,bx
+	mov	bl,al		; Get Xios function number
+	xor	bh,bh		; make 16 bit
+	rol	bx,1		; compute index into jump table
+	jmp	functbl[bx]	; call the function
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+;  realxios: If a function is to be handled by the real xios		;
+;	     this routine passes control to the real xios after		;
+;	     restoring the DS and ES register of the calling process.	;
+;									;
+; Entry	   ->  al =  XIOS function number				;
+;	       cx =  First Argument					;
+;	       dx =  Second Argument					;
+;									;
+; Return   ->  is from XIOS as per XIOS return parameters.		;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+realxios:
+	pop	es
+	pop	ds			; get them back
+	jmpf	dword ptr xios
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+;  retcpt:  Return from localy handled xios function.			;
+;									;
+;  Entry  ->   ax = return argument					;
+;									;
+;  Return ->   To calling process with bx=ax as per XIOS specs		;
+;	       DS poped of local stack and thus restored to callers	;
+;	       value							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+retcpt: pop	es			; return last users Data segment
+	pop	ds			; and extra segment
+	mov	bx,ax			; bx=ax return values
+	retf				; and back to caller
+
+
+
+
+;-----------------------------------------------------------------------;
+; conin:								;
+; const:	Test if device	is handled localy for input, status	;
+; conout:	and output service. If not jumpt to corresponding	;
+; lstout:	function in the real XIOS				;
+; lstst:								;
+; polldev:								;
+;-----------------------------------------------------------------------;
+;
+;
+conin:	cmp	cl,lowcon		; Check if the console is handled
+	jb	realxios		; localy. If not, let the XIOS handle
+	cmp	cl,highcon		; it
+	jg	realxios
+	call	inchr
+	jmp	retcpt
+;
+const:	cmp	cl,lowcon 
+	jb	realxios
+	cmp	cl,highcon
+	jg	realxios 
+	call	qst
+	jmp	retcpt
+;
+conout: cmp	dl,lowcon
+	jb	realxios
+	cmp	dl,highcon
+	jg	realxios
+	call	outchr
+	jmp	retcpt
+;
+lstout: cmp	dl,lowprnt
+	jb	realxios
+	cmp	dl,highprnt
+	jg	realxios
+	add	dl,highcon+1	; make device number
+	call	outchr
+	jmp	retcpt
+;
+lstst:	cmp	cl,lowprnt
+	jb	realxios
+	cmp	cl,highprnt
+	jg	realxios
+	call	stlst
+	jmp	retcpt
+;
+;
+;
+;
+polldev:
+	cmp	 cl, 0			; intercept Poll devices 0 to 15
+	jb	 realxios
+	cmp	 cl, 15
+	jg	 realxios
+	call	 pdsr			 ; valid port, so go an poll it
+	jmp	 retcpt
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; functbl  XIOS function table. Each entry in this table contains	;
+;	   the offset for the corresponding function number.		;
+;									;
+;	   You may intercept your own XIOS functions here if you wish	;
+;	   by changing the corresponding entry to the offset of your	;
+;	   local handler. If a function is to be handled by the actual	;
+;	   XIOS enter the offset of REALXIOS.				;
+;									;
+;									;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+functbl dw	offset const		; 0 Console status
+	dw	offset conin		; 1 Console input
+	dw	offset conout		; 2 Console output
+	dw	offset lstout		; 3 List output
+	dw	offset realxios		; 4 Punch output
+	dw	offset realxios		; 5 Reader input
+	dw	offset realxios		; 6 Home
+	dw	offset realxios		; 7 Select disk
+	dw	offset realxios		; 8 Set track
+	dw	offset realxios		; 9 Set sector
+	dw	offset realxios		;10 Set DMA address
+	dw	offset realxios		;11 Read a record
+	dw	offset realxios		;12 Write a record
+	dw	offset lstst		;13 List status
+	dw	offset realxios		;14 Sector translation
+	dw	offset realxios		;15 Set DMA segment
+	dw	offset realxios		;16 Get segment table
+	dw	offset polldev		;17 Poll selected device
+	dw	offset realxios		;18 Enable tick clock
+	dw	offset realxios		;19 Disable tick clock
+	dw	offset realxios		;20 Return max. number of consoles
+	dw	offset realxios		;21 Return max. number of list devices
+	dw	offset realxios		;22 Select memory
+	dw	offset realxios		;23 Idle
+	dw	offset realxios		;24 Flush buffers
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; inchr:  Input a character from que. If que is empty wait for a	;
+;	  character to be put into it by ISR.				;
+;									;
+; Entry	  -> cl = MPM Console Number					;
+;									;
+; Return  -> al = Character input					;
+;									;
+;-----------------------------------------------------------------------;
+
+inchr:	call	mapctq			; map console to que offset
+	call	qempt			; Check if there is anything in the que
+	jne	inchr1			; al=ff and NZ if a character is ready
+
+	push	cx			; save console number
+	mov	dl,fbase
+	add	dl,cl			; wait for flag corresponding to this
+	mov	cl,waitf		; console to be set indicating a char
+	call	supif			; has arrived
+	pop	cx			; restore console number
+	jmp	inchr			; in case of erroneous flag set
+
+inchr1: pushf				; No interrupts now ......
+	cli
+	call	qdel			; get a character from the que
+	popf
+	ret				; and exit back to caller
+
+
+;-----------------------------------------------------------------------;
+;									;
+; qst:	Return Status of Que for corresponding Console			;
+;	The first call to here will also enable the interupt mask	;
+;	register on the Interfacer 3/4 board. This way any console	;
+;	not in the TTYS file can still be enabled if so required.	;
+;	Done here, because on the CompuPro system all internal set up	;
+;	is done before entering Multi User Mode. Here we can be		;
+;	relatively sure that all is done by the SHELL before we stick	;
+;	our stuff in.							;
+;									;
+; Entry	 -> cl = MPM Console Number					;
+;									;
+; Return -> al =  00 if no character ready				;
+;		  ff if character ready					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+qst:	cmp	setmsk,0		; Is Interrupt mask already set ?
+	jne	qst1			; yeap, so just get the status.
+	pushf
+	cli
+	xor	al,al			; first select first board
+	out	i4slct,al
+	mov	ax,word ptr imask
+	out	i4rint,al		; now we got the mask set up
+	or	byte ptr setmsk,al
+	mov	al,8			; and the second board
+	out	i4slct,al
+	xchg	al,ah
+	out	i4rint,al
+	or	byte ptr setmsk,al	; flag that we dont do it again
+	popf
+
+qst1:	call	mapctq			; find que for this console
+	call	qempt			; check if anything is in the que
+					; al = 0 if no character is ready
+					; al = ff if character is waiting to be
+	ret				; picked up.
+
+setmsk	db	0		; 0 indicates mask not set up yet.
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; outchr:  Output a character to console				;
+;									;
+; Entry	 -> cl = character						;
+;	    dl = device number						;
+;									;
+; Return -> none							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+outchr: push	cx			; save the character
+	mov	cl,dl			; get device number
+	call	conctr			; Convert to Interfacer 3/4 user #
+	xor	dh,dh			; make 16 bit device number
+	mov	bx,dx			; make index
+	test	byte ptr hndshk[bx],3	; using DTR or XON/XOFF handshakes ?
+	je	nhnd			; nope ignore it
+	call	pdsr			; yeap, see if dsr indicates ready
+	or	al,al			; Device busy ?
+	jne	nhnd			; nope it ok.
+
+	push	bx
+	push	cx			; yeap, then put us on poll list
+	push	dx
+	mov	dl,cl			; set up for MPM poll function
+	mov	cl,f_poll
+	call	supif			; will return when dsr is ready
+	pop	dx
+	pop	cx			; now we are ready
+	pop	bx
+
+nhnd:	mov	ch,cl			; user port in ch, console in dl
+	mov	ax,cx
+	pop	cx			; get back character
+	mov	ch,ah
+	xchg	ch,cl			; ch= character, cl = exact user
+	pushf				; cant have interrupts now
+	cli
+	call	select			; select proper usart
+	in	al,i4stat		; get USART status
+	popf
+	test	al,i4tbmt		; ready to send a char ?
+	jnz	i4out			; yeap send him out..
+
+	push	cx			; keep'm
+	mov	ax,1			; set twmask to wait
+	shl	ax,cl			; compute mask
+	or	word ptr twmsk,ax
+	mov	ax,word ptr twmsk	; send currently active masks
+	pushf
+	cli
+	xor	cl,cl
+	call	select
+	out	i4tint,al		; to enable interrupts on first board
+	mov	cl,8
+	call	select
+	mov	al,ah
+	out	i4tint,al		; and the second board
+	popf
+
+	push	dx
+	add	dl,fbase+16		; compute flag
+	mov	cl,waitf		; Wait for Tx flag to set
+	call	supif
+	pop	dx
+	pop	cx
+
+i4out:	pushf				; cant have interrupts now
+	cli
+	mov	al,ch			; get character
+	call	select			; select uart
+	out	i4data,al		; send character
+	popf				; interrupts ok again
+	ret				; and back to caller
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; stlst:  Return List device output status				;
+;									;
+; entry -> cl = list device number					;
+;									;
+; return -> al = ffh if device ready					;
+;		 0   if device not ready				;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+stlst:	add	cl,highcon+1		; make device number
+	call	conctr			; convert to i4 user number
+	pushf				; no interrupts now
+	cli
+	call	select			; select proper port
+	in	al,i4stat		; get status
+	popf				; interrupts ok now
+	test	al,i4tbmt		; ready ?
+	jnz	lstrdy			; yeap.. go say so
+	xor	al,al			; nope
+	ret
+lstrdy: call	pdsr			; USART is ready, but what about the
+	ret				; printer itself ?
+
+
+
+;-----------------------------------------------------------------------;
+; pdsr:	   Poll DSR. This is Xios function 17 which is not used		;
+;	   in the CompuPro XIOS. Used by MSUP to poll the DSR line	;
+;	   for DTR handshaking, and Xon/Xoff status.			;
+;	   Other systems which need to use Poll device numbers that	;
+;	   are not assigned yet.					;
+;									;
+; Entry	 -> CL = Device number 0 through 15 beeing ports 0 through 15	;
+;		 on Interfacer 3/4 board.				;
+;									;
+; Return -> AL = FFh if device ready					;
+;		 00h if not ready					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+pdsr:	pushf				; disable interrupts
+	cli
+	call	select			; select USART
+	in	al,i4stat		; get status
+	popf				; we can have interrupts again
+	push	bx
+	push	cx			; save'm
+	push	dx
+	call	conrtc			; make device number
+	mov	bl,cl			; make it index to handshake table
+	xor	bh,bh
+	mov	dl,byte ptr hndshk[bx]	; get handshake status
+	and	dl,2+128		; XOFF active ?
+	cmp	dl,2+128
+	mov	dl,0ffh			; assume its not active
+	jne	podsr			; Nope, not active for sure
+	xor	dl,dl			; it is active, so device not ready
+
+podsr:	test	byte ptr hndshk[bx],1	; are we using DTR handshake ?
+	je	dsrset			; nope so DSR is set anyway
+
+	test	al,i4dsr		; dsr set ?
+	jne	dsrset			; yeap go set flags
+	xor	al,al			; nope, not ready say so
+	jmps	pdtdn
+dsrset: or	al,0ffh			; its ready, say so 
+pdtdn:	and	al,dl			; mask in XOFF status
+	pop	dx
+	pop	cx
+	pop	bx			; restore'em 
+	ret				; poll is done
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; mapctq:  Map Console to Que offset					;
+;									;
+; Entry	 -> cl = Console Number						;
+;									;
+; Return -> si = Que offset						;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+mapctq: push	bx			; save him
+	mov	bl,cl			; make 16 bit console number
+	xor	bh,bh
+	sub	bx,lowcon		; first handled console gets first que
+	rol	bx,1			; *2 so its index into table
+	mov	si,quetbl[bx]		; get que offset to si
+	pop	bx
+	ret
+;
+;
+quetbl	dw	offset que1		; Table containing Que offsets
+	dw	offset que2
+	dw	offset que3
+	dw	offset que4
+	dw	offset que5
+	dw	offset que6
+	dw	offset que7
+	dw	offset que8
+	dw	offset que9
+	dw	offset que10
+	dw	offset que11
+	dw	offset que12
+	dw	offset que13
+	dw	offset que14
+	dw	offset que15
+	dw	offset que16	; we could have up to 16 input devices !
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; i4rxint:  Interfacer 4 vector for receive data interrupts.		;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+i4rxint:
+	push	dx			; save him here.. restored by service
+	mov	dx,offset i4risr	; address of actual ISR
+	jmp	service			; jump to ISR via service
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; i4txint:  Interfacer 3/4 vector for transmit ready interrupts.	;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+i4txint:
+	push	dx			; save her
+	mov	dx,offset i4tisr	; Transmit ready ISR offset
+	jmp	service			; and service it
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; i4risr: Interfacer 3/4 Interrupt service routine.			;
+;	  Determines which console caused an interrupt to occur		;
+;	  and reads the character into the corresponding que.		;
+;	  Sets proper flag to wake up sleeping proccess.		;
+;									;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+i4risr: mov	cl,15			; start with highest exact user
+rescan: call	select			; select user to be scanned
+	mov	bx,1			; make mask for this port
+	rol	bx,cl
+	test	word ptr imask,bx	; valid device ?
+	je	nxtsn			; nope... skip it
+	in	al,i4rint		; get receive interrupt status
+	cmp	cl,7			; is this the second board ?
+	jg	rscnd			; yeap, test that mask
+	and	al,bl			; did interrupt occur here ?
+	je	nxtsn			;   No, Scan next user
+	jmps	rget			; yes, go get the sucker
+rscnd:	and	al,bh			; did interrupt occur on second board?
+	je	nxtsn			; nope, scan next one
+rget:	call	getchr			;   yes, get character to que
+nxtsn:	dec	cl			; next relative users turn
+	jne	rescan			; go and scan him
+	ret
+;
+;
+;
+getchr: in	al,i4data		; Read the character
+	push	cx			; save for later
+	call	conrtc			; convert exact user to device #
+	mov	bl,cl			; make index
+	xor	bh,bh			; to handshake table
+	test	byte ptr hndshk[bx],2	; XON-XOFF handshaking active ?
+	je	noxoff			; nope... dont filter XON/XOFF
+	cmp	al,xoff			; handshaking active, is it Xoff?
+	jne	xontst			; nope test for Xon
+	or	byte ptr hndshk[bx],128 ; yeap, set xoff received flag for dev.
+xontst: cmp	al,xon			; is it XON ?
+	jne	noxoff			; nope... just a character
+	and	byte ptr hndshk[bx],7fh ; yeap, clear xoff flag
+	jmps	getd			; and we are done
+
+noxoff: call	mapctq			; get offset for q
+	call	queins			; insert the character into que
+	mov	dl,fbase		; compute flag for this console
+	add	dl,cl
+	mov	cl,setf			; and set to wake up proccess waiting
+	call	supif			; call MPM supervisor interface
+getd:	pop	cx			; restore relative user
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; i4tisr:   Transmit buffer empty Interrupt Service Handler		;
+;	    Determines which device has pending output and		;
+;	    sets flag to wake up the task waiting for the		;
+;	    USART Transmit buffer to clear.				;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+i4tisr: mov	al,8			; read from second board first 
+	out	i4slct,al		; read from it
+	in	al,i4tint		; get interrupt status
+	mov	ah,al			; make it high byte of mask
+	xor	al,al			; now its the first boards turn
+	out	i4slct,al
+	in	al,i4tint		; gotcha
+	and	ax, word ptr twmsk	; mask only those that are wanted
+	mov	dx,1			; dx = mask 
+	mov	bl,0			; bl = exact user
+
+tscn:	test	ax,dx			; is he ready
+	jnz	txver			; yeap... go get him
+	rol	dx,1			; next port
+	inc	bl
+	cmp	bl,16			; all done ?
+	jb	tscn			; nope, keep going till we got the one
+
+txver:	not	dx			; set bit to NOT active for this port
+	and	dx,word ptr twmsk
+	mov	word ptr twmsk,dx	; update mask
+	mov	al,8			; second board first
+	out	i4slct,al
+	mov	al,dh			; and tx int mask on port
+	out	i4tint,al
+	xor	al,al			; now first board
+	out	i4slct,al
+	mov	al,dl
+	out	i4tint,al
+	mov	cl,bl			; now set flag
+	call	conrtc			; for this device
+	mov	dl,fbase+16
+	add	dl,cl
+	mov	cl,setf
+	jmp	supif
+;
+;
+;
+twmsk	dw	0			; bit map keeping track of which device
+					; is waiting for transmit to clear
+
+
+;-----------------------------------------------------------------------;
+;									;
+; conrtc: Convert Exact user to Console number				;
+;	  The conversion is not always a MPM console number.		;
+;	  If a exact user port is a Printer port then the a console	;
+;	  Number returned is equal to HIGHCON + PRINTER NUMBER		;
+;	  as the hardware handling of printer and consoles is		;
+;	  identical, the same routines may be used without having to	;
+;	  make exceptions for printer devices. THUS --> IF THE		;
+;	  RETURNED CONSOLE NUMBER IS GREATER THAN THE HIGHEST CONSOLE	;
+;	  NUMBER SUPPORTED, IT IS A PRINTER.				;
+;									;
+; Entry	 -> cl = exact Interfacer 3/4 user number			;
+;									;
+; Return -> cl = Corresponding Console/Device number			;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+conrtc: push	bx		; save him
+	mov	bl,cl		; make 16 bit of user number
+	xor	bh,bh
+	mov	cl,rtcmap[bx]	; get corresponding console number
+	pop	bx
+	ret
+
+
+rtcmap	db	6		; exact user 0 --> console 6
+	db	5		; exact user 1 --> console 5
+	db	4		; exact user 2 --> console 4
+	db	3		; exact user 3 --> console 3
+	db	14		; exact user 4 --> printer 0 (uses que 14)
+	db	15		; exact user 5 --> printer 1 (uses que 15)
+	db	2		; exact user 6 --> console 2
+	db	1		; exact user 7 --> console 1
+	db	16		; exact user 8 --> printer 2 (uses que 16)
+	db	7		; exact user 9 --> console 7
+	db	8		; exact user A --> console 8
+	db	9		; exact user B --> console 9
+	db	10		; exact user C --> console 10
+	db	11		; exact user D --> console 11
+	db	12		; exact user E --> console 12
+	db	13		; exact user F --> console 13
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; conctr:	Convert Console to exact user number.			;
+;		Performs the inverse function of conrtc.		;
+;									;
+; entry	 ->   cl = Device/Console number				;
+;									;
+; return ->   cl = Interfacer 3/4 user number				;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+conctr: push	bx			; save'm
+	xor	bx,bx
+	sub	cl,lowcon		; compute 16 bit index to table
+	mov	bl,cl
+	mov	cl,ctrmap[bx]		; get user number from the table
+	pop	bx
+	ret				; and we are done
+;
+;
+ctrmap	db	7			; Console 1 ---> exact user 7
+	db	6			; Console 2 ---> exact user 6
+	db	3			; Console 3 ---> exact user 3
+	db	2			; Console 4 ---> exact user 2
+	db	1			; Console 5 ---> exact user 1
+	db	0			; Console 6 ---> exact user 0
+	db	9			; console 7 ---> exact user 9
+	db	10			; console 8 ---> exact user 10
+	db	11			; console 9 ---> exact user 11
+	db	12			; console 10 --> exact user 12
+	db	13			; console 11 --> exact user 13
+	db	14			; console 12 --> exact user 14
+	db	15			; console 13 --> exact user 15
+	db	4			; Printer 0 ---> exact user 4
+	db	5			; Printer 1 ---> exact user 5
+	db	8			; Printer 2 ---> exact user 8
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; select:      Selects relative user on Interfacer 3/4 board		;
+;									;
+; Entry	  ->  cl = relative user number					;
+;									;
+; Return  ->  none							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+select: push	ax
+	mov	al,cl			; send relative user number to
+	out	i4slct,al		; select port
+	pop	ax
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+;  qempt:     Checks if que is empty.					;
+;									;
+;  entry  -> si = que offset						;
+;									;
+;  return -> Que empty:	   al = 0, Z is Set				;
+;	     Char in que:  al = FF, Z not set				;
+;-----------------------------------------------------------------------;
+
+
+qempt:	push	bx		; lets not destroy anything other than al
+	mov	bx,cs:word ptr 2[si]	; get rear of que
+	cmp	cs:word ptr[si],bx	; if front = rear then
+	mov	al, 0
+	je	qstat			;   que := empty
+	mov	al, 0ffh		; else que:= not empty
+qstat:	pop	bx
+	or	al,al
+	ret
+
+;-----------------------------------------------------------------------;
+; qfull:  test if que is full.						;
+;									;
+; entry	 -> si = que offset						;
+;									;
+; return -> NZ = ok, Z = que FULL					;
+;									;
+;-----------------------------------------------------------------------;
+
+qfull: mov	bx,cs:word ptr[si]	; if front + 1 = rear then
+       call	incqptr			;   que=full
+       cmp	bx,cs:word ptr 2[si]
+       ret				; Z = full, NZ = ok
+
+
+;-----------------------------------------------------------------------;
+; incqptr:  Increment the Que pointer. Takes care of wrap arround	;
+;	    if end of que area is reached				;
+; entry	  -> BX = pointer						;
+; return  -> BX = pointer + 1 increment					;
+;-----------------------------------------------------------------------;
+;
+;
+incqptr:inc	bx			; point to next que offset
+	cmp	bx,qdepth		; end of que area reached ?
+	jne	incd			; if not we are done
+	xor	bx,bx			; yeap... lets wrap
+incd:	ret
+
+
+
+;-----------------------------------------------------------------------;
+; queins: insert a character into que. If que is full the character	;
+;	  is just droped.						;
+;									;
+; entry	    -> al = character						;
+;	       si = que offset						;
+;									;
+; return -> none							;
+;-----------------------------------------------------------------------;
+
+queins: push	ax
+	call	qfull			; find out if the que is full
+	pop	ax			; Z -> ok, NZ -> full
+	je	qind			; if que is full then loos data
+	mov	bx,cs: word ptr[si]	; else que[front]=item
+	mov	cs:byte ptr 4[si+bx],al
+	call	incqptr			; front = front + 1
+	mov	cs:word ptr[si],bx
+qind:	ret
+
+
+;-----------------------------------------------------------------------;
+; qdel:	 delete a character from que					;
+;									;
+; entry	   -> si = que offset						;
+;									;
+; return   -> al = character						;
+;-----------------------------------------------------------------------;
+
+
+qdel:	call	qempt			; anything in the que ?
+	je	qdeld			; nope, so nothing we can get out...
+	mov	bx,cs:word ptr 2[si]	; al = que[rear]
+	mov	al,cs:byte ptr 4[si+bx]
+	call	incqptr			; rear = rear+1
+	mov	cs:word ptr 2[si],bx
+qdeld:	ret
+
+
+que1	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que2	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que3	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que4	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que5	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que6	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que7	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que8	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que9	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que10	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que11	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que12	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que13	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que14	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que15	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+que16	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; Service:  Called from interrupt routines to save the state of		;
+;	    the machine and call the selected interrupt service		;
+;	    routine.  After completion of the service routine		;
+;	    it restores the state of the machine and jumps to		;
+;	    the dispatcher to return from the interrupt.		;
+;									;
+;  Entry  ->	Old DX pushed on the stack				;
+;		DX = Address of the interrupt service routine		;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+service:push	ds			;Save machine state
+	mov	cs:word ptr intss,ss
+	mov	cs:word ptr intsp,sp
+	mov	cs:word ptr axsave,ax
+	mov	ax,cs
+	mov	ds,ax				; 8080 model  cs=ds
+	mov	ss,ax				; Set up local stack
+	mov	sp,offset istack
+	push	word ptr axsave			; Save all the registers
+	push	bx
+	push	cx
+	push	bp
+	push	si
+	push	di
+	push	es
+
+	call	dx				; Call ISR
+
+	mov	al,nseoi			; Send End Of Int. to PIC's
+	out	mpic0,al			; Master PIC
+
+	pop	es				; Restore machine state
+	pop	di
+	pop	si
+	pop	bp
+	pop	cx
+	pop	bx
+	pop	ax
+	mov	ss,word ptr intss
+	mov	sp,word ptr intsp
+	pop	ds
+	pop	dx
+	jmpf	cs:dword ptr disp		; Jump to MP/M dispatcher
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; supif:  Call MP/M supervisor.						;
+;									;
+; Entry	 ->	CX = Function #						;
+;		DX = Parameter						;
+;									;
+; Return ->	AX = Return value					;
+;		BX = AX							;
+;		CX = RTM error code					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+supif:	mov	ch,0		;Clear high byte of function number
+	push	es
+	push	ds
+	mov	ds,word ptr sysdat
+	mov	si,.68h
+	mov	es,ds:10h[si]		; get uda of current proccess
+	callf	cs:dword ptr supvsr
+	pop	ds
+	pop	es
+	ret
+
+
+
+xios	dw	0		;Offset address of XIOS
+sysdat	dw	0		;Segment of XIOS and system data segment
+
+supvsr	dw	3		;Entry to the supervisor = offset 3
+	dw	0		;Segment filled in later
+
+disp	dw	0		; MPM dispatcher offset
+	dw	0		; and segment
+
+axsave	dw	0		; save area for AX
+intss	dw	0		; SS
+intsp	dw	0		; and SP  for ISRs
+
+
+	rb	128
+istack	db	0		; Stack for interrupt service
+
+	rb	128		; Make sure to allow enough stack space
+lstack	db	0		; stack for MSUP execution entry point
+
+
+
+
+	dseg
+
+	org	0h	; 0 if used as RSP
+
+;
+; RSP header
+;
+
+sdatseg dw	0,0,0
+	dw	0,0,0
+	dw	0,0
+
+	org	10h
+	
+pd	dw	0,0		;Link,thread
+	db	0		;Status
+	db	190		;Priority
+	dw	5		;Flags
+	db	'Msup    '	;Name
+	dw	offset uda/10h	;Uda seg
+	db	0,0		;Disk,user
+	db	0,0		;Load dsk,usr
+	dw	0		;Mem
+	dw	0,0		;Dvract,wait
+	db	0,0
+	dw	0
+	db	0		;Console
+	db	0,0,0
+	db	0		;List
+	db	0,0,0
+	dw	0,0,0,0
+
+	org	40h
+	
+uda	dw	0,0,0,0		;0
+	dw	0,0,0,0
+	dw	0,0,0,0		;10h
+	dw	0,0,0,0
+	dw	0,0,0,0		;20h
+	dw	0,0,0,0
+	dw	0,0,offset stack,0 ;30h
+	dw	0,0,0,0 
+	dw	0,0,0,0		;40h
+	dw	0,0,0,0
+	dw	0,0,0,0		;50h
+	dw	0,0,0,0
+	dw	0,0,0,0		;60h
+
+	org	140h
+
+	dw	0cccch,0cccch,0cccch
+	dw	0cccch,0cccch,0cccch
+	dw	0cccch,0cccch,0cccch
+	dw	0cccch,0cccch,0cccch
+	dw	0cccch,0cccch,0cccch
+stack	dw	offset exec	;Start offset
+	dw	0		;Start seg
+	dw	0		;Init flags
+
+
+	end	
+
+

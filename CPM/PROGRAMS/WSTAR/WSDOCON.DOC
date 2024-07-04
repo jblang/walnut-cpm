@@ -1,0 +1,81 @@
+      WordStar Non-Document to Document Conversion Program
+
+                      Dr. William C. Parke
+
+
+Micropro's  WordStar word processor creates and handles two kinds 
+of files.   A "document" file uses high-bit flags to signal  word 
+boundaries,  "soft"  spaces and "soft"  carriage  returns.  These 
+flags let WordStar properly justify and format the file.  A "non-
+document"  file uses no formatting or justification flags.   This 
+type of file is created to edit data or program source code,  for 
+which text formatting is not required.
+
+A  "document"  file can easily be converted to  a  "non-document" 
+file  by simply using the CP/M utility PIP to copy the file  with 
+the "Z" switch set.  For example,
+
+     >PIP DESTIN.DOC=SOURCE.DOC [Z]
+
+will create a file DESTIN.DOC from the file SOURCE.DOC which  has 
+all  high-bits of each character (also called the parity bit) set 
+to zero.   This conversion may be necessary if you intend to edit 
+the file with another word processor besides WordStar.
+
+There are occasions when you may wish to convert a "non-document" 
+file to a "document" file.  For example,  the "non-doc" file  may 
+have  been created on some other word processor,  or it may  have 
+been  a WordStar "doc" file transferred via modem with the parity 
+bit masked off.   This type of conversion is a less trivial task.  
+Micropro   suggests  that  you  enter  the  file  as  a  WordStar 
+"document" file,  delete all unwanted spaces and carriage returns 
+and reformat each paragraph.  This is a laborious procedure.
+
+The program WSDOCON was written to relieve this labor.   It  will 
+do the following:
+
+1) Establish word boundary flags.
+
+2) Make all extra spaces between words "soft" spaces.
+
+3) Set all carriage returns within a paragraph to "soft" carriage 
+returns.  Paragraph boundaries are recognized by the existence of 
+blank  lines  (more than one carriage return-line  feed).   These 
+boundaries are not made "soft".
+
+4) Convert tab characters ( hex 09 ) into spaces,  at the  option 
+of the user.
+
+The command format is:
+
+     >WSDOCON SOURCE.DOC DESTIN.DOC
+
+or   
+     >WSDOCON SOURCE.DOC
+
+The  second  form  will  write the converted  file  back  to  the 
+original file.
+
+WordStar  does  not  use tab characters (CTL-I's) in  its  files.  
+Instead,  the tab key is converted to the (user settable)  number 
+of  spaces.  However,  other word processors,  such as  PIE  from 
+Software Toolworks, use tabs in the file to preserve space.
+
+WSDOCON will convert each tab encountered into a single space, in 
+anticipation of a reformating within WordStar.  If there are tabs 
+in  the your file which establish fixed columns,  you may wish to 
+preserve  these tabs in the conversion.   This can be done  using 
+the "/T" switch in the form:
+     
+     >WSDOCON SOURCE.DOC DESTIN.DOC /T
+
+A  second  switch  ("/N") is available for the  conversion  of  a 
+"document" file to a "non-document" file.  You may find this type 
+of conversion more convenient using WSDOCON than using PIP, since 
+you need not create a new file in the process:
+
+     >WSDOCON SOURCE.DOC /N
+
+After  using  WSDOCON to create a "document" file,  you  can  use 
+WordStar to reformat paragraphs to you liking.
+

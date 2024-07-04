@@ -1,0 +1,568 @@
+;LDIR.Z80 by Trevor Marshall.....Stolen  from SD-50.ASM
+; v1.0 7/23/83
+;Created to give a library module for many purposes..including cataloging
+;Send any fixes to Thousand Oaks Tech RBBS (805) 492 5472
+;
+FALSE	EQU	0
+TRUE	EQU	NOT FALSE
+;********************************
+;*				*
+;*  USER OPTION SPECIFICATIONS 	*
+;*				*
+;********************************
+;
+NPL	EQU	4		;# of names per line (max of 3 for 64x16)
+;(max	of 4 for 80x24)
+
+; BDOS	equates
+
+CPM	EQU	5
+BDOS	EQU	5
+FCB	EQU	5CH		;FCB1
+
+RDCHR	EQU	1		;Read char from	console
+WRCHR	EQU	2		;Write char to console
+CONST	EQU	11		;Check cons stat
+RESET	EQU	13		;Reset disk system
+SELDSK	EQU	14		;Select	disk
+OPEN	EQU	15		;0FFH=not found
+CLOSE	EQU	16		;   "	"
+SEARCH	EQU	17		;   "	"
+NEXT	EQU	18		;   "	"
+READ	EQU	20		;not 0 = EOF
+WRITE	EQU	21		;not 0 = disk full
+MAKE	EQU	22		;0FFH =	directory full
+CURDSK	EQU	25		;Get currently logged disk name
+SETDMA	EQU	26		;Set current DMA
+GALLOC	EQU	27		;Get address of	allocation vector
+CURDPB	EQU	31		;Get current disk parameters
+CURUSR	EQU	32		;Get currently logged user number (2.x only)
+;
+START:
+	LD	HL,0
+	LD	(LBTOTL),HL
+	LD	(LMTOTL),HL
+;On entry the filenames are in FCB1...make them .LBR
+	LD	HL,FCB+9
+	LD	(HL),'L'
+	INC	HL
+	LD	(HL),'B'
+	INC	HL
+	LD	(HL),'R'
+;
+	LD	DE,80H	;set def dir bfr
+	LD	C,SETDMA
+	CALL	CPM
+;
+	LD	DE,FCB	;Now ask for matching directory entries
+	LD	C,SEARCH ;look for the first
+	CALL	CPM
+	INC	A
+	JR	NZ,SOME.THERE
+	LD	HL,NOT.FOUND	;else quit
+	LD	B,22
+	CALL	TYPEIT	
+	JP	EXIT
+SOME.THERE: ;calculate filename address
+	DEC	A	;inced above
+	RLC	A	;A*2
+	RLC	A
+	RLC	A
+	RLC	A	;A*16
+	RLC	A	;A*32
+	ADD	80H	;now pointing at name
+	LD	D,0
+	LD	E,A	;get it to DE
+	INC	DE	;point at the name
+;See if it is the 0 extent, if not skip this name
+	LD	HL,11	;point at extent
+	ADD	HL,DE
+	LD	A,(HL)	;get it
+	OR	A
+	JR	NZ,GET.NEXT
+	XOR	A
+	LD	(LNCNT),A
+	CALL	LBRTST	;Else print the details
+;Done one file, now look for more
+GET.NEXT: LD	DE,80H	 ;first reset the DMA to 80h
+	LD	C,SETDMA
+	CALL	CPM
+;
+	LD	C,NEXT
+	LD	DE,FCB
+	CALL	BDOS
+	INC	A
+	JR	NZ,SOME.THERE	;else exit
+EXIT:	CALL	LBEXIT	;after printing the summaries
+ERROR.EXIT: JP	0
+NOT.FOUND: DB	'++ Library not found ++',0dh,0ah
+
+;************** UTILITY SUBROUTINES *************************
+;*	Print	HL in decimal with leading zero	suppression
+DECPRT:	SUB	A		;Clear leading zero flag
+	LD	(LZFLG),A
+	LD	DE,-1000	;Print 1000's digit
+	CALL	DIGIT
+	LD	DE,-100		;Etc.
+	CALL	DIGIT
+	LD	DE,-10
+	CALL	DIGIT
+	LD	A,'0'		;Get 1's digit
+	ADD	L
+	JP	TYPE
+DIGIT:	LD	B,'0'		;Start off with	ASCII 0
+DIGLP:	PUSH	HL		;Save current remainder
+	ADD	HL,DE		;Subtract
+	JP	NC,DIGEX	;Quit on overflow
+	POP	AF		;Throw away remainder
+	INC	B		;Bump digit
+	JP	DIGLP		;Loop back
+DIGEX:	POP	HL		;Restore pointer
+	LD	A,B
+	CP	'0'		;Zero digit?
+	JP	NZ,DIGNZ	;No, type it
+	LD	A,(LZFLG)	;Leading zero?
+	OR	A
+	LD	A,'0'
+	JP	NZ,TYPE		;Print digit
+	LD	A,(SUPSPC)	;Get space suppression flag
+	OR	A		;See if	printing file totals
+	RET	Z		;Yes, don't give leading spaces
+	JP	SPACE		;Leading zero...print space
+DIGNZ:	LD	(LZFLG),A	;Set leading zero flag so next zero prints
+	JP	TYPE		;And print digit
+;
+;--------------
+CRLF:	LD	A,0DH		;Send CR
+	CALL	TYPE
+	LD	A,0AH		;Send LF
+	JP	TYPE		;Exit to caller	from TYPE
+;----------
+FPAD:	CALL	TYPE		;Print it, fall	into space
+SPACE:	LD	A,' '		;Fall through to TYPE
+;*	Output character in A to console, and optionally to printer and/or
+;*	the output file.
+TYPE:	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	LD	C,2
+	LD	E,A
+	CALL	CPM
+	POP	HL
+	POP	DE
+	POP	BC
+	RET	
+;*	Print	a string at HL of length B
+TYPEIT:	LD	A,(HL)
+	CALL	TYPE
+	INC	HL
+	DEC	B
+	JP	NZ,TYPEIT
+	RET	
+;*	Print	string terminated with last byte high on console.
+PRINT:	LD	A,(DE)
+	PUSH	AF
+	AND	7FH
+	CALL	TYPE
+	POP	AF
+	OR	A
+	RET	M
+	INC	DE
+	JP	PRINT
+
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;
+;	SUBROUTINES to read library file directory
+;
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+;
+;Compare routine
+COMPR:	PUSH	HL		;Save table addr
+	LD	E,(HL)		;Load low order
+	INC	HL
+	LD	D,(HL)		;Load high order
+	INC	HL
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+; BC,DE now point to entries to be compared for L characters
+COMP:	EX	DE,HL
+	LD	E,A		;Get count
+CMPLP:	LD	A,(HL)
+	AND	7FH
+	LD	D,A
+	LD	A,(BC)
+	AND	7FH
+	CP	D
+	INC	HL
+	INC	BC
+	JP	NZ,NOTEQL	;Quit on mismatch
+	DEC	E		;Or end	of count
+	JP	NZ,CMPLP
+NOTEQL:	POP	HL
+	RET			;Cond code tells all, Z=match
+;
+ENTRYL	;Entry here from below, on multiple file looping
+	LD	HL,(LCOUNT)
+	LD	A,H		;Is this the last file?
+	OR	L
+	RET	Z	;if so return to mainline code
+	DEC	HL		;Dock file count
+	LD	(LCOUNT),HL
+	PUSH	BC
+	LD	HL,(NEXTL)
+	LD	A,11
+	CALL	COMPR		;Does this entry match next one?
+	POP	BC
+	JP	NZ,LBRTST	;No, print it
+	INC	HL
+	INC	HL		;Skip since highest extent comes last in list
+	LD	(NEXTL),HL
+	JP	ENTRYL		;Loop back for next lowest extent
+;
+;	Exit Library member printing
+;
+LBEXIT	LD	HL,(LMTOTL)
+	LD	A,H
+	OR	L
+	RET	Z
+	PUSH	HL		;Save Member count
+	XOR	A		;Get a zero to...
+	LD	(SUPSPC),A	;Suppress leading spaces in totals
+	CALL	CRLF
+	CALL	CRLF
+	LD	DE,CONTM	;Print "There are "
+	CALL	PRINT
+	POP	HL		;GET TOTAL MEMBER COUNT BACK
+	CALL	DECPRT
+	LD	DE,MFILES	;PRINT "Members in "
+	CALL	PRINT
+	LD	HL,(LBTOTL)
+	CALL	DECPRT
+	LD	DE,LIBR
+	CALL	PRINT
+;
+	LD	DE,LLENMSG
+	CALL	PRINT		;Print " with "
+	LD	HL,(L2LENLOC)	;GET TOTAL LENGTH OF .LBR (IN SECTORS)   *****
+	PUSH	HL
+	XOR	A
+	LD	(SUPSPC),A	;SUPRESS LEADING SPACES
+;Now have the # of sectors in HL..will cahnge it to kBytes
+	LD	A,L	;save the old LSByte
+	RR	H
+	RR	L	;/2
+	OR	A
+	RR	H
+	RR	L	;/4
+	OR	A
+	RR	H
+	RR	L	;/8 now in k
+	AND	A,00000111B ;do we have a remainder?
+	JR	Z,PUT.IT3
+	INC	HL	;Remainder -> INC HL (Also handles < 1k )
+PUT.IT3: CALL	DECPRT
+	LD	HL,0
+	LD	(LLENLOC),HL	;ZERO OLD COUNT                          *****
+	LD	(L2LENLOC),HL
+	POP	HL
+	LD	DE,LLENMSG2
+	CALL	PRINT		;Print " sectors total."
+	RET	
+;
+;* Valid library..dump it out
+; on entry DE points to FCB+1 (start of the name)
+LBRTST:
+	PUSH	DE
+	LD	HL,MNPL
+	LD	A,(LNCNT)
+	CP	(HL)
+	CALL	NZ,CRLF
+	CALL	CRLF
+	LD	HL,LFMSEP	;say 'Library file members for:'
+	LD	B,31
+	CALL	TYPEIT
+	POP	HL	;get ptr to start of name
+	PUSH	HL	;save it again
+	LD	B,8		;File name length
+	CALL	TYPEIT
+	LD	A,'.'		;Period	after FN
+	CALL	TYPE
+	LD	B,3		;Display 3 characters of filetype
+	CALL	TYPEIT
+	CALL	CRLF
+	POP	HL	;get name again
+;
+; Saves the library file name into LBRFCB
+; first set the drive #
+	LD	A,(FCB)	;from FCB1
+	LD	DE,LBRFCB	;TO
+	LD	(DE),A
+	INC	DE
+	LD	B,11		;name+extent
+	CALL	MOVE		;DO THE MOVE from (HL) to (DE)
+	EX	DE,HL
+	LD	B,25		;then zero rest of FCB
+CLMFCB	LD	(HL),0
+	INC	HL
+	DEC	B
+	JP	NZ,CLMFCB
+	CALL	SETLDMA		;set DMA to lib bffr
+	LD	DE,LBRFCB	;POINT TO FILE
+	LD	C,OPEN		;GET FUNCTION
+	CALL	CPM		;OPEN IT
+	LD	C,READ
+	LD	DE,LBRFCB
+	CALL	CPM
+;	CALL	SETFOP
+	LD	HL,LBBUF
+	LD	A,(HL)
+	OR	A
+	JP	Z,CKLDIR	;check directory present and type it
+BADLBR	LD	HL,NLBRF	;say 'NOT a library file'
+	LD	B,25
+	CALL	TYPEIT
+LMLEXI	CALL	LBCLOSE		;close the file
+	PUSH	DE
+	PUSH	HL
+	LD	HL,MNPL
+	LD	A,(LNCNT)
+	CP	(HL)
+	CALL	NZ,CRLF
+	LD	DE,ILFMSG
+	CALL	PRINT		;PRINT "This library contains "
+	LD	HL,(LLENLOC)
+	PUSH	HL
+	XOR	A
+	LD	(SUPSPC),A	;SUPRESS LEADING SPACES
+;Now have the # of sectors in HL..will cahnge it to kBytes
+	LD	A,L	;save LSByte
+	RR	H
+	RR	L	;/2
+	OR	A
+	RR	H
+	RR	L	;/4
+	OR	A
+	RR	H
+	RR	L	;/8 now in k
+	AND	A,00000111B ;do we have a remainder?
+	JR	Z,PUT.IT2
+	INC	HL	;Also handles <1k
+PUT.IT2: CALL	DECPRT
+	POP	DE
+	LD	HL,(L2LENLOC)
+	ADD	HL,DE
+	LD	(L2LENLOC),HL
+	LD	HL,0
+	LD	(LLENLOC),HL
+	LD	DE,ILFMS2
+	CALL	PRINT		;PRINT "kbytes total."
+	POP	HL
+	POP	DE
+	LD	A,0FFH
+	LD	(SUPSPC),A	;PUT BACK LEADING SPACES
+	JP	ENTRYL
+
+NLBRF	DEFB	'++Not a LIBRARY file.++',13,10
+;
+;	Close the library file
+;
+LBCLOSE LD	DE,LBRFCB
+	LD	C,CLOSE
+	CALL	CPM
+	RET	
+;
+; SETLDMA - Set the Library file DMA adderss
+;
+SETLDMA LD	DE,LBBUF
+	LD	C,SETDMA
+	CALL	CPM
+	RET	
+;
+; CKLDIR - check to see if there indeed is a LBR file
+;	  directory and barf if not!
+;
+CKLDIR:	LD	B,11		;len of file name
+	LD	A,' '		;space
+	INC	HL
+CKDLP:	CP	(HL)
+	JP	NZ,BADLBR
+	DEC	B
+	INC	HL
+	JP	NZ,CKDLP
+;
+; The first entry in the LBR directory is indeed blank.
+; Now see if the directory size is >0
+;
+	LD	E,(HL)		;file starting location low
+	INC	HL		;must be zero here
+	LD	A,(HL)		;file starting location high
+	OR	E		;must be zero here also
+	JP	NZ,BADLBR
+	INC	HL
+	LD	E,(HL)		;get library size low
+	INC	HL		;point to library size high
+	LD	D,(HL)		;get library size high
+	LD	A,D
+	OR	E		;library must have some size
+	JP	Z,BADLBR
+	DEC	DE
+	EX	DE,HL
+	LD	(SLFILE),HL
+	LD	HL,(LBTOTL)
+	INC	HL
+	LD	(LBTOTL),HL
+	LD	A,(MNPL)
+	LD	(LNCNT),A	;Reset names per line counter
+	LD	B,3
+	LD	HL,17
+	ADD	HL,DE
+	LD	A,(MNPL)
+	LD	(LNCNT),A	;Reset names per line counter
+	JP	LMTEST
+LFMLOP	LD	HL,(SLFILE)	;GET
+	LD	A,L
+	OR	H
+	JP	Z,LMLEXI
+	DEC	HL
+	LD	(SLFILE),HL
+	CALL	SETLDMA
+	LD	C,READ
+	LD	DE,LBRFCB
+	CALL	CPM
+;	CALL	SETFOP
+	LD	B,4		;GET FILE COUNT PER SECTOR
+	LD	HL,LBBUF	;GET BUFFER STARTING ADDRESS
+LMTEST	LD	A,(HL)		;Get member open flag
+	OR	A		;TEST FOR OPEN
+	JP	Z,PRMNAM
+LMTESA	LD	DE,32		;Member not open get offset
+	ADD	HL,DE		;to next and add it in.
+	DEC	B		;is buffer empty ?
+	JP	NZ,LMTEST	;No so test next entry
+	JP	LFMLOP		;Yes get next buffer...
+PRMNAM	PUSH	HL		;Print member NAME and SIZE
+	PUSH	BC
+	LD	HL,LNCNT
+	LD	A,(MNPL)
+	CP	(HL)
+	JP	NZ,PRMNA1
+;
+ IF NPL <= 3
+	LD	A,3		;If printing less than 4 wide
+	CP	(HL)
+	JP	C,PRMNA1
+	LD	A,(LBRFCB)	;.. precede new	line with drive	name
+	ADD	'A'-1
+	CALL	TYPE
+	LD	A,':'		;Tag header with a colon and a space
+	CALL	FPAD		;..and exit back to ENTRY
+ ENDIF
+;
+PRMNA1	POP	BC
+	POP	HL
+	PUSH	HL
+	PUSH	BC
+	INC	HL
+	LD	B,8		;File name length
+	CALL	TYPEIT
+	LD	A,'.'		;Period	after FN
+	CALL	TYPE
+	LD	B,3		;Display 3 characters of filetype
+	CALL	TYPEIT
+	INC	HL
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	EX	DE,HL
+;If	report size enabled, output the size of the individual file.
+	PUSH	DE
+	PUSH	HL
+	PUSH	HL
+	LD	HL,(LLENLOC)
+	PUSH	HL
+	POP	DE
+	POP	HL
+	ADD	HL,DE
+	LD	(LLENLOC),HL
+	POP	HL
+	POP	DE
+;Now have the # of sectors in HL..will cahnge it to kBytes
+	XOR	A
+	LD	A,L	;save LSByte
+	RR	H
+	RR	L	;/2
+	OR	A
+	RR	H
+	RR	L	;/4
+	OR	A
+	RR	H
+	RR	L	;/8 now in k
+	AND	A,00000111B ;do we have a remainder?
+	JR	Z,PUT.IT ;if not then print it
+	INC	HL	;Also handles <1k
+PUT.IT:	CALL	DECPRT		;..go print it
+	LD	A,'k'		;..and follow with k
+	CALL	TYPE
+	LD	A,','
+	CALL	TYPE
+;* At least one more file to output - can we put	it on the current line?
+	LD	HL,(LMTOTL)
+	INC	HL
+	LD	(LMTOTL),HL
+	LD	A,(LNCNT)
+	DEC	A
+	LD	(LNCNT),A
+	PUSH	AF
+	CALL	NZ,SPACE ;If room left, output the space character
+	POP	AF
+	POP	BC
+	POP	HL
+	JP	NZ,LMTESA	;.. and	go output another file
+;*Current line full, start a new one.
+	LD	A,(MNPL)
+	LD	(LNCNT),A	;Reset names per line counter
+	CALL	CRLF		;Space down to next line
+	JP	LMTESA
+;
+; Move characters from 'HL' to 'DE' length in 'B'
+;
+MOVE:	LD	A,(HL)		;GET A CHAR
+	LD	(DE),A		;STORE IT
+	INC	HL		;TO NEXT "FROM"
+	INC	DE		;TO NEXT "TO"
+	DEC	B		;MORE?
+	JP	NZ,MOVE		;   YES, LOOP
+	RET			;   NO, RETURN
+;
+;
+;*	Initialized data area
+
+LFMSEP	db	'    Library file members for : '
+LBRTYP	db	'LBR'
+CONTM	DEFB	'    There are',' '+80H
+MFILES	DEFB	' Member Files in',' '+80H
+LIBR	DEFB	' Library(s',')'+80H
+LLENMSG DEFB	' totalling',' '+80H
+LLENMSG2 DEFB	' kBytes','.'+80H
+ILFMSG	DEFB	'    This library contains',' '+80H
+ILFMS2	DEFB	' kBytes','.'+80H
+;* Uninitialized	data area
+LZFLG	DEFS	1		;0 when	printing leading zeros
+SUPSPC	DEFS	1		;Leading space flag for	decimal	routine
+;
+LLENLOC DEFW	0		;RUNNING TOTAL OF LBR LENGTH (SECS)     *****
+L2LENLOC DEFW	0		;""
+LMTOTL	DEFW	0
+LBTOTL	DEFW	0
+LNCNT	DEFB	0
+LCOUNT	DEFW	0
+NEXTL	DEFW	0
+SLFILE	DEFW	0
+LBRFCB:	DEFS	36
+LBBUF	DEFS	80H
+MNPL:	DW	NPL	;entries per line
+;
+	END	
+ 

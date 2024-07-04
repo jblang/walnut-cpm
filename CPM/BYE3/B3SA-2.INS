@@ -1,0 +1,133 @@
+
+; B3SA-2.INS  -  BYE3 insert for Sanyo MBC1200/1250 -  08/22/85
+;
+;	This insert should adapt BYE3 to the Sanyo MBC1200/1250
+;	computer systems.  The MBC1200/1250 uses an 8251 USART
+;	with an internal baudrate generator.
+;
+;	      Note:  This is an insert, not an overlay
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 08/22/85 Initial version created.		-  pst
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; The following define the port addresses to use
+;
+DPORT	EQU	0ECh		; Modem base port
+SPORT	EQU	DPORT+1		; Modem control port
+;
+TBMT	EQU	00000001B	; Transmit buffer empty
+DAV	EQU	00000010B	; Data available
+DCD	EQU	10000000B	; Data carrier detect
+;
+MDMODE	EQU	10000010H	; Insures 8251 is out of mode, DTR high
+MDRSET	EQU	01000010H	; Resets USART for additional commands
+MDSET1	EQU	01001110H	; 1 stop bit, no parity, 8 bits, x16
+MDSET2	EQU	11001110H	; 2 stop bits, no parity, 8 bits, x16
+;
+;MDSET1 and MDSET2 are set for x16 clock rate, while adding 1 to either will
+;	provide x64 clock rate for 300/1200 autoselect
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	SPORT		; Get status
+	ANI	DCD		; Check DSR for carrier from modem
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call.
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	SPORT		; Causing hangup
+;
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until carrier drops
+	MVI	B,MDSET1	; Set 1200 baud & turn on dtr
+	CALL	SETSPD
+	POP	B
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Got a character?
+	RZ			; Return if none
+	ORI	255		; We have a character
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT
+	RET
+;
+; Renitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; DTR low hangs up phone, keep DTR low
+	OUT	SPORT		;   so will not auto-answer at any time
+	RET
+;
+; The following routine sets the baudrte.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	B,MDSET1+1	; Load 300 baud
+	JMP	SETSPD
+;
+SET1200:MVI	B,MDSET1+0	; Load 1200 baud
+	JMP	SETSPD
+;
+SET2400:ORI	255		; 2400 baud not supported
+	RET
+;
+SETSPD:	MVI	A,MDMODE	; Insure 8251 is out of mode
+	OUT	SPORT
+	XTHL			; Delay a little
+	XTHL			; Delay a little
+	MVI	A,MDRSET	; Reset the 8251A for new command
+	OUT	SPORT
+	XTHL
+	XTHL
+	MVI	A,B		; Set stop pulse, no parity 8 bits, x16
+	OUT	SPORT
+	XTHL
+	XTHL
+	MVI	A,17H		; Reset error flags, RCV, DTR, TX ready
+	OUT	SPORT
+	XTHL
+	XTHL
+	XRA	A		; Say it is ok
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

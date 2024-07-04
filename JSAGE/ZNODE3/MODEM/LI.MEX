@@ -1,0 +1,168 @@
+. LI - Log-In MexPlus script - George M. Sipe - February 1986
+. Accepts system name as argument to avoid menu.
+. May be called from CP/M (e.g. A>MEX LI N-OWL) and therefore
+. may be called by a ZCPR3 ALIAS (e.g. A>N-OWL)
+.---------------------------------------------------------------------
+Phone >=541-9555,,,804-3901-
+%z=0;Phone <=,
+Screen Off;Stat Case On;Screen On
+A="{1:menu}"
+Comp A "menu";If Value then GoTo Menu
+Comp A "bam3; If Value then GoTo Bam 
+Comp A "n-owl";If Value then GoTo NOwl
+Comp A "kay";If Value then GoTo kay
+Comp A "news";If Value then GoTo news
+Comp A "fog3";If Value then GoTo fog3
+Start Brite;Say "Error:  Unknown system "
+Start ULine;Say A
+End Uline;Start Brite;Say " specified."
+Sleep 2
+.---------------------------------------------------------------------
+Label Menu
+Start Brite;Cls
+Box 05,10,16,60
+Box 03,10,19,60
+End Brite
+@04,25;Start Rev;Say " --- Choose One --- ";End Rev
+@06,13 Say "F1 --> Call and login to BAMDUA BBS"
+@07,13 Say "F2 --> Call and login to the Night-Owl"
+@08,13 Say "F3 --> Call and login to KAY*FOG"
+@09,13 Say "F4 --> Call and login to Newsbase"
+@10,13 Say "F5 -->"
+@11,13 Say "F6 -->"
+@12,13 Say "F7 --> Call and login to FOG #3"
+@13,13 Say "F8 --> Change Alternate Long Distance service"
+@14,13 Say "F9  -> Exit from menu to Mex prompt"
+@15,13 Say "F10 -> Exit from menu to CP//M prompt"
+Label Entry
+If %z=0 then @17,13 Say "(ALD service is currently GTE SPRINT)   "
+If %z=1 then @17,13 Say "(ALD service is currently <ald 2>)"
+If %z=2 then @17,13 Say "(ALD service is currently <ald 3>)"
+@18,13 Say "                             "
+Start Brite;@18,13 Say "Enter Function Key -> ";End Brite
+Key F1="1/r";Key F2="2/r";Key F3="3/r";Key F4="4/r";Key F5="5/r"
+Key F6="6/r";Key F7="7/r";Key F8="8/r";Key F9="9/r";Key F10="10/r"
+Screen Off;Input;Screen On
+Key F1="";Key F2="";Key F3="";Key F4="";Key F5=""
+Key F6="";Key F7="";Key F8="";Key F9="";Key F10=""
+If Value=1  then GoTo Bam
+If Value=2  then GoTo NOwl
+If Value=3  then GoTo Kay
+If Value=4  then GoTo News
+If Value=7  then GoTo fog3
+If Value=8  then GoTo ALD
+If Value=9  then GoTo Mex
+If Value=10 then GoTo Exit
+Start Brite;@18,13 Say "Invalid selection, Try again  ";End Brite
+Sleep 1
+Goto Entry
+.---------------------------------------------------------------------
+. Requires:  A as system name, Phone Num as number to call
+. Returns:   Value as non-zero if connection successful
+Proc Call
+Start Brite;Cls
+Box 03,10,05,60
+End Brite
+@04,13;Say "Attempting to connect to ",A,"... ";@06,0
+Screen Off;Dial Num;Phone Num  =
+If Value=0
+        Screen On
+        @04,13;Say A," is currently unavailable       ";@06,0
+        Sleep 2
+Else
+	Prefix "";Suffix "/r";Stat WtEcho Off;Stat SoDelay Off
+        Stat Reply 0;Stat Trigger ""
+        Screen On
+        @04,13;Say "Connection to ",A," established...";@06,0
+EndIf
+EndP
+.---------------------------------------------------------------------
+Label bam
+A="bam"
+Phone Num = 654-3882
+GoSub Call
+If Value=0 then GoTo Menu
+Wait String "ogin: ";If Value then Sendout "username"
+Wait String "assword:";If Value then Sendout "password"
+Wait String "(vt100) ";If Value then Sendout ""
+Wait String "% ";If Value then Sendout ""
+Screen Off;Stat Reply 8;Stat Trigger "%";Screen On
+T
+Stop
+.---------------------------------------------------------------------
+Label NOwl
+A="the Night-Owl"
+Phone Num = <414-563-9361
+GoSub Call
+If Value=0 then GoTo Menu
+Wait String "FIRST name? ";If Value then Sendout "Rick"
+Wait String "LAST name? ";If Value then Sendout "Charnes"
+Wait String "password: ";If Value then Sendout "strength"
+Wait String "continue:";If Value then Sendout ""
+Screen Off;Stat Reply 8;Stat Trigger ">";Screen On
+T
+Stop
+.---------------------------------------------------------------------
+Label kay
+A="kay"
+Phone Num = 285-2687
+GoSub Call
+If Value=0 then GoTo Menu
+Sendout "";Sleep 1;Sendout "";Sleep 1;Sendout "";Sleep 1;Sendout ""
+Wait String "bugger ?";If Value then Sendout "ddt"
+Wait String "name =>";If Value then Sendout "First Last"
+Wait String "password =>";If Value then Sendout "password"
+Wait String "HELP)?";If Value then Sendout "c"
+Wait String "(Y//N)? ";If Value then Sendout "n"
+Screen Off;Stat Reply 8;Stat Trigger ">";Screen On
+T
+Stop
+.---------------------------------------------------------------------
+Label news
+A="news"
+Phone Num = <824-8767
+GoSub Call
+If Value=0 then GoTo Menu
+Wait String "(0-9)? ";If Value then Sendout "0"
+Wait String "(Y//N)? ";If Value then Sendout "n"
+Wait String "name: ";If Value then Sendout "First Last"
+Wait String "word:  ";If Value then Sendout "password"
+Wait String "(Y//N)? ";If Value then Sendout "n"
+Wait String "(Y//N)? ";If Value then Sendout "n"
+Wait String "True? ";If Value then Sendout "n"
+Screen Off;Stat Reply 8;Stat Trigger ">";Screen On
+T
+Stop
+.---------------------------------------------------------------------
+Label CIS
+A="fog3"
+Phone Num = ###-####
+GoSub Call
+If Value=0 then GoTo Menu
+Screen  Off
+Stat Disp Checksum On;Stat Disp Cis On;Stat Disp Crc Off
+Stat Checksum On;Stat Cis On;Stat Crc Off
+Global T;Id "[CIS Mex] ";Proto M;Set M 300;SSet Auto Off
+Screen On
+Sendout "^C"
+Wait String "User ID: ";If Value then Sendout "#####,####"
+Wait String "Password: ";If Value then Sendout "pass-word"
+Screen Off;Stat Reply 8;Stat Trigger ":";Screen On
+T
+Stop
+.---------------------------------------------------------------------
+Label ALD
+If %z=2 then %z=3;Phone <=1-
+If %z=1 then %z=2;Phone <=###-####,,,#####-
+If %z=0 then %z=1;Phone <=###-####,,,#####-
+If %z=3 then %z=0
+Goto Entry
+.---------------------------------------------------------------------
+Label Mex
+Start Brite;@18,13 Say "Entering Mex command level... ";End Brite
+@19,0;Stop
+.---------------------------------------------------------------------
+Label Exit
+Start Brite;@18,13 Say "Exiting to system...           ";End Brite
+@19,0;Exit
+----------------

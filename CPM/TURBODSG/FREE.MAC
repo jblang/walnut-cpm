@@ -1,0 +1,76 @@
+;FREE.MAC   - CALCULATE FREE SPACE ON A: THRU D:
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+.request syslib
+	extrn	crlf,print,cout
+;
+.z80
+;
+start:	ld	sp,stack
+	call	print
+	cr,lf,lf
+	'Free space display:',cr,lf
+	'DRIVE   k free   k used',cr,lf
+	'-----------------------',cr,lf,0
+	ld	a,0
+	ld	(drive),a
+loop:	ld	a,(drive)
+	inc	a
+	ld	(drive),a
+	cp	16
+	jp	z,done
+	dec	a
+	push	af
+	ld	c,21
+	ld	e,a
+	ld	d,0ffh
+	call	50h
+	pop	af
+	inc	l
+	jr	nz,loop
+	ld	e,a
+	ld	c,19
+	call	50h
+	and	0fh
+	push	af
+	call	cvhlk
+	pop	af
+	push	hl
+	ex	de,hl
+	call	cvhlk
+	ld	a,(drive)
+	add	a,40h
+	call	cout
+	call	print
+	':       ',0
+	ld	a,3
+	call	phldc##
+	call	print
+	db	'    ',0
+	ex	de,hl
+	pop	hl
+	or	a
+	sbc	hl,de
+	ld	a,3
+	call	phldc##
+	call	crlf
+	jr	loop
+;
+done:	call	print
+	cr,lf,lf,0
+	rst	0
+;
+cvhlk:	dec	a
+	dec	a
+..ca:	dec	a
+	ret	z
+	add	hl,hl
+	jr	..ca
+
+;
+drive:	db	0
+	ds	80
+stack	equ	$
+	end

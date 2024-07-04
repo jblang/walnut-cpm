@@ -1,0 +1,39 @@
+TO:  All programmers and users of MXO- series overlays
+
+FROM:  Bob Abrahams, Los Angeles
+
+DATE:  July 3, 1984
+
+RE:  CLONING bug in some MEX overlays
+
+In order to be properly "clonable", MEX overlays must meet
+two requirements:
+
+1) Any initialization must not "destroy" the ability for
+the overlay initialization routine to be re-entered.  (This
+is almost certainly okay in all working overlays.)
+
+   - and -
+
+2) Any settings in the overlay that can be changed during
+MEX execution should be programmed so that the initializa-
+tion section will set up the latest settings if cloned.
+For example, if the baud rate default is 1200 bps in the
+initial overlay, but the MEX program is cloned while set
+to 300 bps, then the cloned version should initialize at
+300 bps.  This fulfills the purposes of the CLONE
+function.
+
+Several overlays I've seen based on MDM7 versions do not 
+do this properly, and a clone made at other than the 
+original default setting will either still initialize at 
+that original setting or work improperly.  For the baud
+rate setting initialization, I recommend inserting a 
+sequence to load the accumulator with MSPEED and calling 
+the PBAUD (baud rate set from baud code) routine in your 
+overlay.  Then the only indicator of the initial baud 
+rate is MSPEED, and that will be changed by any sub-
+sequent baud rate changes and will be cloned out.  Other 
+initialization parameters that are changeable with later 
+SET ccommands should use a similar strategy.
+

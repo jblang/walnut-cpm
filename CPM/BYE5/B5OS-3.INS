@@ -1,0 +1,690 @@
+; B5OS-3.INS - Osborne OS-1 insert for BYE5 - 09/15/85
+;
+;			6850 ACIA
+;
+; Note:  This is an insert, not an overlay.  If your OS-1 does not have
+;	 have the hardware mod to support DTR, (shown below) then set
+;	 the NODTR option in BYE5 to "YES".  Also set:
+;
+;		    IMODEM   EQU   YES
+;		    NORING   EQU   YES
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 09/15/85
+;
+;	   Program now supports 2400 bps for the new 2400 bps modems
+;	   *  Equate added for NUEVO 80 column add-on video board with
+;	      optional baud rate generator.
+;	   *  Equate added for new Osborne 1.45 ROM for 2400 bps
+;	      operation and hardware mods.
+;	   *  Re-edited hardware mods descriptions
+;					- Roy Robinson
+;
+; 08/07/85
+;
+;	   *  Program now runs properly with BYE5 program
+;	   *  Renamed several labels to more closely match BYE5
+;	      conventions
+;	   *  Changed MDOUTP routine with addition of PUSH PSW
+;	      and POP PSW statements.  MDOUTP routine for Osborne 1
+;	      clobbers accumulator register when called.
+;	   *  Changed MDQUIT routine, program now calls
+;	      RTSNBL and  IMQUIT if IMODEM equate is set true.
+;	   *  Changed MDINIT routine, program now calls
+;	      IMINIT if IMODEM equate is set true.
+;	   *  Changed MDCARCK routine
+;					- Roy Robinson
+;
+; 07/17/85  Revised for use with BYE5	- Kevin Murphy
+;	    (based on file from Roy Robinson)
+;					- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; NOTE:
+;	IF YOU USE THE HARWARE MODIFICATION TO THE OZZIE 1.
+;	When the Sysop terminates the BYE program with a control C fol-
+;	lowed by any other key except 'E' or 'R' from the local console
+;	keyboard to go off-line, the Sysop must press the RESET button
+;	at the front of the Ozzie and reboot the computer before running
+;	the BYE5 program again. This is due to the nature of the 6821
+;	PIA input, CB2, which is used for carrier detect in the hardware
+;	mod.  Pushing the RESET button triggers the CB2 input for proper
+;	use with BYE5.	This reboot should be a minor inconvenience as
+;	it is initiated only when the computer is off-line.
+;
+;						- Roy Robinson
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; DOCUMENTATION FOR THIS BYE5 INSERT:
+;
+;-------------------
+;
+; If you intend to use this insert with none of the hardware modifica-
+; tions to the main logic board described below, set the HARDMOD and
+; BAUDMOD equates to NO.  You will have the following baud rate values:
+; 300 and 1200 bps.  An unmodified Osborne 1 will not work if both the
+; HARDMOD and BAUDMOD equates are set to YES.
+;
+; The NUEVO equate concerns the use of a "piggy-back" 80 column video
+; board made by NUEVO ELECTRONICS with an optional baud rate generator.
+; NUEVO ELECTRONICS may be contacted at: (713) 341-6001.
+;
+; The BAUDMOD equate concerns the use of a new ROM monitor chip (ROM
+; version 1.45) available from Osborne Computer or your local Osborne
+; dealer.  This ROM and the addition of five wire jumpers to your main
+; logic board will give you 300/1200/2400 bps serial I/O for the new
+; 2400 bps modems.
+;
+; *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+;
+; The NUEVO equate:
+;
+; If you have the NUEVO 80 column video board with the baud rate option
+; installed, set the NUEVO equate to YES.  You will then have the fol-
+; lowing baud rates available: 300, 1200 2400, bps.
+;
+; If your NUEVO 80 column board does NOT have the optional baud rate
+; generator, set the NEUVO equate to NO.  Since the NUEVO baud rate
+; generator is not installed, you will have the following baud rates
+; available 300 and 1200 bps.
+;
+; Contact NUEVO ELECTRONICS if you wish to install the baud rate option
+; on your NUEVO 80 column board.
+;
+; *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+;
+; The HARDMOD equate:
+;
+; If you decide to install the DTR and DCD modification to your OS-1
+; main logic board, set the HARDMOD equate to YES.  This modification
+; can be installed in an Osborne 1 with or without the Osborne or NUEVO
+; 80 column video boards.  The modification gives the Osborne 1 the
+; ability to force the modem to hang up the phone by dropping the 6850
+; ACIA RTS line which is connected to the modem DTR input.
+;
+; The data carrier detect modification gives the Osborne the ability to
+; detect carrier loss within a very short time (usually within a couple
+; of seconds) rather than depending on a time-out which can take up to
+; 30 seconds or more.
+;
+; If you do use the DTR and DCD modification, you will need to configure
+; a special RS-232 cable from your Osborne 1 serial port to your exter-
+; nal modem.  Your modem must support the DTR and DCD input signal lines
+; and you must set the modem DTR and DCD switches or program the modem
+; internal memory to monitor its DTR and DCD signal inputs.
+;
+; New RS-232 modem cable to be used with OCC-1 and external modem when
+; using DTR control:
+;
+;
+;	  OCC-1 		       MODEM
+;
+;	 2    RXD		      3    RXD
+;	 3    TXD		      2    TXD
+;	 4    DCD (new function)      8    DCD
+;	 5    RTS (new function)      20   DTR
+;	 7    GND		      7    GND
+;
+;	DTR AND DCD SUPPORT MODIFICATION
+;
+; OSBORNE 1 MAIN LOGIC BOARD TRACE CUTS:
+; The Osborne 1 main logic board is organized into zones which are iden-
+; tified on the COMPONENT side of the main logic board with LETTERS found
+; along the left side of the board and NUMBERS found along the rear of
+; the  board (i.e., the 6850 ACIA device is located in zones C4, C5, and
+; C6 and the MC1458 device is located in zone E3).  If you are unsure
+; how to count pin numbers on IC devices, find a friend who does, attend
+; a user group meeting, or take your computer to a computer store/service
+; center for further aid.
+;
+; --------------------------
+; Solder Side:
+;
+; 1.	Cut the trace running from pin 5 to pin 6 on the inner row of
+;	pads used to mount the RS-232 female serial connector at the
+;	front of the main logic board.  Pin 1 is the pad with a wide
+;	ground trace.
+;
+; Component side:
+;
+; 2.	Cut the trace from pin 5 of the 6850 ACIA device in zone C4 to
+;	resistor R20 (10K ohm) located in zone D5.
+;
+; 3.	Cut the trace that runs BETWEEN pins 3 and 4 of the 6850 device
+;	in zone C4.  Note: pins 3 and 4 do not have visible traces run-
+;	ning to them on the component side.
+;
+; PART ADDITIONS:
+; --------------
+; Solder side:
+;
+; 5.	Add a jumper wire from pin 1 of the MC1458 device in zone E3 to
+;	pin 5 on the inner row of the RS-232 serial port pads.  Pin 1 is
+;	the pad with the wide ground trace.
+;
+; 6.	Add a jumper wire from pin 3 of the MC1458 device in zone E3 to
+;	pin 5 of the same MC1458 device in zone E3.
+;
+; 7.	Add a jumper wire from pin 5 of the 74LS08 device in zone C1 to
+;	pin 10 of the LM3400 device in zone D4.
+;
+; 8.	Add a jumper wire from pin 4 of the 74LS08 device in zone C1 to
+;	pin 1 of the 74LS04 device in zone E20.
+;
+; 9.	Add a jumper wire from pin 6 of the 74LS08 device in zone C1 to
+;	pin 5 of the 74LS04 device in zone A11.
+;
+; 10.	Add a jumper wire from pin 19 of the 6821 device in zone C15 to
+;	pin 6 of the 74LS04 device in zone A11.
+;
+;
+; Using the component side or solder side (whichever side you feel more
+; comfortable for mounting  the two - 1/4 watt resistors):
+;
+; 11.	Mount a 10K ohm resistor from Vcc which is +5 volts (pin 14 of
+;	the 74LS02 device in zone D2 is a good solder point) to pin 2 of
+;	the MC1458 device in zone E3.
+;
+; 12.	Mount a 220 ohm resistor from pin 5 of the 6850 ACIA device in
+;	zone C4 to pin 2 of the MC1458 device in zone E3.  Pin 2 of the
+;	MC1458 device in zone E3 should now have two resistors attached
+;	to it.
+;
+; 13.	Mount a 1K ohm resistor from pin 19 of the 6821 PIA device in
+;	zone C15 to Vcc which is +5 volts (pin 16 of the 74LS161 device
+;	in zone D18 is a good solder point).
+;
+; *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+;
+; The BAUDMOD equate:
+;
+;		300/1200/2400 BAUD SUPPORT MODIFICATION
+;
+; This modification now allows you to have 300/1200/2400 bps support un-
+; der software control.  The modification involves five jumper wires and
+; the installation of a NEW MONITOR ROM - ROM VERSION 1.45.  The code in
+; the new ROM has modified the 6821 VIDEO PIA control byte value for
+; register A.  The CA2 Peripheral Control Line is now an output control
+; line rather than an input status line.  The input status line was used
+; with the COMM-PAC/DATA-COMM modems.  The new output control line will
+; allow 600/2400 baud operation for the 6850 ACIA serial I/O chip with
+; the following hardware modifications to the main logic board:
+;
+;	On the main logic board - COMPONENT SIDE:
+;
+; 1.	Remove Jumper J1 found in zone C4 located next to the
+;	6821 ACIA chip.
+;	This will expose two pins which we will refer to as the
+;	Jumper J1 FRONT and REAR pins.
+;
+;	The FRONT pin is the pin located toward the front edge of
+;	the main logic board.  The front edge of the logic board has the
+;	printer connectors and video controls mounted at the edge.
+;	On the solder side of the main logic board, the FRONT pin
+;	has a trace leading to pin 7 of the 74LS161 chip at
+;	zone C3.
+;	The REAR pin has no trace on the solder side of the board
+;	and is located toward the rear edge of the main logic
+;	board.
+;
+;	On the main logic board - SOLDER SIDE
+;
+; 2.	Add a jumper wire from pin 4 of the 74LS08 chip in zone A5
+;	to the REAR pin of J1.
+;
+; 3.	Add a jumper wire from pin 5 of the 74LS08 chip in zone A5
+;	to pin 39 of the 6821 chip in zone C15.
+;
+; 4.	Add a jumper wire from pin 6 of the 74LS08 chip in zone A5
+;	to pin 5 of the 74LS02 chip in zone D2.
+;
+; 5.	Add a jumper wire from pin 5 of the 74LS02 chip in zone D2
+;	to pin 6 of the 74LS02 in zone D2.  Pin 5 now has two
+;	jumpers connected to it.
+;
+; 6.	Add a jumper wire from pin 4 of the 74LS02 chip in zone D2
+;	to the FRONT pin of Jumper J1.
+;
+; With this modification you will now be unable to use the Osborne
+; COMM-PAC or CTS DATA-COMM modems.  The CA2 line, originally a modem
+; input status line, is now an output control line used to select one
+; of two clock frequencies supplied to the ACIA TX and RX clock inputs.
+;
+;-----------------------------------------------------------------------
+;
+;
+WRKBAUD:DB	16H	; [*] OCC1 ++
+SSTAT:	DB	0	; RAM location serves as a secondary status
+			;   register for the 6850 ACIA status register.
+			;   This secondary RAM register is used because
+			;   the  6850 ACIA clobbers its own status reg-
+			;   ister (with regard to TBE and RDA status
+			;   bits) when data is traveling in both direc-
+			;   tions via the serial port.	This status bit
+			;   recognition problem was illustrated with data
+			;   being output during a display listing to the
+			;   remote user, and the remote user wished to
+			;   suspend or abort the screen display by typing
+			;   a ^S, ^C, or ^K.
+;
+;-----------------------------------------------------------------------
+;
+;
+HARDMOD	EQU	YES	; YES, if hardware mods have been installed in
+			;   Osborne O-1 to support DTR and modified DCD.
+			;   (see installation procedure above)
+			;
+			; NO,  if the O-1 is standard (no mods).
+			;   If NO, you must set the NODTR equate to YES
+			;   in the main body of the BYE5 program.  You
+			;   must also use an intelligent modem (one that
+			;   supports hayes or racal-vadic software com-
+			;   mand protocol) and set the IMODEM equate to
+			;   YES in the main body of the BYE5 program.
+			;
+NUEVO	EQU	NO	; YES, if Nuevo 80 column upgrade WITH baud rate
+			;   option has been installed.
+			;   (see discussion above)
+			;
+
+BAUDMOD	EQU	NO	; YES, if new Osborne ROM version 1.45 and baud
+			;   rate jumper modification are installed.
+			;   Do not set to YES if you have not installed
+			;   new ROM and jumper modification
+			;   (see discussion above)
+			;
+;-----------------------------------------------------------------------
+;
+;
+STATM	EQU	02A00H
+DATA	EQU	02A01H
+CDATA	EQU	02C02H
+CSTAT	EQU	02C03H
+;
+;
+	 IF	HARDMOD
+MDDCD	EQU	40H
+	 ENDIF
+;
+;
+	 IF	NOT HARDMOD
+MDDCD	EQU	04H
+	 ENDIF
+;
+RRDA	EQU	0FEH
+MRDA	EQU	1
+RTBE	EQU	0FDH
+MTBE	EQU	2
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:
+	 IF	HARDMOD
+	DI		; Disable interrupts
+	OUT	0
+	LDA	CSTAT	; Read video PIA status register
+	OUT	1
+	EI
+	 ENDIF		; HARDMOD
+;
+;
+	 IF	NOT HARDMOD
+	CALL	BNKINS	; Get modem status
+	 ENDIF		; NOT HARDMOD
+;
+;
+	CMA		; Complement register, DCD bit set with LOSS of
+			;   carrier.  Most I/O devices use active high.
+	ANI	MDDCD	; Mask out everything but carrier LOSS bit
+			; Z=1 Lost carrier
+			; Z=0 Carrier present
+	RET
+;......
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	CALL	RTSDIS	; Clear RTS causing hangup
+	CALL	RTSNBL	; Turn on DTR so modem can answer phone
+	CALL	OFFTIM	; Wait 2 seconds
+;
+	 IF	 IMODEM
+	CALL	IMINIT	; Initialize smartmodem
+	 ENDIF		; IMODEM
+;
+	 IF	HARDMOD
+	CALL	INITCAR	; Reset carrier detect input on 6821 video PIA
+	 ENDIF		; HARDMOD
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	CALL	BNKIND	; Input data from RS-232 serial port
+	PUSH	PSW	; Save the character
+	LDA	SSTAT	; Load secondary ACIA status register from RAM
+	ANI	RRDA	; Mask the RDA bit (reset RDA bit in secondary
+			;   register)
+	STA	SSTAT	; Save our updated status register in RAM
+	POP	PSW	; Recover the character
+	RET		; Return to sender
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	PUSH	B	; Save BC registers
+	LDA	SSTAT	; Load secondary ACIA status register
+			;   (contains status of ACIA from last ACIA 
+			;   operation)
+	MOV	B,A	; Save it in register B
+	CALL	BNKINS	; Input current ACIA status register
+	ORA	B	; Perform an OR operation on both former
+			;   as well as present ACIA register states.
+	STA	SSTAT	; Save updated ACIA register state in secondary
+			;   ACIA register
+	ANI	MRDA	; Mask RDA bit
+	POP	B	; Recover former BC registers
+	RZ		; Nothing?  Return to sender with Z-flag set
+	ORI	0FFH	; We got something....
+	RET		; Return to sender with Z-flag not set
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	PUSH	PSW
+	CALL	BNKOUTD	; Output data to RS-232 serial port
+	LDA	SSTAT	; Load secondary ACIA register
+	ANI	RTBE	; Mask the TBE bit
+	STA	SSTAT	; Save secondary ACIA register (now updated)
+	POP	PSW
+	RET		; Return to sender
+;.....
+;
+;
+; Check the status to see if ACIA can output a character.  If not,
+; return with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDOUTST:PUSH	B	; Save BC registers
+	CALL	BNKINS	; Get present ACIA status register
+	MOV	B,A	; Move it to 'B' register
+	LDA	SSTAT	; Get secondary ACIA status register
+	ORA	B	; Perform an OR operation on present and former
+			;   ACIA status register states
+	STA	SSTAT	; Save updated ACIA status register in secondary
+			;   ACIA status register
+	ANI	MTBE	; Mask the TBE bit
+	POP	B	; Recover the former BC registers
+	RZ		; Transmit buffer not empty so return
+			;   to sender with Z-flag set
+	ORI	0FFH	; If empty...
+	RET		; Ready to send character
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping RTS and
+; leaving it inactive
+;
+MDQUIT:	CALL	RTSDIS	; Disable RTS output, forcing modem to hang-up
+;
+	 IF	IMODEM
+	CALL	RTSNBL	; Turn on RTS so modem can be programmed
+	CALL	IMQUIT	; If a smartmodem, tell it to shut down
+	 ENDIF		; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	CALL	RTSDIS	; Disable RTS causing modem hangup
+;
+	RET
+;.....
+;
+;
+; Initialize the 6850 ACIA and disable RTS line which serves as DTR
+; control for the modem
+;
+RTSDIS:
+;
+	MVI	A,57H	; IRQ disabled
+			; RTS disabled (valid for modified/unmodified
+			; O-1)
+			;    with HARDMOD on, modem forced to hang up
+			;    with HARDMOD off, modem is disconnects
+			; 8 data bits, 1 stop bit, MRESET
+	CALL	BNKOUTS
+;
+OFFTIM:	PUSH	B	;2 second delay after dropping the ACIA RTS line
+	MVI	B,20	;(which is DTR to the modem)
+;
+OFFTI:
+	CALL	DELAY
+	DCR	B
+	JNZ	OFFTI
+	POP	B
+	RET
+;.....
+;
+;
+; Reset video 6820 PIA register for future detection of lost carrier
+;
+INITCAR:
+	DI
+	OUT	0
+	LDA	CDATA	; Read video pia data register to reset cb2 bit
+	OUT	1
+	EI
+	RET
+;.....
+;
+;
+RTSNBL:	LDA	WRKBAUD	; ACIA reset, set RTS state, set data parameters
+	CALL	BNKOUTS
+	RET
+;.....
+;
+;
+BNKINS:	DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	LDA	STATM	; Read ACIA status register (memory mapped)
+	OUT	1	; Switch banks back to program memory bank
+	EI		; Re-enable interrupts
+	RET		; Go home
+;.....
+;
+;
+BNKIND:	DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	LDA	DATA	; Read ACIA data register (memory mapped)
+	OUT	1	; Switch banks back to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;.....
+;
+;
+BNKOUTS:DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	STA	STATM	; Write data to ACIA control register (memory
+			;   mapped)
+	OUT	1	; Switch banks to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;.....
+;
+;
+BNKOUTD:DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	STA	DATA	; Write data to ACIA data register (memory
+			;   mapped)
+	OUT	1	; Switch banks to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;.....
+;
+;
+; The following routines set the baudrate.  BYE5 would like the maximum
+; speed you have available for controlling your modem.
+;
+;	the code below is for an osborne without the nuevo 80 column
+;	video board and without the 1.45 ROM
+;
+	 IF NOT	NUEVO AND NOT BAUDMOD AND NOT HARDMOD
+SET300:
+	MVI	A,56H	; IRQ disabled, RTS disabled (required for
+			;   non-modified O-1)
+			; 8 data bits, 1 stop bit, 64X clock
+	JMP	SETBAUD
+;
+SET1200:
+	MVI	A,55H	; IRQ disabled, RTS disabled (required for
+			;   non-modified O-1)
+			; 8 data bits, 1 stop bit, 16X clock
+	 ENDIF		; NOT NUEVO AND NOT BAUDMOD AND NOT HARDMOD
+;
+	 IF NOT	NUEVO AND NOT BAUDMOD AND HARDMOD
+SET300:	MVI	A,16H	; IRQ disabled, RTS enabled (required for
+			;   modified O-1)
+			; 8 data bits, 1 stop bit, 64X clock
+	JMP	SETBAUD
+;
+SET1200:
+	MVI	A,15H	; IRQ disabled, RTS enabled (required for
+			;   modified O-1)
+			; 8 data bits, 1 stop bit, 16X clock
+	 ENDIF		; NOT NUEVO AND NOT BAUDMOD AND HARMOD
+;
+	 IF NOT	NUEVO AND NOT BAUDMOD
+SETBAUD:
+	STA	WRKBAUD	; Save incoming baud rate and ACIA parameters
+	CALL	BNKOUTS
+	XRA	A	; Show baudrate was ok
+	RET
+;
+SET2400	EQU	$	; The unmodified OS-1 doesn't like 2400
+;
+SETINV:	MVI	A,0FFH	; Return bad
+	ORA	A	; Show baudrate was unacceptable
+	RET
+	 ENDIF		; NOT NUEVO AND NOT BAUDMOD
+;...
+;
+;
+; The following code is for an osborne with the ROM 1.45 and baudrate
+; mods
+;
+	 IF	BAUDMOD	AND NOT	NUEVO
+SET300:
+	 ENDIF			; BAUDMOD AND NOT NUEVO
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND HARDMOD
+	MVI	C,16H		; X64 clock, 8 DB 1 SB, RTS active
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND NOT HARDMOD
+	MVI	C,56H		; X64 clock, 8 DB 1 SB, RTS inactive
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND NOT HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO
+	MVI	B,3FH		; Get low baud VIDEO PIA value
+	JMP	SETBAUD		; Load PIA and ACIA control bytes
+;
+SET1200:
+	 ENDIF			; BAUDMOD AND NOT NUEVO
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND HARDMOD
+	MVI	C,15H		; X16 clock, 8 DB 1 SB, RTS active
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND NOT HARDMOD
+	MVI	C,55H		; X16 clock, 8 DB 1 SB, RTS inactive
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND NOT HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO
+	MVI	B,3FH		; Get low baud VIDEO PIA value
+	JMP	SETBAUD		; Load PIA and ACIA control bytes
+;
+SET2400:
+	 ENDIF			; BAUDMOD AND NOT NUEVO
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND HARDMOD
+	MVI	C,15H		; X16 clock, 8 DB 1 SB, RTS active
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO AND NOT HARDMOD
+	MVI	C,55H		; X16 clock, 8 DB 1 SB, RTS inactive
+	 ENDIF			; BAUDMOD AND NOT NUEVO AND NOT HARDMOD
+;
+	 IF	BAUDMOD	AND NOT	NUEVO
+	MVI	B,37H		; Get high baud VIDEO PIA value
+;
+SETBAUD:
+	MOV	A,B		; Load Acc with PIA baud rate speed value
+	DI
+	OUT	0		; Switch to alternate bank
+	STA	2C01H		; Output data to VIDEO PIA control
+				;   register A
+	OUT	1		; Switch to main bank
+	EI
+;
+	MOV	A,C		; Load Acc with ACIA control byte
+	STA	WRKBAUD		; Save incoming ACIA control byte
+	CALL	BNKOUTS
+	XRA	A		; Show baudrate was ok
+	RET
+	 ENDIF			; BAUDMOD AND NOT NUEVO
+;...
+;
+;
+; The code below is for an Osborne with Nuevo 80-column video board
+; installed
+;
+	 IF NUEVO AND NOT BAUDMOD
+SET300:
+	MVI	A,05H	; 300 bps byte
+	JMP	SETBAUD1
+;
+SET1200:
+	MVI	A,07H	; 1200 bps byte
+	JMP	SETBAUD1
+;
+SET2400:
+	MVI	A,0AH	; 2400 bps byte
+;
+SETBAUD1:
+	OUT	06H	; Send to Nuevo baud rate generator port
+	 ENDIF		; NUEVO AND NOT BAUDMOD
+;
+	 IF NUEVO AND NOT BAUDMOD AND NOT HARDMOD
+	MVI	A,55H	; IRQ disabled, RTS disabled (required for
+			;   non-modified O-1)
+			; 8 data bits, 1 stop bit, 16X clock
+	 ENDIF		; NUEVO AND NOT BAUDMOD AND NOT HARDMOD
+;
+	 IF NUEVO AND NOT BAUDMOD AND HARDMOD
+	MVI	A,15H	; IRQ disabled, RTS enabled (required for
+			;   modified O-1)
+			; 8 data bits, 1 stop bit, 16X clock
+	 ENDIF		; NUEVO AND NOT BAUDMOD AND HARDMOD
+;
+	 IF NUEVO AND NOT BAUDMOD
+SETBAUD:
+	STA	WRKBAUD	; Save incoming baud rate and ACIA parameters
+	CALL	BNKOUTS
+	XRA	A	; Show baudrate was ok
+	RET
+	 ENDIF		; NUEVO AND NOT BAUDMOD
+;
+;
+;		       end
+;-----------------------------------------------------------------------

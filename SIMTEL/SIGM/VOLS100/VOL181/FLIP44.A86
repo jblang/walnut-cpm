@@ -1,0 +1,200 @@
+	TITLE	'FLIP - Toggle originate/answer mode under "bye"'
+;
+;	Originally written by Bruce Ratoff.
+;
+;	VERSION LIST: Most recent version first
+;
+;29/Feb/84 Ran through XLT86 to get CP/M-86 version. Bill Bolton
+;
+;18/Jan/84 Added code for bank select on Godbout Intefacer 3/4
+;	   I/O board and fiddled a little with the equates.
+;	   Version 4.2 Bill Bolton, Software Tools RCPM
+;	
+;17/Jun/82 Added  short  signon  message  with  version  number
+;	   equate inserted into message.  Changed prompts to be
+;	   consistent with my "FLIP" option in BYE72D (or later)
+;	   Bill Bolton, Software Tools RCPM, Australia
+;
+;12/Jun/82 Added timeout before flip OK  message, to allow time
+;	   remote modem  to  detect  new carrier, seems to take
+;	   about 5 seconds for  CCITT  V21 when going to ANSWER
+;	   mode. Bill Bolton, Software Tools RCPM, Australia
+;
+;11/Jun/82 Added code to toggle mode rather than just change to
+;          answer  as CCITT systems have less marked difference
+;          in performance than BELL 103A systems and  switching
+;          to answer mode isn't always a good solution. Now the
+;          remote  user  can  go  back  to  originate.  Removed
+;          PMMI/Hayes stuff (because CCITT users can't use them
+;          and  it isn't really clear what some of the hardware
+;          specific  stuff  does  when  you've  never seen  one
+;          [and  are never likely to]) and set up  for  Telecom
+;          Australia modem. Message rewritten to lower case and
+;          63 char line. Bill Bolton, Software Tools RCPM
+;
+;08/Aug/80 Added conditional assembly for either
+;	   PMMI or D C Hayes modem cards (BR)
+;
+;06/Jun/80 PMMI modem conditionals and to re-ask for
+;	   input if invalid answer. Keith Petersen, W8SDZ.
+;
+;02/Jun/80 Uppercase message and require exactly
+;	   control-c or return, ignoring all else. (BR)
+;
+FALSE	EQU	0			;BASIC LOGIC DEFINITIONS
+TRUE	EQU	NOT FALSE
+;
+SPEED	EQU	7*4167			;CPU speed in MHz x a constant
+SECONDS	EQU	6*10			;Number of seconds to pause x 10
+;
+INTER3	EQU	TRUE			;True for CompuPro Interfacer 3/4
+;
+MODEM	EQU	06H			;Modem USART bank number
+BASE	EQU	10H			;Interfacer 3/4 base port number
+MODCTL	EQU	13H			;2651 UART command port
+BANK	EQU	17H			;Interfacer 3/4 bank select port
+RTS	EQU	20H			;RTS bit in comand byte
+;
+WBOOT	EQU	0			;CP/M warm boot entry point
+BDOS	EQU	5			;CP/M BDOS entry point
+DBUFF	EQU	80H
+;
+PMESSG	EQU	9
+CHRINP	EQU	1
+ALF	EQU	0AH			;Ascii line feed
+ACR	EQU	0DH			;Ascii carriage return
+;
+VER	EQU	4			;Major version level
+REV	EQU	4			;Minor revision level
+;
+M	EQU	Byte Ptr 0[BX]
+;
+	CSEG
+;
+FLIP:
+	MOV	CL,PMESSG
+	MOV	DX,(Offset SIGNON)
+	INT	224
+
+	if	inter3
+	MOV	AL,MODEM
+	OUT	BANK,AL			;Select modem USART
+	endif	;inter3
+
+	IN	AL,MODCTL
+	AND	AL,RTS			;In answer mode?
+	JNZ	FLIP0
+	CALL	ORIGINATE		;Yes
+FLIP0:
+	MOV	CL,PMESSG
+	MOV	DX,(Offset SWITCHMSG)
+	INT	224
+;
+FLIP1:
+	MOV	CL,PMESSG
+	MOV	DX,(Offset SELECTMSG)
+	INT	224
+	MOV	CL,CHRINP
+	INT	224
+	AND	AL,05FH			;Mask to upper case
+	CMP	AL,'N'
+	JZ	ABORT			;"No" answer, abort with a message
+	CMP	AL,'Y'			;"Yes" answer
+	JNZ	FLIP1			;No match, ask for another input
+;
+;SET MODEM FOR DTR ON & ORIGINATE
+;
+	if	inter3
+	MOV	AL,MODEM
+	OUT	BANK,AL			;Select modem USART
+	endif	;inter3
+
+	IN	AL,MODCTL		;Get mode
+	XOR	AL,RTS
+	OUT	MODCTL,AL		;Flip the mode
+	MOV	CH,SECONDS		;Wait a few seconds 
+PAUSE:
+	CALL	DELAY			;Wait 0.1 seconds
+	DEC	CH			;Done?
+	JNZ	PAUSE			;No
+	MOV	CL,PMESSG		;Yes, show message
+	MOV	DX,(Offset DONEMSG)
+	INT	224
+	MOV	CL,0			;EXIT TO CP/M WARM BOOT
+	MOV	DL,0
+	INT	224
+;
+ABORT:
+	POP	AX			;Keep stack straight
+	MOV	CL,PMESSG
+	MOV	DX,(Offset ABORTMSG)
+	INT	224
+	MOV	CL,0
+	MOV	DL,0
+	INT	224
+;
+ORIGINATE:
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	BX,(Offset OMSG)	;Point to new message
+	MOV	DX,(Offset MODE)	;Point to message to overwrite
+	MOV	CH,(Offset MLEN)-(Offset MODE)	;Length of message
+OLOOP:
+	MOV	AL,M			;Get a byte
+	MOV	SI,DX			;Put a byte
+	MOV	[SI],AL
+	INC	BX			;Adjust pointers
+	INC	DX
+	DEC	CH			;Done?
+	JNZ	OLOOP			;No
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET				;Yes
+;
+DELAY:
+	PUSH	CX			;Preserve outer loop count
+	MOV	CX,SPEED		;Initialise inner loop count
+;
+; For 0.1 sec delay
+;
+DELAY1:
+	DEC	CX			;Adjust counter
+	MOV	AL,CH
+	OR	AL,CL			;Done ?
+	JNZ	DELAY1			;No
+	POP	CX			;Yes, restore outer loop count
+	RET
+
+	DSEG
+	ORG	100H
+; 	
+SIGNON	RS	0
+	DB	'FLIP Version ',VER+'0','.',REV+'0',ACR,ALF,'$'
+;
+SWITCHMSG	RS	0
+	DB	ACR,ALF
+	DB	'If you answer "Y" to the next question you have 20 seconds to'
+	DB	ACR,ALF,'switch your modem or acoustic coupler to the "'
+MODE	RS	0
+	DB	'ANSWER" mode.   '
+MLEN	RS	0
+	DB	ACR,ALF,'$'
+;
+SELECTMSG	RS	0
+	DB	ACR,ALF,'Do you want to FLIP the modem mode (Y/N) ? ','$'
+;
+DONEMSG	RS	0
+	DB	ACR,ALF,ACR,ALF
+	DB	'If you see this the mode change was successful.',ACR,ALF,'$'
+;
+ABORTMSG	RS	0
+	DB	ACR,ALF,ACR,ALF
+	DB	'OK no change in mode then.',ACR,ALF,'$'
+;
+OMSG	RS	0
+	DB	'ORIGINATE" mode.'
+;
+	END
+

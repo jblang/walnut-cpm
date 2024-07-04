@@ -1,0 +1,153 @@
+; B5C-LB36.INS		Wayne Masters
+;  05/05/86		Potpourri, 408-378-7474
+;
+;  This is an insert, not an overlay, for BYE5 and the Ampro Little-Board
+;  running a v3.6, or later, BIOS, which uses a spare CTC channel to main-
+;  tain a memory resident date/time clock.
+;
+;  This routine expects the clock to be initialized to the correct date/time
+;  before executing the BYE5 program.
+;
+;  Set the following equates in BYE5:
+;
+; CLOCK   EQU	YES	(Same for KMD)
+; TIMEON  EQU	YES	(Same for KMD)
+; BIN2BCD EQU	YES
+;
+;  Delete the existing TIME routine in BYE5 and replace it with this insert.
+;
+;
+CENTURY	EQU	19H		; Change this every 100 years
+LDIR	EQU	0B0EDH		; Z80 ldir
+;
+;
+TIME:	LDA	CPYFLG
+	ORA	A		; See if we have already copied the JMP table
+	JNZ	TIME1		; Yes, skip this
+;
+	LXI	D,WBOOT		; Build BIOS entry table
+	LHLD	1		; Get BIOS start
+	LXI	B,51		; Bytes to move
+	DW	LDIR		; Move it
+;
+	CALL	GETTBL		; Get address of next JMP table
+	LXI	D,NXTTBL	; (HL) has BIOS nxttbl address
+	LXI	B,15		;
+	DW	LDIR		; Move the table
+	MVI	A,0FFH
+	STA	CPYFLG		; Set the flag so we only do this once
+;
+TIME1:	CALL	TOD		; Get clock base address
+;
+; (HL) now has address of clock data
+;
+	DI			; Disable interrupts while we do this
+	LXI	D,SEC		; Move time/date
+	LXI	B,6
+	DW	LDIR		; Save time/date
+	EI			; Enable interrupts now
+;
+; Everthing needed has been moved into this program area.
+;
+	CALL	J2MD		; Convert Julian date to month/day
+;
+; Now convert and store date/time from binary to bcd and put into BYE5
+;
+	MVI	A,CENTURY
+	STA	RTCBUF+3	; Century
+	LDA	CYEAR
+	CALL	BINBCD
+	STA	RTCBUF+4	; Year
+	LDA	TMONTH
+	CALL	BINBCD
+	STA	RTCBUF+5	; Month
+	LDA	TDAY
+	CALL	BINBCD
+	STA	RTCBUF+6	; Day
+	LDA	HOUR
+	STA	CCHOUR		; Binary form for cchour
+	CALL	BINBCD
+	STA	RTCBUF		; BCD form for buffer hours
+	LDA	MIN
+	STA	CCMIN		; Binary minutes
+	CALL	BINBCD
+	STA	RTCBUF+1	; BCD minutes
+	LDA	SEC
+	CALL	BINBCD
+	STA	RTCBUF+2	; Seconds
+;
+	RET			; All done
+;
+;
+;  Convert Julian to month/day
+;
+J2MD:	LXI	D,MTHS		; Intialize month pointer
+	LHLD	JDAY		; Julian day in (HL)
+	INX	H		; Adjust for ordinal 0
+	XRA	A
+	MOV	B,A		; Initialize high byte of sub with 0
+	INR	A
+	STA	TMONTH		; Initialize month to 1
+
+J2MD1:	LDAX	D
+	ORA	A		; Clear carry
+	MOV	C,A
+	MOV	A,L		; May be day
+	DW	42EDH		; SBC HL,BC
+	JC	J2MD2
+	JZ	J2MD2
+	LDA	TMONTH
+	INR	A		; Update month
+	STA	TMONTH
+	INX	D
+	JMP	J2MD1
+
+J2MD2:	STA	TDAY		; Set day
+	RET
+;
+	DB	0
+MTHS:	DB	31,29,31,30,31,30,31,31,30,31,30,31
+CPYFLG:	DB	0		; Flag for JMP table copied?
+;
+; BIOS JMP table, moved from the BIOS on first call to TIME
+;
+WBOOT:	DB	0,0,0		; Warm start
+	DB	0,0,0		; Console status
+	DB	0,0,0		; Console character in
+	DB	0,0,0		; Console character out
+	DB	0,0,0		; List character out
+	DB	0,0,0		; Punch character out
+	DB	0,0,0		; Reader character in
+	DB	0,0,0		; Seek to home position
+	DB	0,0,0		; Select disk
+	DB	0,0,0		; Set track number
+	DB	0,0,0		; Set sector number
+	DB	0,0,0		; Set DMA address
+	DB	0,0,0		; Read disk
+	DB	0,0,0		; Write disk
+	DB	0,0,0		; Return list status
+	DB	0,0,0		; Sector translate
+;
+GETTBL:	DB	0,0,0		; Point to more jumps, =>v3.6 BIOS only
+;
+NXTTBL:
+	DB	0,0,0		; JMP swap
+	DB	0,0,0		; Get hd table info
+	DB	0,0,0		; Get/set phytab access
+	DB	0,0,0		; Get phytab entry address
+TOD:	DB	0,0,0		; Get base address of clock tick
+
+; Time/Date counters from BIOS
+
+SEC:	DB	0
+MIN:	DB	0
+HOUR:	DB	0
+JDAY:	DB	0,0		; Julian day 0-366 for leap year
+CYEAR:	DB	0
+
+TMONTH:	DB	0		; Temp storage for month
+TDAY:	DB	0		; Temp storage for day
+;
+; End of B5C-LB36
+;
+

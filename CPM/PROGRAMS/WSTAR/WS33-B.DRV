@@ -1,0 +1,49 @@
+FILE: WS33-B.DRV	   Wordstar 3.3 Patch to change logged drive to B:
+
+     This short note describes a simple patch to WordStar
+which will cause WS to automatically log in the B: drive
+when WS is initially booted up.
+
+     To implement this patch you will require DDT and a
+scratch copy of WS to work with.  Using DDT do the following:
+
+
+	A>DDT WS.COM <cr>
+	  4300 0100		(DDT reports last PC at 4300H)
+
+(Change the initial jump at 0100 to jump to the patch.)
+
+	  -s0101h		(Set location 0101H)
+	   FC F6    <cr>	(change from FC to F6)
+	   2C 02    <cr>	(change from 2C to 02) I.E JMP 02F6H
+	      .     <cr>	(stop changes at this point with a period)
+
+	  -A02F6    <cr>	(Assemble new code at 02F6H)
+(Added code in [], do not type []s, or after ";")
+	   0350     [MVI C,0E]	;select disk- BDOS function number 14
+	   0352     [MVI E,01]	;DRIVE; A=00,B=01,C=02,D=03
+	   0354     [CALL 0005] ;CALL BDOS, HAVE CPM DO IT.
+	   0356     [JMP  2CFC]  OLD JUMP RESTORED, no H after value!
+	   0359  .  <cr>	(stop code addition with a period)
+	  -g0	    <cr>	(Exit DDT) actually go to 0000, warm boot
+
+	A>SAVE 66 WS.COM	(Save 66 pages of WS,
+				add drive letter and : as needed.
+				you are doing this on a test disk, right?)
+
+     You can rename the new file if you desire.  If you have not
+made any extensions to WS which increased the file size, then the
+SAVE 66 is appropriate.  However, be sure to save the number of
+pages indicated by the Last PC count reported by DDT.  See
+Thom Hogans manual on CP/M, if you aren't familiar with calcu-
+lating the number of pages to save.
+
+     I have placed the new code in a region of MORPAT, a free
+patch area made available in WS.  I have started my code at
+02F6H.	If this area isn't available, then find an area in
+MORPAT where you have 10 bytes for the new code.
+
+     Any problems, report to:
+
+WS VERSION 3.0	  Steven Kapplin [70055,1021] CPM SIG
+WS VERSION 3.3	  Tom Smith	 [71555,1441] EMAIL

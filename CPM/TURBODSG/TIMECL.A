@@ -1,0 +1,62 @@
+; TIMECL - time addition to command line in TurboDOS
+; This is version 1.1
+;
+; Written : 08-23-84 by S. Kluger
+; Updated : 08-25-84 (added station display, made version independent)
+; Updated : 01-31-85 (translated for TurboDOS 1.41 8086)
+; Updated : 07-04-85 (shrunk)
+;
+; unserialized for general distribution
+;
+	MODULE "TIMECL"
+;
+; The following effect is achieved by integrating TIMECL
+; into the SYS file:
+;
+; Before:
+; 0A}
+; After:
+; [17:23 A] 0A}
+;	 ^station number
+;    ^current time
+; use CMDINT + 0X0C = [TIMECL] in .PAR file
+;
+	LOC	Code#
+;
+TIMECL::
+	MOV	AL,CLBLEN#+5
+	OR	AL,AL		;IF PROMPT INHIBIT...
+	JNZ	SKIP		;...THEN DON'T DISPLAY TIME
+	MOV	CL,=10		;TIME CALL
+	CALL	OTNTRY#
+	MOV	BX,=TIMST+1
+	MOV	AL,DH		;GET HOURS
+	CALL	BYTOUT		;OUTPUT HOURS
+	INC	BX
+	MOV	AL,DL		;GET MINUTES
+	CALL	BYTOUT		;OUTPUT MINUTES
+	MOV	CL,=12
+	CALL	OCNTRY#
+	MOV	AL,DL
+	ADD	AL,=0X40
+	MOV	STA,AL
+	MOV	CL,=9
+	MOV	DX,&TIMST
+	CALL	OCNTRY#
+SKIP:	MOV	CL,=32		;GET USER CODE
+	MOV	DL,=0X0FF
+	JMP	OCNTRY#		;CONTINUE
+;
+BYTOUT:	XOR	AH,AH
+	AAM
+	XCHG	AH,AL
+	OR	AX,=0X3030
+	MOV	[BX],AX
+	INC	BX
+	INC	BX
+	RET
+;
+TIME:	BYTE	0,0,0,0,0
+TIMST:	BYTE	"[00:00 "
+STA:	BYTE	"A] $"
+	END	

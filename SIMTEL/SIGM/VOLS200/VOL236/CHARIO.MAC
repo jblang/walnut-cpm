@@ -1,0 +1,498 @@
+        TITLE IO SYSTEM MODULE          ; USE M80 TO COMPILE
+
+true    equ -1
+false   equ 0
+
+banked  equ true
+
+        .Z80
+
+        entry ?cinit,?ci,?co,?cist,?cost,@ctbl
+                       if banked
+        extrn ?bank,?rbank,?bank0
+                       endif
+
+.COMMENT *
+        DEVICE NUMBER IN B
+        CHARACTER FOR OUTPUT IN C - CHARACTER RETURNED TO A
+        ?cinit  INITIALIZE DEVICE - DEVICE NUMBER IN C
+        ?ci     CHARACTER IN
+        ?co     CHARACTER OUT
+        ?cist   INPUT STATUS
+        ?cost   OUTPUT STATUS
+        ?bank   BANK CHANGE
+        ?rbank  RESTORE BANK
+        ?bank0  SET BANK 0
+
+        @ctbl   CHARACTER DEVICE TABLE
+	 *
+
+mbin            equ  1          ; device may do input
+mbout           equ  2          ; device may do output
+mbio            equ  3          ; both input and output
+mbsb            equ  4          ; software selectable baud rates
+mbser           equ  8          ; serial device
+mbx             equ  16         ; xon/xoff protocol      
+bnone		equ 0		; no baud rate associated
+b50		equ 1		; 50 baud
+b75		equ 2		; 75 baud
+b110		equ 3		; 110 baud
+b134		equ 4		; 134.5 baud
+b150		equ 5		; 150 baud
+b300		equ 6		; 300 baud
+b600		equ 7		; 600 baud
+b1200		equ 8		; 1200 baud
+b1800		equ 9		; 1800 baud
+b2400		equ 10		; 2400 baud
+b3600		equ 11		; 3600 baud
+b4800		equ 12		; 4800 baud
+b7200		equ 13		; 7200 baud
+b9600		equ 14		; 9600 baud
+b19200		equ 15		; 19.2k baud
+
+                       if banked
+maxdev  equ 8                   ; 8 devices defined
+                       else
+maxdev  equ 7                   ; 7 if unbanked - exclude double size
+                       endif
+
+	cseg
+
+?cinit:                         ; initialize devices
+        ld b,c                  ; device number is in c
+        call jump
+inittb: db init0-inittb         ; screen
+        db indev-inittb         ; keyboard & tv monitor
+        db noinit-inittb        ; printer
+        db indev-inittb         ; modem
+        db noinit-inittb        ; mouse
+        db noinit-inittb        ; screen - graphics
+        db indev-inittb         ; tape
+                       if banked
+        db noinit-inittb        ; screen - double size
+                       endif
+noinit: ret                     ; no initializing
+init0:  ld a,1                  ; reset micro-angelo
+        out (0e1h),a
+        ld a,0
+        out (0e1h),a
+        ld a,'A'
+        ld (mahndl),a           ; handler 'A' setup
+        ld hl,maalp             ; send setup chars to a
+        ld bc,04e0h             ; count and port
+        jp macyc                ; jump to macycle and return
+
+indev:                          ; clear input device
+        call ?cist              ; input status
+        and a                   ; set flags
+        ret z                   ; return if buffer clear
+        call ?ci                ; get character
+        jr indev                ; try again
+
+?ci:                            ; character input
+icyc:   call ?cist              ; get input status
+        and a                   ; set flags
+        jr z,icyc
+        call jump
+itb:    db nullin-itb
+        db i1-itb               ; keyboard
+        db nullin-itb
+        db i3-itb               ; modem
+        db i4-itb               ; mouse
+        db i5-itb               ; graphics board input
+        db i6-itb               ; tape
+                       if banked
+        db nullin-itb
+                       endif
+nullin: ld a,1ah                ; return a cntl-z for no device
+        ret
+i1:
+                       if banked
+        call ?bank0             ; bank 0
+                       endif
+        ld a,(0e3f8h)           ; get this straight from the dj
+                       if banked
+        call ?rbank             ; restore bank
+                       endif
+        cpl                     ; dj requires this
+        ret
+i3:     in a,(1)
+        ret
+i4:     in a,(0)
+        ret
+i5:     in a,(0e0h)
+        ret
+i6:     in a,(6fh)
+        ret
+
+?co:                            ; character output
+ocyc:   call ?cost              ; get status
+        and a                   ; get flags
+        jr z,ocyc               ; wait till clear
+        call jump
+otb:    db o0-otb               ; screen - alpha mode
+        db o1-otb               ; TV monitor
+        db o2-otb               ; printer
+        db o3-otb               ; modem
+        db o4-otb               ; sw serial port 1
+        db o5-otb               ; screen - graphics mode
+        db o6-otb               ; tape
+                       if banked
+        db o7-otb               ; screen - double size
+                       endif
+nullou: ret                     ; no device
+o0:     ld a,(mahndl)           ; check handler being used
+        cp 'A'
+        jr z,o0e                ; jump if set up for alpha handler
+        ld a,'A'                ; update handler code
+        ld (mahndl),a
+        push bc
+        ld hl,maalp             ; send setup chars to a
+        ld bc,06e0h             ; count and port
+        call macyc
+        pop bc
+o0e:    ld a,c
+        cp 7                    ; check for bell character
+        jr z,o1                 ; send bell char to dj
+        cp 8                    ; check for backspace character
+        jr z,bs1
+        and 7fh                 ; truncate to 7 bits
+bs2:    out (0e0h),a            ; output character
+        ret
+bs1:    ld a,13h                ; backspace without deleting
+        jr bs2
+o1:
+                       if banked
+        call ?bank0
+                       endif
+        call 0e006h
+                       if banked
+        call ?rbank
+                       endif
+        ret
+o2:     ld a,c
+        out (4),a               ; output character
+        xor a                   ; clear a
+        out (3),a               ; strobe
+        ret
+o3:     ld a,c
+        out (1),a
+        ret
+o4:     ld a,c
+        out (0),a
+        ret
+o5:     ld a,(mahndl)           ; check graphics handler
+        cp 'G'
+        jr z,o5e
+        ld a,'G'
+        ld (mahndl),a
+o5e:    ld a,c
+        out (0e0h),a
+        ret
+o6:     ld a,c
+        out (6fh),a
+        ret
+                       if banked
+o7:
+        call ?bank0             ; work in banked memory
+        jp o7b                  ; jump to banked memory
+
+        dseg
+
+o7b:    ld a,(mahndl)           ; check double size handler
+        cp 'D'
+        jr z,o7e
+        ld a,'D'
+        ld (mahndl),a
+        push bc
+        ld hl,madou             ; send setup chars to ma board
+        ld bc,0Ce0h             ; count and port
+        call macyc
+        pop bc
+
+o7e:    ld a,c
+        cp 7                    ; bell code
+        jp z,bell
+        cp 8                    ; back space
+        jp z,bksp
+        cp 0ah                  ; linefeed
+        jp z,o7c                ; ignore
+        cp 0dh                  ; carriage ret
+        jp z,carr
+        ld a,98h                ; code to send character
+        call maout
+        ld a,c                  ; send character
+        call maout
+                                ; now to jump to new line if reqd
+        call getcur
+        ld a,d                  ; high x
+        and a                   ; set flags
+        jr z,o7x                ; must be 1 for eol
+        ld a,e                  ; low x
+        cp 248                  ; check at last location
+        jr nz,o7x
+                                ; at end of line
+o7f:    ld a,h                  ; high y
+        and a                   ; set flags
+        jr nz,o7j               ; must be 0 for bottom line
+        ld a,l                  ; low y
+        and a                   ; set flags
+        jr nz,o7j               ; 0 for bottom line
+        push hl
+        ld hl,mascr             ; force scroll using alpha cursor
+        ld bc,04e0h
+        call macyc              ; to send stream of chars
+        pop hl
+        jr o7k
+o7j:                            ; advance cursor by one line
+        ld de,-24               ; line spacing
+        add hl,de               ; next line
+o7k:                            ; output new cursor position
+        ld a,84h                ; to set location
+        call maout
+        ld de,0
+        call maoutx             ; output de & hl
+        
+o7x:    ld a,95h
+        call undlin             ; to underline next location
+        jp o7c
+
+bell:                           ; bell
+        call 0e006h             ; dj output (ok since we are in bank 0)
+        jp o7c
+carr:                           ; carriage return
+        call getcur             ; get cursor location
+        ld a,94h
+        call undlin             ; to clear cursor
+        jp o7f                  ; jump to main routine
+
+bksp:                           ; backspace
+        call getcur             ; get cursor location
+        xor a                   ; clear a
+        or d                    ; check de = 0
+        or e
+        jp z,o7c                ; do nothing if at left margin
+        ld a,94h
+        call undlin             ; to delete current underline
+        push hl
+        ld hl,-12               ; column spacing
+        add hl,de               ; hl contains x location
+        ld a,84h                ; to set location
+        call maout
+        ex de,hl
+        pop hl
+        call maoutx             ; output de and hl
+        jp o7x                  ; jump to main routine
+
+undlin:                         ; to set or reset underline
+        call maout
+        call maoutx             ; output de & hl
+        push de
+        push hl
+        ld hl,9                 ; underline 10 units long
+        add hl,de
+        ex de,hl
+        pop hl
+        push hl
+        inc hl                  ; to form double line
+        call maoutx             ; output de & hl
+        pop hl
+        pop de
+        ret
+
+maoutx:                         ; send de and hl to ma board
+        ld a,d
+        call maout
+        ld a,e
+        call maout
+        ld a,h
+        call maout
+        ld a,l
+        call maout
+        ret
+
+getcur: ld a,85h                ; to get location of g-cursor
+        call maout
+        call main
+        ld d,a                  ; high x
+        call main
+        ld e,a                  ; low x
+        call main
+        ld h,a                  ; high y
+        call main
+        ld l,a                  ; low y
+        ret
+
+main:                           ; get char from ma board
+        in a,(0e1h)
+        and 2
+        jr z,main
+        in a,(0e0h)
+        ret
+maout:                          ; output char to micro angelo board
+        push af
+maoutc: in a,(0e1h)
+        and 1
+        jr nz,maoutc
+        pop af
+        out (0e0h),a
+        ret
+
+; characters to initialize ma board for double size
+
+madou:  db 84h,0,0,1,200        ; set graphics cursor
+        db 0ch                  ; clear screen
+        db 99h,4                ; double size
+        db 83h,2                ; pop up two alpha lines
+        db 80h,16               ; turn off alpha cursor
+
+mascr:  db 81h,39,0             ; set alpha cursor to bot line
+        db 0dh                  ; carriage return
+
+        cseg
+
+o7c:
+        call ?rbank
+        ret
+                       endif
+
+?cist:                          ; character input status
+        call jump
+isttb:  db nullis-isttb
+        db ist1-isttb           ; keyboard
+        db nullis-isttb
+        db ist3-isttb           ; modem
+        db ist4-isttb           ; mouse
+        db ist5-isttb           ; graphics board
+        db ist6-isttb           ; tape
+                       if banked
+        db nullis-isttb
+                       endif
+nullis: ld a,0ffh               ; return 0ffh for no device
+        ret                     ;   to prevent waiting forever for
+                                ;   device to clear
+ist1:
+                       if banked
+        call ?bank0
+                       endif
+        call 0e021h             ; dj status routine
+                       if banked
+        call ?rbank
+                       endif
+        jr zrrd                 ; zero = ready
+ist3:   in a,(2)                ; switch board status
+        and 64                  ; serial input device 2 status
+        jr nzrd
+ist4:   in a,(2)                ; switch board status
+        and 4                   ; serial input device 1 status
+        jr nzrd
+ist5:   in a,(0e1h)             ; get status
+        and 2                   ; zero = not ready
+        jr nzrd
+ist6:   in a,(6eh)              ; tarbell status
+        and 16                  ; input status
+        jr zrrd
+
+?cost:                          ; output status
+        call jump
+osttb:  db ost0-osttb           ; screen - alpha mode
+        db ost1-osttb           ; tv monitor
+        db ost2-osttb           ; printer
+        db ost3-osttb           ; modem
+        db ost4-osttb           ; sw serial port 1
+        db ost0-osttb           ; screen - graphics mode
+        db ost6-osttb           ; tape
+                       if banked
+        db ost0-osttb           ; screen - double size
+                       endif
+nullos: jp nullis               ; same as input status
+ost0:   in a,(0e1h)             ; get status
+        and 1                   ; 0 = ready
+        jr zrrd
+ost1:   ld a,0ffh               ; dj doesn't provide routine so
+                                ; don't implement this
+        ret
+ost2:   in a,(5)                ; get status
+        and 2                   ; 0 = ready
+        jr zrrd
+ost3:   in a,(2)                ; serial port status
+        and 128                 ; serial output device 2
+        jr nzrd
+ost4:   in a,(2)                ; serial port status
+        and 8                   ; serial output device 1
+        jr nzrd
+ost6:   in a,(6eh)              ; tarbell status
+        and 32                  ; bit 5
+        jr zrrd
+
+zrrd:   jr z,nz1                ; 0 = ready
+zr1:    xor a                   ; return 0
+        ret
+nzrd:   jr z,zr1                ; 0 = not ready
+nz1:    ld a,0ffh               ; return -1
+        ret
+
+jump:                           ; jump to device instruction
+        pop de                  ; get location of jump vector
+        ld a,b
+        cp maxdev               ; check if defined device
+        ret nc
+        ld h,0
+        ld l,a
+        add hl,de               ; points to rel address of device routine
+        ld a,(hl)               ; relative address
+        ld h,0
+        ld l,a
+        add hl,de               ; absolute address
+        jp (hl)
+
+; send stream of bytes to ma board
+
+macyc:  in a,(0e1h)             ; status
+        and 1
+        jr nz,macyc             ; cycle if not ready
+        outi                    ; output with increment
+        jr nz,macyc                                                     
+        ret
+
+mahndl: ds 1                    ; to show which ma handler is being used
+
+; code to initialize ma board for alphabetic entry
+
+maalp:  db 80h,60h              ; set special & hi-speed modes
+        db 83h,4                ; 4 line scroll
+        db 0ch,0ch              ; clear screen (twice)
+
+; table of device characteristics
+
+@ctbl:  db 'MA-ALP'     ; device 0, screen - alphabetic
+        db mbout
+        db bnone
+        db 'KEY/TV'     ; device 1, keyboard & TV monitor
+        db mbio+mbser+mbx
+        db b300
+        db 'EPSON '     ; device 2, printer
+        db mbout
+        db bnone
+        db 'MODEM '     ; device 3, modem
+        db mbio+mbser
+        db b300
+        db 'MOUSE '     ; device 4, mouse & serial port
+        db mbio+mbser
+        db b1200
+        db 'MA-GRA'     ; device 5, screen - graphics mode
+        db mbio
+        db bnone
+        db 'TAPE  '     ; device 6, cassette tape
+        db mbio
+        db bnone
+                       if banked
+        db 'MA-DOU'     ; device 7, screen - double size print
+        db mbout
+        db bnone
+                       endif
+        db 0            ; table end
+
+	end
+ll maout
+        ld a,c     

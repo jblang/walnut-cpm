@@ -1,0 +1,39 @@
+;                           ASMB3.SUB
+;
+;                       Walt Jung 03/12/85
+;
+;       This file shows how to (more simply) edit and assemble
+; BYE33n.ASM for multiple versions and/or many changes...
+; WITHOUT always editing the humongous 80K source each time.
+; 
+;       The key is to use LASM, and the LINKing assembly feature.
+; To do this, split BYE33n into 3 main parts, plus the hardware insert
+; specific to your machine.  The parts are: (for BYE331 as an ex.)
+;
+; B331.ASM      The option part, up to "ORG 100" (not to include)
+; B331B.ASM     The relocating part of the source, up to
+;               where your hardware insert goes
+; HDWINS.ASM    Your machine specific hardware insert, renamed
+; B331C.ASM     The final part of BYE33n.ASM
+;
+;       Edit the original source, splitting it into these parts.
+; On the LAST line of each of the first three sources (only)
+; add the statement:
+;       LINK    B331B.ASM
+;       LINK    HDWINS.ASM
+;       LINK    B331C.ASM
+; (These will of course be uncommented in the actual sources)
+;
+;       Now you can fine-tune it all much more quickly, as
+; you need only edit the small chunks, for different options.
+; Parts B and C will need few changes.  A VERY pleasant bonus is
+; that LASM will actually assembly a hefty source such as this
+; FASTER than MAC will.  Kudos Ward (sorry DR).  
+;
+;       When all is ready, place a copy of EX, LASM and MLOAD
+; on your disc, enter in the following as a command line, and
+; let er rip.
+;       B>ex asmb3 b331<RETURN>
+;
+lasm $1.bbz
+mload $1

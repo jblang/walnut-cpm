@@ -1,0 +1,320 @@
+; B5AA-3.INS for the Apple PCPI & Super Serial Card for BYE5 - 9/20/85
+;
+;	   6551 I/O with internal baudrate generator
+;
+;
+; This version is for Apple ][ computers, using the PCPI Applicard
+; CPM card, and the Apple Super Serial Card.
+;
+;
+; Note:  This is an insert, not an overlay.
+;
+;
+;	MODEM=DCE			Super Serial Card
+;
+;	TXD	2  -------->	2	RXD	received data
+;	RXD	3  <--------	3	TXD	tranmitted data
+;	SG	7  ---------	7	SG	signal ground
+;	DCD	8  -------->	6	DSR	data set ready (carrier)
+;	DTR	20 <-------	20	DTR	data terminal ready
+;
+;
+; This cable configuration uses DSR signal at the SSC to check carrier
+; and Serial card DCD wired to DTR (Jumper pin 20-8) so that modem
+; result codes are received when carrier is off.
+;
+; Set modem switches as defined in B5IM-1.DQC.
+;
+; THIS WORKS PROPERLY WITH BYE5 AND IS COMPATABLE WITH IMP WITHOUT ANY
+; CHANGES, ANY OTHER CONFIGURATION MIGHT REQUIRE RESETTING SOME MODEM
+; SWITCHES WHEN GOING FROM BYE5 TO IMP, MDM7, MEX, ETC.
+;
+;-----------------------------------------------------------------------
+;
+; For the Apple //e, a user entered Control Q can trash the local dis-
+; play by reverting back to 40 column mode.  This is a patch to turn
+; that Control Q into a back space.
+;
+; In BYE5 find the label MINP2A:  Just prior to MINP2A should be the
+; lines:
+;		JNZ	MINP2A
+;		MVI	A,08H
+;
+; Add the following code just before JNZ MINP2A
+;
+;		JZ	CHNGIT
+;		CPI	'Q'-'@'
+;		JNZ	MINP2A
+;	;
+;	CHNGIT: MVI	A,08H	<< note the added label
+;
+; 
+; NOTE: In later versions of BYE5 just set one of the FILTx noise
+; filters to trap Control Q.
+;
+;=  =  =  =  =	=  =  =  =  =  =  =  =	=  =  =  =  =  =  =  =	=  =
+;
+; 08/25/86  Fixed bug that prevented BYE5 from dropping DTR to hang up.
+;                                                -Joe England
+;
+; 12/01/85  Changed RDBYTE label to RDBYT to avoid conflict with RDBYTE
+;	    label in BYE502.			 -Jerry Levy
+;
+; 09/20/85  Created overlay for BYE5.		 -Norman Beeler
+;
+;=  =  =  =  =	=  =  =  =  =  =  =  =	=  =  =  =  =  =  =  =	=  =
+;
+SLOT	EQU	2		; Slot 2 is normal
+OFFS	EQU	16*SLOT		; This is the slot offset
+;
+PORT	EQU	0C088H+OFFS	; Dataport	
+STPORT	EQU	PORT+1		; Status port
+CPORT	EQU	PORT+2		; Command port
+BRPORT	EQU	PORT+3		; Baud rate port
+;......
+;
+;
+; PCPI CP/M card I/O equates
+;
+RDBYT	EQU	0FFE0H		; Read a Byte from Apple (A = BYTE)
+WRBYTE	EQU	0FFE3H		; Write a Byte to Apple (C = BYTE)
+RDWORD	EQU	0FFE6H		; Read 2 Bytes from Apple (DE = BYTES)
+WRWORD	EQU	0FFE9H		; Write 2 Bytes to Apple (DE = BYTES)
+RDNBYTS	EQU	0FFECH		; Read N Bytes (DE = COUNT, HL = BUFFER)
+WRNBYTS	EQU	0FFEFH		; Write N Bytes (DE = COUNT, HL = BUFFER)
+;
+PEEK1BYTE EQU	6		; Command to Peek 1 Byte in the Apple
+POKE1BYTE EQU	7		; Command to Poke 1 Byte to the Apple
+;
+;======================================================================
+;
+; These routines are specific to the Apple ][+ with Applicard.	The
+; routines read modem hardware (Apple Super Serial Card ACIA) directly
+; from the Applicard.
+;
+; Peek at 1 byte from Apple 6502 address space
+;
+;     ENTRY: DE = Address in Apple
+;     EXIT:  A = Data
+;
+PEEK:	PUSH	B
+	MVI	C,PEEK1BYTE
+	CALL	WRBYTE
+	CALL	WRWORD
+	CALL	RDBYT
+	POP	B
+	RET
+;.....
+;
+;
+; Poke 1 byte to Apple 6502 address space
+;
+;     ENTRY: DE = Address in Apple
+;     EXIT:  A = Data
+;
+POKE:	PUSH	B
+	MOV	B,A
+	MVI	C,POKE1BYTE
+	CALL	WRBYTE
+	CALL	WRWORD
+	MOV	C,B
+	CALL	WRBYTE
+	POP	B
+	RET
+;.....
+;
+;
+; Read the baud rate port of the ACIA
+;
+RD$BRPORT:
+	PUSH	D
+	LXI	D,BRPORT
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Read the command port of ACIA
+;
+RD$CPORT:
+	PUSH	D
+	LXI	D,CPORT
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Read data port of ACIA
+;
+RD$PORT:PUSH	D
+	LXI	D,PORT
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Read the status port of the ACIA
+;
+RD$STPORT:
+	PUSH	D
+	LXI	D,STPORT
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the baud rate port of the ACIA
+;
+WR$BRPORT:
+	PUSH	D
+	LXI	D,BRPORT
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the command port of ACIA
+;
+WR$CPORT:
+	PUSH	D
+	LXI	D,CPORT
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the serial data port of the ACIA
+;
+WR$PORT:PUSH	D
+	LXI	D,PORT
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+;----------------------------------------------------------------------
+;
+;
+; Check for a carrier, if none return with the zero flag set.
+;
+MDCARCK:CALL	RD$STPORT	; Get status
+	ANI	40H		; Check DSR pin for DCD (see above)
+	XRI	40H		; Reverse the zero flag (the 6551
+	RET			; Has status 0 for DCD/DSR true)
+;......
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,4AH		; Turn off DTR
+	CALL	WR$CPORT
+	PUSH	B		; Save register
+	MVI	B,20		; Delay 2 sec to drop carrier
+;
+OFFTI:	CALL	DELAY		; 1 sec per loop
+	DCR	B
+	JNZ	OFFTI		; Keep going until finished
+	POP	B		; Restore register
+	MVI	A,4BH		; Raise DTR
+	CALL	WR$CPORT
+	MVI	A,18H		; Set 1200,8 bits, 1 stop
+	CALL	WR$BRPORT
+;
+	  IF	IMODEM
+	CALL	IMINIT
+	  ENDIF
+;
+	RET
+;.......
+;
+;
+; Input a character from the modem port.
+;
+MDINP:	CALL	RD$PORT		; Get character
+	RET
+;......
+;
+;
+; Check the status to see if a character is available.  Return with zero
+; flag set, if not.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	CALL	RD$STPORT	; Get modem status
+	ANI	8		; Is data available?
+	RZ			; If no, return
+	ORI	0FFH		; Otherwise return true
+	RET
+;......
+;
+;
+; This routine will output a character to the data port.
+;
+MDOUTP:	CALL	WR$PORT		; Send character
+	RET
+;.....
+;
+;
+; See if the output is ready for another character.
+;
+MDOUTST:CALL	RD$STPORT	; Get modem status
+	ANI	10H		; Mask out junk
+	RET
+;.......
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,4AH		; Drop DTR
+	JMP	WR$CPORT
+;.....
+;
+;
+; If you do not support a particular baud rate, put it here
+; before SETINV:
+;
+SETINV:	ORI	0FFH
+	RET
+;.....
+;
+;
+SET300:	MVI	A,16H
+	JMP	WR$BRPORT	; Go change the baud rate
+;.....
+;
+;
+SET1200:MVI	A,18H
+	JMP	WR$BRPORT
+;.....
+;
+;
+SET2400:MVI	A,1AH
+	JMP	WR$BRPORT
+;.....
+;
+;
+SET4800:MVI	A,1CH
+	JMP	WR$BRPORT
+;.....
+;
+;
+SET9600:MVI	A,1EH
+	JMP	WR$BRPORT
+;.....
+;
+;			    end
+;---------------------------------------------------------------------
+

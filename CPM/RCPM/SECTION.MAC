@@ -1,0 +1,670 @@
+
+;
+;
+;		S E C T I O N . M A C
+;
+;
+; 09/04/85 modified for use with ZCPR2 and converted to Zilog
+; mnemonics for assembly with Microsoft's M80 Assembler by Max Southall
+;		Micro/Access, Box 136 Station J, Toronto
+;		(416) 463 9360   2400/1200/300
+;
+; from SECTION.ASM, originally by Ron Fowler, Westland, Michigan  06/27/82
+;
+; This program is intended for RCPM systems where
+; files are grouped into drive/user area by their
+; classification.  This program implements a naming
+; convention, whereby a caller can move into a
+; section by typing its name, rather than the random
+; searching formerly needed. If proper equates are set, and
+; ZCPR2 is used, the program will not allow changing to 
+; restricted drives or user areas. A resident or disk-based 
+; command can be run after a section change if using the ZCPR2
+; external command buffer.  If the section name buffer is implemented
+; in the BIOS and custom ZCPR2, then the section name can be displayed
+; as the prompt.
+;
+; Syntax is:  SECTION [<section-name>]
+;
+; If section-name is omitted, a short list of
+; available sections is printed. The special
+; form "SECTION ?" prints the detailed description
+; of each section.
+;
+; You have to fill in the sections table
+; (located near the end of this program) for your
+; particular system.
+;
+;----< Examples of use: >-----
+;
+; A0>SECTION ZCPR	;changes drive/user to ZCPR area
+; B4>SECTION MBASIC	;changes drive/user to mbasic area
+; A6>SECTION		;prints short list of sections
+; A9>SECTION ?		;prints the detailed list
+;
+false	EQU	0	
+true	EQU	not false
+;
+; the following equates may be
+; customized to your preference
+;
+zcmd	EQU	TRUE	;ZCPR2/3 multiple command buffer used?
+			;If using ZCPR2 command buffer, run command at
+			;CMD after new section is selected.  
+check	EQU	TRUE	;check maximum drive and user permitted
+cmdbuf	EQU	0fe80h	;address of zcpr2/3 multiple command buffer
+;
+prompt	EQU	TRUE	;make prompt section name (must implement sname
+			;in modified ZCPR2/3 and initialize in BIOS)
+sname	EQU	0f2b0h+49+49  ;address of section name prompt buffer
+;
+maxuser	EQU	03fh	;address of maximum user # byte
+maxdriv	EQU	03dh	;address of maximum drive # byte
+;
+descol	EQU	15	;column # where description begins
+			;(in detailed list) (should be greater
+			;than longest section name) (but small
+			;enuf so display is not too long)
+perlin	EQU	4	;names printed per line in short list
+tabpos	EQU	12	;tab stops (set mod tabpos)
+			;should be at least one greater than
+			;longest section name.
+;
+lines	EQU	18	;line # to pause at so screen doesn't overflow
+;
+; ZCPR conventions
+;
+cpbase	EQU	0	
+ccpdrv	EQU	cpbase+4	;ccp user/drive storage loc
+bdos	EQU	cpbase+5	;system entry point
+dfcb	EQU	cpbase+5CH	;default file control block
+dbuf	EQU	cpbase+80H	;default buffer
+tpa	EQU	cpbase+100H	;base of transient program area
+coninf	EQU	1	;system call, get console char
+conotf	EQU	2	;system call, console output
+printf	EQU	9	;system call, print cons string
+cstsf	EQU	11	;system call, get console status
+
+;
+; character definitions
+;
+cr	EQU	13	;carriage-return code
+lf	EQU	10	;linefeed code
+;
+; code begins....
+;
+	.Z80	;Accept Z80 instruction format
+;
+	ORG	tpa
+;
+;
+pbase:
+	LD	HL,0	;save system stack
+	ADD	HL,SP
+	LD	(spsave),HL
+	LD	SP,stack	;load local stack
+;
+	LD	A,(ccpdrv)	;get current drive #
+	LD	(lastdrv),A	;save
+	PUSH	AF	;save it
+;
+gosect:
+	CALL	sect	;perform the section function
+;
+back:
+	LD	HL,(spsave)	;restore stack for proper return
+	LD	SP,HL
+
+	LD	A,(lastdrv)	;check to see if section changed
+	LD	B,A
+	LD	A,(ccpdrv)
+	CP	B
+	RET	Z	;no section change, exit but don't warmboot
+	
+	 if	prompt
+	ld	(sname),a	;put drv/usr in sname buffer
+	ld	hl,(savecmd)
+	ld	de,sname+1
+putsname:
+	ld	a,(hl)
+	ld	(de),a
+	cp	0
+	jr	z,swarm
+	inc	hl
+	inc	de
+	jr	putsname
+	 
+	 endif
+
+swarm:
+	JP	cpbase	;CCP will change section at warmboot
+;
+;
+; scan cmd line...if an arg exists, attempt to
+; match it in the table.  If no arg, dump a list
+; of available sections.
+;
+sect:
+	LD	A,(dfcb+1)	;is there a cmd-line arg?
+	CP	' '
+	JP	Z,prnqk	;then go print sections out
+	CP	'?'	;wants detailed list?
+	JP	Z,prntbl	;then go do it
+;
+;	SCAN FOR SECTION & CHANGE IF LEGAL
+;
+	LD	HL,dbuf	;something there, scan to it
+;
+scanbk:
+	INC	HL	;  ignoring blanks
+	LD	A,(HL)
+	CP	' '
+	JP	Z,scanbk
+scant:
+	LD	(savecmd),HL
+	LD	DE,table	;point de to the section table
+	CALL	loop
+scant1:
+	LD	HL,(savecmd)
+	LD	DE,table1
+	CALL	loop
+scant2:	
+	LD	HL,(savecmd)	
+	LD	DE,table2
+	CALL	loop	
+scant3:
+	LD	HL,(savecmd)	
+	LD	de,table3
+	CALL	loop
+;
+	LD	DE,matmsg	;print out no-match message
+	LD	C,printf
+	CALL	bdos
+;
+	CALL	prnqk	;go give short list	
+	RET
+;
+loop:
+	PUSH	HL	;save cmd line arg pointer
+eloop:
+	LD	A,(DE)	;test entry against table
+	CP	1	;end of entry marker?
+	JP	NZ,noend	;jump if not
+	LD	A,(HL)	;yes, did user cmd terminate also?
+	OR	A
+	JP	Z,match	;then declare a match
+
+	JP	nomat	;else declare a mismatch
+
+noend:
+	CP	(HL)
+	JP	NZ,nomat	;skip if no match
+	INC	HL	;continue with comparison
+	INC	DE
+	JP	eloop
+;
+; here when an entry didn't match
+;
+nomat::	LD	A,(DE)
+	OR	A	;entry terminator?
+	INC	DE
+	JP	NZ,nomat	;scan through it
+	POP	HL	;restore cmd line arg pntr
+	INC	DE	;end of entry, skip over user #
+	INC	DE	;and drive
+	LD	A,(DE)	;end of table?
+	OR	A	;(terminated by 0)
+	JP	NZ,loop	;go scan another if not
+;
+; here when no match can be found
+;
+	ret
+;
+; here when a match is found
+;
+match:
+	EX	DE,HL	;hl==> user #
+scmat:
+	INC	HL	;scan past description
+	LD	A,(HL)	;looking for terminating null
+	OR	A
+	JP	NZ,scmat
+
+	INC	HL	;skip over terminator
+	LD	A,(HL)	;fetch user #
+	SUB	'0'	;subtract ascii bias
+	CP	10	;is it > 15?
+	JP	C,scmat2	;no, so continue on
+	SUB	7	;remove the rest 
+scmat2::
+	LD	(user),A
+	LD	E,A
+	INC	HL	;point hl to drive #
+	LD	A,(HL)	;fetch drive
+	SUB	'A'	;subtract ascii bias
+	LD	(drive),A
+	LD	D,A	;save drive #
+	LD	A,E	;fetch user number
+	RLC	A	;rotate to high nybble
+	RLC	A
+	RLC	A
+	RLC	A
+	OR	D	;"or" in the drive
+
+	POP	DE	;clear garbage from stack
+
+	 if	check	;if checking maxdrive & user
+
+	LD	(newdrive),A	;save while we check for limits
+chkd:
+	LD	A,(drive)	;check for maximum drive first
+	LD	HL,maxdriv
+	INC	(HL)
+	CP	(HL)
+	JR	NC,restrict	;illegal request - don't change section
+chku:
+	LD	A,(user)	;check for maximum user area
+	LD	HL,maxuser
+	INC	(HL)
+	CP	(HL)
+	JR	C,okset		;ok - change section
+;
+restrict:
+	LD	DE,rstrmsg	;print illegal request message
+	LD	C,printf
+	CALL	bdos
+	jr	cmdret			;return without changing section
+;
+okset:
+	LD	A,(newdrive)	;restore request
+
+	 endif		;if checking maxuser & maxdrive	
+
+
+;	-- Change user/drive at 04H for the ccp
+
+	LD	(ccpdrv),A	;save drive/user for ccp use
+;
+	 if	zcmd		;if running a command after section change
+;
+	LD	B,A
+	LD	A,(lastdrv)
+	CP	B
+	JR	Z,cmdret
+;
+; Place command to run after section change in ZCPR2/3 multiple command buffer
+;
+	LD	HL,cmd		;address of command to run
+	LD	DE,cmdbuf+4	;place to put command
+	LD	(cmdbuf),DE	;store address of command
+transcmd:
+	LD	A,(HL)		;get command letter
+	CP	'$'		;end of command delimiter?
+	JR	Z,cmdret		;if so, return		
+	LD	(DE),A		;put cmd letter in cmd buffer
+	INC	HL		;bump 'em both
+	INC	DE
+	JR	transcmd	;do again until finished
+
+	 endif
+cmdret:
+	POP	HL		;dummy clear stack for proper return
+	RET			;return to caller
+;
+; 	PRINT QUICK LIST
+;
+prnqk:
+	LD	DE,signon
+	LD	C,printf
+	CALL	bdos
+
+prnqk1:
+	LD	DE,tblmsg
+	LD	C,printf
+	CALL	bdos
+	LD	HL,table
+	call	qloop
+	LD	HL,table1
+	call	qloop
+	LD	HL,table2
+	CALL	qloop
+	LD	HL,table3
+	CALL	qloop
+;
+	LD	DE,matms2	;print ending message
+	LD	C,printf
+	CALL	bdos
+	CALL	crlf
+;
+	RET
+;
+qloop::	LD	B,perlin	;get names-per-line counter
+qloop2::LD	A,(HL)	;end of table?
+	OR	A
+	JP	Z,qkend	;then go print end msg
+	CALL	prathl	;else print the name
+qscan::	LD	A,(HL)	;scan to description terminator
+	INC	HL	;(this effectively ignores
+	OR	A	; the description)
+	JP	NZ,qscan
+	INC	HL	;skip over user #
+	INC	HL	;and drive #
+	DEC	B	;count down line entry counter
+	JP	NZ,qtab	;go tab if line not full
+	CALL	crlf	;else turn up new line
+	JP	qloop	;and continue
+;
+; tab between entry names
+;
+qtab::	LD	A,' '	;seperate names with tabs
+	CALL	type
+	LD	A,(column)	;get column #
+qsub::	SUB	tabpos	;test tab position
+	JP	Z,qloop2	;continue if at a tab position
+	JP	NC,qsub	;convert mod tabpos
+	JP	qtab	;keep tabbing
+;
+qkend:
+	CALL	crlf
+	RET	
+;
+; here to print out a list of available section numbers
+;
+prntbl::
+	LD	DE,signon
+	LD	C,printf
+	CALL	bdos
+
+	LD	A,(dfcb+2)
+	CP	'Z'
+	jr	Z,prnt1
+	CP	'P'		
+	jr	Z,prnt2		
+	CP	'M'
+	jr	Z,prnt3
+
+prtall:
+	LD	DE,tblmsg
+	LD	C,printf
+	CALL	bdos
+	LD	HL,table
+	CALL	prloop1
+	CALL	prnt1
+	call	prnt2
+	call	prnt3
+	ret
+;	
+prnt1:
+	LD	DE,tbl1msg
+	LD	C,printf
+	CALL	bdos
+	LD	HL,table1
+	CALL	PRLOOP1
+	RET
+prnt2:
+	LD	DE,tbl2msg
+	LD	C,printf
+	CALL	bdos
+	LD	HL,table2
+	CALL	prloop1
+	RET
+
+prnt3:
+	LD	DE,tbl3msg
+	LD	C,printf
+	CALL	bdos
+	LD	HL,table3
+	CALL	prloop1
+	ret
+prloop1:
+	CALL	crlf
+prloop:
+	LD	A,(HL)	;end-of-table?
+	OR	A
+	RET	Z	;then all done
+	CALL	prathl	;print the name
+tab::	LD	A,'.'	;tab over with leader
+	CALL	type
+	LD	A,(column)	;get column
+	CP	descol	;at description column yet?
+	JP	C,tab	;then keep tabbing
+	CALL	prathl	;print description
+	INC	HL	;skip over user #
+	INC	HL	;and drive number
+	CALL	crlf	;turn up new line
+;
+; pause for user input before continuing if screen end reached	
+;
+	PUSH	HL		;save HL
+	LD	HL,lincount	;current linecount
+	LD	A,lines		;# of lines permitted before pause
+	CP	(HL)		;max # of lines yet?
+	JR	NZ,cprat	;not yet - continue listing
+;
+prtpause:
+	LD	DE,pausemsg	;print pause message
+	LD	C,printf
+	CALL	bdos
+;
+getinp:
+	LD	C,coninf	;get user input
+	CALL	bdos			
+	AND	5FH
+	CP	'N'		;Exit?
+	JR	Z,cprat2
+	CP 	'C'-40h
+	JR	Z,cprat2
+	ld	c,conotf
+	ld	e,cr
+	CALL	bdos
+	XOR	A		;CR - zero lincount
+	LD	(lincount),A
+	JR	cprat1
+cprat:	
+	INC	(HL)		;bump line counter
+cprat1:
+	POP	HL		;restore HL
+;
+	JP	prloop	;and continue printing list
+
+cprat2:
+	POP	HL
+	POP	HL
+	POP	HL
+	RET
+;
+; print message @hl until null or 01 binary
+;
+prathl::LD	A,(HL)	;fetch char
+	INC	HL	;point past it
+	OR	A	;null?
+	RET	Z	;then done
+	CP	1	;1 also terminates
+	RET	Z
+	CALL	type	;nope, print it
+	CALL	break	;check for console abort
+	JP	prathl
+;
+; test for request from console to stop (^C)
+;
+break::	PUSH	HL	;save 'em all
+	PUSH	DE
+	PUSH	BC
+	LD	C,cstsf	;get console sts request
+	CALL	bdos
+	OR	A	;anything waiting?
+	JP	Z,brback	;exit if not
+	LD	C,coninf	;there, is, get it
+	CALL	bdos
+	CP	'S'-64	;got pause request?
+	LD	C,coninf
+	CALL	Z,bdos	;then wait for another character
+	CP	'C'-64	;got abort request?
+	JP	Z,quit	;then go abort
+brback::POP	BC	;else restore and return
+	POP	DE
+	POP	HL
+	RET	
+;
+; request from console to abort
+;
+quit::	LD	DE,qmesg	;tell of quit
+	LD	C,printf
+	CALL	bdos
+	LD	HL,(spsave)	;get stack pointer
+	LD	SP,HL
+	RET	
+;
+qmesg::	DB	cr,lf,'==> Aborted',cr,lf,'$'
+;
+; turn up a new line on display
+;
+crlf::	LD	A,cr	;print a return
+	CALL	type
+	LD	A,lf	;get lf, fall into type
+;
+; Routine to print char in A on console,
+; while maintaining column number. 
+;
+type::	PUSH	HL	;save everybody
+	PUSH	DE
+	PUSH	BC
+	LD	E,A	;align char for printing
+	PUSH	AF	;save char
+	LD	C,conotf
+	CALL	bdos	;print it
+	POP	AF	;restore char
+	LD	HL,column	;bump column counter
+	CP	lf	;linefeed doesn't chang column
+	JP	Z,nochg
+	INC	(HL)
+	CP	cr	;carriage-return zeroes it
+	JP	NZ,nochg	;skip if not cr
+	LD	(HL),0	;is, zero column
+nochg::	POP	BC	;restore & return
+	POP	DE
+	POP	HL
+	RET	
+;
+; dump heading message
+;
+signon:	DB	cr,lf,'Micro/Access SECTION  9/4/85',cr,lf,'$' 
+;
+tblmsg: DB	cr,lf,'Currently available sections:',cr,lf,'$'
+;
+tbl1msg: DB	cr,lf,'Current ZCPR-CP/M sections:',cr,lf,'$'
+;
+tbl2msg: DB	cr,lf,'Current PC/XT/AT sections:',cr,lf,'$'
+;
+tbl3msg: DB	cr,lf,'Current MAC sections:',cr,lf,'$'
+;
+rstrmsg: DB	cr,lf,'==> Restricted',cr,lf,'$'
+;
+pausemsg: DB	'>>> MORE? <Y/N> - $'	
+;
+; message printed when match failed
+;
+matmsg::DB	cr,lf,'==> ??? Section'
+	DB	cr,lf,'$'
+matms2:
+	DB	cr,lf,lf,'Type "SECTION <section-name>" to log into a section.'
+	DB	cr,lf
+	DB	'"SECTION ?" - detailed list of ALL sections',cr,lf
+	DB	'?P - PC/XT/AT sections',cr,lf
+	DB	'?Z - 8080/Z80/HD64180 sections',cr,lf
+	DB	'?M - MAC sections',cr,lf
+	DB	'"SECTION" alone prints available section names' 
+	DB	cr,lf,'$'
+;
+;	Patch command to execute here
+;
+cmd: DB	'DIR',0,'$'		;command to execute after changing sections
+				;'$' is to delimit transfer to cmdbuffer,
+				;cmd itself must always end with 0 for ZCPR2/3.
+;
+; variables
+;
+spsave: DW	0	;stack-pointer save
+savecmd: DW 	0	;pointer to section command in buffer 
+column: DB	0	;current column #
+lincount: DB	0	;current line printed
+lastdrv: DS	1	;drive/user before execution
+newdrive: DS	1	;requested drive/user
+drive:	DS	1	;requested drive
+user:	DS	1	;requested user	
+	DS	40	;the stack
+;
+stack	EQU	$	;define it
+;
+;
+;
+;
+; SECTIONS TABLE (located at end for easy patching with ZSID)
+;
+; This is the table that defines the sections.	Entry format is:
+;
+;	<name>,sep,<description>,null,user,drive
+;
+; where <name>	       is the section name
+;	sep	       is a binary 1 used to terminate the match test
+;	<description>  is a one-line-or-less comment printed when
+;		       the list is dumped.  Match testing terminates
+;		       before this field.
+;	null	       is a binary 0 used to terminate the description
+;	user	       is the user number (0-15) of the section (ascii)
+;	drive	       is the drive (A-P) number of the section (ascii)
+;
+; the table ends with a <name> of zero (binary).
+;
+; Note: be sure to make section names ALL-CAPS, because the
+;	CCP converts command-line arguments to capitals. The
+;	description may be in lower case, since it has nothing
+;	to do with the matching process.
+; Also: although the drive and user # is in ascii (for convenience
+;	in setting up the table), be sure to use caps for the
+;	drive designation.  No error checking is done on the values.
+;
+table:
+	DB	'UPLOADS',1,'Recent User Uploads',0,'0B'
+	DB	'DOCS',1,'Documentation & Text',0,'0C'
+	DB	'TRACE',1,'TRACE Computer Club Related Files',0,'DE'
+	DB	0	;<<== end of table 0
+table1:
+	DB	'APPLE-80',1,'Apple CP/M-ZCPR Programs',0,'5C'
+	DB	'ASM-80',1,'Z80/HD64180 Assembly Language Area',0,'1B'
+	DB	'BBS-80',1,'Remote Communication for ZCPR-CP/M',0,'6B'
+	DB	'C-80',1,'C Language Area for ZCPR-CP/M',0,'3C'
+	DB	'CATS-80',1,'SIG/M, CP/MUG Catalogs',0,'BB'
+	DB	'COMM-80',1,'Modem programs for ZCPR-CP/M',0,'4B'
+	DB	'CPM-86',1,'CP/M-86 Area',0,'2E'
+	DB	'DBASE',1,'DBASEII programs',0,'AC'
+	DB	'EMX',1,'Simon Ewins'' remote message/software system',0,'4C'
+	DB	'S100',1,'Source for Multiflex, other S100',0,'8C'
+	DB	'SYS-80',1,'ZCPR-CP/M System Files',0,'2B'
+	DB	'UTIL-80',1,'ZCPR-CP/M Utilities',0,'3B'
+	DB	'VIDTEK',1,'Source for SBC-80, JLS BB',0,'6C'
+	DB	'WORD-80',1,'Word-processing related files',0,'9C'
+	DB	'XEROX',1,'Source for XEROX 820-I',0,'7C'
+	DB	'ZCPR2',1,'ZCPR2 processor for CP/M-80',0,'BC'
+	DB	'ZCPR3',1,'ZCPR3 processor for CP/M-80',0,'CC'
+	DB	0	;<<== end of table1
+table2:
+	DB	'PC-COMM',1,'Modem programs for PC/XT/AT',0,'1D'
+	DB	'PC-GAME',1,'Games for PC/XT/AT',0,'4D'
+	DB	'PC-KERMIT',1,'Columbia U''s Communications Program',0,'3E'
+	DB	'PC-MASM',1,'8086/286 Assembly Language Source',0,'7D'
+	DB	'PC-PROG',1,'General Program Area',0,'8D'
+	DB	'PC-RBBS',1,'Remote system software',0,'6D'
+	DB	'PC-TURBO',1,'Turbo Pascal Files',0,'1E'
+	DB	'PC-UTIL1',1,'Utilities for IBM PC/XT/AT',0,'0D'
+	DB	'PC-UTIL2',1,'More PC/XT/AT Utilities',0,'2D'
+	DB	'PC-WORD',1,'Word processing related files',0,'5D'
+	DB	0	;<<== end of table2
+table3:
+	DB	'MAC',1,'Apple MACINTOSH Area',0,'0F'	
+	DB	0	;<<== end of table3
+;
+; -----< end of SECTIONS table>-----
+;
+	END	pbase	;that's all.
+

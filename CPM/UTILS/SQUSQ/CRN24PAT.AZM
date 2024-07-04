@@ -1,0 +1,45 @@
+;CRN24PAT.AZM
+;  causes XZY files to crunch to XZZ, as suggested in the source for
+;  CRUNCH24.
+;  The equated labels refer to the CRUNCH24 source; the equated values
+;  refer to the distributed version of CRUNCH24.COM.  This code
+;  takes fewer bytes than the original.
+;  To use:
+;   A>Z1 CRN24PAT
+;   A>MLOAD CRUNCH24.COM,CRN24PAT
+
+CBL	EQU	0248H
+OUTFCB	EQU	1828H
+ERR7	EQU	06ECH
+SKP991	EQU	0349H
+
+	ORG	CBL+20		; start 8 lines down from CBL:
+
+	LD	HL,OUTFCB+9	; point to first char in extension
+	LD	A,' '		; See if extension is blank
+	CP	(HL)		;
+	LD	A,'Z'		; we'll need a Z later
+	JR	Z,ZZZ		; If so, force an extension of "ZZZ"
+	INC	HL		; point to second char in extension
+	CP	(HL)		; See if middle letter is "Z"
+	JR	NZ,XZY		; Normal condtition- simply force 2nd ltr to Z
+	INC	HL		; point to last char
+	CP	(HL)		; See if last char is "Z"
+	JR	NZ,XZZ		; no - extension will be "XZZ"
+	DEC	HL		; point to first char
+	DEC	HL
+	CP	(HL)		; See if first char is "Z"
+	JR	NZ,ZZZ		; no - extension will be "ZZZ"
+	LD	DE,ERR7		; Already "ZZZ" - User had better rename file
+	JP	SKP991		; but give him a straight copy, anyway
+ZZZ:	LD	(HL),A		; First char becomes Z
+	INC	HL
+	LD	(HL),A		; Second char becomes Z
+	INC	HL
+XZY:
+XZZ:
+	LD	(HL),A		; Pointed-to char becomes Z
+; since this code takes less space than original, we fill with NOPs (00)
+	DB	0,0,0,0,0,0,0,0,0
+	END
+

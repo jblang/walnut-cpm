@@ -1,0 +1,67 @@
+;*********************************************************************
+;
+;  B5C-KPAV.INS	  -  KAYPRO WITH ADVENT REAL-TIME CLOCK
+;
+;    5/09/86	  -  First Version (1.0)
+;		     Robert J. Dix, PENKUG RBBS, (804) 838-1645
+;
+;*********************************************************************
+;
+CLKPORT	EQU	090H	; PORT FOR ADVENT CLOCK ON KAYPROS
+TCENTURY EQU	019H	; Current century . . . . to changed
+			; on January 1, 2000
+THOUR	EQU	04H	; Real Time Clock Hour Register
+TMINUTE	EQU	03H	; Real Time Clock Minute Register
+TSECOND	EQU	02H	; Real Time Clock Second Register
+TMONTH	EQU	07H	; Real Time Clock Month Register
+TDAY	EQU	06H	; Real Time Clock Day Register
+TYEAR	EQU	09H	; Real Time Clock Year Register
+;
+;---------------------------------------------------------------------
+;
+TIME:
+;
+;  Read Seconds First to Guard Against Rollover
+;
+	MVI	A,TSECOND	; Put RTC register # in A
+	IN	CLKPORT		; Get Seconds count
+	MOV	E,A		; and store it in E for Rollover Test
+				; later on
+	MVI	A,TYEAR		; Put RTC register # in A
+	IN	CLKPORT		; Get Year
+	STA	RTCBUF+4	; Store in RTCBuf BCD buffer
+	MVI	A,TCENTURY	; Move Century to RTC BCD buffer
+	STA	RTCBUF+3
+	MVI	A,TMONTH	; Put RTC register # in A
+	IN	CLKPORT		; Get Month
+	STA	RTCBUF+5	; Store in RTCBuf BCD buffer
+	MVI	A,TDAY		;
+	IN	CLKPORT		; Get Day
+	STA	RTCBUF+6	;
+	MVI	A,THOUR		;
+	IN	CLKPORT		; Get Hour
+	STA	RTCBUF+0	;
+	MVI	A,TMINUTE	;
+	IN	CLKPORT		; Get Minute
+	STA	RTCBUF+1	;
+	MVI	A,TSECOND	;
+	IN	CLKPORT		; Get Second
+	STA	RTCBUF+2	;
+;
+;  Check for rollover first before doing the binary conversion and exit
+;
+	CMP	E		; Compare current second value with
+				; what was stored in register E
+	JNZ	TIME		; If not the same value, then retry
+				; otherwise....proceed
+	LDA	RTCBUF		; Get Hour Value
+	CALL	BCDBIN		; Convert it to binary format
+	STA	CCHOUR		; Store it for BYE5
+	LDA	RTCBUF+1	;
+	CALL	BCDBIN		; Do the same for Minute
+	STA	CCMIN		;
+;
+; All done, return to caller . . . . . until next time
+;
+	RET
+

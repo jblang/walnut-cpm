@@ -1,0 +1,170 @@
+; BASCOM CPMIO replacement by S. Kluger
+; version 1.11 as of 02/07/84
+;
+; PURPOSE:
+; to enhance the operation of BASCOM compiled programs which
+; must by the nature of their environment be non-abortable.
+; A program compiled with BASCOM can normally be aborted by
+; halting a text display with ^S, and then typing ^C. Since
+; console output is handled by the BDOS, the BDOS ^C trap
+; will branch to warm boot, and that could be a disaster if
+; the program runs in a secure environment with the user
+; normally unable to enter CP/M, or where CP/M entry depends
+; on various controlled conditions. One example is Dick Lieber's
+; SIGNON program for RCPM systems, or for that matter, any
+; logon-type program used on RCPM systems.
+;
+; This CPMIO replacement retains the ^S handling of the
+; original, while totally ignoring ^C. Note that the $LSTOT
+; implementation has not been changed.
+;
+; PLUGGING IT IN:
+; First, use M80 to assemble this file to make CPMIO.REL.
+; Now, if you have Digital Research's LIB.COM, do the following:
+; A>REN OLIB.REL=BASLIB.REL
+; A>LIB BASLIB=OLIB<CPMIO>
+; that's all. How to do it with Microsoft's library manager is
+; anyone's guess - I prefer the simplicity of DRI products.
+; And a warning... this has not been tested on BASCOM 5.3 with BRUN!
+; I suspect there the CP/M character IO routines are contained in
+; BRUN rather than BASLIB, in which case conversion would not
+; be trivial at all.
+;
+	extrn	$$optr,$$pout,$$sfwa,$$slwa,$$tout,$ini0
+	extrn	$memry,cpment,cpmwrm
+;
+	public	$init,$ioini,$lptot,$osext,$ttyin,$ttyot,$ttyst
+	public	cpmvrn,cpmrea,cpmwri
+;
+a0197:	nop
+	nop
+	nop
+a019a:	nop
+	nop
+	nop
+cot:	nop
+	nop
+	nop
+cpmvrn:	mov	a,m
+cpmrea:	nop
+cpmwri:	nop
+;
+$init:	mov	b,h
+	mov	c,l
+	lhld	cpment+1
+	sphl
+	push	b
+	lxi	d,0ff00h
+	dad	d
+	shld	$$slwa
+	lhld	$memry
+	inx	h
+	inx	h
+	shld	$$sfwa
+	jmp	$ini0
+;
+; IO initialization. set up jumps to BIOS
+; sneaky BASCOM makes sure we call the destinations
+; of the BIOS jump table, rather than the jump
+; table itself!
+;
+$ioini:	mvi	a,0c3h
+	sta	a0197
+	sta	a019a
+	sta	cot		;added conout
+	lhld	cpmwrm+1
+	lxi	d,4
+	dad	d
+	mov	e,m
+	inx	h
+	mov	d,m
+	xchg
+	shld	a0197+1
+	xchg
+	inx	h
+	inx	h
+	mov	e,m
+	inx	h
+	mov	d,m
+	xchg
+	shld	a019a+1
+	xchg
+	inx	h
+	inx	h
+	mov	e,m
+	inx	h
+	mov	d,m
+	xchg
+	shld	cot+1		;set up our new conout
+	mvi	c,0ch
+	call	cpment
+	sta	cpmvrn
+	ora	a
+	lxi	h,1514h
+	jz	a014b
+	lxi	h,2221h
+a014b:	shld	cpmrea
+	lxi	h,$$tout
+	shld	$$optr
+	mvi	m,1
+	inx	h
+	mvi	m,50h
+	mvi	a,84h
+	sta	$$pout+1
+	mvi	a,1
+	sta	$$pout
+	mvi	a,0ffh
+	sta	$$pout-1
+	ret
+;
+$ttyst:	push	b
+	push	d
+	push	h
+	call	a0197
+	ora	a
+	jmp	a0190
+;
+$ttyin:	push	b
+	push	d
+	push	h
+	call	a019a
+	jmp	a0190
+;
+; The $ttyout routine used to go through the BDOS,
+; which gives RCPM operators headaches. We use BIOS
+; output here, but still implement the ^S check
+; (but without warmboot at ^S^C)
+;
+$ttyot:	push	b
+	push	d
+	push	h
+	mov	c,a
+	call	cot
+	push	psw		;save byte
+	call	$ttyst
+	jz	none
+	call	$ttyin		;get the waiting char
+	cpi	'S'-40h		;is it ^S?
+	jnz	none		;nope - ignore it
+	call	$ttyin		;wait for a response
+none:	pop	psw
+	jmp	a0190
+;
+$lptot:	push	b
+	lxi	b,0ff05h
+a0187:	push	d
+	push	h
+	push	psw
+	ana	b
+	mov	e,a
+	call	cpment
+	pop	psw
+a0190:	pop	h
+	pop	d
+	pop	b
+	ret
+;
+$osext:	jmp	cpmwrm
+;
+	end
+

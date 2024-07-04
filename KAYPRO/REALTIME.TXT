@@ -1,0 +1,45 @@
+TELLING (REAL) TIME
+by Editors, AAKUG, July 1987
+
+(Accessing the real time clock in '84 Kaypros)
+
+In order to access the real time clock (RTC) provided on Kaypro
+4-84, 10-84, and 2X models you will need a language translator
+that allows you to "talk" to your computer's i/o ports.  If you
+are using MBASIC, these functions are "INP" and "OUT".  Other
+languages have similar instructions.
+
+In MBASIC, the following sequence of lines will retrieve a single
+clock value:
+
+200 OUT 34,  15
+210 OUT 32,  X%
+220 A% = INP(36)
+
+where X% equals 9 for the year value, 7 for the month, 6 for the
+day of the month, 5 for the day of the week (Sunday is 1), 4 for
+the hour (24 hour format), 3 for the minute, 2 for the second and
+1 for hundredths of a second.
+
+If you print the value of A% you will find that it looks strange. 
+That is because the clock maintains its values in what is called
+binary coded decimal.  In binary coded decimal, four bits are
+used for each decimal digit, thus the year value of 87 looks like
+1000 0111 in binary coded decimal; the first four bits represent
+8, the second four 7.  If we treat this value as a normal decimal
+integer it comes out as 135, which is obviously wrong.
+
+To convert binary coded decimal to decimal we can do this:
+
+230 A% = (A% \ 16) * 10 + A% MOD 16
+
+or we can mask and shift bits, or we can cheat.  To cheat, we
+sneakily convert the retrieved value to a hexadecimal string with
+"HEX$" then back to a decimal integer with "VAL".  Line 220 above
+should now read:
+
+220 A% = VAL(HEX$(IN6(36)))
+
+Now we can have our way with A%, as it is the correct decimal
+value.
+

@@ -1,0 +1,92 @@
+X-NEWS: levels comp.os.cpm: 1126
+Relay-Version: VMS News - V5.9C 19/12/89 VAX/VMS V5.3; site levels.sait.edu.au
+Path: levels!nt!sirius.ucs.adelaide.edu.au!munnari.oz.au!uunet!bu.edu!orc!inews!cadev4!dbraun
+Newsgroups: comp.os.cpm
+Subject: Re: UZI-280?
+Message-ID: <2825@inews.intel.com>
+From: dbraun@cadev4.intel.com (Doug Braun ~)
+Date: 23 Aug 90 22:00:38 GMT
+Reply-To: dbraun@cadev4.UUCP (Doug Braun ~)
+Sender: news@inews.intel.com
+References: <900822110949.719125@DMZRZU71-UNI-MAINZ--GERMANY>
+Organization: Corporate CAD, INTeL Corporation, Santa Clara, CA
+Lines: 77
+
+Here is what's going on with UZI-280:
+
+First, work is very sporadic.  I did a lot before April, and then didn't get
+back to it until a few weeks ago.
+
+Here is what works right now:
+
+User/system address spaces:  64k user process plus 64k available
+for kernel.  Kernel accesses user address space to get system call
+arguments, etc.  Processes CANNOT corrupt kernel.
+
+Traps are fully supported by kernel.  User processes can generate
+segmentation violation, illegal I/O instruction, divide by zero, etc.
+signals.  The brk and sbrk system calls set up the MMU to trap
+wild pointers in user executables.  All of this is very much
+like PDP-11 unix.
+
+The kernel will trap itself (and panic) on kernel stack overflow, 
+null pointer, etc.  The kernel does not use the user's stack
+(obviously).  There is a correct and robust mechanism for processes
+to catch and ignore signals.
+
+The TTY driver supports stty things such as echo, cbreak, and raw mode.
+
+Virtual memory and paging are basis for memory managment and multiprogramming.
+Forked processes share copy-on-write pages.  The old UZI swapping to disk
+is no longer done.  The command response is now much faster.
+
+
+What I'm working on right now:
+
+The page replacement algorithm is very crude.
+Page access timestamps need to be implemented for the page replacement
+algorithm.
+
+What I would eventually like to do:
+
+Have proper interrupt-driven disk I/O.
+Support split I and D space for processes, allow 64K code plus 64K data.
+This would require supporting mixed 4K and 8K page sizes.
+Have the system self-supporting, which means having compiler and linker
+running under UZI  (This is currently feasible).
+
+
+What's going on with utulities, compiler, etc.:
+
+I have modified the Q/C Z80 C compiler to generate Z280 opcodes,
+changing the code generator quite a bit to do better optimization.
+This is really an entirely seperate product, that can also be
+used on CP/M or as a cross-compiler.
+Indexed addressing is used to access all automatics, and register
+BC is for a register variable now.  Alas, the Q/C compiler copyright
+prevents me from distributing this.  Clever ideas to overcome this
+are welcome.
+
+I have ported the "Stevie" vi clone (now named "v8") to UZI-280.  Alas,
+it barely fits in 64K, so it cannot edit anything more than 25 lines long.
+The split I/D enhancement would cure this.  (This is how vi runs on PDP-11s).
+If anyone can recommend a screen-based editor I can get source to and port,
+such as VDE or VDO, that would be fantastic.
+
+
+Also,  I run CP/M 3 on my system now, so if anyone wants a Z280 BIOS for CP/M 3
+with memory management (all the fancy stuff), let me know.
+
+Doug Braun				Intel Corp CAD
+					408 765-4279
+
+ / decwrl \
+ | hplabs |
+-| oliveb |- !intelca!mipos3!cadev4!dbraun
+ | amd    |
+ \ qantel /
+
+ or:
+
+ dbraun@scdt.intel.com
+

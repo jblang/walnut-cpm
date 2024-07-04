@@ -1,0 +1,1453 @@
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+
+                                 HELP
+
+The HELP command with no arguments prints out a list of available help
+subjects (as you've probably guessed by now, since you are indeed read-
+ing this).  The HELP.MEX file must, of course, be located in the drive
+and user areas as specified in your overlay configuration.
+
+Help will print a list of available topics.  To see this list, do this:
+
+                        HELP ?
+
+To query the HELP database for any of the selected topics, do this:
+
+                        HELP <topic-name>
+
+for any topic-name displayed by "HELP ?".
+
+In general, HELP frames explain syntax with the use of the '[' and ']'
+characters (which denote optional items) and the '<>' characters (which
+indicate a data-type, such as <filename> or <string>.
+
+You may move freely among drives/user areas while the HELP file is opened;
+MEX will remember where to find it.
+
+Once opened, the HELP file will remain open for the duration of the
+session, unless a LOG command is executed.
+
+                                 WECHO
+
+WECHO is a STAT value variable that affects the use of the SENDOUT com-
+mand.  WECHO is the time, in seconds, that SENDOUT will wait between
+characters during a reply from the remote, before considering the reply
+ended.  This should not be confused with the REPLY variable, which is
+the maximum amount of time to wait, after sending a string, before con-
+sidering that no reply is forthcoming.
+
+                                 QUEUE
+
+QUEUE is a STAT variable that enables or disables the MEX queued I/O
+functions.  The overhead associated with the queues may cause you to
+lose characters in terminal mode at speeds above about 4800 baud (using
+a 4 MHz CPU); if you commonly run higher-speed hardwired connections,
+you'll want to turn QUEUE off.
+
+Although used for various purposes, the most significant use of queues
+within MEX is to catch 'overflow' characters from the remote after an
+X-OFF flow character is sent in terminal mode (when the ASCII capture
+buffer fills).  With QUEUE turned off, there is a possibiity of lost
+characters in capture files if the size of such files exceed available
+memory space.
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 1 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+                                SODELAY
+
+SODELAY is a STAT switch variable.  When ON, SENDOUT strings and keystrings
+sent from terminal mode are tied to the WCHAR and WLINE delay variables, al-
+lowing convenient entry of passwords, etc. from a READ file.  Note that, for
+SODELAY to have any effect, the WTECHO switch variable must be OFF (WTECHO
+takes precedence if both are active).
+
+                                CAPTURE
+
+CAPTURE is a STAT switch variable that enables and disables recording of
+the save-in-memory terminal file.  It works similarly to the terminal mode
+<escape>-S and <escape>-U commands, but allows access from the command
+line (and hence from a READ file). This variable can only be changed if
+a terminal mode capture file is open (see the TERM command).
+
+                                PRECHO
+
+PRECHO is a STAT switch variable that enables and disables the logging of
+incoming characters to the printer.  It is similar to the <escape>-P toggle
+command used in terminal mode.  Changing this variable is most useful when
+executing from a READ file.
+
+                                 TERM
+
+TERM is very similar to the 'T' single-character command ... it takes a file-
+name as an argument, and opens that file as an ASCII-capture file, but does
+not actually enter terminal mode.  This is most useful within a READ file.
+
+                                 TERMA
+
+TERMA does the same thing, but opens the file in APPEND mode (as if the
+single-character T had been entered with the A option).
+
+Examples:       TERM WILLOW.SES         <== opens file, returns to cmd mode
+                TERMA SOURCE.LOG        <== same, but opens file in appnd mode
+
+For more information on terminal mode, do HELP TERM-MODE.  For more infor-
+mation on append mode, do HELP APPEND.
+
+                                  ALT
+
+The ALT command supports the ALTernate drive/user for READ files as well
+as .PHN and .KEY (phone libraries and keystring files), and, if the 'A'
+(append) secondary option is in effect, the terminal-modem capture file.
+ALT allows you to change the alternate drive/user; its syntax is:
+
+                        ALT <du-spec>
+
+Examples:
+                        ALT B3:
+                        ALT A5:
+
+For more information on how alternate DU's are used, and how to set up the
+ALT search path,  see SEARCH.
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 2 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+                                SEARCH
+
+SEARCH is a STAT variable that may take on the values 0, 1, 2 or 3.  SEARCH
+specifies a search path for READ files, phone libraries, keystring files, and
+(if the append secondary option, 'A' is specified) terminal-mode ASCII capture
+files.  These files normally are taken only from the currently logged DU; by
+modifying SEARCH, you can change the way MEX finds these files.
+
+Two drive/user areas are possible: the currently logged area ("logged" D/U)
+and the Alternate DU (do HELP ALT for information on changing the alternate).
+
+If SEARCH=0, then only the LOGGED DU is searched.
+If SEARCH=1, then only the ALT DU is searched.
+If SEARCH=2, then the LOGGED DU is searched; if the file is not found, then
+             the ALT DU is searched.
+If SEARCH=3, then the ALT DU is searched; if the file is not found, then the
+             LOGGED DU is searched.
+
+                         HEX and DECIMAL modes
+
+HEX and DECIMAL are STAT value variables; they are mutually exclusive (ie,
+turning one ON turns the other OFF).  These variables specify the default
+input radix of commands that take numeric arguments (e.g., SLEEP, STAT VAL
+<#>, the '#' spec in CALL commands, etc).  If HEX mode is ON, then these
+numbers are considered Hexadecimal; if DECIMAL mode is on (MEX is distributed
+with DECIMAL ON), then they are considered decimal values.
+
+You can force a decimal number, regardless of the HEX or DECIMAL mode, by
+preceeding the number with a '$' character; similarly, the '#' character
+implies a decimal number.
+
+HEX mode has a side effect: it turns on HEX record count reporting in file
+transfers.
+
+                                 SPLIT
+
+SPLIT is a STAT switch variable that affects the screen display of the phone
+library (done from the PHONE command or the CALL command).
+
+This variable may be turned off to force a more compact display (two en-
+tries per line, instead of one), but to work properly, requires a terminal
+with an 84-character line width.
+
+If SPLIT is disabled, any baud-rate codes associated with an entry will
+not be displayed.
+
+MEX has a special feature that allows you to maintain 'log' files of your
+sessions; this is the 'A' secondary option (specified with the T, E or L
+primary commands when entering terminal mode IF a filename is specified).
+
+When you specify the 'A' secondary option, MEX will search the logged area
+(and/or the ALT area: do HELP ALT and HELP SEARCH for more information on
+searching) for the file specified.  If found, MEX will scan to the end of
+the file, and append new data on to the end, rather than querying the user
+for an erase.
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 3 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+If 'A' is not specified, MEX will limit its search to the currently logged
+DU, and, if the file is found, will ask you if it should erase the file.
+
+In either case, if the file is NOT found, MEX will create a new file in
+the currently logged DU.
+
+                            WCHAR and WLINE
+
+WCHAR and WLINE: These are value variables that may be manipulated with the
+STAT command.  They specify delay times in simple file transmissions
+done within terminal mode (with the <ESC> T command).  When you trans-
+fer a file, MEX will ask you whether you want to use these delays.
+
+WCHAR is the delay to use between characters.(0-9, in 10's of milliseconds)
+WLINE is the delay to use between lines      (0-9, in 100's of milliseconds)
+
+WCHAR and WLINE delays are often needed for timesharing mainframes and
+BBS's written in BASIC, to allow the slower remote end to catch the entire
+file.
+
+                                 READ
+
+The READ command causes MEX to take command lines from a disk file. This
+can be handy for such things as controlling a set of file transfers (es-
+pecially when you can't be present for the entire session) and executing
+complicated login sequences automatically. READ, used with the EXTEND
+function (do "HELP EXTEND" for information on how to enter EXTEND mode)
+provides a means of extending MEX's command set.
+
+The syntax for READ is:
+
+        READ <filename> [<parm1>] [<parm2>] ...
+                            \          \
+                              \ ________\_____>> optional!
+
+<parm1>, <parm2>, ... etc. are described in succeeding frames.
+
+The READ file may contain any valid command EXCEPT another READ command.
+These commands may freely move among drives and user areas; MEX will re-
+member where the READ file is located.
+
+Typically, READ files are created with a text editor, and may contain
+STAT commands to set MEX for a particular type of connection, DIAL commands
+to actually make the connection, and SENDOUT commands to log in at the
+destination.  It's possible for an entire session to take place under
+a READ command.
+
+A READ file will terminate when the file ends, or when a CONTROL-C is
+seen at the console (aborting any command with CONTROL-C will abort the
+READ file).
+
+It's important to note that, while you can use a READ file to enter the
+terminal mode, the READ file is not used while the terminal mode is active.
+When you exit terminal mode, the READ file starts again.
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 4 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+Normally, READ commands echo on the screen when they execute. You
+can inhibit this, however, by manipulating the SILENT variable (do
+STAT SILENT ON to inhibit the command echo).
+
+                        READ with PARAMETERS
+
+READ parameters are very similar to CPM's SUBMIT parameters; they are called
+ACTUAL parameters. If they are present in the command line, they will be
+plugged into the FORMAL parameters in the READ file.  This substitution
+facility provides a powerful tool for generating multiple-purpose command
+files, as we'll see in the proceeding frames.
+
+Formal parameters occur in the READ file, and take the form {n}, where n
+is the parameter number; these numbers correspond sequentially with the
+ACTUAL parameters entered on the command line.  The ACTUAL parameters in
+the command line are substituted for the FORMAL parameters in the READ file
+when the file is executed.  A special form of FORMAL parameter allows a
+default value to be used if an ACTUAL parameter is not specified on the
+command line; this form is {n:<text>} where n is the parameter number, and
+<text> is any arbitrary text to be used as the default.
+
+If the default form of the formal parameter is not used, AND no actual
+parameter is specified in the command line, execution will continue, but
+the parameter will be blank.
+
+Normally, the parameters in the READ command line are terminated by the
+space between parameters (or the end-of-line); spaces can be imbedded in
+the ACTUAL parameter by enclosing it in braces.
+
+                     Example, READ with parameters
+
+FILEGET.MEX contains the following lines:
+
+SENDOUT XMODEM S{2} {1:SENACA.DQR}
+R{2} {1:SENECA.DQR}
+
+( {2} and {1:SENACA.DQR} are FORMAL parameters). This file can be used in
+several ways:
+        READ FILEGET            will simply transfer SENACA.DQR to your system
+        READ FILEGET MEX.UPD    will transfer MEX.UPD to your system
+        READ FILEGET *.NEW B    will transfer all NEW files in batch mode
+        READ FILEGET USQ.DOC VT will transfer FILEGET, View it, goto Term mode
+The following line illustrates how to expand a parameter, using the above file:
+        READ FILEGET {*.BOO NEWSTUFF.DOC} BX [use if MEX is running on remote]
+(Transfers all .BOO files and NEWSTUFF.DOC) in batch mode, then disconnects)
+
+If you turn the command extender on (STAT EXTEND ON), the READ in the above
+lines can be omitted, making the READ file look like a built-in command. This
+affects single-character commands somewhat: the disk is searched before the
+the command is checked for a single; you can avoid this by prefixing single-
+character command lines with a '*'  (eg, *RQ FILE.FOO).
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 5 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+                                EXTEND
+
+EXTEND is a STAT switch variable.  When turned on, it modifies the way
+MEX's command decoding works: if a command is not found in MEX's command
+table, MEX will pass the entire command line on to READ, causing the
+command to look like a READ command (without READ being present on the
+command line).  For more information, see "READ".
+
+                                 DIAL
+
+The DIAL command performs the same task as the CALL command, except that
+after calling, DIAL returns to command mode (CALL goes to terminal mode).
+
+The syntax for DIAL is exactly the same as the syntax for CALL (do "HELP
+CALL" for more information on how to use both DIAL and CALL).
+
+DIAL is intended to be used in READ files, where it is desirable for the
+READ file to retain control after calling a number (READ files have no
+effect in terminal mode; thus using CALL in a READ file would pause ex-
+ecution of the read file when the distant end is reached).
+
+                               INITFILE
+
+INITFILE is a STAT switch variable.  It determines whether or not MEX
+will look for the start-up file INI.MEX when it is first started.
+
+INITFILE is intended to be used prior to running CLONE, to prevent the
+cloned MEX from looking for INI.MEX.  For more information about the
+CLONE command, see "CLONE".
+
+                                 ALERT
+
+ALERT is a STAT value variable; it determines the number of times the
+console bell will ring when a remote computer is reached with the CALL
+command.  ALERT works only on calls that have taken more than one dial-
+ing attempt to reach.
+
+ALERT is handy for dialing with the repeat option (do "HELP CALL" for
+more information about the repeat option): you can enter a number (or
+group of numbers) to be dialed; with ALERT set non-zero, you'll have
+an audible signal that a call has been completed.
+
+                                 PHONE
+
+The PHONE command may be used to query the phone number library, as well as
+for adding and deleting numbers.  To add a number, use this form:
+
+                PHONE <id>=<number> [<baud-rate>]
+
+Where ID is a string (up to 8 characters) that you want to use to call out
+the number and <number> is the telephone number.  If <id> already exists,
+it will be replaced.  <Baud-rate> is an optional rate to be associated with
+the number, used by the CALL command.  To remove a number, do
+
+                PHONE <ID>=
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 6 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+To see the entire library, do
+
+                PHONE
+
+To see a single entry, do
+
+                PHONE <ID>
+
+                                 STAT
+
+The STAT command lets you examine certain system variables, and change
+certain others.  In general, the syntax is as follows:
+
+        STAT <KEYWORD>              <<== to examine a variable
+        STAT <KEYWORD> <NEW-VALUE>  <<== to change a variable
+
+The NEW-VALUE will depend on the context of the keyword in question. For
+example, most of the switch-type variables are either ON or OFF, hence,
+
+        STAT BAKFIL                 <<== prints out ON or OFF
+        STAT BAKFIL ON              <<== turns on BAKFIL
+        STAT BAKFIL OFF             <<== turns off BAKFIL
+
+The value-type variables, on the other hand, will print the number or
+text associated with that variable.  Setting the value requires the entry
+in units associated with that value.  For example,
+
+ STAT REPLY 5               <== sets 5 seconds as SENDOUT reply time
+ STAT WCHAR 4               <== set 40 ms as transmit-character delay tim
+                                during a terminal-mode file send
+
+Some variables are read-only, most notably STAT BUFFER (which prints
+out the save-buffer and printer-buffer statistics).
+
+To obtain a list of all of the options that can be viewed or changed with
+the STAT command, do
+
+        STAT ?
+
+You'll note that most of the keywords you'll see printed have their
+own HELP section.
+
+                                SENDOUT
+
+SENDOUT allows you to send an arbitrary string out to the modem [see
+STRINGS].  This is most useful in indirect command file [see READ],
+but can often be useful in normal interactive mode.
+
+The syntax for SENDOUT is
+
+                SENDOUT <string>
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 7 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+Before the specified string is transmitted, a PREFIX string, if any,
+is transmitted, followed by the string specified to SENDOUT, and
+terminated by a SUFFIX string  (if any; the default suffix string
+is a return-code, normally terminating the line to the remote). After
+transmitting the string, MEX will wait for a reply from the remote, up
+to a pre-set number of seconds; any reply will printed on your screen.
+
+Following are settings and variables which affect the SENDOUT command:
+
+SUFFIX: \  Both of these are described in the previous frame, and are
+PREFIX: /  further explained in their own information sections.
+
+WTECHO: Manipulated by the STAT command, this switch-variable determines
+        whether or not SENDOUT validates its transmission by waiting for
+        characters to be echoed from the remote.  If set to ON, then
+        SENDOUT checks each printing character it transmits with the
+        character as echoed by the remote.  If a mismatch occurs, SENDOUT
+        marks an error, sends a CANCEL character, and awaits a TRIGGER
+        character from the remote.  It then begins again, and repeats
+        this cycle until either the transmission occurs without error,
+        or the error count is exceeded (which aborts SENDOUT).
+ 
+        If you use SENDOUT with WTECHO off, you'll also likely want to
+        set TRIGGER to null (STAT TRIGGER ""), to avoid trigger-wait.
+
+More factors affecting SENDOUT:
+
+RETRY   Manipulated by the STAT command, this value-variable specifies
+        the error-retry count for SENDOUT before aborting.
+
+CANCHR: Manipulated by the STAT command, this string-variable (single
+        character) specifies the character to be transmitted to the
+        remote to cancel the transmitted line after an error.
+
+TRIGGER:Manipulated by the STAT command, this string-variable (single
+        character) is the character the SENDOUT command waits for after
+        an error-cancel, before proceeding with the retry. If the other
+        end doesn't echo, set TRIGGER to 0 (and WTECHO to OFF), and MEX
+        will simply send its arguments and not worry about validating
+        the echoed string (this is the technique you should use to send
+        Smartmodem command strings, for example).
+
+                                 REPLY
+
+REPLY is a STAT keyword, and specifies the amount of time (in seconds)
+that the SENDOUT command will wait, after sending a string, for the
+remote end to send a reply.
+
+To query the REPLY constant, do: STAT REPLY
+
+To set the REPLY time, do:       STAT REPLY <value>
+
+where <value> is the number of seconds to wait, between 0 and 255.
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 8 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+                                 RETRY
+
+RETRY is a STAT keyword, and specifies the number of times the SENDOUT
+will attempt to send a string before aborting.  Note that if the Wait-For-
+Echo switch (WTECHO) is off, RETRY will have no effect, since no error
+can occur.
+To query the RETRY constant, do: STAT RETRY
+
+To set the RETRY constant, do:   STAT RETRY <value>
+
+where <value> is the number of retries, between 1 and 255.
+
+                        MISCELLANEOUS COMMANDS
+
+BYE, SYSTEM, EXIT  and CPM are keywords used to exit MEX and return
+to the operating system.  Any open terminal file is closed before exiting.
+
+DEL is used to close and erase an open terminal file.
+
+DSC disconnects the modem (may not be implemented in all overlays).
+
+WRT is used to close and save an open terminal file.
+
+SET is a command defined entirely by the overlay; if your overlay doesn't
+implement SET, MEX will print an error message when SET is invoked.
+
+SSET is a similar command, intended for the Smartmodem overlays.
+
+BELL <n> rings the console bell <n> times (regardless of the BELL switch).
+
+CLS clears the screen (if supported by the overlay)
+
+                                 SLEEP
+
+SLEEP is used to invoke a delay (handy sometimes in READ files).
+Syntax is:
+
+                        SLEEP n
+
+where n is the number of seconds to wait (a ^C from the console
+will abort the SLEEP command, as well as any active READ file).
+
+Sleep, used with the STAT CLOCK function, can be used to "tweak" the
+timing constants in MEX (by timing the actual SLEEP period, and ad-
+justing the CLOCK value until the SLEEP argument agrees with the actual
+measured time).  This is especially useful with multi-tasking operating
+systems, such as MP/M and TurboDOS, where background processing wreaks
+havoc with the internal MEX timing constants.
+
+                                WTECHO
+
+WTECHO is a STAT keyword, and determines whether or not keystrings
+and SENDOUT command lines transmitted to the remote are validated by
+comparison with their echoed characters.
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 9 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+When WTECHO is ON, all printing characters transmitted to the remote
+must echo correctly back from the host; this effectively halves the
+transmission rate, but provides error correction feedback for the SENDOUT
+command, allowing it to cancel a line and re-try.
+
+If you're sending command strings out to a line that doesn't echo the
+characters, you'll want to set WTECHO off.  Additionally, if you're using
+the SENDOUT facility, you'll need to remove the trigger string (you can
+do this with STAT TRIGGER "" , which effectively removes the trigger
+character.
+
+                                TRIGGER
+
+TRIGGER is a STAT keyword, and specifies the character the SENDOUT command
+will look for before sending out its argument.  To disable the trigger-wait
+function altogether, do STAT TRIGGER "".
+
+                                CANCEL
+
+CANCEL is a STAT keyword, and specifies the character the SENDOUT command
+will send to the remote to cancel the line after an error.
+
+                                  SEP
+
+SEP is a STAT keyword, and allows you to change the command-line
+    separator character.
+
+                                  ESC
+
+ESC is also a STAT keyword, and specifies your terminal-mode escape
+    character, used to activate terminal-mode functions (such as
+    capture and printer buffer on/off, etc). The argument is a single-
+    character string.  Example:
+
+                        STAT ESC "^I"
+
+     changes your escape character to the TAB key.
+
+                                 CALL
+
+Use the CALL command to dial numbers either from the library, or from
+the keyboard. If you specify more than one number on the command line,
+CALL will try each until one answers with a carrier tone.  For example
+
+        CALL 16165559033 SENACA
+
+will dial the first number; if busy, CALL will try the second.  The
+special number '#' will cause the entire command line to be repeated
+if none of the dialed numbers responds with a carrier:
+
+        CAL WESTWOOD 1-616-555-2040 TCBBS #
+
+will try all three numbers repeatedly until one answers.
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 10 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+You may optionally place a limit on the number of retries by including
+a decimal number after the '#':
+
+        CAL 555-1212 #48
+
+Note that a ^C will abort dialing at any time.
+
+Note that phone-library numbers may specify an optional baud rate (see
+PHONE for information on how to specify a baud rate for a number).
+If a baud-rate is present, CALL will change the baud rate before dialing
+the number.
+
+Note that, for this feature to work, your hardware must be capable of
+changing the rate AND your overlay must implement the NEWBD vector.  Most
+MEX overlays (overlays whose names start with "MXO-") allow this, if the
+hardware is capable of baud-rate change; most MDM overlays do NOT.
+
+                                 CLONE
+
+The CLONE command allows you to save a new copy of MEX, with the current
+options intact (including any defined keystrings and phone numbers). The
+syntax is:
+                CLONE <filename>
+
+                                 COLD
+
+The COLD command re-starts MEX and erases any defined keystrings along
+with the phone library.  This is the only way to erase the entire phone
+library with one command.  The COLD command also allows you to remove the
+CIS protocol module (for those who don't need it): do this:
+
+                STAT CIS OFF
+                COLD
+                CLONE <filename>
+
+Note that this removes the CIS module altogether (you can't get it back
+with the STAT CIS command).  This frees up roughly 1K of memory.
+
+                                  ERA
+
+The ERA command erases files.  The syntax is as follows:
+
+                ERA <filename> [V]
+
+The filename may be ambiguous (e.g., *.ASM, BOOT?.BAK).  ERA always dis-
+plays a list of the files that are being erased.  If you specify the
+optional 'V' after the filename, ERA will ask for verification before
+actually erasing the files (after displaying the names).
+
+                                  DIR
+
+The DIR command works similarly to the CP/M DIR command, and displays
+the disk directory on the screen. DIR takes advantage of the DU spec-
+ification, thus "DIR B7:" will display all of the files in user 7 on
+drive B.  System files will be excluded if the STAT variable 'EXCLUDE'
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 11 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+is set to ON.  If EXCLUDE is OFF, all files will be displayed.
+
+More examples:
+
+        DIR C3:*.?Q?
+        DIR LOGIN.MEX
+        DIR 3:
+                             LOAD and SAVE
+
+LOAD and SAVE are used to load and save phone number and keystring files.
+Both commands take a filename argument.  Examples:
+
+        LOAD A5:CBBSPHON.PHN            <<== loads a phone # file
+        LOAD ARPA.KEY                   <<== loads a keystring file
+        SAVE C:NEWPHONE.PHN             <<== saves phone # file
+        SAVE 9:COMPUSRV.KEY             <<== saves keystring file
+
+Note that the filetype determines what type of file is being saved (.PHN
+for phone number files, .KEY for keystring files).  Any other filetype
+will generate an argument error.
+
+                             About Strings
+
+Several MEX command take string arguments.  These strings must be sur-
+rounded by quotatation marks, and may contain imbedded control char-
+acters (with the singular exception of binary zero, which will generate
+an argument error).  The caret ("^") is used to prefix a control char-
+acter.
+
+Thus, you can specify multi-line strings within one string specification.
+Examples (note that that the control-character ^M is the carriage-return
+code, and ^J is a linefeed):
+
+        KEY A="BILL USER;J^MWHATSNEW^MB:^MWHATSNEW^M"
+        SENDOUT "SD B:*.ASM^MCRCK *.BIN^M"
+
+Note that the command-separator character may be included freely within
+a string; it separates your command strings outside of quotation marks
+only.
+
+                                  ID
+
+The ID command allows you to configure the MEX ID string (which is
+printed in the prompt, and in error messages, if the STAT ERRID switch
+is set to ON).  This is useful if you're communicating with another
+computer running MEX; if each computer has a different ID string,
+you're never in doubt as to which one you're typing commands to, or
+which one printed an error message.
+
+The syntax for the ID command is
+ 
+                ID <string>               (see "STRINGS")
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 12 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+The string may be a multi-line string; it's length in the standard
+distributed MEX may not exceed 28 characters.  This length may be different
+if your system overlay replaces the MEX defaults (in fact, the overlay
+may disable this command altogether; if the "INVALID COMMAND" message
+appears when you attempt to use the ID command, then this is probably
+the case).
+
+                           CRC and CHECKSUM
+
+CRC and CHECKSUM are STAT switches.  The two are mutually exclusive (that
+is, turning one on turns the other off) and set the preferred type of error
+checking in Christensen file transfers.
+
+CHECKSUM is a simple sum of the outgoing record; CRC uses a more sophisticated
+technique employing polynomial arithmetic, and is thus a better method (more
+errors are detected, thus, there is less chance of an incorrect record being
+received as if it were valid).
+
+The original MODEM2 protocol employed only CHECKSUM detection; however, in
+the past few years, most versions of Christensen exchange programs have been
+rewritten to accept the CRC technique as well.  MEX will adapt to transmitting
+programs using either type of validation.
+
+If MEX is the transmitter, it will switch modes after several failed attempts
+to transmit a file, thus allowing full compatibility with older modem programs.
+
+                                  CIS
+
+CIS is a STAT switch: when ON, then Compuserve protcol file transfers
+are allowed while in terminal mode.  If OFF, then the Compuserve transfer
+sequences from the remote end are ignored altogether (although they are
+printed on the screen as "normal" terminal-mode characters).
+
+CIS transfers are always done in terminal mode; there is no command to
+send or receive a file using CIS protocol, since the remote Compuserve
+end must initiate the transfer.
+
+Note that if you use the COLD command to restart MEX while the CIS switch
+is set to OFF, then the Compuserve file transfer module will be removed
+altogether from the running copy of MEX.  If you subsequently use the CLONE
+command to create a new executable MEX.COM, the additional space formerly
+used by the CIS module (about 1000 bytes) will be available instead for
+your buffers.  You will not be able to use STAT to turn the CIS switch back
+on (since there is no longer a CIS module in the system).  This feature is
+intended for those users who do not need the ability to do Compuserve-
+protocol transfers, and would rather not waste space on a feature they
+do not need.
+
+                                FILTER
+
+FILTER is a STAT switch variable; when ON, then abnormal control characters
+are ignored when in terminal mode (with the exception of carriage-return,
+linefeed, backspace and tab).  If OFF, then all characters from the remote
+will be displayed on the screen (and included in the ASCII-capture file,
+if active).
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 13 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+FILTER ON is useful if you're working with a noisy connection, and random
+garbage characters on the line are erasing your screen, etc.
+
+If you're using a video-oriented text editor at the remote, you'll want to
+be sure FILTER is set to OFF, in order to allow the video-control characters
+to be accepted by MEX.
+
+Note that the CP/M end-of-file mark is specifically excluded from ASCII-
+capture files regardless of the setting of FILTER (although FILTER ON
+allows this character to go to the screen).
+
+                     Miscellaneous STAT arguments
+
+BAKFILE: Switch: when ON, new files overwriting old files of the same name
+         are renamed to type BAK.  If off, such files are erased.
+PAGE:    Value: sets the length of the screen page (0 stops pagination)
+CHAR:    Lists all of the STAT variables that are CHARACTERS
+SWITCH:  Lists all of the STAT variables that are SWITCHES
+VAL:     Lists all of the STAT variables that are VALUES
+BELL:    Switch: enables or disables the console BELL
+BUFFER:  Prints out status information on the ASCII-save buffer.
+RUB:     Switch: If ON, converts local backspace key to RUB
+TAB:     Switch: enables or disables the MEX tab expander
+LIST:    Switch: enables or disables the LIST device
+LF:      Switch: if ON, linefeed append to carriage rtn in T-mode file send
+EXTEND:  sets command-extend mode (command names not defined in MEX are passed
+         to the READ command, which will search for a file of the same name).
+SILENT:  inhibits command-echo in READ files.
+
+                                EXCLUDE
+
+EXCLUDE is a STAT switch variable; it modifies the action of commands that
+take multiple-filename arguments (such as DIR and the batch-transmit SB).
+
+If EXCLUDE is ON, then SYS files are skipped over by these commands.
+
+If EXCLUDE is OFF, then SYS files are included.
+
+Thus, you can exclude SYS files from a batchfile transmission by STATting
+the EXCLUDE switch ON.  These files will also be exclude from DIR listings
+while EXCLUDE is ON.
+
+                                 DEBUG
+
+DEBUG is a STAT switch that affects the Terminal mode in MEX.  If DEBUG
+is ON, then characters received in Terminal mode are displayed in a form
+similar to CP/M's DDT dump (D) command: hex values on the left side of
+the screen and the ASCII block (as the output progresses) on the right.
+
+You'll note that the ASCII right-side display is "buffered" until 16
+characters have been received.  After the 16th, the ASCII right-side
+is printed.  Therefore, if the remote's output pauses, you'll see only
+the hex values until the remote sends more output.  Also, exiting Terminal
+mode will display any buffered ASCII.
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 14 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+DEBUG is useful whenever it's necessary to know exactly what the remote
+is sending (for example, if you're connected to a time-share network, and
+can't transfer files, a DEBUG session can prove illuminating in determining
+just what is happening).
+
+In DEBUG mode,  the FILTER flag is ignored,  allowing all characters to reach
+the screen.  Additionally, the CIS protocol is disabled while DEBUG is ON.
+
+                                 ERRID
+
+ERRID is a STAT switch that enables and disables the printing of the MEX
+ID string in error messages.
+
+The ID string is useful in applications where you're communicating with
+a remote computer running MEX (if each end has a different ID code, there
+is no problem confusing error messages), but if you typically use MEX
+only with RCPM systems or timesharing systems that don't run MEX, you'll
+likely want to turn off the ERRID switch, and shorten the error messages.
+
+                                 RTIME
+
+RTIME is a STAT value variable, and affects Christensen-protocol file
+transfers.
+
+RTIME is the amount of time (in seconds) that MEX will wait for a char-
+acter from the remote end before declaring a timeout, and initiating
+a record-retransmission sequence.
+
+RTIME is set for one second in the standard distribution MEX; this is
+more than adequate for RCPM work, and MEX-to-MEX file transfers where
+each end is running under a single user operating system.  But when
+working with a mainframe-type connection (and sometimes when a remote
+MEX is running under MP/M), especially when a packet-switched network
+is part of the connection, character delays can easily exceed one second.
+In these environments, you'll want to set RTIME to a higher value (16
+seconds is recommended; the maximum is 255).
+
+                                  LOG
+
+The LOG command allows you to reset the drive (for switching disks) and,
+optionally, simultaneously change drive and/or user area. The command
+syntax is:
+
+                LOG <DU-SPEC>
+
+where DU-SPEC is either or both of the new drive to log into and the new
+user area.  An optional colon may follow the DU-SPEC.  Examples:
+
+                LOG B7          <<= reset, log in drive B user 7
+                LOG 7:          <<= reset, log user 7 current drive
+                LOG B:          <<= reset, log drive B current user
+                LOG             <<= reset, retain current user/drive
+
+If either a terminal file or a READ file is open, the disk-reset will be
+denied (although any new drive/user will be logged) and a message printed.
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 15 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+If you want to change drive and/or user without a disk reset, you can do so
+without the LOG command: just enter the DU spec at the MEX command prompt (in
+this case, the terminating colon is required).
+
+                                  KEY
+
+The KEY command is used to manipulate the keystrings that are available in
+terminal mode.  There are several forms of the command:
+
+        KEY                             <<= prints out all of the keystrings
+        KEY <keyname>=[<string>]        <<= defines a new keystring
+
+Keyname is any valid ASCII character, except for the set defined as the
+terminal mode escape-sequence commands.
+
+In the second form, above, if <string> is omitted, then the specified key-
+string is erased.
+
+Examples:
+
+        KEY %="ATDT 14145559932"        <<= sets up the '%' key
+        KEY Q=                          <<= erases the Q keystring
+
+Note that KEY names that duplicate terminal-mode commands will be rejected
+by the KEY command, and an error message will be printed.
+
+                                 XLINE
+
+XLINE is a STAT switch that affects terminal-mode file transfers.  If
+XLINE is set to ON, then the file will be transmitted, one line at a
+time; each succeeding line will not be transmitted until an X-ON character
+is received from the remote.
+
+XLINE is used with some timeshare and network computers, almost never
+with RCPM and BBS systems.
+
+                                GLOBAL
+
+The GLOBAL command allows you to set the secondary options for the single-
+character commands.  Any options set this way will then be active for the
+single-character commands whether or not they are specified.  For example,
+if you prefer to go directly to terminal mode after a file transfer, do:
+
+                GLOBAL T
+
+You can also set the VIEW mode for CIS transfers by doing
+
+                GLOBAL V
+
+(note that this is the only way to "view" a CIS file transfer.
+
+For more information about secondary options, see "SECOND".
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 16 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+                           SECONDARY options
+
+The SECONDARY options are used only after the single-character commands (for
+more information on single-character commands, do "HELP SINGLE"), and modify
+the way the single-character commands work.  Following is a list of the sec-
+ondary command options:
+                        COMMANDS
+OPT       NAME          USED WITH       ACTION
+---     --------        ---------       ------
+A       Append          E,L,T           Append to a terminal-mode file
+B       Batch           R and S         Sets BATCH mode file transfers
+D       Disconnect      R and S         Disconnects after a file transfer
+E       Echo            R and S         Enter term-mode w/echo after a transfer
+L       Local           T,E             Local-character echo
+Q       Quiet           R and S         Sets "quiet mode" for file transfers
+R       Recv-view       R and S         Shows received-characters only
+S       Send-view       R and S         Shows transmitted characters only
+T       Terminal-mode   R and S         Enter terminal mode after file xfer
+V       View            R and S         Views the file transfer in ASCII
+X       Exit            R and S         Disconnect and exit after transfer
+
+Note that these options are also effective in CIS transfers, if set with the
+GLOBAL command (see "GLOBAL").
+
+Examples of secondary options:
+
+Primary --+
+Command   |+---->secondary commands
+          ||||
+          |\ /
+[MEX] A0>>ST   MYFILE.FOO       <<== send MYFILE.FOO, go into Term. mode after
+[MEX] B9>>RVT  CRACKER.JAK      <<== receive file with view, enter Term mode
+[MEX] A3>>RQX  MONKEY.SHN       <<== recv file quietly, disconnect/exit after
+[MEX] A0>>RBT                   <<== recv batch files, Terminal mode after
+[MEX] A0>>T    DISKFILE.SAV     <<== enter term. mode, allow save to disk file
+                                (note that the actual copy to the file must be
+                                activated with ESC-S while in terminal mode)
+[MEX] B3>>TA   DISKFILE.SAV     <<== Enter term. mode, append to DISKFILE.SAV
+[MEX] A0>>E    DISKFILE.SAV     <<== same as previous, but with echo mode
+[MEX] A0>>S    HELP.MEX         <<== send file, no options (unless GLOBAL)
+[MEX] A0>>R    MXO-SM10.ASM     <<== receive file, no options (unless GLOBAL)
+
+The most commonly used MEX commands are implemented as single character com-
+mands, for ease of use.  These are:
+
+S: Send a file or group of files using Christensen protocol
+R: Receive a file or group of files using Christensen protocol
+T: Enter terminal mode (may specify an optional ASCII-save file argument)
+E: Enter terminal mode with echo (also takes optional filename argument)
+L: Enter terminal mode with local-echo only (filename ok here too).
+
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 17 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+T, E, and L are all variations of terminal mode: T sends keyboard characters
+to the remote and prints characters received from the remote on the console.
+E mode echoes received characters back to the remote ("half duplex" mode), and
+L echoes keyboard characters on the console before they go out to the remote
+("half duplex" in the other direction).
+
+Note that certain commands may be modified with secondary options (do
+"HELP SECOND" for more information on secondary options, and examples of
+single-character commands with and without secondary options.
+
+                             TERMINAL MODE
+
+MEX terminal mode is entered with any of the single-character commands T, L,
+or E (for more information of the E and L variations, do "HELP SINGLE").
+
+While in terminal mode, you are communicating as a console with the remote
+end as a console; your keyboard characters are transmitted to the remote, and
+the remote characters are displayed on your screen.
+
+There are several functions that are available to you from terminal mode,
+all of which are invoked by typing the escape-character (do "STAT ESC" at
+command level if you don't know your escape character) followed by one of
+several characters.
+
+Terminal mode escape-sequences:
+
+<ESC>-E         exits back to command level
+<ESC>-?         prints a menu of escape sequences
+<ESC>-S         start copying incoming text into file buffer (see below)
+<ESC>-U         end (un-start) copying text into file buffer (see below)
+<ESC>-P         toggle copy-to-printer on/off (if enabled with STAT LIST)
+<ESC>-T         transmit a file to the remote (prompts for a filename)
+
+Note that <ESC>-S and <ESC>-U require a filename argument with the T when
+you enter terminal mode (otherwise, there is no file active to write the
+incoming text into).
+
+You can use <ESC>-P to copy incoming text to the printer.  The text is held
+in a buffer, and prints only as the printer is ready for a character. Thus,
+your printer may be slower than the modem, and you won't lose characters un-
+less the buffer fills up.
+
+Terminal-mode files (also called CAPTURE or ASCII-SAVE files) are created
+by entering a filename with the T (or E or L) command; if the file already
+exists, you will be asked if the file should be erased. MEX will create the
+new file, and enter terminal mode.
+
+At this point, incoming text is not yet being saved; to start saving text,
+you must use the <ESC>-S terminal-mode command.  You can stop the save by
+using the <ESC>-U command.  You can perform as many start/stop sequences as
+you like (when text-save is active, you'll see a colon at the start of each
+line as a visual signal that the save is active).
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 18 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+You can exit terminal mode and move freely among drives and user areas with-
+out affecting an open term-file. The LOG command will still be useable, but
+will not reset the disk (and will print a message to that effect).
+
+If you enter terminal mode with the T,E or L command WITH a filename, when
+a file is already open, the open file will be closed, and the new one opened.
+
+You can transfer files using either Christensen or CIS protocols while a
+TERM file is open -- your buffer may be written to disk to make room, but
+nothing will be lost, and the file will still be open.
+
+To close the file when you're done saving text, exit terminal mode with
+<ESC>-E, and use the WRT command.  If you change your mind, and decide you
+don't want to keep the file after all, use the DEL command to erase the
+file entry and delete any text already saved in memory.
+
+When your printer or ASCII-save buffer fills, MEX will send ann X-OFF char-
+acter to the remote.  MEX will then wait for the remote to stop, and will
+save up to an additional 150 characters into an auxiliary buffer (this buf-
+fer may be increased in size by modifying MEXPATxx.OVR).  When the remote
+stops (or the auxiliary buffer fills) MEX will write the ASCII-save buffer
+to disk (if ASCII-save is active) and print characters until the printer
+buffer is half-full (if List-copy is on).  Then MEX will re-start the remote
+by sending an X-OFF character.
+
+Note that for this scheme to work, the remote computer must respond to this
+X-ON/X-OFF "protocol" (most computers do, but *not* all!).
+
+You can transmit a local disk file to the remote with <ESC>-T; you will be
+prompted for a filename.  If you have the XON and and XLINE variables turned
+off (do "HELP XON" and "HELP XOFF" for information about changing these),
+MEX will ask if you want to use the character and line delays for the file-
+send; these delays allow slow remote computers to receive files.
+
+The WCHAR and WLINE variables (see corresponding HELP sections) determine
+the time-delay values for each character, and each lines respectively (of
+course, you must have answered "Y" to the "want delays?" prompt.
+
+If either of the the XLINE or XON switches is ON, the delay prompt will be
+skipped, and delays will not be used.
+
+XLINE is a technique used by some mainframes: after a line is transmitted,
+MEX will not transmit another until receiving an X-ON character from the
+remote.
+
+XON is more frequently used: when XON is active, MEX will send characters
+at full speed, but monitor the remote for an X-OFF character.  When an X-OFF
+is received, MEX will pause until the remote sends an X-ON character.
+
+XON is a STAT switch variable that affects the terminal-mode file send
+(see "TERM-MODE" for a full description of terminal-mode file send).
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 19 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+When XON is set to ON, MEX will send all characters to the remote at full
+speed, but will monitor for an X-OFF character from the remote.  When
+MEX sees the X-OFF, it will pause, allowing the remote to read all of the
+input MEX has transmitted.  When MEX sees an X-ON character from the remote,
+it will resume the file transmission.
+
+                                 CLOCK
+
+CLOCK is a STAT value variable; you may set this variable to any value be-
+tween 1 and 255.  The value is the CPU clock speed in tens of Megahertz
+(hence, the speed may vary between .1 and 25.5 Mhz).  You can then use
+the CLONE command to make this change permanent.
+
+CLOCK is useful for "tweaking" MEX under varying conditions of load when
+running under multi-tasking operating systems, such as MP/M and TurboDOS.
+When system load is heavy, you can decrease the CLOCK value, causing MEX
+to spend less time in its internal timing loops.
+
+                                  REN
+
+The REN command  syntax is similar to the normal CPM REN, except that
+DU specifications may be employed in either the new OR the old filename
+(but not in both).
+
+In general the syntax is
+
+                REN <newfilename>=<oldfilename>
+ Examples:
+                [MEX] A0>>REN NEWFILE=OLDFILE          (uses A0)
+                [MEX] C9>>REN B6:REPORT.OLD=REPORT.DOC (uses B6)
+                [MEX] B3>>REN 6:MYFILE=B:YOURFILE      (uses B6)
+                [MEX] D4>>REN ERROR=C9:BLUNDER         (uses C9)
+
+Note that the following REN commands will produce errors:
+
+                [MEX] A0>>REN B3:SOMETHING=C:ELSE        (ambig drives)
+                [MEX] A0>>REN 6:ME=7:YOU                 (ambig user #'s)
+
+           Note that REN will prompt for erasure if the new name already
+           exists.  Further, before doing this, it checks for the existance
+           of the old filename, and, if not found, aborts before checking
+           for the the presence of the new name.
+
+                                 TYPE
+
+The TYPE command prints files on the console, similarly to the CP/M
+TYPE command, but with pagination:  The syntax is:
+
+                TYPE <filename> <'P'>
+
+The optional 'P' will affect pagination at screen boundaries: if pagination
+is OFF ("STAT PAGE OFF") then 'P' will cause the file to be paged.  If
+pagination is ON ("STAT PAGE ON"), then 'P' will inhibit pagination.
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 20 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+Examples:
+
+                A2>>COMMAND: TYPE REPORT.DOC    (paged output if PAGE ON)
+                A2>>COMMAND: TYPE REPORT.DOC P  (inhibits paging if PAGE ON)
+
+                           PREFIX and SUFFIX
+
+PREFIX and SUFFIX are used with the SENDOUT command (do "HELP SENDOUT" for
+more information on the SENDOUT command).  PREFIX is used to manipulate a
+special PREFIX string, and SUFFIX is used to manipulate a SUFFIX string.
+
+The PREFIX string is transmitted ahead of any SENDOUT string, when the
+SENDOUT command is used, and the SUFFIX string is transmitted after.  This
+simplifies the construction of complex, repetitive command lines to be sent
+to the remote.
+
+Either command without arguments prints the current value of the string. To
+change the string, enter the string on the command line after the command.
+
+Examples:
+
+                PREFIX "XMODEM S "      <<== sets a prefix
+                PREFIX ""               <<== sets null prefix string
+                SUFFIX "^M"             <<== set carriage-return as suffix
+
+MEX supports the same drive/user specification for files as Rick Conn's
+ZCPR and ZCPR2: A file may be prefixed by either the drive name, the user
+number or both (this extends to batch file transmissions).
+
+Examples:
+
+        [MEX] A3>>SB B3:*.ASM A9:*.OBJ C6:UPDATE.DOC
+        [MEX] A0>>DIR A12:*.SUB
+        [MEX] B3>>TYPE 5:REPORT.DOC
+        [MEX] C3>>T B6:SESSION.LOG
+
+                            LOGGING DRIVES
+
+MEX supports relogging drive/user in two ways, both of which are
+pertinent to a discussion of DU specifications:
+
+   - LOG command: Takes optional DU spec (trailing colon optional)
+                  resets disk system
+   - At command prompt: simply enter the DU spec (colon required)
+
+Examples:
+
+                [MEX] A0>>LOG        (relogs current d/u: resets system)
+                [MEX] A0>>LOG B:     (relogs current user, drive b, resets)
+                [MEX] A0>>LOG B7:    (relogs drive b, user 7, resets)
+                [MEX] A0>>B:         (logs current user, drv B, no reset)
+                [MEX] A0>>A9:        (logs drive A, user 9, no reset).
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 21 of 22.
+
+
+
+
+
+         MEX114.PRN - Copyright (C) 1984 by Ronald G. Fowler
+
+
+MEX  supports multiple commands on a line, both in READ files, and in dir-
+ectly typed commands.  A command line may optionally be entered on the CP/M
+invocation command line, and this line may also contain multiple commands.
+Note that a READ command will "stack" any current multiple commands; when
+input from the READ file is exhausted, the remaining commands will then be
+executed (a control-C at any time will abort a running READ file and/or a
+multiple command line).
+
+The multiple command separator in the file as distributed is the semi-
+colon ";").  This character may be changed with the STAT command ("STAT ESC")
+or in the patch file.
+
+Examples:
+
+   from CP/M:
+
+        A>MEX DIR;READ MYFILE.MEX;SENDOUT "LOGOUT";BYE
+
+        This example will bring up MEX, which will first print the directory,
+        then begin executing MYFILE.USE, which may conain SENDOUT commands and
+        R commands to send and receive files. When input from MYFILE.MEX is
+        exhausted, MEX will send the string "LOGOUT" to the remote.  Finally,
+        MEX will execute the "BYE" command.
+
+   from MEX:
+
+                A3>>COMMAND: RB;SENDOUT "BYE";BYE
+
+        This one receives a batch transmission, sends the string "BYE" (grace-
+        fully logout from a remote CP/M system, for example), then disconnects
+        and exits to CP/M.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   Documentation for MEX114, extracted from MEX.HLP.  Page 22 of 22.
+
+
+
+
+
+

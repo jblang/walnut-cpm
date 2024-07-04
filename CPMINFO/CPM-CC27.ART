@@ -1,0 +1,217 @@
+
+==============================================================================
+[ THE KAY*FOG RBBS | Filename=CPM-CC27.ART | posted 07/05/86 | 200 lines 11k ]
+
+          The CP/M Connection                   Originally published in    
+                  by                               Computer Currents       
+             Ted Silveira                         5720 Hollis Street     
+  (copyright and all rights reserved)            Emeryville, CA  94608     
+
+                                 May 20, 1986
+                       Z:  THE FINAL CHAPTER (FOR NOW)
+
+     Now that I've talked about the _what_ of the Z-system, let me say a 
+little about the _how_.  Let's start with an overview of what happens 
+when you install ZCPR3 (or ZCPR3 plus ZRDOS) on your CP/M computer.
+
+     The typical CP/M computer has 64K of RAM (random access memory)--
+that's actually 65,536 bytes (because 1K equals 1024 bytes).  You can 
+imagine this 64K RAM as a single stack of 65,536 pigeonholes or 
+mailboxes, piled one on top of the other, each mailbox containing a 
+single byte of information.
+
+     Figure 1 shows how this RAM is allocated in a typical CP/M system.  
+At the very bottom of RAM (addresses 0-255) is a reserved block of 256 
+bytes used by CP/M.  The rest of the CP/M operating system lives in the 
+uppermost section of RAM, taking up about 8-9K.  The space between the 
+reserved block at the bottom and CP/M at the top is the _transient 
+program area_ (TPA), the space in which programs like WordStar, 
+SuperCalc, and dBase II run.
+
+     As you can see, the CP/M operating system itself is divided into 
+three parts.  The CCP (console command processor) interprets commands 
+entered at the A> prompt and contains the built-in command such as ERA 
+and DIR.  The BDOS (basic disk operating system) handles things like 
+writing and reading disks, creating and erasing files, and sending 
+characters to the screen.  The BIOS (basic input/output system) works 
+intimately with the computer hardware, turning BDOS commands like "open 
+a file" into "move the disk drive head of drive A to track 1" and so 
+forth.
+
+     Figure 2 shows the same typical CP/M computer with the Z-System 
+installed.  Three things have happened.  First, ZCPR3 has replaced 
+CP/M's standard CCP.  Second, ZRDOS may or may not have replaced CP/M's 
+standard BDOS (it's optional--see last issue's column for a brief 
+description of ZRDOS' advantages).  Third, the entire operating system 
+has been moved lower in memory to make room for the ZCPR3 buffers and 
+command packages.  Because the operating system has been lowered, the 
+TPA is now smaller by anywhere from 1K to 6K or more.
+
+     That's the overview.  When it comes to installing the Z-System on 
+your computer, you have three routes you can take, four if you have a 
+Kaypro.
+
+     [Manual]  The manual installation is the most difficult and yet the 
+most flexible method.  (If what follows is too technical for you, just 
+skip it--there are easier methods.)  Essentially, you start with the 
+full set of ZCPR3 source files and build a Z-System of exactly the size 
+and features you want.  To do this, you need to know some assembly 
+language, have a macro assembler (like Digital Research's MAC or 
+Echelon's own ZAS), and know something about your computer's BIOS.  
+
+     Briefly, these are the steps.  Collect the ZCPR3 source files and 
+documentation.  Then select the ZCPR3 features you want--you don't have 
+room for everything.  
+
+     Next, figure out how much space you need for these features--how 
+much for the FCP, the RCP, and so on.  You work by cut-and-fit--do a 
+trial assembly, check the size, juggle the numbers, do another trial 
+assembly.  Once you have the size set, use the CP/M utility MOVCPM to 
+move the operating system lower in RAM to make room at the top of memory 
+for ZCPR3's buffers and command packages.  Then add a short routine to 
+your computer's BIOS to set all the ZCPR3 buffers to the proper values 
+on startup.  
+
+     Finally, assemble your chosen ZCPR3 package into a HEX file and use 
+DDT to merge it with your new, smaller CP/M system, creating a new 
+system image that you'll use to SYSGEN all your disks.  
+
+     [Semi-Automatic]  Through bulletin boards and users groups, you can 
+find a number of ZCPR3 installation "kits" for various computers.  These 
+kits are basically manual installations in which the hard work has 
+already been done by someone else.  
+
+     What you get in one of these kits is a set of already assembled 
+ZCPR3 files.  You must created a smaller CP/M system with MOVCPM and 
+then merge the kit files with it using DDT.  None of the kits I've seen 
+requires that you know any assembly language, only that you know how to 
+use DDT, MOVCPM, and SYSGEN.
+
+     Obviously, this installation is easier than the manual one.  The 
+drawback is that both the system size and the ZCPR3 features have 
+already been selected--you can't change them without getting the ZCPR3 
+source files and reassembling them.  But if you find a kit that has the 
+features you want (and most do have a good selection), you're in 
+business.  
+
+     [Automatic]  Echelon, Inc., the distributor of ZCPR3, now offers 
+automatic installation packages starting at $49.95 (and going up, 
+depending on whether you want ZRDOS and whether you get the ZCPR3 
+utilities from Echelon or from public domain sources).
+
+     This automatic installation really is almost automatic.  You copy 
+the master disks (consolidating files on one disk if you have room), 
+boot up the copy, and then run a SUBMIT file by typing [SUB ZCCOM] at 
+the A> prompt.  As the SUBMIT file runs, it will create the various 
+files you need.  At the end of its run, it will run a terminal select 
+program so that you can install ZCPR3 for your terminal type.  Then the 
+SUBMIT file passes control to your new system.
+
+     This method gives you a slightly different kind of installation 
+from the manual and semi-automatic ones.  You end up with a COM file 
+(Z.COM or Z3.COM) that contains your Z-System.  You run this program 
+from the A> prompt, and it loads your Z-System.  You can set your disks 
+to automatically run this COM file on any cold boot, so that you don't 
+have to bother with running it yourself.  You can also exit this Z-
+System at any time and return to normal (drab) CP/M by running a little 
+program called ZCX.COM.
+
+     There are two main drawbacks to this method of installation.  
+First, you have to pay for it (though the price is certainly 
+reasonable).  And second, as in the semi-automatic installation, you 
+don't have any choice of features or system size--you take what you get.  
+The package has a good selection of features, and you can always 
+substitute a new RCP (resident command package) or FCP (flow command 
+package), but it's simply not as flexible as a manual installation. 
+
+     [Bootable Disks]  Kaypro owners have yet one more choice, the 
+easiest installation of all.  Echelon now sells a "bootable" Z-System 
+disk (including ZRDOS) for most Kaypros, including those with the Advent 
+TurboROM and all stock Kaypros except those with the U ROM (CP/M 2.2u).  
+
+     To make this installation, you just put the Echelon disk in the A 
+drive and hit the reset button.  The computer will boot up the Z-System 
+and run an installation program that gives you a choice of installing 
+one of three versions of the Z-System.  Choose one, put a blank disk in 
+your B drive, and relax.  The rest of the installation proceeds 
+automatically.  And unlike the automatic installation method I mentioned 
+above, this method gives you a Z-System that boots up like any normal 
+disk--no extra COM file to run.  (Also, this package comes with a manual 
+that's better for beginners than the usual Z-System documentation.)
+
+     The drawbacks are the same as those of the previous method.  You 
+have to pay for it, and you have less flexibility than with a manual 
+installation (though you do get to choose from three different-sized 
+systems).
+
+     [Final Words]  The Z-System as a whole does have some possible 
+drawbacks.  First, because the Z-System takes more room than standard 
+CP/M, there's always a chance you may encounter a conflict with some 
+other program (i.e., one that wants more memory than is available with 
+the Z-system installed), especially if you're also running a memory-
+resident program like SmartKey or Write-Hand-Man.  Almost all the major 
+commercial and public domain programs I know of work fine, including 
+WordStar and dBase II.
+
+     Second, it takes some time to learn your way around a full Z-System 
+with menus, aliases, and all the trimmings.  But you don't need to use 
+all the Z-System's power right away, and learning Z is considerably less 
+difficult than learning to use WordStar, for example.  Third, the Z-
+System documentation isn't as good as it could be.  It's full of 
+detailed information, presented in an orderly and consistent way, but 
+it's too dense to be readily accessible to beginners.  Partly in 
+response to this problem, Echelon maintains a list of "good neighbor 
+helpers" (people willing to give advice on various systems) and puts out 
+the _Z-News_, a biweekly newsletter.  There's also a very large network 
+of Z-Nodes, bulletin boards dedicated to exchanging information about 
+the Z-System.
+
+     Overall, ZCPR3 and the Z-System are tremendous improvement over 
+standard CP/M.  As I've said before, the Z-System is a computer 
+supercharger--it makes many things easier and makes other things 
+possible that weren't possible before.  Once you try it, you won't go 
+back.
+
+Information on ZCPR3 and accompanying programs:
+
+Echelon, Inc.               Main Echelon/ZCPR3 bulletin board:
+855 N. San Antonio Road     Z-Node Central - 415/489-9005     
+Los Altos, CA  94022
+415/948-3820
+
+FIGURE 1 (Typical CP/M RAM)             FIGURE 2 (Typical ZRDOS RAM)
+         (approximate only)                      (approximate only)
+
+------------  -CP/M OPERATING SYSTEM-   ------------
+|   BIOS   | basic input/output system  |  buffers | space for ZCPR3 buffers,
+|----------|                            |          | RCPs, FCPs, etc.
+|   BDOS   | basic disk operating sys   |----------|
+|----------|                            |   BIOS   | basic input/output system
+|   CCP    | console command processor  |----------|
+|----------|                            |BDOS/ZRDOS| standard BDOS or ZRDOS
+|          |                            |----------| replacement
+|          |                            |   ZCPR3  | ZCPR3 replacement for
+|          |                            |----------| standard CCP
+|          |                            |          |
+|          |                            |          |
+|          |                            |          |
+|          |                            |          |
+|   TPA    | transient program area     |   TPA    |  transient program area
+|          |    (usually 55-56K)        |          |    (typically 50-54K)
+|          |                            |          |
+|          |                            |          |
+|          |                            |          |
+|          |                            |          |
+|----------|                            |----------|
+| reserved |                            | reserved |
+------------                            ------------
+     
+------------------------------------------------------------------------------
+      Ted Silveira is a freelance writer and contributing editor to several
+   computer-oriented publications.  He appreciates suggestions or feedback
+   and can be reached through the KAY*FOG RBBS (415)285-2687 and CompuServe
+   (72135,1447) or by mail to 2756 Mattison Lane, Santa Cruz, CA 95065.
+
+-------------------------  End of CPM-CC27.ART Text  -------------------------
+
+  

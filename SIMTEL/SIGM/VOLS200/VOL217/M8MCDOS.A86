@@ -1,0 +1,545 @@
+;M8MCDOS.A86  -- Overlay file for the CompuPro I3/I4 under MC-DOS 11/22/84
+;
+;
+; This overlay adapts the MDM8xx program to the CompuPro under MC-DOS. This
+; Overlay makes use of the special function call 6 used by the Gifford XIOS.
+;
+; You will want to look this file over carefully. There are a number of
+; options that you can use to configure the program to suit your taste.
+; This file places particular emphasis on using an external modem that
+; is connected to a serial port.  This includes acoustic modems as well
+; as "intelligent" modems such as the Hayes Smartmodem, Racal-Vadic, Bell
+; Dataphone 212A, etc.
+;
+; This overlay is capable of setting the baud rate, disconnecting the
+; modem, and sending breaks.
+;
+;
+;
+;=========================================================================
+;			<<< N O T E >>> 
+; This version does not yet make use of the DELAY system function. A future
+; version will overlay the timing loops in MDM840 and call the CCPM system
+; delay function. THEREfore set the Clock rate to 10 Mhz so that the loops
+; execute fast enough.
+;
+; Leave the console in the TTYS file. And turn the ECHO switch off on the
+; SmartModem to avoid Feedback with the Gifford Login routine. I use the
+; Following Hayes 1200 switch settings:
+;
+;			+---+---+---+---+---+---+---+---+
+;			I 1 I 2 I 3 I 4 I 5 I 6 I 7 I 8 I
+;			+---+---+---+---+---+---+---+---+
+;			I U I U I D I D I D I D I U I D I
+;			+---+---+---+---+---+---+---+---+
+;
+;
+;
+;==========================================================================
+;
+;
+;
+;
+;	TO USE: First edit this file filling in answers for your own
+;		equipment.  Then assemble with ASM86.CMD or equivalent
+;		assembler.  Then use PIP to append the results
+;		of this program to the original MDM8xx.H86 file:
+;
+;		ASM86 M8MCDOS
+;		PIP MDM.H86=MDM830.H86,M8MCDOS.H86
+;		GENCMD MDM 8080 CODE[MFF0]
+;
+;
+; =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =
+;
+; 11/23/84 - Original Version			- Alex Soya
+;						  P.O. Box 121
+;						  Melbourne Beach
+;						  Florida 32951
+;
+;
+; =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =
+;
+BELL	EQU	07H			;bell
+CR	EQU	0DH			;carriage return
+ESC	EQU	1BH			;escape
+LF	EQU	0AH			;linefeed
+;
+YES	EQU	0FFH
+NO	EQU	0
+;
+; CCPM function Call equates:
+;
+S_BIOS		EQU	 50	; Call BIOS character I/O routines
+Q_OPEN		EQU	135	; Open Que
+Q_CREAD		EQU	138	; Conditional Read Que
+DEV_SETFLAG	EQU	133	; Set Flag
+;
+;
+;
+;
+; Change the following to match your equipment
+;
+;
+; =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =
+;
+BASE	EQU	010H			;base port of CompuPro I3 or I4 cards
+UPORT	EQU	BASE+7			;user (chip select) port
+MDM	EQU	1			;chip that controls modem port
+CONS	EQU	1			;Console used as modem
+;
+;
+;
+DPORT	EQU	BASE			;data port
+SPORT	EQU	BASE+1			;status port
+MPORT	EQU	BASE+2			;mode port
+CPORT	EQU	BASE+3			;control port
+;
+TBMT	EQU	01H			;transmit buffer empty
+DAV	EQU	02H			;data available
+;
+	ORG	100H
+;
+; Change the clock speed to suit your system
+;
+	RS	3			;(for  "JMP   START" instruction)
+;
+PMMIMODEM	DB	NO		;yes=PMMI S-100 Modem			103H
+SMARTMODEM	DB	YES		;yes=HAYES Smartmodem, no=non-PMMI	104H
+TOUCHPULSE	DB	'T'		;T=touch, P=pulse (Smartmodem-only)	105H
+CLOCK		DB	10		;clock speed in MHz x10, 25.5 MHz max.	106H
+					;20=2 MHh, 37=3.68 MHz, 40=4 MHz, etc.
+MSPEED		DB	1		;0=110 1=300 2=450 3=600 4=710 5=1200	107H
+					;6=2400 7=4800 8=9600 9=19200 default
+BYTDLY		DB	5		;0=0 delay  1=10ms  5=50 ms - 9=90 ms	108H
+					;default time to send character in ter-
+					;minal mode file transfer for slow BBS.
+CRDLY		DB	5		;0=0 delay 1=100 ms 5=500 ms - 9=900 ms 109H
+					;default time for extra wait after CRLF
+					;in terminal mode file transfer
+NOOFCOL		DB	5		;number of DIR columns shown		10AH
+SETUPTST	DB	YES		;yes=user-added Setup routine		10BH
+SCRNTEST	DB	YES		;Cursor control routine			10CH
+ACKNAK		DB	YES		;yes=resend a record after any non-ACK	10DH
+					;no=resend a record after a valid-NAK
+BAKUPBYTE	DB	NO		;yes=change any file same name to .BAK	10EH
+CRCDFLT		DB	YES		;yes=default to CRC checking		10FH
+TOGGLECRC	DB	YES		;yes=allow toggling of CRC to Checksum	110H
+CONVBKSP	DB	NO		;yes=convert backspace to rub		111H
+TOGGLEBK	DB	YES		;yes=allow toggling of bksp to rub	112H
+ADDLF		DB	NO		;no=no LF after CR to send file in	113H
+					;terminal mode (added by remote echo)
+TOGGLELF	DB	YES		;yes=allow toggling of LF after CR	114H
+TRANLOGON	DB	YES		;yes=allow transmission of logon	115H
+					;write logon sequence at location LOGON
+RESERVED	DB	YES		;Reserved for Future Expansion		116H
+LOCONEXTCHR	DB	NO		;yes=local command if EXTCHR precedes	117H
+					;no=external command if EXTCHR precedes
+TOGGLELOC	DB	YES		;yes=allow toggling of LOCONEXTCHR	118H
+LSTTST		DB	YES		;yes=printer available on printer port	119H
+XOFFTST		DB	NO		;yes=checks for XOFF from remote while	11AH
+					;sending a file in terminal mode
+XONWAIT		DB	NO		;yes=wait for XON after CR while	11BH
+					;sending a file in terminal mode
+TOGXOFF		DB	YES		;yes=allow toggling of XOFF checking	11CH
+IGNORCTL	DB	NO		;yes=CTL-chars above ^M not displayed	11DH
+EXTRA1		DB	0		;for future expansion			11EH
+EXITCHR		DB	'E'-40H		;^E = Exit to main menu			11FH
+BRKCHR		DB	'@'-40H		;^@ = Send 300 ms. break tone		120H
+NOCONNCT	DB	'N'-40H		;^N = Disconnect from the phone line	121H
+LOGCHR		DB	'L'-40H		;^L = Send logon			122H
+LSTCHR		DB	'P'-40H		;^P = Toggle printer			123H
+UNSAVE		DB	'R'-40H		;^R = Close input text buffer		124H
+TRANCHR		DB	'T'-40H		;^T = Transmit file to remote		125H
+SAVECHR		DB	'Y'-40H		;^Y = Open input text buffer		126H
+EXTCHR		DB	'^'-40H		;^^ = Send next character		127H
+;
+;
+	RS	3			;				128H
+;
+IN@MODCTL1:
+	RET				;in modem control port		12BH
+	DB	0,0,0,0,0,0,0,0,0	; spares
+;
+OUT@MODDATP:
+	JMP	OMDP			;out modem data port		135H
+	DB	0,0,0,0,0,0,0		; spares
+;
+IN@MODDATP:
+	JMP	IMDP			;in modem data port		13FH
+	DB	0,0,0,0,0,0,0		; spares
+;
+ANI@MODRCVB:	RET			;bit to test for receive ready	149H
+		RS	2		; Nothing to do here for MPM
+;
+CPI@MODRCVR:	JMP TSTMODRDY		;value of rcv. bit when ready	14CH
+;
+;
+ANI@MODSNDB:	RET			;bit to test for send ready	14FH
+		RS	2		; Nothing to do here for MPM
+;
+CPI@MODSNDR:	XOR AL,AL		; test for send ready		152H
+		RET			; Always ready for MPM
+;
+	RS	6			;				156H
+;
+OUT@MODCTL1:	RET 
+	RS	2			;out modem control port #2	15BH
+;
+OUT@MODCTL2:	RET 
+	RS	2			;out modem control port #1	15EH
+;
+LOGONPTR DW	(Offset LOGON)		;for user message.		161H
+	RS	6			;				163H
+
+JMP@GOODBYE:JMP GOODBYE			;				169H
+JMP@INITMOD:JMP INITMOD			;go to user written routine	16CH
+	RET	
+	NOP	
+	NOP				;(by-passes PMMI routine)	16FH
+	RET	
+	NOP	
+	NOP				;(by-passes PMMI routine)	172H
+	RET	
+	NOP	
+	NOP				;(by-passes PMMI routine)	175H
+JMP@SETUPR:    JMP  SETUPR		;				178H
+JMP@SPCLMENU:  JMP  SPCLMENU		;				17BH
+JMP@SYSVER:    JMPS SYSVER		;make sure this is SHORT Jump	17EH
+JMP@BREAK:     JMP  SENDBRK		;				180H
+
+;
+; Do not change the following six lines.
+;
+JMP@ILPRT:
+		RS	3		;				183H
+JMP@INBUF:
+		RS	3		;				186H
+JMP@INLNCOMP:
+		RS	3		;				189H
+JMP@INMODEM:
+		RS	3		;				18CH
+JMP@NXTSCRN:
+		RS	3		;				18FH
+JMP@TIMER:
+		RS	3		;				192H
+JMP@CTYPE:
+		RS	3		;				195H
+JMP@KEYIN:
+		RS	3		;				198H
+
+;
+;
+; Routine to clear to end of screen.  If using CLREOS and CLRSCRN, set
+; SCRNTEST to YES at 010AH (above).
+;
+CLREOS: CALL	JMP@ILPRT		;				195H
+	DB	ESC,'Y',0,0,0		;				198H
+	RET				;				19DH
+;
+CLRSCRN:CALL	JMP@ILPRT		;				19EH
+	DB	ESC,'*',0,0,0		;				1A1H
+	RET				;				1A6H
+;
+SYSVER: CALL	JMP@ILPRT		;				1A7H
+	DB	'Version for CompuPro running under MC-DOS',CR,LF
+	DB	'Configured for console # ','0'+CONS
+	DB	CR,LF,0
+	RET
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; NOTE:	 You can change the SYSVER message to be longer or shorter.  The
+;	 end of your last routine should terminate by 0400H (601 bytes
+;	 available after start of SYSVER) if using the Hayes Smartmodem
+;	 or by address 0C00H (2659 bytes) otherwise.
+;
+;-----------------------------------------------------------------------
+;
+; You can put in a message at this location which can be called up with
+; CTL-L if TRANLOGON has been set TRUE.	 You can use several lines if
+; desired.  End with a 0.
+;
+LOGON	DB	' Concurent modeming, its nice to do things'
+	DB	' at the same time',CR,LF,0
+;
+;.....
+;
+;
+;
+;
+;....
+;
+;
+; Add your own routine here to send a byte in AL to Modem Data Port
+;
+OMDP:			; Send a character to the Modem console [MCDOS]
+	PUSH DX			; savem				[MCDOS]
+	PUSH CX			;				[MCDOS]
+	PUSH BX			;				[MCDOS]
+	MOV  Byte Ptr UTYPE,2	; Type = 2 (OUTPUT)		[MCDOS]
+	MOV  Byte Ptr ARG1,AL	; Arg1 = Character to send	[MCDOS]
+	MOV  Byte Ptr ARG2,CONS ; Arg2 = Console number		[MCDOS]
+	MOV  CL,S_BIOS		; call xios with function 50	[MCDOS]
+	MOV  DX, OFFSET QPB	; Here is the Parameter Block	[MCDOS]
+	INT  224		; Lets do some work		[MCDOS]
+	POP BX			;				[MCDOS]
+	POP CX			; restore regs			[MCDOS]
+	POP DX			;				[MCDOS]
+	RET			;				[MCDOS]
+
+;
+;
+;....
+;
+; Add your own routine here to read Modem Data Port into AL
+;
+IMDP:			; Get a character from Modem Console	[MCDOS]
+	PUSH DX			; savem				[MCDOS]
+	PUSH CX			;				[MCDOS]
+	PUSH BX			;				[MCDOS]
+	MOV  Byte Ptr UTYPE,3	; Type = 3  (Input)		[MCDOS]
+	MOV  Byte Ptr ARG1,CONS ; Arg1 = Console #		[MCDOS]
+	MOV  DX, offset QPB	; Give Parameter Block offset	[MCDOS]
+	MOV  CL,S_BIOS		; Call function 50		[MCDOS]
+	INT  224		; And go to work		[MCDOS]
+	POP BX			;				[MCDOS]
+	POP CX			; restore regs			[MCDOS]
+	POP DX			;				[MCDOS]
+	RET			;				[MCDOS]
+;
+;
+;......
+;
+;
+TSTMODRDY:		; see if a char is ready for caller	[MCDOS]
+	PUSH DX			;				[MCDOS]
+	PUSH CX			; savem				[MCDOS]
+	PUSH BX			;				[MCDOS]
+	MOV  Byte Ptr UTYPE,4	; type = 4 (Input Status)	[MCDOS]
+	MOV  Byte Ptr ARG1,CONS ; Arg1 = Console #		[MCDOS]
+	MOV  DX, offset QPB	; Give Parameter Block Offset	[MCDOS]
+	MOV  CL, S_BIOS		; Using function 50		[MCDOS]
+	INT  224		; Lets work			[MCDOS]
+	CMP AL,0FFH		;				[MCDOS]
+	JE CONRDY		; IS CONSOLE READY ?		[MCDOS]
+	MOV AL,0FFH		; nope...			[MCDOS]
+	JMPS CPIEX		;    tell caller and exit here	[MCDOS]
+CONRDY: MOV AL,0		; yeap...			[MCDOS]
+CPIEX:	OR AL,AL		;    nope so tell caller	[MCDOS]
+	POP BX			;				[MCDOS]
+	POP CX			;				[MCDOS]
+	POP DX			;				[MCDOS]
+	RET			;				[MCDOS]
+;.....
+;
+;
+;
+; Add your own routine here to send a break tone to reset some time-
+; share computers, if desired.
+;
+SENDBRK:PUSHF			; disable Interupts
+	CLI
+	CALL	SELECT			;select chip
+	MOV	AL,2FH			;send break for 300ms
+	JMPS	GOODBYE1
+;.....
+;
+;
+; Add your own routine here to put DTR low and/or send a break tone.
+;
+GOODBYE:PUSHF			; disable Interupts
+	CLI
+	CALL	SELECT
+	XOR	AL,AL			;turn off DTR
+;
+GOODBYE1:
+	OUT	CPORT,AL
+	MOV	CH,3			;turn off DTR for 300 ms.
+	POPF				; restore interupts
+	CALL	JMP@TIMER
+	PUSHF
+	CLI				; disable Interupts again
+	CALL	SELECT
+	MOV	AL,27H			;turn DTR back on
+	OUT	CPORT,AL
+	POPF				; Interupts ok again
+	RET
+;.....
+;
+;
+; You can use this area for any special initialization or setup you may
+; wish to include.  Each must stop with a RET.	You can check the other
+; available overlays for ideas how to write your own routines if that
+; may be of some help.
+;
+;The following is used to initialize the xios and MXqueues for execution
+;of MDM86.
+;
+INITMOD:
+	CMP	Byte Ptr QUEF, 0	; Been here before ?		[MCDOS]
+	JNE	CONINT			; yeap so skip it		[MCDOS]
+	MOV	DX, OFFSET XQPB		; Here is Que Parameter Block	[MCDOS]
+	MOV	CL, Q_OPEN		; Open the Que			[MCDOS]
+	PUSH	DX			;				[MCDOS]
+	INT	224			;				[MCDOS]
+	POP	DX			;				[MCDOS]
+	MOV	CL, Q_CREAD		; Do a conditional Read		[MCDOS]
+	INT	224			;				[MCDOS]
+	OR	AX,AX			;				[MCDOS]
+	JE	QUEOWN			; we got the que		[MCDOS]
+	CALL	JMP@ILPRT		; if not say so			[MCDOS]
+	DB	'Console Que not available',cr,lf,0	;		[MCDOS]
+	MOV	CL,0			; and get out			[MCDOS]
+	INT	224			;				[MCDOS]
+
+QUEOWN: MOV	DL,80H+CONS		; set PIN flag			[MCDOS]
+	MOV	CL,DEV_SETFLAG		;				[MCDOS]
+	INT	224			;				[MCDOS]
+	MOV	Byte Ptr QUEF,0ffh	;				[MCDOS]
+
+CONINT: MOV	Byte Ptr UTYPE,1	; type = 1  (Setup)	[MCDOS]
+	MOV	Byte Ptr ARG1,CONS	; Arg1 = Console #	[MCDOS]
+	MOV	BL,Byte Ptr MSPEED	; Get Baud rate
+	DEC	BL			; Adjust for Offset into table
+	XOR	BH,BH			;			[MCDOS]
+	MOV	AL,Byte Ptr BDTBL[BX]	;			[MCDOS]
+	OR	AL,80h			; 1 stop, 8 data, no p. [MCDOS]
+	MOV	Byte Ptr ARG2, AL	; Arg2 = UART paras	[MCDOS]
+	MOV	Byte Ptr ARG3, 0	; Arg3 = No HandShake	[MCDOS]
+	MOV	CL,S_BIOS		; Function call 50	[MCDOS]
+	MOV	DX, offset QPB		; Here is the Block	[MCDOS]
+	INT	224			; Do some work		[MCDOS]
+	RET
+;.....
+;
+;
+; Use the 'SET' command to select a desired baud rate
+;
+SETUPR: MOV	DX,(Offset BAUDBUF)	;point to new input buffer
+	CALL	JMP@ILPRT
+	DB	'Input Baud Rate (300, 600, 1200, 2400, 4800, 9600, 19200): ',0
+	CALL	JMP@INBUF
+	MOV	DX,(Offset BAUDBUF)+2
+	CALL	JMP@INLNCOMP		;compare BAUDBUF+2 with characters below
+	DB	'300',0
+	JNB	OK300			;go if got match
+	CALL	JMP@INLNCOMP
+	DB	'600',0
+	JNB	OK600
+	CALL	JMP@INLNCOMP
+	DB	'1200',0
+	JNB	OK1200
+	CALL	JMP@INLNCOMP
+	DB	'4800',0
+	JNB	OK4800
+	CALL	JMP@INLNCOMP
+	DB	'2400',0
+	JNB	OK2400
+	CALL	JMP@INLNCOMP
+	DB	'9600',0
+	JNB	OK9600
+	CALL	JMP@INLNCOMP
+	DB	'19200',0
+	JNB	OK19200
+	CALL	JMP@ILPRT		;all matches failed, tell operator
+	DB	'++ Incorrect entry ++',CR,LF,BELL,0
+	JMP	SETUPR			;try again
+;
+OK300:	MOV	AL,1			;MSPEED 300 baud value
+	JMPS	LOADBD			;go load everything
+;
+OK600:	MOV	AL,3
+	JMPS	LOADBD
+;
+OK1200: MOV	AL,5
+	JMPS	LOADBD
+;
+OK2400: MOV	AL,6
+	JMPS	LOADBD
+;
+OK4800: MOV	AL,7
+	JMPS	LOADBD
+;
+OK9600: MOV	AL,8
+	JMPS	LOADBD
+;
+OK19200:MOV	AL,9
+;
+LOADBD: MOV	Byte Ptr MSPEED,AL	;change time-to-send to match baudrate
+	JMP	CONINT			;reinitialize to new baudrate, then done
+;...
+;
+
+
+;
+SELECT:
+	PUSH	AX
+	PUSH	BX
+	MOV	AL,MDM
+	OUT	UPORT,AL	; Select USART
+	POP	BX
+	POP	AX
+	RET
+;
+;
+;....
+;
+;
+; TABLE OF BAUDRATE PARAMETERS
+;
+BD300	EQU	2			;300  baud
+BD450	EQU	0			;450  baud NOT SUPPORTED
+BD600	EQU	3			;600  baud
+BD710	EQU	0			;710  baud NOT SUPPORTED
+BD1200	EQU	4			;1200 baud
+BD2400	EQU	6			;2400 baud
+BD4800	EQU	7			;4800 baud
+BD9600	EQU	8			;9600 baud
+BD19200 EQU	9			;19200 baud
+;
+BAUDBUF DB	10,0
+	RS	10
+
+BDTBL	DB	BD300,BD450,BD600,BD710,BD1200,BD2400,BD4800,BD9600,BD19200
+;
+;
+;
+;   Bios Descriptor Block  ( Do not change the next 5 lines ):
+QPB	DB	6	; Function = 6 for all
+ARG1	DB	0	; Arg1
+UTYPE	DB	0	; Type
+ARG2	DB	0	; Arg2
+ARG3	DB	0	; Arg3
+;
+;
+;
+XQPB	DW	0	; Que Parameter Block
+QPID	DW	0
+	DW	0
+QPBUF	DW	OFFSET MSGBUF
+QPNAME	DB	'MXcons','0'+CONS,' '
+;
+MSGBUF	DW	0
+;
+QUEF	DB	0
+;
+;
+;	       (END OF INITMOD AND SETUP ROUTINES)
+;=======================================================================
+;
+;
+; If using the Hayes Smartmodem this is unavailable without a special
+; change.
+;
+SPCLMENU:RET
+;
+;
+; NOTE:	 MUST TERMINATE PRIOR TO 0400H (with Smartmodem)
+;				 0C00H (without Smartmodem)
+;.....
+;
+	END
+

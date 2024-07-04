@@ -1,0 +1,102 @@
+;----------------------------------------------------------------------
+;
+; B5C-ICM.INS		Intersil ICM7170 Clock Chip	      02 Sep 86
+;		Clock routine for the the BYE5xx program
+;	Clock usable in 6502 and Z80 systems and possibly others
+;			By George F. Reding [72436,45]
+;
+; Note:  A clock set program in 8080 code is available named MSXRTC.ASM
+;			By George F. Reding [72436,45]
+;
+;----------------------------------------------------------------------
+;
+IO00	EQU	00H		; Available i/o ports available at "J5" on
+IO10	EQU	10H		; Morrow hard disk systems
+IO20	EQU	20H		; You may have to install the 40-pin header
+IO30	EQU	30H		; strip at that location as I have done.
+;
+; If using a Morrow hard disk set CLDATA to IOnn+1 and CLREGL to IOnn
+; On other machines use your appropriate i/o port c/s line & address.
+;
+CLDATA	EQU	IO00+1		; Rtc data port
+CLREGL	EQU	IO00		; Register latch
+;
+; Time, date, day of week, and alarm is moved to the ICM7170 buffers
+; on receipt of desire to read the 1/100th seconds of the time. This
+; short insert for BYE5xx is only reading the time, date, and day of
+; week.
+;
+; To read the alarm values, send to register latch the values of 08H
+; thru 0FH for the 1/100 secs, hours, mins, seconds, month, day, year,
+; and day of week, respectively.  If you can use the alarm, you can
+; imitate the clock/date/weekday reading.
+;
+;
+CLKCEN EQU	019H		; Bcd for 20th century for BYE
+;
+TIME:	PUSH	PSW		; Save in case used elsewhere
+;
+; This will move the data to the clock's internal buffer
+;
+	MVI	A,00H		; Counter 1/100 seconds
+	OUT	CLREGL		; Send to clock register latch
+;
+; All values are now read from the clock's buffer
+;
+	IN	CLDATA		; Get binary 1/100 secs, not used in BYE
+;
+	MVI	A,01H		; Counter hours
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary hours
+	STA	CCHOUR		; Store binary hours
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+0	; Store bcd hours
+;
+	MVI	A,02H		; Counter minutes
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary minutes
+	STA	CCMIN		; Store binary minutes
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+1	; Store bcd minutes
+;
+	MVI	A,03H		; Counter seconds
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary seconds
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+2	; Store bcd seconds
+;
+	MVI	A,04H		; Counter month
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary month
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+5	; Store bcd month
+;
+	MVI	A,05H		; Counter day
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary day
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+6	; Store bcd day
+;
+	MVI	A,06H		; Counter year
+	OUT	CLREGL		; Send to clock register latch
+	IN	CLDATA		; Get binary year
+	CALL	BINBCD		; Convert to bcd
+	STA	RTCBUF+4	; Store bcd year
+;
+; Day of week is not used in the BYE buffer so is remarked out here
+;
+;	MVI	A,07H		; Counter day of week
+;	OUT	CLREGL		; Send to clock register latch
+;	IN	CLDATA		; Get binary day of week
+;	CALL	BINBCD		; Convert to bcd
+;	STA	*UNUSED*	; Store bcd week
+;
+	MVI	A,CLKCEN	; Set century value for RTCBUF+3
+	STA	RTCBUF+3	; and store it
+;
+	POP	PSW		; Restore reg initially saved
+	RET
+;
+; End of the CLOCK routine
+;
+		Intersil ICM7170 Clock Chip	      02 

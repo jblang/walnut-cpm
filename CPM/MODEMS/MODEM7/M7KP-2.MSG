@@ -1,0 +1,174 @@
+ M7KP-2.MSG -- Kaypro II overlay file for MDM724.    2/18/84
+
+     M7KP-2.ASM is a modified overlay of M7KP-1.ASM.  It has been written
+to work with any MDM7xx.COM file from MDM711 to MDM724.  This overlay has
+modified the set command to allow the user to change:
+
+    -  baud rate (300 or 1200),         (300 baud at startup)
+    -  word length (7 or 8)             (8 bit word at startup)
+    -  number of stop bits (1 or 2)     (1 bit stop bit at startup)
+    -  parity (none, even, or odd)      (no parity at startup)
+       (A null line will not change the value from the last change.
+
+     You will want to look the file over carefully.  There are a number of
+options that you can use to configure the program to suit your taste. This
+file adapts the Kaypro II (and most likely Kaypro 4 and 10 and Xerox 820)
+computer to the modem program (MDM724.COM).
+
+       TO USE:
+        1.     Load down the .COM file (MDM724.COM in MDM724.LBR)
+        2.     Load down the overlay file (M7KP-2.AQM may be in M7OVL-2.LBR)
+        3.     Load down the phone number overlay file if you want to
+                  change the menu.  Current version is M7NM-6 for MDM724.
+                  Use M7NM-5 FOR MDM720.
+                  (you may change phone numbers later with M7LIB)
+        4.      Un-squeeze the AQM files.
+        5.      Edit M7KP-2.ASM filling in values for your own needs.
+        6.      Assemble with ASM.COM or equivalent assembler.
+        7.      Use DDT to overlay the results of this program to the
+                  original .COM file (suggest you save in new .COM file):
+
+                A>DDT MDM724.COM
+                DDT VERS 2.2
+                NEXT  PC
+                4900 0100
+                -IM7KP-2.HEX            (note the "I" command)
+                -R                      ("R" loads in the .HEX file)
+                -IM7NM-6.HEX        *   if you want to change the
+                -R                  *   name overlay also
+                NEXT  PC
+                4900 0000
+                -G0                     (return to CP/M)
+                A>SAVE 72 MDM7.COM      (now have a modified .COM file)
+
+     NOTE: The value "72" is the number of 256 byte blocks that the
+program requires.  This value is for MDM724.  To calculate the value for
+other versions, use the hi-order byte under "NEXT" and convert to
+decmial and, if the low order byte is zero, subtract one.  If the low
+order byte is not zero do not subtract one. (ie: 4 x 16 + 9 - 1 = 72)
+
+     Values you may want to change are listed below.  (The location, in
+hex, is listed to the right so you can patch the values with DDT.)
+
+TOUCHPULSE:   DB    'T'     T=touch, P=pulse (Smartmodem-only)      105H
+TOGGLEBK:     DB    NO      yes=allow toggling of bksp to rub       112H
+ADDLF:        DB    NO      no=no LF after CR to send file in       113H
+                            terminal mode (added by remote echo)
+TOGGLELF:     DB    YES     yes=allow toggling of LF after CR       114H
+XOFFTST:      DB    NO      yes=checks for XOFF from remote while   11AH
+                            sending a file in terminal mode
+XONWAIT:      DB    NO      yes=wait for XON after CR while         11BH
+                            sending a file in terminal mode
+TOGXOFF:      DB    YES     yes=allow toggling of XOFF checking     11CH
+IGNORCTL:     DB    NO      yes=CTL-chars above ^M not displayed    11DH
+BRKCHR:       DB    '@'-40H ^@ = Send a 300 ms. break tone          120H
+NOCXNNCT:     DB    'N'-40H ^N = Disconnect from the phone line     121H
+LOGCHR:       DB    'L'-40H ^L = Send logon                         122H
+LSTCHR:       DB    'P'-40H ^P = Toggle printer                     123H
+UNSAVE:       DB    'R'-40H ^R = Close input text buffer            124H
+TRANCHR:      DB    'T'-40H ^T = Transmit file to remote            125H
+SAVECHR:      DB    'Y'-40H ^Y = Open input text buffer             126H
+EXTCHR:       DB    '^'-40H ^^ = Send next character                127H
+
+
+SYSVER:       CALL    JMP$ILPRT         N:      EQU     03H     ;even parit      1A7H
+              DB    'M7KP-2, Version for Kaypro II',0               1AAH
+              RET
+
+
+You can put in a message at this location which can be called up with
+CTL-L if TRANLOGON has been set YES.  You can put in several lines if
+desired.  End with a 0.
+
+LOGON:       DB  'LOGON',CR,LF,0                                    1C9H
+
+    NOTE:  You can change the SYSVER message and LOGON message to be
+longer or shorter.  The end of your last routine should terminate by
+0380h when using the Hayes Smartmodem.  When assembled, this overlay
+is 37Eh bytes long, this leaves 2 bytes (dec) to play with.
+
+    You may also want to change the file transfer size at location
+0DEFFh IN MDM722 or 0CFFh in MDM720.
+
+(SAVSIZ)   20 = 4k file transfer buffer size
+           40 = 8k file transfer buffer size
+           80 = 16k file transfer buffer size
+
+=  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =
+
+    Some time sharing systems send extra characters for timing.  Most of
+the time the null (hex 00) character is chosen but some systems use a
+<DEL> (hex 7F) character.  The following routine in MDM724.COM bypasses
+null characters.
+
+TERML:  CALL    RCVREADY        ;character on the receive-ready line?
+        JNZ     TERM            ;if not, exit
+        CALL    IN$MODDATP      ;get the character
+        ANI     7FH             ;strip parity
+        JZ      TERM            ;don't bother with nulls
+        MOV     B,A             ;store temporarily
+        LDA     IGNORCTL ;*     ;ignoring all but necessary ctl-chars?
+        ORA     A        ;*
+        JZ      GIVLF    ;*     ;if zero, display them all
+        MOV     A,B
+        CPI     ' '
+        JNC     GIVLF           ;display all printing characters
+        CPI     'G'-40H         ;^g for bell
+        JC      TERM            ;ignore ctl-characters less than ^g
+        CPI     CR+1
+        JNC     TERM            ;ignore ctl-charsacters more than ^m
+;
+GIVLF:  EQU     $
+
+    If you choose to ignore all but necessary control characters the
+following patch will also bypass <DEL> characters:
+
+
+B0>ddt mdm724.com
+DDT VERS 2.2
+NEXT  PC
+4900 0100
+-a1ee1
+1EE1  cpi 7f
+1EE3  jz 1fee
+1EE6  nop
+1EE7  nop
+1EE8  <cr>
+-G0
+
+B0>save 72 mdm724.com
+
+=  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =
+The attached code is in the routine to send a LOGON
+message.  If the system is working with half-duplex,
+could this routine slow down the transmission of the
+LOGON message?  Seems to go to try to get the ECHO
+character from the host.
+
+LOGLP1: MVI     B,1
+        CALL    RECV    change to nop
+        RC              change to nop
+        ANI     7FH     change to nop
+        JMP     TYPE
+
+Think this routine is used also in the new function
+key support for MDM724.
+
+
+The following patch may clear this problem
+for MDM724.
+
+B>ddt mdm724.com
+DDT VERS 2.2
+NEXT  PC
+4900 0100
+-A1E40
+1E40  nop
+1E41  nop
+1E42  nop
+1E43  nop
+1E44  nop
+1E45  nop
+1E46  <cr>
+-g0
+B>save 72 mdm724.com

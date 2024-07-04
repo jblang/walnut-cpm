@@ -1,0 +1,351 @@
+FURTHER ADVENTURES WITH CORRECT-IT: Z80DOS, PUBLIC FILES AND SETDRU
+                             - or -
+                 'WHERE'D THAT FILE COME FROM?'
+
+by Rick Charnes
+San Francisco, Oct. 18, 1987
+
+
+    Hooray - I've cracked the code!
+     
+    ...
+
+    Ever notice how sometimes the most valuable lessons in life 
+come from errors you've made?
+
+                         * * *
+  
+    For the last several days I've been been using fellow Morrow 
+owner and programmer par excellence Carson Wilson's new operating 
+system, Z80DOS.  This new BDOS for Z80 computers provides full 
+datestamping (and time-stamping, if a real time clock is present) 
+integrated in to the directory.  ZRDOS, the BDOS used with the 
+"official" Z-System has no internal datestamping, so it is 
+therefore generally done via an external program, DateStamper.  
+DateStamper, however, is fully compatible with Z80DOS and one can 
+quite readily have both date/time-stamping environments 
+simultaneously operative and this is indeed how I have arranged 
+my system.  I have been running the two side by side with no 
+problem for several days.
+         
+    (I will henceforth refer to "date and time-stamping, if a 
+real time clock is present" as simply "datestamping.)
+         
+    The original CP/M BDOS of course has no datestamping.  Since 
+historically CP/M programmers had no OS support the utiltiies 
+they developed almost without exception were without 
+datestamping.  Although there are now several other CP/M 
+replacements that do have datestamping -- QP/M, DOS+, SUPERDOS 
+and P2DOS noteworthy among them -- we have had a situation where 
+there was scarcely anything in software we could do with their 
+datestamps save for running the small number of utilities 
+supplied with them!  In addition, a fairly sophisticated 
+programming protocol was necessary in order to incorporate 
+datestamping into the various CP/M utilities and applications.  
+There certainly has been no standard.  This has indirectly been 
+the weakness of all previously existing date/time-stamping CP/M 
+BDOS replacements.  This is of course in marked contrast to the 
+MS-DOS world where to my knowledge all programs are integrated 
+with a datestamping system built into the OS.
+         
+    Z80DOS, however, does its datestamping by implementing two 
+new BDOS functions exclusive to Z80DOS which allow programs that 
+modify or copy files to maintain file date and time stamps with 
+very little programming overhead.  It does this in a way that 
+none of the above BDOS'es or even DateStamper can do.  This means 
+that programmers can include datestamping support in new progams, 
+or -- significantly, add it to existing programs -- with very 
+little difficulty or extra code.  Because of this ease of 
+programming we now have great potential for creating a standard.
+         
+    One major advantage of this for me has been the existence of 
+a utility supplied with Z80DOS -- a counterpart for which exists 
+for none of the other systems -- that uses these new functions to 
+enable a user to do something that I have missed sorely: the 
+retention over successive editings of the 'date of creation' 
+stamp of a word-processed file.  (In all systems the 'date of 
+last modification' stamp is of course renewed and changed 
+accordingly.)  Because of the way CP/M word processors modify 
+files, on all other CP/M-compatible datestamping systems when a 
+word-processed file is edited and modified the date of creation 
+stamp suddenly becomes the same as the date of modification!  
+This new feature, by the way, in my opinion makes Z80DOS' 
+datestamping system superior to that of MS-DOS which does not 
+have a function for 'date of creation' at all but rather only for 
+last update.
+   
+    I commend Z80DOS to all CP/M users and urge all interested 
+parties to investigate its superlative features.  It is in the 
+public domain and may be found on BBS's as Z80DOS10.LBR.
+
+                         * * *
+
+    But this isn't why I'm excited.
+
+    One of the other features of Z80DOS is its implementation of 
+a sytem whereby certain files, usually overlays and the like, can 
+be made available from all user areas in a drive.  These files 
+are then considered 'public'.  Some provision of this sort is 
+implemented in most of the CP/M 2.2 enhancements, including CP/M 
+3.0 and ZRDOS.  In different systems it is implemented in 
+different ways.  With ZRDOS one has 'public directories' wherein 
+any file residing inside that directory is automatically made 
+public.  With Z80DOS one sets the file attribute bit of the 
+second character of the filename.  For all intents and purposes 
+the net result is the same.  
+         
+    I have been using the public directory feature of ZRDOS for 
+the year and a quarter I've been using ZCPR3.  One of the 
+programs for which on a hard disk it is quite literally 
+indispensable is the Morrow spell-checker Correct- It.  Without 
+some sort of public file feature one can only run Correct-It from 
+a single user area -- unless, that is, one has a copy of the 96k 
+DICT.BIN, the 2k DINDEX.BIN and the 24k FIXUP.COM on each and 
+every user area on one's hard disk!
+  
+    As implemented in most BDOS's including Echelon's ZRDOS, 
+however, there is one danger to something as powerful as this 
+'public' feature.  Erasing, or even simply creating, writing to 
+or copying a non-public file with the same name as a public file 
+erases the public file!  Needless to say this can be quite 
+disconcerting and if you don't know what's going on trying to 
+trace the cause of your misfortune can be extremely frustrating.
+         
+    Z80DOS comes equipped with a safety feature to deal with this 
+problem.  A public file can only be erased if it is in the 
+currently logged user area.  Otherwise a read-only error is 
+considered to have occurred.
+
+    But I didn't know all this at the time.
+
+    I was sitting pretty correcting a file one day, my mind as 
+far away as could be from public files, safety features and the 
+like -- and I got hit with my first R/O error message.  I 
+couldn't figure out what was happening.  I was running my CORRECT- 
+IT alias that I had always used with ZRDOS; what could be 
+different this time?  And to make things worse, when the error 
+message displayed on the sceen it mentioned something about a 
+file called 'XXPED.$$$'.  What the heck was that and what was 
+going on?
+         
+    It took me a couple of times running the alias before I 
+realized that something that was happening was probably related 
+to this public file safety feature.  I then recalled how ZRDOS 
+worked with this alias (previously released in my CORREC10.LBR).  
+One must have AUXDICT.TXT, DICT.BIN, DINDEX.BIN and FIXUP.COM all 
+in the public directory area, thus making them public files.  But 
+it does something else: when FIXUP.COM writes your newly 
+"learned" words to your old AUXDICT.TXT, one eventually notices 
+to one's distress that it ends up putting the resultant file not 
+back in the public directory area where it must be located at 
+alias invocation but rather in the currently logged user area!
+                  
+    I have since figured out that what happens is similar to how 
+all CP/M word processor work when they modify ("write to") a 
+presently-existing file.  A new file is created with a temporary 
+name, the old one is erased, then the new is renamed to the old.  
+(This, by the way, is why datestamping systems have such 
+difficulty maintaining the time/date stamp of a word-processed 
+file: they're essentially working with a new file.  Once the 
+original file is erased the new file has no way of knowing what 
+the old file's creation date was.)
+         
+    So ZRDOS' public feature finds AUXDICT.TXT since it's in a 
+public directory, opens it and reads its contents, and proceeds 
+to create a new file with a temporary name.  Since we're probably 
+not logged on the public directory this new file is written to 
+the currently logged user area.  When that is done FIXUP.COM 
+looks again to AUXDICT.TXT, still a public file, and erases it.  
+Finally the temporary file residing on the currently logged user 
+area is renamed to AUXDICT.TXT and no one is any the wiser.
+
+    This worked fine with ZRDOS.  The only drawback is that at 
+alias exit we were then left with an AUXDICT.TXT that was no 
+longer in a public directory, not a public file and therefore 
+inaccessible to the next run of CORRECT-IT.  So I dealt with this 
+problem easily by putting one more command at the end of the 
+alias that has the utility MOVE.COM move it from where it was 
+back to the public directory.  No actual copying takes place; 
+only the user number is changed in the directory and the 
+operation takes place extremely quickly.
+         
+    So why wasn't this working with Z80DOS?  It took quite a bit 
+of head-scratching to figure this out, especially since my 
+understanding of what was happening with ZRDOS as above only came 
+to me after going through the process of figuring out the error 
+with Z80DOS.  I hadn't the slightest idea what 'XXPED.$$$' was.  
+All I knew is that I was always finding a file by this name left 
+on the currently logged user area, and it was exact replica of my 
+original AUXDICT.TXT only with the new learned words added.  This 
+was the file that AUXDICT.TXT _should_ now have been.  I still 
+hadn't yet pinned down exactly where the error was occurring.  
+All I knew is that ZEX file that my alias invoked was aborting 
+somewhere right in the middle and I was getting a R/O error.
+                  
+    So I did what I've taught myself, actually with Ted 
+Silveira's help, to do in these situations:  simplify.  Take 
+everything line by line, one by one, operation by operation and 
+study exactly what is going on with each.  Strip out all 
+unnecessary overhead.  I ran the alias several times with 
+printouts in front of me of both the ZEX batch file and the alias 
+and paid careful attention to what was going on on the screen.  I 
+realized that it was happening immediately after the disk 
+finished its grinding from having written the new AUXDICT.TXT to 
+disk.  I looked and thought, thought and looked, and studied some 
+more, and finally realized: something somewhere is trying to 
+erase AUXDICT.TXT and the operating system isn't letting it.  It 
+was then that I pieced together the scheme above of how 
+the new AUXDICT.TXT gets written.  It was of course the Z80DOS 
+safety feature:  FIXUP.COM was trying to erase AUXDICT.TXT, a 
+public file, and the OS wouldn't let it.  
+                  
+    But I was still puzzled by this mysterious 'XXPED.$$$'.  I 
+assumed it was some sort of temporary file, but where was it 
+coming from?  The BDOS?  I looked through the code to the Z80DOS 
+source, which is provided along with Z80DOS10.LBR.  I found the 
+routines for file deletion and R/O errors, hoping to find that it 
+creates a file named (for some reason) XXPED.$$$ when it is asked 
+to erase a public file and the anti-deletiion safety feature is 
+invoked.  I did a string search and found -- nothing.
+             
+    I then hit upon another idea.  I loaded up ZPATCH, the ZCPR3 
+file patcher that makes the CP/M ZAP look like a 1979 version of 
+ED.COM, and took a look at the binary code inside FIXUP.COM.  
+Eureka!! -- there it was:  XXPED.$$$.  I'm quite certain only God 
+and Correct-It's author know where the name 'XXPED.$$$' is 
+supposed to mean, but it's quite obviously the name FIXUP.COM 
+gives to its temporary file just before it erases the old 
+AUXDICT.TXT.  I guess the author couldn't think of a good name 
+for it and gave it the name that he felt was the most 
+XXPEDient...
+
+                         * * *
+
+But what is the "code" that I say I cracked?  I'm getting to that.
+
+    So what was I to do now?  The BDOS, perhaps quite properly, 
+will not let me erase the old AUXDICT.TXT.  How is FIXUP going to 
+work properly?
+         
+    I suppose I could add several new commands to the alias:
+
+(1)  Log on to the specific user area on which the old 
+     AUXDICT.TXT is located
+
+(2)  Erase it.
+
+(3)  Make the new XXPED.$$$ a public file.
+
+(4)  Rename it to AUXDICT.TXT
+         
+    How boring.
+    
+    Enter SETDRU.
+    
+    SETDRU is one of those good old classic CP/M utilities that 
+few people use anymore but were as valuable as a gold mine in 
+their heyday.  It does, as a standalone program, what an 
+operating system's public feature does generally.  It is used to 
+modify other COM files.  A program modified by SETDRU puts a 
+"filter" in high memory which then redirects all the program's 
+internal "calls" made to other, supplemental and subsidiary files 
+it may need for its operation -- overlays, other COM files, text 
+files, etc -- to specific, user-specified user numbers.  It is 
+perfect for our purposes.
+
+    But I had tried and failed, six or nine months ago, to get 
+SETDRU to work properly on Correct-It.  I had initially felt that 
+the extra step at the end of the ZRDOS alias that MOVEs 
+AUXDICT.TXT back to the public user area was inelegant and 
+unprofessional.  Computers shouldn't have to work like that.
+         
+    In order to get SETDRU to modify a file properly you must 
+provide it the name of each and every subsidiary file to which 
+the main program makes a call, and then specify the user number 
+to which you wish to redirect said call.  This is often difficult 
+to do.  A call can be either a "read" or a "write", and both must 
+be specified.  I remember nine months agao sitting and spending 
+two or three hours with Correct-It, tracing every operation and 
+guessing at when DINDEX.BIN is being invoked, when DICT.BIN is 
+being read, the exact order of invocation, etc.  After some time 
+I managed to get the whole shebang working successfully --- until 
+the time that FIXUP should have written the new learned words to 
+AUXDICT.TXT.  
+         
+    I just couldn't figure out how to get that right.  After 
+prompting me for "Name of auxiliary dictionary to write to?  " 
+I would enter 'AUXDICT.TXT' and the operation would abort; it 
+acted as if it were unable to find the file, even though I knew 
+it was there.  I knew that some call was being made, but I was 
+damned if I could find out what, who, when, where or how.
+         
+    I gave up.  I wrote the simple MOVE command line into the 
+alias and forgot about it.  
+    
+    Until last night, nine months later.
+
+    I figured: it must be XXPED.$$$.  That was the secret.  It 
+was the missing call.  I sat down, found my yellowed, dog-eared 
+notes from my SETDRU experience of those many moons ago, put my 
+programmer's cap back on and loaded up SETDRU one more time.  I 
+went through all the same call redirections I found on my paper, 
+but this time additionally redirected FIXUP to XXPED.$$$, and 
+specified the user number.  Exited SETDRU, turned off the public 
+file feature on all relevant files, called up my alias, and held 
+my breath.
+         
+    It worked like a charm.  CORRECT.COM found FIXUP, FIXUP found 
+DICT.BIN, and FIXUP finally did "find" AUXDICT.TXT.  Hard work, 
+study -- and learning from your errors -- does pay off.  Thank 
+you, my new friend, XXPED.$$$.
+
+                             * * *
+             
+    Here's how to do it:  put CORRECT.COM along your path and put 
+DINDEX.BIN, DICT.BIN, AUXDICT.TXT, and FIXUP.COM all in the same 
+directory.  I put mine in user 6.  Do NOT make them public files. 
+Then run SETDRU first on CORRECT.COM as follows and exactly in 
+this order:
+             
+Redirect call to DINDEX .BIN to user 6
+Redirect call to DICT   .BIN to user 6
+Redirect call to AUXDICT.TXT to user 6
+Redirect call to FIXUP  .COM to user 6
+
+Then run SETDRU on FIXUP.COM as follows:
+
+Redirect call to DINDEX .BIN to user 6
+Redirect call to AUXDICT.TXT to user 6
+Redirect call to XXPED  .$$$ to user 6
+Redirect call to AUXDICT.TXT to user 6
+
+I've left out several details of the entire alias for which you 
+should consult my CORRECT10.LBR but this takes care of the 
+crucial part.
+              
+    CORRECT-IT can finally be used with any BDOS, with or without 
+a provision for public files, and with or without an otherwise 
+valuable safety feature.
+
+    It _is_ rather ironic that in this age of modern operating 
+systems with public files and safety features I would rely on for 
+a solution deliberately overriding one of the modern features and 
+utilize instead something from the bad old days of the CP/M 
+yesteryear, but all sorts of things in life are ironic.
+
+    I thoroughly enjoyed this adventure in debugging.  Doing this 
+kind of work gives me a great deal of satisfaction.
+   
+    Happy CORRECT-ing...
+
+                                       - Rick Charnes
+
+I greatly solicit comments, suggestions and other assorted 
+hoots and catcalls regarding the above flights of fancy.  I can 
+be reached at Z-Node Central (Los Altos, CA), Ladera Z-Node (Los 
+Angeles), Newton Centre Z-Node (Boston), Lillipute Z-Node 
+(Chicago), or, God forbid, by voice at (415) 826-9448.  
+
+
+                         --==**==--
+

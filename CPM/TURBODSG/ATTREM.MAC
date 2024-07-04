@@ -1,0 +1,134 @@
+; ATTACH TO REMOTE DRIVERS VIA REMDRV
+;
+CR	EQU	0DH
+LF	EQU	0AH
+;
+.Z80
+;
+	CSEG
+;
+START:	LD	SP,STACK		; set up local stack
+	LD	A,(5DH)			; PORT A..P
+	CP	'A'			; CHECK!
+	JR	C,.FALP
+	CP	'Q'
+	JR	NC,.FALP
+	LD	(PORT1),A
+	LD	(PORT2),A
+	LD	(PORT3),A
+	LD	(PORT4),A
+	DEC	A
+	AND	0FH
+	LD	(PORT),A
+	LD	DE,QUIT			; set abort address
+	LD	C,8
+	CALL	50H
+	LD	C,33
+	LD	D,0FEH			; attach to com channel 1
+	LD	A,(PORT)
+	LD	B,A
+	CALL	50H
+	INC	A			; busy?
+	JR	Z,BUZI
+	INC	A
+	JR	NZ,LOCL1
+	LD	DE,EROR
+	JR	XX
+;
+.FALP:	LD	DE,FALP
+	JR	XX
+;
+BUZI:	LD	DE,BARF			; else quit with error message
+XX:	LD	C,9
+	CALL	5
+	RST	0
+;
+LOCL1:	LD	C,9
+	LD	DE,HOOKED		; display success message
+	CALL	5
+	LD	C,33
+	LD	D,0FCH			; set com channel 1 baud rate
+	LD	A,(PORT)
+	LD	B,A
+	LD	E,7			; 1200 baud
+	CALL	50H
+;
+; I/O loop
+;
+LOCL:	LD	C,6			; get keyboard char if there is one
+	LD	E,0FFH
+	CALL	5
+	OR	A			; got a character?
+	JR	NZ,ECHO			;   yes, echo it to remote
+;
+NOIN:	LD	C,33
+	LD	D,0FAH			; com channel 1 I/O
+	LD	A,(PORT)
+	LD	B,A			; set input-only
+	CALL	50H
+	OR	A			; check if any input chars
+	JR	Z,LOCL			;   no, get next keyboard char
+..OO:	LD	B,A			;     else display the input buffer
+	LD	HL,81H			;     starting at 81h, for A chars
+OLP:	LD	A,(HL)
+	PUSH	BC
+	PUSH	HL
+	CALL	ECHO1			; display the character
+	POP	HL
+	POP	BC
+	INC	HL
+	DJNZ	OLP
+	JR	LOCL
+;
+; echo a character to remote, read input buffer
+;
+ECHO:	LD	C,33
+	LD	E,A			; load character
+	LD	D,0FAH			; com channel 1 I/O request
+	LD	A,(PORT)
+	OR	80H
+	LD	B,A			; set output flag
+	CALL	50H
+	OR	A			; got any input?
+	JR	NZ,..OO			;   yes, join above loop
+	JR	LOCL			;     else go for next keyboard char
+;
+; echo a character to the console
+;
+ECHO1:	LD	E,A
+	LD	C,6
+	JP	5
+;
+; abort address - only way to exit
+;
+QUIT:	LD	D,0FDH			; request detach from com1
+	LD	A,(PORT)
+	LD	B,A
+	LD	C,33
+	CALL	50H
+	LD	C,9
+	LD	DE,UNHOOK		; display message
+	CALL	5
+	RST	0
+;
+	DSEG
+;
+PORT:	DB	0
+;
+BARF:	DB	0DH,0AH,0AH,7
+	DB	'ERROR: COM CHANNEL '
+PORT1:	DB	'1 IS BUSY',0DH,0AH,0AH,'$'
+EROR:	DB	0DH,0AH,0AH,7
+	DB	'ERROR: COM CHANNEL '
+PORT2:	DB	'1 DOES NOT EXIST',0DH,0AH,0AH,'$'
+HOOKED:	DB	0DH,0AH
+	DB	'CONNECTED TO COM CHANNEL '
+PORT3:	DB	'1 AT 1200 BAUD',0DH,0AH,'$'
+UNHOOK:	DB	0DH,0AH
+	DB	'DISCONNECTED FROM COM CHANNEL '
+PORT4:	DB	'1',0DH,0AH,0AH,'$'
+FALP:	DB	0DH,0AH,0AH,7
+	DB	'ERROR: ONLY PORTS A..P ALLOWED!',0DH,0AH,0AH,'$'
+	DS	40
+STACK	EQU	$
+	END

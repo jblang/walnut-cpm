@@ -1,0 +1,232 @@
+	title	"logoff program for tShell"
+;
+;	(c) 1985 S. Kluger. All Rights Reserved.
+;	history:
+;	12/15/85	initially written. complete except mail check.
+;
+.z80
+.request syslib
+;
+cr	equ	0dh
+lf	equ	0ah
+cfunc	equ	5
+tfunc	equ	50h
+;
+	dseg
+;
+	include	TSHELL.DEF
+;
+logfcb:	db	1,'TSHELL  LOG',0,0,0,0
+	ds	22
+actlog:
+	db	1ah
+actid:	ds	8			; activity log user id
+actdt:	ds	4			;   date/time
+actst:	ds	2			;   station
+act01:	db	0			;   on/off/bad flag (1/0/FF)
+actdu:	ds	2			;   drive/user
+actbp:	ds	8			;   bad password given
+	db	1ah,1ah,1ah,1ah,1ah,1ah	; filler
+;
+id:	db	'.tShell.'
+offset:	db	0
+	ds	80
+stack	equ	$
+;
+	cseg
+;
+start:	ld	sp,stack
+	ld	de,80h
+	ld	hl,id
+	ld	bc,8
+	ldir
+	ld	bc,41
+	ld	l,0
+	call	tfunc
+	ld	(offset),a		; save offset
+	or	a
+	jp	z,fatal			; fatal error if no USR FCN
+	ld	c,8
+	ld	de,abort
+	call	tfunc
+	ld	c,18
+	ld	de,0			; clear all stacked command lines
+	call	tfunc
+	ld	de,LCLID
+	ld	c,26
+	call	cfunc			; set dma
+	ld	bc,41
+	ld	l,0			; get user data
+	call	getoff
+	call	tfunc
+	ld	bc,41
+	ld	de,0ffffh
+	ld	l,4			; enable user 31 access
+	call	getoff
+	call	tfunc
+	ld	c,32
+	ld	e,0ffh			; get user area
+	call	cfunc
+	push	af			; save it for now
+	ld	c,32
+	ld	e,31
+	call	cfunc
+	ld	hl,LCLID		; move userid
+	ld	de,actid
+	ld	bc,8
+	ldir
+	ld	c,10			; get date/time
+	call	tfunc
+	ld	(actdt),hl
+	ld	(actdt+2),de
+	ld	c,12			; get station
+	call	cfunc
+	ld	(actst),de
+	xor	a
+	ld	(act01),a		; set logoff flag
+	ld	c,25
+	call	cfunc
+	ld	h,a			; set drive
+	pop	af
+	ld	l,a			; set user
+	ld	(actdu),hl
+	call	applog			; write if log enabled
+	ld	bc,41			; first log off tShell
+	ld	de,0ffffh
+	ld	l,2
+	call	getoff
+	call	tfunc
+	ld	c,14
+	ld	de,0ffffh
+	call	tfunc
+	ld	c,17
+	ld	e,0ffh
+	call	tfunc
+	call	print##
+	cr,lf,lf
+	'*** logged off ***',cr,lf,lf,0
+	rst	0
+;
+; append to activity log
+;
+applog:	ld	de,logfcb		; point to log
+	ld	c,35			; filesize
+	call	cfunc
+	or	a
+	ret	nz			; ignore file not found
+	ld	c,10
+	call	tfunc			; get date/time
+	ld	(actdt),hl
+	ld	(actdt+2),de
+	ld	c,12
+	call	cfunc			; get station
+	ld	(actst),de
+	ld	hl,(logfcb+33)
+	dec	hl
+	ld	(logfcb+33),hl		; decrement file pointer
+	ld	de,logfcb
+	call	openf			; open shared
+	ld	de,80h			; set defdma
+	ld	c,26
+	call	cfunc
+	ld	de,logfcb
+	call	rdsec			; read last sector
+	ld	hl,80h			; hl=pointer to def dma
+	ld	de,20h			; de=byte count
+..ckel:	ld	a,(hl)			; get byte
+	cp	0ffh			; endmark?
+	jr	z,.fe..			;   yes
+	add	hl,de
+	ld	a,l
+	or	a
+	jr	nz,..ckel		; try next entry
+	ld	hl,(logfcb+33)
+	inc	hl
+	ld	(logfcb+33),hl
+	ld	hl,80h			; set start of buffer
+	push	hl
+.zac.:	ld	(hl),0ffh		; blank buffer
+	inc	l
+	jr	nz,.zac.
+	pop	hl
+.fe..:	ld	de,actlog
+	ex	de,hl
+	ld	bc,32			; 32 bytes to be moved
+	ldir
+	ld	a,l			; see if end of buffer
+	or	a
+	jr	z,.eob.			; yes, skip
+	ld	(hl),0ffh		;   else set endmark
+.eob.:	ld	de,logfcb
+	call	wrsec			; write the sector
+	ld	de,logfcb
+	ld	c,16
+	jp	cfunc			; close and exit
+;
+; open file with lock
+;
+openf:	ld	hl,5			; point to shared flag
+	add	hl,de
+	ld	a,80h
+	or	(hl)
+	ld	(hl),a			; set shared flag
+	push	de
+	ld	c,15
+	call	cfunc
+	pop	de
+	ld	hl,32
+	add	hl,de
+	ld	(hl),0
+	or	a
+	ret	z			; file is now open
+	jr	openf			; else loop since we know file exists
+;
+; read a sector - enter with hl = sector, de = fcb
+;
+rdsec:	call	loksec			; lock sector
+	push	de
+	ld	c,33			; read
+	call	cfunc
+	or	a			; set error flag
+	jr	fresec			; free sector
+;
+; write a sector - enter with hl = sector, de=fcb
+;
+wrsec:	call	loksec			; lock sector
+	push	de			; save fcb
+	ld	c,34			; write
+	call	cfunc
+	or	a			; set error flag
+;
+; free current file sector
+;
+fresec:	pop	de
+	push	af
+	ld	c,43
+	call	cfunc
+	pop	af
+	ret
+;
+; lock current file sector
+;
+loksec:	push	de			; save fcb pointer
+	ld	c,42			; attempt lock
+	call	cfunc
+	pop	de
+	cp	8			; locked already?
+	jr	z,loksec		;   yes, loop
+abort:	ret
+;
+getoff:	ld	a,(offset)
+	add	a,l
+	ld	l,a
+	ret
+;
+fatal:	call	print##
+	cr,lf,lf,7
+	'ERROR: tShell not installed',cr,lf,lf,0
+	rst	0
+;
+	end
+
+d

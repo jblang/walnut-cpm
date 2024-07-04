@@ -1,0 +1,93 @@
+Date:         24 January, 1987
+
+From:         Lee D. Rimar
+
+To:           Programmers and Users of programs listed in this note
+
+Subject:      SQueeze, CRunch & UNSQueeze, UNCRunch utilities
+
+
+    If you're just viewing this text with some kind of crunched file
+handler like LT, VLU, or others, you shouldn't notice anything strange
+about it.
+
+    But try to use LT or VLU to extract TO DISK the original, uncrunched
+file, and you're in for a nasty surprise.
+
+    This file was set to READ-ONLY before it was crunched.  The resulting
+file is not read-only -- but inside the crunched file header, the $R/O
+attribute is still set.
+
+    When LT or VLU try to uncrunch a file like this, the first thing
+they do is create an empty directory entry for it.  They get the
+original file name out of the crunched file header (containing the
+original file attributes, remember?).  So they create an empty read-only
+file, then abort (BDOS error on d: File $R/O) from trying to put the
+uncrunched data into it.
+
+    I have a hunch this problem has existed as long as these programs
+have, but it's an obscure detail few people notice.  I tested several
+combinations of crunchers and uncrunchers, with varying results.  Here's
+what happens when you compress files with:
+
+
+    NSWP v2.07 (Huffman SQueeze only):  If original file was $R/O,
+    resulting file will be also.  Other attributes ($SYS, $ARC) are
+    not carried over to resulting filename.  However, the compressed
+    file header does maintain ALL the attributes of the original
+    filename.
+
+    CRUNCH v2.4 (LZW CRunch only):  Resulting filenames have no
+    attributes set.  The compressed file header maintains all
+    attributes of original filename.
+
+    VLU v1.02 (LZW CRunch only):  Resulting filenames have no
+    attributes set.  The compressed file header maintains all
+    attributes of original filename.
+
+
+    Okay, so now you have a compressed file that may or may not be read-
+only, but will definitely contain a header with any original attributes.
+So when you try to uncompress it:
+
+
+    NSWP v2.07 (extracts Huffman SQueezed files only):  All original
+    attributes are restored to extracted filename.  No problem.
+
+    UNCR v2.4 (extracts LZW CRunched only):  Original attributes are
+    stripped from extracted filename.  No problem unless you had
+    wanted to keep them.
+
+    NULU v1.51 (extracts Huffman Squeezed files from LBRs):  Same
+    results as UNCR.
+
+    LT v2.3 (extract Huffman SQueezed and LZW CRunched, from disk
+    files or LBRs):  Attempts to restore all original attributes to
+    extracted filename.  But if one of those attributes is $R/O,
+    program will be stopped by a BDOS error as noted above.
+
+    VLU v1.02 (extract Huffman SQueezed and LZW CRunched, from disk
+    files or LBRs):  Same results as LT.
+
+
+    Observations and summary:  If you're dealing strictly with the $SYS
+and $ARC file attributes, maintaining them in compressed files is
+somewhat interesting and possibly useful.  However, the poor handling of
+the $R/O attribute by some uncrunch programs might be a minor irritation.
+
+    Without editorializing too much, Dave Rand's "NSWP" program is
+limited becuase it can't manipulate CRunched or LBR files.  But taking
+its age into account (last CP/M version was 2.07, dated 7-13-1984), few
+of the newer "more powerful" programs intended to replace it can match
+its overall functionality, ease of use, and well thought out design.
+Interestingly, NSWP is one easiest programs available to let you set,
+reset, and display the file attributes under discussion here.
+
+    Relating back to the subject of this file:  New programs aren't as
+useful if new features are poorly implemented, or added at the expense
+of old ones..  Ideally, any SQ/CR, UNSQ/UNCR programs should follow the
+example of NSWP, which showed the highest degree of "respect" for file
+attributes of any program tested.
+
+-eof-
+

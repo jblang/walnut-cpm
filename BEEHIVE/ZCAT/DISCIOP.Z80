@@ -1,0 +1,249 @@
+; DISCIOP.Z80
+;
+;	You can use this to implement an iop recorder that will
+;	record all console output to disc.
+;	You can take one of the sample iop's that are available
+;	and with just a little butchering end up with a console
+;	recorder iop.
+;	** Be sure to set the high order
+;	bit in the iop's id byte.** 
+;	The 5 equates at the beginning of the code block should
+;	be modified as required to be compatible with the code
+;	you are already using.
+;	i.e. aiobyte should be changed, along with any references
+;	made to it, to whatever your program calls the address
+;	of iobyte.
+;	bel, bdos, eof, and iops should already be defined in
+;	your code. If not, fix this code to be compatible.
+;
+;	This module attempts to first delete, and then create a
+;	file named RECORDER.  When recording is turned on, the
+;	recorder file will be opened on the current default disc
+;	at creation time.
+;
+;	Once recording is on, selecting con device 3 allows
+;	recording.  After that, as long as con device 3 is
+;	selected, all console output will be sent to disc.
+;
+;	Selecting a con device other than 3 will stop output
+;	into the RECORDER file.
+;
+;	Using record to set recording off will the close the
+;	file.
+;
+;	Now for the bad news.......
+;	there is little (and i mean none) error checking in
+;	this code.  I suggest that you add in some.
+;
+;	This code segment, which includes, an fcb, a 147 byte
+;	dos parameter save area, a 128 byte disc buffer, and
+;	a whopping 20 byte stack occupies 659 bytes. I admit
+;	that this is rather tubby.  Feel free to shrink this
+;	further.
+;
+;	THIS IS NOT MEANT TO BE A COMPLETE PACKAGE!
+;	IT IS MEANT TO SERVE AS AN EXAMPLE. I HAVE YET TO SEE
+;	ON ANY OF THE Z-NODES ANY EXAMPLES OF RECORDING
+;	TECHNIQUES. LET ALONE ANY GOOD DOCUMENTATION ON HOW
+;	TO IMPLEMENT IT. (not that this represents good
+;	documentation)
+;
+;	It shouldnt be too much of a problem to fit this into
+;	your iop, at least you get a shot of seeing how its
+;	done. 
+;
+;	This file was assembled with zas 2.4
+;
+;	You can message me on the 24th street exchange
+;	in sacramento calif 916 451 7179
+;	by the way my name is
+;      jeff herr
+;
+VERSION EQU 00		;DATE OF REV 08/30/86		TIME OF REV 10:37:23P  
+;........................disc support............................
+	ext	print	;should be somewhere in your iop code too.
+;
+bel	equ	7
+bdos	equ	5
+eof	equ	1ah
+iops	equ	12
+aiobyte	equ	3		;location of iobyte
+;
+copen
+	ld	hl,(0006)	;location of dos entry
+	ld	de,5		;offset into dos buffers
+	add	hl,de
+	ld	(dosadd),hl
+	ld	hl,initarea
+	ld	b,endinit-initarea
+	ld	a,(iopflg)
+	or	a
+	jr	z,ccopen
+	call	print
+	db	bel,' [ALREADY ON]  ',0
+	ret
+ccopen
+	ld	(hl),a
+	inc	hl
+	djnz	ccopen
+
+
+	ld	c,25		;get current disc
+	call	bdos		;will use until next open
+	inc	a		;make it compatable
+	ld	(iopfcb),a	;and place in drivecode byte of fcb
+	ld	de,iopfcb
+	ld	c,19		;see if u can delete it
+	call	bdos
+	ld	de,iopfcb
+	ld	c,22		;create
+	call	bdos
+	CP	0ffh
+	jr	nz,openok
+	call	print
+	db	bel,'create failure',0
+	ret
+openok
+	ld	e,0ffh
+	ld	c,32		;<---get user
+	call	bdos
+	ld	(ouruser),a
+	ld	hl,iopflg
+	ld	(hl),0ffh	;file is marked open
+	inc	hl		;bump ptr
+	LD	(HL),128	;set to empty buffer
+	ld	hl,iopbuf
+	ld	(iopptr),hl
+	ret
+;
+cclose
+	ld	a,(iopflg)
+	or	a
+	jr	nz,ccclose
+	call	print
+	db	bel,' [ALREADY OFF]  ',0
+	ret
+
+ccclose
+	ld	a,eof
+	ld	(closeflg),a
+	call	bytewrite
+	ld	a,(closeflg)
+	or	a
+	jr	nz,ccclose
+	ld	(iopflg),a
+	ret
+;
+conrecord
+	ld	a,(aiobyte)
+	and	3		;mask all but con: bits
+	cp	3		;check if device 3
+	ret	nz		;if dev not = 3 quit
+	ld	a,(iopflg)	;if record file already open..
+	or	a		;..open=not zero..
+	ret	z		;..then quit
+
+	ld	(ostack),sp	;now were gonna do it
+	ld	sp,stack	;well use about 10 stack entries
+	push	af
+	push	bc
+	push	de
+	push	hl
+	ld	a,c
+	call	bytewrite
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ld	sp,(ostack)
+	ret
+;
+bytewrite
+	ld	hl,(iopptr)	;get the pointer
+	ld	(hl),a		;stash data byte
+	inc	hl		;bump to next output byte
+	ld	(iopptr),hl	;stash it
+	ld	a,(iopcnt)	;get adrs of count
+	dec 	a
+	ld	(iopcnt),a	;bump it
+	ret	nz
+
+;here is the write operation. simple block write.
+
+	ld	a,128
+	ld	(iopcnt),a	;set for next time
+	ld	hl,iopbuf	;
+	ld	(iopptr),hl	;set pointer for next time
+
+	ld	hl,(dosadd)	;get pointer to dos
+	ld	de,savbuf	;get pointer to save loc
+	ld	bc,147		;set cnt
+	ldir			;save dos buffers for reentrant ops
+
+	ld	c,47		;<---return dma adrs
+	call	bdos		
+	ld	(dosptr),hl	;stash 
+
+	ld	de,iopbuf
+	ld	c,26		;<---set dma adrs for our ops
+	call	bdos
+
+	ld	a,(ouruser)
+	ld	e,a
+	ld	c,32		;<---set user for our ops
+	call	bdos
+
+	ld	de,iopfcb
+	ld	c,21		;<---write
+	call	bdos
+
+	ld	a,(closeflg)
+	or	a
+	jr	z,noclose
+
+	xor	a
+	ld	(closeflg),a
+	ld	de,iopfcb
+	ld	c,16		;<---close the file if cclose set the flag
+	call	bdos
+	
+noclose
+	ld	de,(dosptr)
+	ld	c,26		;<---restore the old dma adrs
+	call	bdos
+
+	ld	de,(dosadd)
+	ld	hl,savbuf
+	ld	bc,147
+	ldir
+
+	ret
+;
+iopflg	db	0		;Output file opened flag (z=no)
+iopcnt	db	0		;Output char count
+iopptr	dw	iopbuf		;Output char ptr
+iopfcb	db	0
+	db	'RECORDER   '
+initarea
+	ds	24,version
+closeflg
+	db	0
+iopbuf	ds	128,version
+endinit
+dosadd	dw	0	
+dosptr	dw	0
+ouruser	db	0
+	ds	20,version
+stack	dw	0
+ostack	dw	0
+savbuf	ds	147,version
+;	ds	iops*128-$,version
+
+	if $ gt iops*128
+hoser hoser hoser to large
+	endif
+;
+	end
+ostack	dw	0
+savbuf	ds	147,version
+;	ds	iops*

@@ -1,0 +1,127 @@
+Date: Saturday, 2 February 1985  19:10-MST
+From: Ruben Ramirez-Mitchell <ruben@ut-ngp.uucp>
+To:   net.micro.cpm
+Re:   Example of simple Microshell script.
+
+Somebody asked me for an example of microshell scripts, the following
+includes a few of the commands and does not make use of any of the
+microtools.  What I needed is a script to make the output of 'SD
+$SDALNP' more readable.  I needed to set the printer margins,etc; form
+feed in between drive listings, I wanted the date, and the option to
+specify system and library files.
+
+I 'FILTER'ed the file to eliminate control chars (like ESC G4, ESC G8,
+ESC [ 1;96s, etc I use for my Televideo 950 and Qantex printer).
+
+The script is in a file called 'hdisk.shl' and it is invoked by the
+name 'hdisk <parameters>'
+ 
+:--------------------------------------------------------------------
+:  PROGRAM      hdisk 
+:  USAGE        hdisk [options]
+:               <option>: <all| d1 [d2 [d3 [d4]]]>
+:  DESCRIPTION  Print hard disk directories using 'SD' with parameters
+:	  		'$APN' (all users, print, no pause)
+:  EXAMPLES     hdisk all
+:               hdisk b a d
+:----------------------------------------------------------------------
+%B$ = "" 
+%#args %A
+  %if %A LT 1 then goto help
+%printdir
+   %erase
+   %print 
+   %print "               G4  ----HARD DISK DIRECTORY-----G0 "
+   %print "               G4        ALL USER AREAS        G0 "
+   %print ;%print	
+   %print  "                  G4 FILE SPECIFICATION  G0 "
+   %print  "                  G8    <CR> for '*.*'   G0 "
+   %print  "                  G8   (e.g. asm*.?q?)   G0 "
+   %print  "                  G8                     G0 "
+   %print
+   %print -n  "                  G8 FILES: G0 "
+   %getstr %E$ <con: ;   %upcase %E$
+   %if %E$ NE ""  then goto checksys ;  %E$ = "*.* "
+%checksys
+   %print; %print
+   %print -n "                  G8 SYSTEM FILES (Y/N): G0 "
+   %getstr %8 <con: ;   %upcase %8
+   %if %8 = "Y" then goto setsys 
+   %8 = ""
+%checklib
+   %print; %print
+   %print -n "                  G8 LIBRARY FILES (Y/N): G0 "
+   %getstr %9 <con: ;   %upcase %9
+   %if %9 = "Y" then goto setlib
+   %9 = ""
+%checkdate
+   %print; %print
+   %print -n "                  G8 DATE: G0 "
+   %getstr %B$ <con: ;  %upcase %B$
+:  BUILD PARAMETER LIST FOR SD.COM
+    %D$ = " $ANP"
+    %D$ = %D$ + %8 + %9
+    %15 = %E$
+: CHECK IF ALL DRIVES SPECIFIED
+    %C$ = %1
+    %upcase %C$
+    %if %C$ = "ALL" then goto alldisks
+: MESSAGE BEFORE PRINTING
+    %print; %print
+    %print "                  G4   Turn Printer ON LINE G0"
+    %print "                  G4    SET to TOP-OF-FORM  G0"
+    %print; %print
+    %print -n "                  G8   Press any key to continue: G0 "
+    %getchr %A$ <con:; %erase; %print
+: RESET QUANTEX PRINTER TO DEFAULTS
+:   / LEFT MARGIN 8 / TOP_MARGIN 5 / BOTTOM_MARGIN 6 + PADDING
+    %P$ = " [5;60r   [8;96s      "
+    %print -n %P$  > lst:;   %print >lst:
+: PRINT HEADING AND DATE
+    %print "                ====   Q540 - HARD DISK DIRECTORY  ======">lst:
+    %print -n  "                             "  >lst:
+    %print %B$ >lst: ;  %print > lst:
+: PRINT DIRECTORY WITH THE SELECTED OPTIONS  
+%loop
+    %15 = %E$ + %D$   
+    SD $1:$15 
+    %print "" > lst:
+    %shift
+    %A = %A - 1
+    %if %A GT 0 then goto loop
+    %erase
+    %print
+    %print "           G4   ---HARD DISK DIRECTORIES PRINTED----   G0"
+: RESET THE PRINTER TO DEFAULTS
+    %print -n "c" > lst:
+    %exit
+%alldisks
+    %A = 5
+    %1=A  ; %2=B ; %3=C ; %4=D ; %5=E
+    %goto loop
+%help
+    %erase
+    %print
+    %print "  NAME:        hdisk      
+    %print
+    %print "  DESCRIPTION: Print contents of hard disk, all user"
+    %print "               areas. Prompts for a) a file mask, b) "
+    %print "               the inclusion of system and library "
+    %print "               files and c) for the current date    "
+    %print 
+    %print "  USAGE:       Hdisk [<option>]"
+    %print "               <option>: 'all' | d1 [d2 [d3 [d4]]]"
+    %print 
+    %print "  EXAMPLES:    hdisk all"
+    %print "               hdisk d a c"
+    %print 
+    %print "  NOTES:       Drives scanned under the 'all' option:"
+    %print "               A:, B:, C:, D:, and E: "
+    %print 
+    %exit
+%setsys
+    %8 = "S"
+    %goto checklib
+%setlib
+    %9 = "L"
+    %goto checkdate

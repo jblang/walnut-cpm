@@ -1,0 +1,28 @@
+^.
+^#
+^<^|
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;^|
+;                                                                      ;^|
+;     ZASLINK.ZEX -- Z-System ZAS Macro Assembler and ZLINK Linker     ;^|
+;                    with ZAS error checking.                          ;^|
+;                                                                      ;^|
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;^|
+^>
+^&
+if ~exist $1.Z80    ;note if file does not exist^|
+  ECHO ^G                       *** $1.Z80 NOT FOUND ***^|
+else^|
+  ZAS $1^|
+  if ~er            ;note if no assembly errors^|
+    ERA $1.COM^|
+    ZLINK $1,A:PDMLIB/,A:GRWLIB/,A:GRXLIB/,A:VLIB/,A:Z3LIB/,A:SYSLIB/ $$C100^|
+    ERA $1.REL^|
+    ERA $1.BAK^|
+    Z3INS A15:SYS $1.COM^|
+    ECHO --                          ZASLINK COMPLETE^|
+  else^|
+      ECHO ^G             *** FATAL ERROR IN ASSEMBLY, ZASLINK ABORTED ***^|
+  fi               ;note if ~er^|
+fi                 ;note if ~exist^|
+^#
+

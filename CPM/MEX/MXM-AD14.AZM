@@ -1,0 +1,923 @@
+*HEADING	MXM-AD14.AZM MEX overlay for ADAM home computers
+	LIST	A
+	LIST	B
+	LIST 	G
+	LIST	X
+;
+;	ADAMEX OVERLAY WITH AUTO-DIAL,CARRIER DETECTION (WITH RETURN TO
+;	MEX COMMAND MODE ON LOSS OF CARRIER IN TERMINAL MODE.)
+;	SET COMMAND PROCESSOR INCLUDES SET ANS, SET ORG, SET ON, SET
+;	BC?(5,6,7,OR 8), SET SB?(1,1.5,2), SET NPA,OPA,EPA(PARITY),
+;	SET SCRN30,SETS SCREEN WIDTH TO 30, SET SCRN80, SET WAIT ??(5-
+;	50 IN 5 SECOND STEPS) SETS WAITING TIME FOR CALL AND DIAL TO
+;	WAIT FOR A CARRIER.
+;	Written by Bruce T. Lytle (c) 1985
+;	Released for Public Domain use only
+;	12-3-1985
+;----------------------------------------------------------------------
+;Misc. EQU's
+;----------------------------------------------------------------------
+NO	EQU	0
+YES	EQU	0FFH
+TPA	EQU	100H
+CR	EQU	13
+LF	EQU	10
+TAB	EQU	9
+CCLS	EQU	0CH
+CEOS	EQU	0BH
+CCP	EQU	0006H
+;
+;----------------------------------------------------------------------
+; ADAM modem port EQU's
+;----------------------------------------------------------------------
+MODCTL	EQU	05FH	;modem control port
+MODDAT	EQU	05EH	;modem data port
+;----------------------------------------------------------------------
+;
+NULL	EQU	080H
+STPB1	EQU	040H	; 1 stop bit
+STPB15	EQU	080H	; 1.5 stop bits
+STPB2	EQU	0C0H	; 2 stop bits
+BITS5	EQU	000H	; 5 bits/char.
+BITS6	EQU	004H	; 6 bits/char.
+BITS7	EQU	008H	; 7 bits/char.
+BITS8	EQU	00CH	; 8 bits/char.
+EP	EQU	020H	; 1=even parity,0=odd
+PEN	EQU	010H	; 1=enable parity,0=disable
+NO_PAR	EQU	00H
+EVNPAR	EQU	30H
+ODDPAR	EQU	10H
+X64	EQU	003H	; 64x clock rate=300 baud
+DEFAULT	EQU	STPB1+BITS8	;8 BITS/CHAR., 1 STOP BIT, NOPAR
+EHM	EQU	080H	; 1=Enter Hunt Mode
+IR	EQU	040H	; Internal Reset
+RTS	EQU	020H	; set RTS to 0, enable xmitter
+ER	EQU	010H	; reset ERror conditions
+SBRK	EQU	008H	; Send BReaK [TXD goes 'low']
+RXE	EQU	004H	; Receive Enable
+TXE	EQU	001H	; Transmit Enable
+DTR	EQU	002H	; set DTR to 0, seize phone line
+;
+;----------------------------------------------------------------------
+; STATUS BIT EQUATES
+;----------------------------------------------------------------------
+;
+TXRDY	EQU	0	; indicates transmitter empty
+RXRDY	EQU	1	; indicates valid character ready
+TXMT	EQU	2	; indicates buffer empty
+P_ERR	EQU	3	; set when parity error detected
+OE	EQU	4	; set on overrun error
+FE	EQU	5	; set on framing error
+BD	EQU	6	; set when breack detected
+DSR	EQU	7	; indicates carrier detect
+CD	EQU	DSR	; CARRIER DETECT
+;
+;
+; MEX processor stuff..... MEX has a service processor much like CP/M
+; to handle files, etc. anytime you would call a BDOS function you 
+; should call MEX instead.  The following EQUATES point to the MEX
+; (BDOS) function you need to use in your program(overlay).
+;
+;
+MEX	EQU	0D00H		; address of service processor
+INMDM	EQU	255		; get char from port to A
+TIMER	EQU	254		; delay 100ms * reg B
+TMDINP	EQU	253		; B=# sec to wait for char, cy=no char
+CHEKCC	EQU	252		; check for ^C from KBD, Z=present
+SNDRDY	EQU	251		; test for modem send ready
+RCVRDY	EQU	250		; test for modem receive ready
+SNDCHR	EQU	249		; send a character to the modem (after
+				; sndrdy)
+RCVCHR	EQU	248		; recv a char from modem (after rcvrdy)
+LOOKUP	EQU	247		; table search
+PARSFN	EQU	246		; parse filename from input stream
+BDPARS	EQU	245		; parse baudrate form input stream
+SBLANK	EQU	244		; scan input stream to mext non-blank
+EVALA	EQU	243		; evaluate numeric from input stream
+LKAHED	EQU	242		; get next char w/o removing form input
+GNC	EQU	241		; get char from input, cy=1 if none
+ILP	EQU	240		; inline print
+DECOUT	EQU	239		; decimal output
+PRBAUD	EQU	238		; print baud-rate
+;
+;
+CONOUT	EQU	2		; simulated BDOS function 2
+PRINT	EQU	9		; simulated BDOS function 9
+INBUF	EQU	10		; input buffer see BDOS 10
+;
+;
+	ORG	100H		; here we go finally!
+;
+;
+	DS	3		; MEX jump start
+PMODEM:	DB	NO
+SMODEM:	DB	NO
+TPULSE:	DB	'P'
+CLOCK:	DB	37
+MSPEED:	DB	1
+BYTDLY:	DB	5
+CRDLY:	DB	5
+COLUMS:	DB	2
+SETFL:	DB	YES		;SET commands implemented
+SCRTST:	DB	YES		;cursor controls added
+	DB	0
+BAKFLG:	DB	NO
+CRCDFL:	DB	YES
+TOGCRC:	DB	YES
+CVTBS:	DB	NO
+TOGLBK:	DB	NO
+ADDLF:	DB	NO
+TOGLF:	DB	YES
+TRNLOG:	DB	NO
+SAVCCP:	DB	YES
+LOCNXT:	DB	NO
+TOGLOC:	DB	YES
+LSTTST:	DB	YES
+XOFTST:	DB	YES
+XONWT:	DB	YES
+TOGXOF:	DB	YES
+IGNCTL:	DB	YES
+EXTRA1:	DB	0
+EXTRA2:	DB	0
+BRKCHR:	DB	('@'-40H)
+NOCONN:	DB	('N'-40H)
+LOGCHR:	DB	('L'-40H)
+LSTCHR:	DB	('P'-40H)
+UNSVCH:	DB	('R'-40H)
+TRNCHR:	DB	('T'-40H)
+SAVCHR:	DB	('Y'-40H)
+EXTCHR:	DB	('^'-40H)
+	DB	0
+	DB	0
+INCTL:	JP	IN_URT
+	DS	7
+;
+OTDATA:	OUT	(MODDAT),A
+	RET
+	DS	7
+;
+INPORT:	IN	A,(MODDAT)
+	RET
+	DS	7
+;
+MASKR:	AND	2
+	RET
+;
+TESTR:	CP	2
+	RET
+;
+MASKS:	AND	1
+	RET
+;
+TESTS:	CP	1
+	RET
+	DS	12
+***********************************************************************
+*                        JUMP TABLE                                   *
+***********************************************************************
+;
+LOGON:	DS	2
+DIALV:	JP	PDIAL
+DISCV:	JP	HANGUP
+GOODBV:	JP	DUMMY
+INMODV:	JP	NITMOD
+NEWBDV:	DS 	3
+NOPARV:	RET
+	NOP
+	NOP
+PARITV:	RET
+	NOP
+	NOP
+SETUPV:	JP	SETCMD
+SPMENV:	DS	3
+VERSNV:	JP	SYSVER
+BREAKV:	JP	PBREAK
+	DS	18
+CLREOS:	LD	DE,EOSMSG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+CLS:	LD	DE,CLSMSG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+;
+***********************************************************************
+*                   END OF FIXED AREA !!!                             *
+***********************************************************************
+;At NITMOD insert any subroutine you want run at start-up.
+NITMOD:	CALL	STSCR3
+	LD	A,IR
+	OUT	(MODCTL),A
+	OUT	(MODCTL),A
+CHGMOD:	OUT	(MODCTL),A
+	LD	A,(MODEWD)
+	OUT	(MODCTL),A
+	LD	A,(CMDWRD)
+	OUT	(MODCTL),A
+	AND	RTS
+	RET	NZ
+	LD	A,RXE+TXE+RTS+DTR
+	OUT	(MODCTL),A
+	LD	A,RXE+TXE+DTR
+	OUT	(MODCTL),A
+	LD	A,RXE+TXE+RTS+DTR
+	OUT	(MODCTL),A
+	RET
+CMDWRD:	DB	RXE+TXE+RTS
+MODEWD:	DB	DEFAULT+X64
+CARTMW:	DB	96H
+;
+FRINT:	LD	C,PRINT
+	CALL	MEX
+	RET
+;
+PBREAK:	PUSH	AF
+	PUSH	BC
+	LD	A,03FH	;break mask
+	OUT	(MODCTL),A
+	LD	B,3
+	LD	C,TIMER
+	CALL	MEX
+	LD	A,037H
+	OUT	(MODCTL),A
+	POP	BC
+	POP	AF
+	RET
+;
+DUMMY:	CALL	STSCR8
+	LD	A,IR
+	OUT	(MODCTL),A
+	LD	A,0
+	OUT	(MODCTL),A	;SHUT IT DOWN!
+	LD	HL,(CCP)
+	JP	(HL)
+;
+SYSVER:	LD	DE,VERMSG
+	CALL	FRINT
+	JP	STSHOW
+;
+**************************
+*    DIALING ROUTINES    *
+**************************
+;
+DELAY:	PUSH	BC
+	LD	HL,8000H
+	LD	DE,8000H
+	LD	BC,1594
+	LDIR
+	POP	BC
+	DJNZ	DELAY
+	RET
+;
+;
+PDIAL:	CP	254
+	JR	Z,STDIAL
+	CP	255
+	JR	Z,ENDIAL
+DIAL:	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+;
+	CP	'P'
+	JR	Z,PAUSE
+	CP	'p'
+	JR	Z,PAUSE
+	CP	','
+	JR	Z,PAUSE
+	CP	'9'+1
+	JR	NC,BAD_DGT
+	CP	'0'
+	JR	C,BAD_DGT
+	JR	NZ,CHAR_OK
+	LD	A,'9'+1
+CHAR_OK:
+	SUB	'0'
+	LD	B,A
+	CALL	RNGBELL
+PLSE_LP:
+	LD	A,RXE+TXE+RTS
+	OUT	(MODCTL),A
+	PUSH	BC
+	LD	B,6
+PLP1:	CALL	DELAY
+	POP	BC
+	LD	A,RXE+TXE+RTS+DTR
+	OUT	(MODCTL),A
+	PUSH	BC
+	LD	B,4
+PLP2:	CALL	DELAY
+	POP	BC
+; NEXT PULSE
+;
+	DJNZ	PLSE_LP
+	LD	(CMDWRD),A
+PAUSE:
+	LD	B,80
+	CALL	DELAY
+BAD_DGT:
+	POP	HL
+	POP	DE
+	POP	BC
+	POP	AF
+	RET
+STDIAL:	LD	A,0
+	CALL	SEIZE
+	LD	B,30
+	LD	C,TIMER
+	CALL	MEX
+	RET
+;
+ENDIAL:	LD	A,(CARTMW)
+	LD	D,A
+WAIT:	LD	B,2
+	LD	C,TIMER
+	CALL	MEX
+	CALL	CD_STAT
+	JR	NZ,LINKUP
+	CALL	U_STAT
+	JR	C,ERABRT
+	LD	C,CHEKCC
+	CALL	MEX
+	JR	Z,ABORT
+	DEC	D
+	JR	NZ,WAIT
+	CALL	HANGUP
+	LD	A,2
+	RET
+;
+;
+ABORT:	CALL	HANGUP
+	LD	A,3
+	RET
+;
+;
+LINKUP:
+	LD	A,0
+	RET
+;
+;
+ERABRT:	CALL	HANGUP
+	LD	A,4
+	RET
+;
+;
+RNGBELL:
+	PUSH	AF
+	PUSH	BC
+	LD	E,07H
+	LD	C,CONOUT
+	CALL	MEX
+	POP	BC
+	POP	AF
+	RET
+;
+; CARRIER STATUS
+; 	EXIT:	NZ=CARRIER DETECT
+;		 Z=NO CARRIER
+CD_STA:	IN	A,(MODCTL)
+	BIT	DSR,A
+	RET
+;
+U_STAT:	IN	A,(MODCTL)
+	OR	A
+	JR	URT_CM
+URTERR:	SCF
+URT_CM:	BIT	RXRDY,A
+	RET
+;
+;
+IN_URT:	CALL	CD_STA
+	JR	Z,LOSCAR
+	IN	A,(MODCTL)
+	RET
+;
+;
+;	LOST CARRIER
+;	prints "LOST CARRIER" message
+;	and then attempts to get back to MEX
+LOSCAR:	LD	DE,LOSCAM
+	CALL	FRINT
+	CALL	HANGUP
+	LD	A,24H
+	JP	0FF0H
+;
+;
+***********************
+*   Seize Line        *
+***********************
+;
+; Entry: A=0 for Originate mode
+;        A=0FFH for Answer mode
+; Exit:  Carrier is enabled
+;        Registers A & C get trashed
+SEIZE:	LD	C,A	;save
+	LD	A,RXE+TXE+RTS+DTR
+	LD	(CMDWRD),A
+	OUT	(MODCTL),A
+	LD	A,C
+	OR	A
+	RET	Z	;all done
+***********************************************************
+;
+;ANSWER_MODE
+;switches modem directly to answer mode
+;assumes modem off-hook
+;*******EXIT:	REG. A TRASHED
+ANSMOD:	LD	A,RXE+TXE+DTR
+	LD	(CMDWRD),A
+	OUT	(MODCTL),A
+	LD	A,RXE+TXE+RTS+DTR
+	OUT	(MODCTL),A
+	RET
+***********************************************************
+;
+;
+HANGUP:			;trashes reg. A
+	LD	A,RXE+TXE+RTS
+	LD	(CMDWRD),A
+	OUT	(MODCTL),A
+	RET
+***********************************************************************
+;
+;SET COMMANDS:
+;-------------
+;
+;SET this displays modem parameters (parity, bits/char., # of stop bit
+;s, originate/answer mode, and present carrier status
+;
+;SET ? or SET HELP  this displays valid command extensions
+;
+;SET ANS this seizes the phone line in answer mode
+;
+;SET ON  this seizes the phone line in originate mode
+;
+;SET ORG this switches to originate mode but does not seize the phone line
+;note SET ans,on, OR org forces disconnect
+;
+;SET SB1  1 stop bit
+;SET SB15  1.5 stop bits
+;SET SB2   2 stop bits
+;
+;SET NPA	no parity
+;SET OPA	odd parity
+;SET EPA	even parity
+;
+;SET BC5	5 bits/char.
+;SET BC6	6 bits/char.
+;SET BC7	7 bits/char.
+;SET BC8	8 bits/char.
+;
+;SET SCRN30   	set screen width to 30 char./line
+;SET SCRN80	set screen width to 80 char./line
+;
+;SET WAIT __	set time to wait for carrier (5 sec. increments.
+***********************************************************************
+SETCMD:	LD	C,SBLANK
+	CALL	MEX
+	JR	C,STSHOW
+	LD	DE,CMDTBL
+	LD	C,LOOKUP
+	CALL	MEX
+	PUSH	HL
+	RET	NC
+	POP	HL
+STERR:
+	LD	DE,STERRM
+	CALL	FRINT
+	RET
+;
+STSHOW:
+	CALL	SETSRT
+	CALL	MODESW
+	CALL	PASHOW
+	CALL	BCSHOW
+	CALL	SBSHOW
+	CALL	CARSHW
+	CALL	WTSHOW
+	RET
+;
+SETSRT:	LD	DE,ST_MSG
+	CALL	FRINT
+	RET
+;
+MODESW:
+	LD	DE,MODMSG
+	CALL	FRINT
+	LD	A,(CMDWRD)
+	AND	RTS
+	JR	Z,A_MODE
+	LD	DE,ORGMSG
+	JR	MODE_R
+A_MODE:	LD	DE,ANSMSG
+MODE_R:	CALL	FRINT
+	RET
+;
+BCSHOW:
+	LD	DE,ST1MSG
+	CALL	FRINT
+	LD	A,(MODEWD)
+	AND	0CH
+	CP	BITS8
+	JR	NZ,TRY_7
+	LD	E,'8'
+	JR	BC_NUM
+TRY_7:	CP	BITS7
+	JR	NZ,TRY_6
+	LD	E,'7'
+	JR	BC_NUM
+TRY_6:	CP	BITS6
+	JR	NZ,TRY_5
+	LD	E,'6'
+	JR	BC_NUM
+TRY_5:	LD	E,'5'
+BC_NUM:	LD	C,CONOUT
+	CALL	MEX
+	RET
+PASHOW:
+	LD	DE,ST2MSG
+	CALL	FRINT
+	LD	A,(MODEWD)
+	AND	30H
+	CP	EVNPAR
+	JR	NZ,TRY_O
+	LD	DE,EVNMSG
+	JR	P_SHOW
+TRY_O:	CP	ODDPAR
+	JR	NZ,NONPAR
+	LD	DE,ODDMSG
+	JR	P_SHOW
+NONPAR:	LD	DE,NONMSG
+P_SHOW:	CALL	FRINT
+	RET
+SBSHOW:
+	LD	DE,ST3MSG
+	CALL	FRINT
+	LD	A,(MODEWD)
+	AND	0C0H
+	CP	STPB1
+	JR	NZ,TRY_15
+	LD	DE,SB1MSG
+	JR	SB_NUM
+TRY_15:	CP	STPB15
+	JR	NZ,TRY_2
+	LD	DE,SB5MSG
+	JR	SB_NUM
+TRY_2:	CP	STPB2
+	JR	NZ,BAD_SB
+	LD	DE,SB2MSG
+	JR	SB_NUM
+BAD_SB:	LD	DE,BADMSG
+SB_NUM:	CALL	FRINT
+	RET
+CARSHW:	LD	DE,CARMSG
+	CALL	CD_STAT
+	JR	NZ,C_SHOW
+	LD	DE,NOCARM
+C_SHOW:	CALL	FRINT
+	RET
+WTSHOW:	LD	DE,SRTWTS
+	CALL	FRINT
+	LD	A,(CARTMW)
+	CP	25
+	JR	NZ,WT10
+	LD	DE,SEC_5
+WT_PRN:	CALL	FRINT
+	LD	DE,SECM
+	CALL	FRINT
+	RET
+WT10:	CP	50
+	JR	NZ,WT15
+	LD	DE,SEC_10
+	JR	WT_PRN
+WT15:	CP	75
+	JR	NZ,WT20
+	LD	DE,SEC_15
+	JR	WT_PRN
+WT20:	CP	100
+	JR	NZ,WT25
+	LD	DE,SEC_20
+	JR	WT_PRN
+WT25:	CP	125
+	JR	NZ,WT30
+	LD	DE,SEC_25
+	JR	WT_PRN
+WT30:	CP	150
+	JR	NZ,WT35
+	LD	DE,SEC_30
+	JR	WT_PRN
+WT35:	CP	175
+	JR	NZ,WT40
+	LD	DE,SEC_35
+	JR	WT_PRN
+WT40:	CP	200
+	JR	NZ,WT45
+	LD	DE,SEC_40
+	JR	WT_PRN
+WT45:	CP	225
+	JR	NZ,WT50
+	LD	DE,SEC_45
+	JR	WT_PRN
+WT50:	LD	DE,SEC_50
+	JR	WT_PRN
+;
+;
+CMDTBL:	DB	('?'+80H)
+	DW	STHELP
+	DEFM	'HEL'
+	DB	('P'+80H)
+	DW	STHELP
+	DEFM	'AN'
+	DB	('S'+80H)
+	DW	ST_ANS
+	DEFM	'OR'
+	DB	('G'+80H)
+	DW	ST_ORG
+	DB	'O'
+	DB	('N'+80H)
+	DW	ST_ON
+	DEFM	'SB'
+	DB	('1'+80H)
+	DW	ST_SB1
+	DEFM	'SB1'
+	DB	('5'+80H)
+	DW	STSB15
+	DEFM	'SB'
+	DB	('2'+80H)
+	DW	ST_SB2
+	DEFM	'BC'
+	DB	('5'+80H)
+	DW	ST_BC5
+	DEFM	'BC'
+	DB	('6'+80H)
+	DW	ST_BC6
+	DEFM	'BC'
+	DB	('7'+80H)
+	DW	ST_BC7
+	DEFM	'BC'
+	DB	('8'+80H)
+	DW	ST_BC8
+	DEFM	'NP'
+	DB	('A'+80H)
+	DW	ST_NPA
+	DEFM	'EP'
+	DB	('A'+80H)
+	DW	ST_EPA
+	DEFM	'OP'
+	DB	('A'+80H)
+	DW	ST_OPA
+	DEFM	'SCRN3'
+	DB	('0'+80H)
+	DW	STSCR3
+;
+	DEFM	'SCRN8'
+	DB	('0'+80H)
+	DW	STSCR8
+;
+	DEFM	'WAI'
+	DB	('T'+80H)
+	DW	STWAIT
+	DB	0
+;
+***********************************************************************
+* END OF CMDTBL
+***********************************************************************
+ST_ORG:	CALL	HANGUP
+	JR	PRTMOD
+;
+ST_ON:	LD	A,0
+	CALL 	SEIZE
+	JR	PRTMOD
+;
+ST_ANS:	LD	A,0FFH
+	CALL	SEIZE
+	JR	PRTMOD
+;
+PRTMOD:	JP	MODESW
+;
+ST_SB1:	LD	B,STPB1
+SET_SB:	LD	A,(MODEWD)
+	AND	03FH
+	OR	B
+	LD	(MODEWD),A
+	CALL	SBSHOW
+	LD	A,IR
+	JP	CHGMOD
+;
+STSB15:	LD	B,STPB15
+	JR	SET_SB
+;
+ST_SB2:	LD	B,STPB2
+	JR	SET_SB
+;
+ST_BC5:	LD	B,BITS5
+	JR	SET_BC
+;
+ST_BC6:	LD	B,BITS6
+	JR	SET_BC
+;
+ST_BC7:	LD	B,BITS7
+	JR	SET_BC
+;
+ST_BC8:	LD	B,BITS8
+SET_BC:	LD	A,(MODEWD)
+	AND	0F3H
+	OR	B
+	LD	(MODEWD),A
+	CALL	BCSHOW
+	LD	A,IR
+	JP	CHGMOD
+;
+ST_NPA:	LD	B,NO_PAR
+	JR	SETPAR
+;
+ST_OPA:	LD	B,ODDPAR
+	JR	SETPAR
+;
+ST_EPA:	LD	B,EVNPAR
+;
+SETPAR:	LD	A,(MODEWD)
+	AND	0CFH
+	OR	B
+	LD	(MODEWD),A
+	CALL	PASHOW
+	LD	A,IR
+	JP	CHGMOD
+;
+STSCR3: PUSH	HL
+	LD	HL,0EA68H
+	LD	(HL),1EH
+	POP	HL
+	RET
+;
+STSCR8: PUSH	HL
+	LD	HL,0EA68H
+	LD	(HL),50H
+	POP	HL
+	RET
+;
+STHELP:
+	LD	DE,HLPMSG
+	CALL	FRINT
+	RET
+;
+STWAIT:	PUSH	HL
+	LD	C,SBLANK
+	CALL	MEX
+	JR	C,WAITER
+	LD	DE,WAITBL
+	LD	C,LOOKUP
+	CALL	MEX
+	JR	C,WAITER
+	LD	A,L
+	LD	HL,CARTMW
+	LD	(HL),A
+	POP	HL
+	CALL	WTSHOW
+	RET
+;
+WAITER:	POP	HL
+	LD	DE,BADMSG
+	CALL	FRINT
+	RET
+;
+WAITBL:	DB	('5'+80H)
+	DW	25
+	DB	'1'
+	DB	('0'+80H)
+	DW	50
+	DB	'1'
+	DB	('5'+80H)
+	DW	75
+	DB	'2'
+	DB	('0'+80H)
+	DW	100
+	DB	'2'
+	DB	('5'+80H)
+	DW	125
+	DB	'3'
+	DB	('0'+80H)
+	DW	150
+	DB	'3'
+	DB	('5'+80H)
+	DW	175
+	DB	'4'
+	DB	('0'+80H)
+	DW	200
+	DB	'4'
+	DB	('5'+80H)
+	DW	225
+	DB	'5'
+	DB	('0'+80H)
+	DW	250
+	DB	00H
+;
+***********************************************************************
+* END OF SET COMMANDS
+***********************************************************************
+;MESSAGE AREA
+;
+VERMSG:	DEFM	'ADAMEX overlay v1.4'
+	DB	07H
+	DB	CR,LF,'$'
+;
+EOSMSG:	DB	CEOS,'$'
+;
+CLSMSG:	DB	CCLS,'$'
+;
+;
+STERRM:	DEFM	'  ++ COMMAND NOT FOUND ++'
+	DB	CR,LF,07H,'$'
+;
+ST_MSG:
+	DEFM	'  MODEM PARAMETERS'
+	DB	CR,LF,LF,'$'
+MODMSG:
+	DEFM	'  MODE:            '
+	DB	'$'
+;
+ORGMSG:	DEFM	'ORIGINATE'
+	DB	'$'
+;
+ANSMSG:	DEFM	'ANSWER'
+	DB	'$'
+;
+ST1MSG:	DB	CR,LF
+	DEFM	'  BITS/CHARACTER:  '
+	DB	'$'
+;
+ST2MSG:	DB	CR,LF
+	DEFM	'  PARITY:          '
+	DB	'$'
+;
+NONMSG:	DEFM	'NONE'
+	DB	'$'
+;
+ODDMSG:	DEFM	'ODD'
+	DB	'$'
+;
+EVNMSG:	DEFM	'EVEN'
+	DB	'$'
+;
+ST3MSG:	DB	CR,LF
+	DEFM	'  STOP BITS:       '
+	DB	'$'
+;
+SB1MSG:	DB	'1',CR,LF,20H,'$'
+;
+SB5MSG:	DEFM	'1.5'
+	DB	CR,LF,20H,'$'
+;
+SB2MSG:	DB	'2',CR,LF,20H,'$'
+;
+BADMSG:	DEFM	'  ++ BAD VALUE ++'
+	DB	07H,'$'
+;
+NOCARM:
+	DEFM	' NO'
+;
+CARMSG:	DEFM	' CARRIER ON LINE'
+	DB	CR,LF,'$'
+SRTWTS:
+	DEFM	'  WAIT FOR CARRIER '
+	DB	'$'
+;
+;
+LOSCAM:	DB	07H,CR,LF
+	DEFM	'  ++ LOST CARRIER ++'
+	DB	07H,CR,LF,LF,'$'
+;
+SEC_5:	DB	'5','$'
+SEC_10:	DB	'1','0','$'
+SEC_15:	DB	'1','5','$'
+SEC_20:	DB	'2','0','$'
+SEC_25:	DB	'2','5','$'
+SEC_30:	DB	'3','0','$'
+SEC_35:	DB	'3','5','$'
+SEC_40:	DB	'4','0','$'
+SEC_45:	DB	'4','5','$'
+SEC_50:	DB	'5','0','$'
+SECM:	DEFM	' SEC.'
+	DB	CR,LF,'$'
+;
+;
+HLPMSG:	DB	CR,LF
+	DEFM	'  SET <command>'
+	DB	CR,LF
+	DEFM	'  Where <command> is one of:'
+	DB	CR,LF
+	DEFM	' ?, HELP, ORG, ANS, ON, BC5,'
+	DB	CR,LF
+	DEFM	' BC6, BC7, BC8, SB1, SB15, SB2'
+	DB	CR
+	DEFM	' NPA, EPA, OPA, SCRN30, SCRN80'
+	DB	CR
+	DEFM	' WAIT <5-50> (5 sec. steps)'
+	DB	CR,LF
+	DB	'$'
+	DB	0
+;
+;
+	END
+

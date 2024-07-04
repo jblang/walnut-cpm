@@ -1,0 +1,73 @@
+; NUC-XERO.INS - Xerox 820-II, 16/8 - 04/21/86
+;
+; Note: This is an insert, not an overlay.
+;
+; ========
+; 04/21/86  Modified for NUBYE
+; 07/15/85  Adapted from MBC-XERO.ASM (I. Salzman)	- Wayne Masters
+; ========
+;
+; This routine will not work on the Xerox 820.
+;
+; When called this routine will check the RTCBUF. If a '99H' is in the first
+; byte, the clock is initialized.  Next the seconds are checked and if
+; changed since last update of RTC buffer, the clock is stopped, data copied
+; to RTCBUF and the clock is restarted (if no change in seconds, the routine
+; returns immediately).
+;
+; clock initialization
+;
+XERCLK	EQU	0F039H		; Location of Xerox 820-II time vector
+				; Monitor routine. When called, it returns
+				; The addr of the 820's clock in high mem.
+TIME:	LXI	H,0		; Clear HL
+	CALL	XERCLK		; Get pointer to TOD in HL
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF+6	; Get day
+	INX	H
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF+5	; Get month
+	INX	H
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF+4	; Get year
+	INX	H
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF		; Update hours
+	INX	H
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF+1	; Update minutes
+	INX	H
+	MOV	A,M
+	CALL	MOVETM
+	STA	RTCBUF+2	; Update seconds
+	LDA	RTCBUF		; Get BCD HH
+	CALL	BCDBIN		; And convert to binary
+	STA	CCHOUR		; For NUBYE
+	LDA	RTCBUF+1	; Get BCD MM
+	CALL	BCDBIN
+	STA	CCMIN		; Binary for NUBYE
+	RET			; And return (for now..)
+;
+MOVETM:	MVI	B,0		; Clear reg B
+;
+CONV:	CPI	10		; Are we >= 10 ?
+	JC	ADDREST		; No, add the rest
+	SUI	10		; Subtract 10 from A
+	MOV	C,A		; Put A in C (store it for a sec)
+	MOV	A,B		; Put B in A
+	ADI	16		; Add 16
+	MOV	B,A		; Store it back in B
+	MOV	A,C		; Get our original value back in A
+	JMP	CONV
+;
+ADDREST:ADD	B		; Add the rest to what's in A
+	RET			; Return
+;
+; end of insert
+; -------------
+

@@ -1,0 +1,623 @@
+                          Supercharging CP/M
+
+                  BIOS, CCP, and Bootdisk Utilities
+
+                         by Randy Winchester
+
+                                  4/25/90
+
+
+
+Too often, Commodore 128 owners will boot up CP/M, take a quick look 
+ 
+at it and think "This sure looks slow, dull, and boring."  The boot 
+ 
+disk goes back in the box, never to see the inside of a disk drive 
+ 
+again.  CP/M on the C128 doesn't have to be a creepy crawler.  The problem 
+ 
+is with the default configuration of CP/M on the boot disk.  Here are some 
+ 
+suggestions for speeding up CP/M and adding new features.
+ 
+
+
+
+
+A New CP/M Boot Disk
+ 
+
+
+All that is required to make a C128 CP/M boot disk is to format a disk 
+ 
+with FORMAT.COM and copy CPM+.SYS and CCP.COM to it.  The disk must be 
+ 
+formatted as either a C128 single or double sided disk.  FORMAT.COM 
+ 
+writes a boot sector on the disk that enables the C128 to load and install 
+ 
+the system files.
+ 
+
+
+
+
+Fixing CPM+.SYS
+ 
+
+
+The standard CPM+.SYS provided on the C128 CP/M boot disk has a couple 
+ 
+of crippling inadequacies.  The 40 column screen is always enabled, 
+ 
+slowing down the system by about 10%.  The interrupt driven RS232 
+ 
+routines are always enabled, and set for an unreasonably high 300 
+ 
+baud.  The higher the baud rate, the more interrupts are needed to 
+ 
+service the RS232 port, and the less time the processor has to do its 
+ 
+work.
+ 
+
+
+Both of these problems are easy to fix.  The public domain CONF.COM 
+ 
+can remedy both with the command line:
+ 
+          CONF BAUD=75, FEEL=0, 40COL=OFF
+
+The routines to scan the keyboard are also interrupt driven and depend 
+ 
+on the baud rate setting.  Although the baud rate can be set as low as 
+ 
+50, at this setting the keyboard starts to miss key presses.  The FEEL 
+ 
+parameter adjusts the number of interrupts used by the keyboard 
+ 
+driver.  The value indicates the number of interrupts skipped.  A 
+ 
+value of 1 tells the driver to ignore every other interrupt.  At 75 
+ 
+baud, FEEL should be disabled by setting it to 0.  40COL=OFF disables 
+ 
+the 40 column screen.
+ 
+
+
+The baud rate can be hardwired into the BIOS by patching CPM+.SYS.  
+ 
+The byte specifying the baud rate is found after the label "RS232" in 
+ 
+the device table.  The address is $0da7 for the DEC 85 version or 
+ 
+$0d98 for the MAY 87 version.  Normally, this byte will be set to 06 
+ 
+for 300 baud.  The values to choose from are:
+ 
+          0    NONE          1    50          2    75
+ 
+          3    110           4    135         5    150
+ 
+          6    300           7    600         8    1200
+ 
+Setting this byte to 02 for 75 baud is the single most important 
+ 
+speedup you can make, with an obvious improvement in performance.
+ 
+
+
+Unfortunately, the FEEL and 40COL parameters aren't as simple to 
+ 
+patch.  The easiest way to make these permanent is to edit the CP/M 
+ 
+source code and generate a new system.  This requires MAC and RMAC, 
+ 
+assemblers from the utility disks offered in the C128 System Guide.  
+ 
+Although these disks also contain complete system source code, I 
+ 
+recommend generating a system from the files in the widely available 
+ 
+BIOSR4.ARK by James Waltrip, or my own BIOSR5.ARK.
+ 
+
+
+BIOSR4 and R5 are archives containing modified source code.  They've 
+ 
+been reworked to remove all 40 column code, replacing it with an 80 
+ 
+column screen dump.  Routines have been added to define the drive 
+ 
+search chain and default drive, the shape of the cursor, and the 
+ 
+keyboard repeat rate.  The code is thoroughly commented, pointing out 
+ 
+bytes to set for the default printer and secondary address, screen 
+ 
+colors, and default baud rate.  Additional disk types have been added 
+ 
+to the disk parameter table in BIOSR5, including Miklos Garamszeghy's 
+ 
+"Maxi 71," which provides a remarkable 398K per disk.
+ 
+
+
+
+
+Upgrading the CCP
+ 
+
+
+The Console Command Processor, or CCP, is the program CP/M relies on 
+ 
+to communicate with the user.  Its various responsibilities include 
+ 
+printing the CP/M drive and user area prompt, interpreting console 
+ 
+input, and loading and executing transient commands.  The CCP.COM 
+ 
+supplied on the CP/M boot disk is pretty bare bones.  It has six 
+ 
+limited resident commands: DIR, DIRSYS, ERASE, RENAME, TYPE, and USER.
+ 
+
+
+A public domain CCP replacement that corrects some of the inadequacies of 
+ 
+the standard CCP.COM is CCP Plus version 1.05.  CCP+ doesn't include 
+ 
+resident commands; they have been replaced with new features.  CCP+ 
+ 
+includes a time display in the drive/user prompt, and named directories 
+ 
+similar to those in more modern operating systems.  Commands can be 
+ 
+executed from user areas other than the current one.  An impressive feature 
+ 
+is the ability to execute COM and SUB files from a command library much 
+ 
+like MS-DOS.
+ 
+
+
+If you use CCP+, you will have to select commands for your system.  
+ 
+This can be fun, rather like going on a free software shopping spree.  
+ 
+All the programs mentioned in this article, except QDisk, are public 
+ 
+domain.
+ 
+
+
+A RAM expansion, with its fast access and loading times is the 
+ 
+wisest place to put frequently used commands, since they will load and 
+ 
+execute almost instantly.  By using a PROFILE.SUB on your boot disk, 
+ 
+commands can automatically be copied to the RAM disk when the system is 
+ 
+booted.  For all purposes, commands stored on a RAM disk will appear to be 
+ 
+resident commands.  On the other hand, if you don't have a RAM disk, you 
+ 
+might decide that CCP Plus's features don't make up for the lack of 
+ 
+resident commands.
+ 
+
+
+Another solution is to use a Quick Brown Box along with QDisk software 
+ 
+as a CP/M RAM drive.  The Quick Brown Box uses a battery to keep its 64K of 
+ 
+RAM active between computing sessions.  I use the box to store 64K of 
+ 
+commands that are available the instant I switch on the computer.
+ 
+
+
+CCP Plus is available in the file CCP105P.LBR, along with many 
+ 
+supportting programs and utilities.
+ 
+
+
+
+
+Speeding Up Disks and Drives
+ 
+
+
+A command my system runs when it first boots is C1571.COM.  This shuts 
+ 
+off the 1571's redundant write verify, reducing the time it takes to 
+ 
+save files.  Look for a version dated 24 Feb 86 or later.  An earlier 
+ 
+version has a bug that prevents the use of MFM disk formats.
+ 
+
+
+Using MFM disk formats is another way to get maximum performance from 
+ 
+CP/M.  You'll still need Commodore GCR formatted disks for boot disks, 
+ 
+but MFM formats can be used for all disks that don't need to be 
+ 
+bootable.  Not only do some MFM formatted disks provide more storage, 
+ 
+they are typically faster than GCR disks.  My recommendations are for 
+ 
+the Epson QX10 format supported by the standard BIOS, or Maxi 71 
+ 
+mentioned earlier.  QX10 disks offer 390K of storage; Maxi 71, 398K.  
+ 
+That's 62K more than a C128 double sided CP/M disk.
+ 
+
+
+
+
+Eliminating SETDEF
+ 
+
+
+The SETDEF command is usually used to define the drive search chain 
+ 
+and temporary drive.  The drive search chain is a list of up to four 
+ 
+drives that CP/M will search each time a command is issued.  Sometimes 
+ 
+CP/M needs to make temporary files in which it stores data while a 
+ 
+command is being executed.  SETDEF is also used to tell CP/M which 
+ 
+drive to use for temporary files.
+ 
+
+
+If you decide to generate a CPM+.SYS using BIOS R4 or R5, there is a 
+ 
+section of code in the CXIO.ASM module for values for the drive search 
+ 
+chain and temporary drive.  These values can also be patched into an 
+ 
+existing copy of CPM+.SYS.
+ 
+
+
+The drive search chain is located from $1268 to $126b in the DEC 85 
+ 
+and MAY 87 versions, or $0e68 to $0e6b in the AUG 85 version of 
+ 
+CPM+.SYS.  The drives are numbered starting with 01 for drive A.  The 
+ 
+default or currently logged drive is 00.  Positions that aren't used 
+ 
+should be filled with $ff.  The byte immediately following the search 
+ 
+chain, $126c in the DEC 85 and MAY 87 versions or $0e6c in the AUG 85 
+ 
+version, specifies the drive for temporary files.  This byte defaults 
+ 
+to 00, the currently logged drive.  If you use a 1750, have the system 
+ 
+make its temporary files there.  It's much faster than writing and 
+ 
+erasing them from a floppy disk.  The suggested entries for RAM disk 
+ 
+users are:
+ 
+          $1268:  0d 00 ff ff 0d
+ 
+If a file isn't found on the RAM disk (drive M) CP/M will also search 
+ 
+on the currently logged drive.  Drive M is the temporary drive.
+ 
+
+
+Since these patches cover the important functions of SETDEF, there is 
+ 
+little need to run it every time you boot up.
+ 
+
+
+
+
+Eliminating SUBMIT
+ 
+
+
+When CP/M is first booted, the CCP searches for PROFILE.SUB, and if it 
+ 
+is present, executes it via SUBMIT.COM.  This is the usual method for 
+ 
+automatically setting up the system.  A typical PROFILE.SUB might 
+ 
+consist of the following commands:
+ 
+          C1571 [A,B,D
+ 
+          CP A1:*.* M0:
+ 
+          DATE S
+ 
+
+
+PROFILE.SUB is read in line by line and each command is loaded and 
+ 
+executed in turn.  In this example C1571.COM turns off the 1571's 
+ 
+write verify, all files in user area 1 of the boot disk are copied to 
+ 
+user area 0 of drive M, and DATE.COM sets the system date and time.
+ 
+
+
+Thanks to the public domain CHN31, SUBMIT.COM can be done away with, 
+ 
+at least for PROFILE.SUB and other short lists of commands.  CHN31 
+ 
+constructs a COM file consisting of any commands you might put into a 
+ 
+SUBMIT file.  In the example above, each command would be be entered 
+ 
+at CHN's prompt separated by an exclamation mark.  CHN is a big 
+ 
+convenience and time saver.  Since CHN command files are themselves 
+ 
+directly executed, SUBMIT doesn't have to be loaded.
+ 
+
+
+CCP.COM requires a quick patch to use this trick.  Look for the string 
+ 
+'PROFILE.S' somewhere in or around the seventh sector of CCP.COM.  
+ 
+Simply change the string to 'PROFILE.C' to execute a file named 
+ 
+PROFILE.COM created with CHN31.
+ 
+
+
+Here's the PROFILE.COM I use:
+ 
+          QD F/F!C1571 [A,B,D!DIRNAME ON!F:SETDIR!F:HIST!DATE S
+ 
+QD (QDisk) activates the Quick Brown Box as drive F, a 64K RAM disk.  
+ 
+C1571.COM disables the 1571 drive's unnecessary write verify.  The 
+ 
+letters following the command are a list of 1571 drives on my system.  
+ 
+DIRNAME is a CCP Plus utility that starts the named directory feature. 
+ 
+SETDIR is then loaded from drive F.  It reads the list of directory 
+ 
+names and installs them in memory.  HIST provides recall of the last 
+ 
+20 commands typed to the system.  DATE then sets the system time and 
+ 
+date.
+ 
+
+
+If you don't use a Quick Brown Box, you'll need to copy commands and 
+ 
+other support files into your RAM disk.  The easiest way I've found to 
+ 
+do this is to place files I want to copy in user area 1 of my boot 
+ 
+disk.  I use the command 'CP 1:*.* M0:' in my PROFILE.COM (CP is the 
+ 
+name I use for ARCOPY.COM, an excellent public domain copy program) 
+ 
+and everything in A1 is copied to M0.
+ 
+
+
+
+
+Laying Out a Boot Disk
+ 
+
+
+User area 0 should include CPM+.SYS, CCP.COM, and PROFILE.COM.  I also 
+ 
+keep files in user 0 that are specified in PROFILE.COM but executed 
+ 
+only when the system is first booted.  These include C1571.COM, 
+ 
+DIRNAME.COM, and DATE.COM.
+ 
+
+
+User 1 should contain files that will get copied to the RAM disk.  I 
+ 
+suggest CMDRUN.COM, which is used by CCP+ to execute commands from 
+ 
+COMMAND.LBR; ROOT.DIR, containing a list of directory names; and 
+ 
+custom keyboard definition files created with KEYFIG.COM and saved 
+ 
+with SAVEKEY2.COM.  I use two keyboard files, DEFAULT.KEY for normal 
+ 
+operation, and ZDE.KEY for use with the public domain ZDE editor.  
+ 
+You'll also want to include a COMMAND.LBR.
+ 
+
+
+COMMAND.LBR can be created with a library utility, such as 
+ 
+NULU152.COM.  It can have as many commands, and be as large as you 
+ 
+have room to dedicate to it.  It should include replacement commands 
+ 
+for those missing from CCP+, and any other commands you routinely use.
+ 
+
+
+Here's a list of the commands in my COMMAND.LBR along with some 
+ 
+comments.  All these programs are public domain.
+ 
+
+
+SD137.COM.  This is a versatile directory program that can show files 
+ 
+in all user areas, on all drives, files in libraries or archives, and 
+ 
+files with the system attribute set.  It can send output to a file or 
+ 
+printer.  SD137 replaces both DIR and DIRSYS.
+ 
+
+
+ERASE.COM (version 5.3).  This ERASE replacement allows scratching files in 
+ 
+user areas other than the current one and asks for confirmation before 
+ 
+erasing Read-Only files.
+ 
+
+
+QL41.COM.  Quick Look replaces both TYPE and DUMP.  QL can view binary 
+ 
+as well as text files.  If a file is crunched or squeezed, or is a 
+ 
+member of a library, QL will unpack it before displaying it.  It 
+ 
+features random access paging through files, a string or hex byte 
+ 
+search, memory display, and can extract files from libraries.
+ 
+
+
+LD.COM and CREATE.COM.  Library Disk opens LBR files and causes CP/M 
+ 
+to treat them as if they were disk drives.  If used with CCP+, the 
+ 
+library name is displayed in the prompt along with the directory name. 
+ 
+This gives the effect of working in a disk partition or subdirectory.  
+ 
+CREATE, which I've renamed to MKDIR, makes empty libraries.
+ 
+
+
+CHN31.COM.  CHN creates a COM file from a chain of CP/M commands.  CHN 
+ 
+can take on many of SUBMIT's functions.
+ 
+
+
+ARCOPY.COM version 2.1.  This program replaces PIP, RENAME, and TYPE.  
+ 
+It is packed with features, including copying to or from different 
+ 
+user areas, to the printer or console, and renaming or moving files 
+ 
+(erase after copy).
+ 
+
+
+DA.COM.  Directory Attributes can set or reset the system, read only, 
+ 
+archive, or special 1 - 4 attributes for a file or group of files.  It 
+ 
+also functions as a directory program.
+ 
+
+
+HIST.COM.  This history program for CP/M+ quickly recalls any of the 
+ 
+last 20 commands typed to the system.  Command lines can be edited and 
+ 
+reused.
+ 
+
+
+HP+.COM.  A memory resident calculator based on the popular Hewlett- 
+ 
+Packard.  It can be popped up from within applications.
+ 
+
+
+SETDIR.COM.  A CCP+ utility for loading directory names into memory.
+ 
+
+
+LOADKEY2.COM.  This program will load a custom keyboard file created 
+ 
+with KEYFIG and saved with SAVEKEY2.COM.
+ 
+
+
+ZDE13.COM.  ZDE is the latest version of VDE, the Video Display 
+ 
+Editor.  ZDE uses Wordstar commands, is memory resident, and includes 
+ 
+programmable macros.  It is better than many commercially available 
+ 
+word processors for 128 mode and is by far my favorite C128 editor.
+ 
+
+
+E.COM.  This is a command file created with CHN.COM.  Its syntax is: 
+
+     E du:filename
+
+The definition of E is:  
+
+     LOADKEY2 ZDE.KEY!ZDE13 $1 $2!LOADKEY2 DEFAULT.KEY
+
+What this does is load a special keyboard file that places ZDE commands on 
+ 
+the keys I want them on, then loads ZDE along with the file to be edited.  
+ 
+After using ZDE, standard keyboard definitions are loaded back into the 
+ 
+system.  This method can be used to customize any application or program by 
+ 
+automatically loading keyboard layouts that change, simplify or combine 
+ 
+commands and assign them to almost any key.
+ 
+
+
+I use a similar CHN command file for loading terminal software.  
+ 
+Here's the command line:
+
+     LOADKEY2 TERM.KEY!MEX114 $1!CONF BAUD=75,FEEL=0!LOADKEY2 DEFAULT.KEY
+
+This line loads the keyboard definition file TERM.KEY, then loads MEX114.  
+ 
+When I quit MEX, CONF resets the system baud rate to 75 and LOADKEY2 
+ 
+reloads the standard keyboard layout.  All CP/M terminal programs I've seen 
+ 
+set the system baud rate to 1200, but don't reset it when they finish.  If 
+ 
+you think the system is slow at 300 baud, you don't ever want to see it 
+ 
+outside of a terminal program at 1200 baud.  By using this command line, 
+ 
+you never will.
+ 
+
+
+CP/M can be plenty of fun to tinker with.  Both the operating system 
+ 
+and applications give ample opportunities for customization.  One you 
+ 
+get CP/M up to speed and discover some of the excellent software available 
+ 
+for it, you might find your new boot disk spinning in the drive more often.
+
+

@@ -1,0 +1,51 @@
+I recently got a call from Ian Justman of Sacremento, CA  who  was  having 
+trouble  getting NovaDOS to write a second logical extent to a file on his 
+S100 system.  He traced the problem to a stack overflow in  NovaDOS.   The 
+NovaDOS  stack must serve the stack needs of NovaDOS itself and at least a 
+portion of the system BIOS.  While NovaDOS's stack requirement  is  fairly 
+consistent,  BIOS's differ in the amount of stack they need.  A BIOS which 
+uses a ROM will probably establish it's own stack for low level access.  
+
+I set the size of the NovaDOS stack at 36 bytes in recent releases  up  to 
+and  including release I, down from 64 bytes in SuprBDOS and early NovaDOS 
+releases.  My Kaypro 10 with an Advent TurboROM uses only about  28  bytes 
+of  stack  at the most, but other systems apparently use more.  If you are 
+having trouble getting NovaDOS to run, the stack size may be the  culprit.  
+Check  the  following  items.   If  1 and 2 are not the source of trouble, 
+suspect a stack overflow.
+
+
+POSSIBLE SOURCES OF PROBLEMS WITH NOVADOS
+=========================================
+
+1.  The Reset Disk System Call may be calling a  routine  or  resetting  a 
+    flag which is not compatible with NovaDOS operation.  You should leave 
+    the resdsk equate set false until you have NovaDOS running.
+
+2.  If the DOS path is supported, the path you have selected may not  have 
+    been  properly initialized.  Make sure that the path is initialized to 
+    nulls before implementing path support.  Leave pathoff set  to  0  (or 
+    ispath equ false) until you have NovaDOS running on your system.
+
+3.  On a few systems, 36 bytes of  stack  space  may  be  insufficient  to 
+    handle the stack requirements of both NovaDOS and the BIOS.  If resdsk 
+    is set false and the NovaDOS path is disabled and you are still having 
+    problems,  increase  the  value  of  the stack size or externalize the 
+    stack.  Through release I, the stack size is fixed in NVDS-4.Z80.   Do 
+    a  search  in this module for the label p2doss:.  Directly above it is 
+    the line "ds 36,0".  If you are  using  an  internal  stack,  you  may 
+    increase the 36 to use as much of the free memory reported at assembly 
+    time as you need. 
+
+Future releases of NovaDOS will contain an equate in the header file to 
+set the internal stack size.
+
+If you have problems or questions, contact me.
+
+Lindsay Haisley
+14206 Speading Oaks Drive
+Leander, TX  78641
+
+(512) 259-1190 vox
+(512) 444-8691 data (Z-node 77)
+

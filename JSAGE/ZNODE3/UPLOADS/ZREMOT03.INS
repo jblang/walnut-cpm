@@ -1,0 +1,68 @@
+10/30/19
+
+Thå followinç assemblù anä linkinç instructionó foò ZREMOTÅ arå 
+excerpteä froí TCJ#5° anä paraphraseä here®  Thå commanä lineó 
+for Z80ASM/SLRNKP have been added.
+
+The files in ZREMOT03.LBR are:
+
+     ZRLDR.Z80      ZR program signon, etc.  Calls RSXLDR
+     RSXLDR.Z80     Generix RSX installation code.  Calls RELOC.
+     RELOC.Z80      Generic code relocator for PRL modules.
+     ZREMOTE.Z80    Main ZREMOTE RSX hardware independent code.
+     ZRAMPRO.Z8°    Hardwarå specifiã parô oæ thå RSØ code®  Thå 
+                         code is for an AMPRO Little Board.)
+    (ZRAMSDVR.Z80   Driver for AMS bios - not used here)
+
+Renamå ZRAMPRO.Z8° tï MYDRIVER.Z8° anä ediô iô tï suiô youò owî 
+hardware®  
+
+First, assemble all .Z80 files to REL files:
+
+     ZMAC filename
+ or  Z80ASM filename/m
+ or  SLR180 filename/m
+
+Theî linë thå fileó followinç thå directionó below®  Yoõ maù wisè 
+tï creatå aliaseó tï dï thå linking.
+
+
+Link using ZML
+--------------
+
+Creatå á ne÷ RSØ headeò filå ZREMOTE.HDR:  
+
+     ZML zremote.hdr=zrldr,rsxldr,reloc,z3lib/,syslib/
+
+Then link to create ZREMOTE.COM:
+
+     ZML zremote.com=zremote,mydriver,zremote.hdr/i p
+
+
+
+Link using SLRNKP
+-----------------
+
+Iæ you'rå usinç SLRNKĞ tï linë thå files¬ yoõ wilì alsï neeä á 
+ne÷ filå SLR.Z80¬ whicè containó onlù onå datá statement:
+
+     DS   256
+
+Assemble it to SLR.REL:
+
+     Z80ASM slr/m 
+
+Linë tï producå ZRHDR.COÍ anä renamå iô tï ZRHDR.HDÒ sï yoõ don'ô Šaccidentallù try to ruî itº  
+
+     SLRNKP zrhdr/n,/a:100,/j,zrldr,rsxldr,reloc,z3lib/s,syslib/s,/e
+     RENAMZ zrhdr.com *.hdr /o
+
+Link tï geô ZRPRL.PRÌ:
+
+     SLRNKP zrprl/k,slr,zremote,mydriver,/e
+
+Then use CONCAT.COM to add the header:
+
+     CONCAT zremote.com=zrhdr.hdr,zrprl.prl /o
+
+

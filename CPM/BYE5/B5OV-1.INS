@@ -1,0 +1,326 @@
+; B5OV-1.INS - Osborne Vixen insert for BYE5 - 07/17/85
+;
+;	     8251A with BIOS routines setting baud rate
+;
+;
+; This version is for an 8251A I/O with extended BIOS jump for setting
+; baudrate.  Note:  This is an insert, not an overlay.
+;
+; This version is for the Osborne Vixen which uses an extended BIOS
+; function call to set the baudrate.  The normal serial input interrupt
+; driver in BIOS is disabled while BYE5 is used.
+;
+;
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;  06/15/85  Written for use with BYE5		- Roy Robinson
+;						  FOG RCPM #4
+;						  (415) 591-6259
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;-----------------------------------------------------------------------
+; PATCH #1 -------------------------------------------------------------
+;-----------------------------------------------------------------------
+;
+; Listed below is a patch for disabling the serial input interrupt
+; driver in the Vixen BIS.  This patch goes AFTER the label
+;
+;   START1:
+;
+; and immediately AFTER the line of code, CALL MDCARCK
+;
+; ---->  beginning of patch:
+;
+;
+;	JNZ	BYPASS
+;
+;INITMOD:
+;	PUSH	PSW
+;	MVI	C,7	; Use BDOS to obrain current IOBYTE
+;	CALL	BDOS	;
+;	STA	OLDIOB	; Save old IOBYTE
+;	ANI	3fH	;
+;	ORI	80H	; Make CEN: PORT new LST: DEVICE
+;	MOV	E,A
+;	MVI	C,8
+;	CALL	BDOS	; Use BDOS to place new IOBYTE in first page of memory
+;
+;	DI		;
+;	LHLD	INTVEC	; Get serial port interrupt processor address
+;	SHLD	OLDVEC	; Save serial port interrupt processor address
+;	DCX	H
+;	DCX	H
+;	DCX	H	; HL has next interrupt processor address
+;	SHLD	INTVEC	; This is now first interrupt processor rather
+;			;   than second
+;
+;INITSIO:
+;
+;	LHLD	BIOS	; Find start ofF BIOS
+;	MVI	L,3CH	; Displacement of baudrate byte from start of BIOS
+;	MOV	A,M
+;	STA	OLDBAUD ; Save original baudrate byte
+;
+;	MVI	L,3BH	; Displacement of 8251 mode byte from start of BIOS
+;	MOV	A,M	; Old mode byte set by ROM is 2SB, NP, 8DB, X16 clock
+;	STA	OLDMODE ; Save original 8251 mode byte
+;
+;	MOV	B,L
+;	MVI	A,6EH	; 1 SB, NP, 8 DB, X16 clock modem byte
+;	CALL	IORESET ; Use extended BIOS jump to reset 8251
+;
+;	MVI	A,37H	; 8251 command byte RTS/DTR active, TXD and RXD active
+;	OUT	31H	; Send it to 8251 control port
+;
+;	MVI	A,3	; Select 8155 port C
+;	OUT	21h	;
+;	IN	28h	; Get miscellaneous byte
+;	STA	OLDMSC	; Save misdellaneous info byte
+;	ORI	00001111B
+;			; Disable ring detect interrupt, RXD interrupt, XMIT
+;			;   interrupt, emab;e omterma; clock
+;	MOV	E,A
+;	MVI	A,3
+;	OUT	21h	; Select 8155 port C
+;	MOV	A,E
+;	OUT	28h	; Send new control byte to 8155 port C
+;	EI
+;	POP	PSW
+;	ORA	A
+;
+;BYPASS:
+;
+;--> Original code starts again with the following instruction:
+;
+;	JNZ	GOODBY
+;
+;
+;=======================================================================
+;
+;-----------------------------------------------------------------------
+; PATCH #2 -------------------------------------------------------------
+;-----------------------------------------------------------------------
+;
+;
+; Listed below is a patch for re-enabling the serial input interrupt
+; driver in the Vixen.	Place this patch before the instruction line
+; "JMP	0000H" in the EXCPM routine.
+;
+;--> Patch starts here
+;
+;RSTINT:LDA	OLDIOB	; Get original IOBYTE
+;	MVI	C,8
+;	MOV	E,A	; Use BDOS to restore original IOBYTE
+;	CALL	BDOS
+;
+;	DI
+;	XRA	A
+;	OUT	STPORT	; Disable 8251 DTR/RTS lines
+;	LHLD	OLDVEC	; Get original interrupt service address
+;	SHLD	INTVEC	; Restore original interrupt service address
+;	MVI	A,3	; Select 8155 port C
+;	OUT	21H
+;	IN	28H	; Get misc. info byte for controlling interrupt lines
+;	ANI	030H	; Zero the least significant four bits, keep the
+;			;   remainining two most significant bits
+;	MOV	E,A
+;	LDA	OLDMSC	; Get original misc. 8155 control byte
+;	ANI	0FH	; Keep least significant four bits
+;	ORA	E	; Combine everything
+;	MOV	E,A
+;	MVI	A,3
+;	OUT	21H	; Select 8155 port C
+;	MOV	A,E
+;	OUT	28H	; Restore original 8155 control byte
+;	EI
+;
+;	MVI	B,3CH
+;	LDA	OLDBAUD ; Restore original baudrate byte
+;	CALL	IORESET ; Do an 8251 reset
+;
+;	MVI	B,3BH
+;	LDA	OLDMODE ; Restore original mode byte
+;	CALL	IORESET ; Do an 8251 reset
+;
+;--> Original code starts again with the following instruction:
+;
+;	JMP	0000H
+;
+;-----------------------------------------------------------------------
+;
+;
+; E Q U A T E S
+;
+;
+INTVEC	EQU	0EFFEH		; Address of interrupt vector to first interrupt
+				; Service routine
+BDOS	EQU	0005H		; Address of bdos entry point in first page of RAM
+BIOS	EQU	0001H		; Address of pointer to CP/M warm boot jump in BIOS
+AJUMP	EQU	0C3H		; JUMP instruction opcode
+;
+;
+PORT	EQU	030H
+DATPORT	EQU	PORT		; Modem data port
+STPORT	EQU	PORT+1		; Modem status port
+;
+;
+;-----------------------------------------------------------------------
+;
+; Is there a carrier?  If not, return with the zero flag set.
+;
+MDCARCK:MVI	A,17H		; Reset status
+	OUT	STPORT
+	IN	STPORT		; Get status
+	ANI	80H		; Check for carrier detect
+	RET
+;.....
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	STPORT		; Causing modem to hangup
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until carrier drops
+	POP	B		; Restore BC
+	MVI	A,17H		; Raise DTR so that modem can answer the phone
+	OUT	STPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.......
+;
+;
+; Input a character from the modem.
+;
+MDINP:	IN	DATPORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.  Return with zero
+; flag set, if not.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	STPORT		; Get status
+	ANI	2		; Got a character?
+	RZ			; Return if none
+	IN	STPORT		; Get status again
+	ANI	ERR		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,17H		; Reset error flags
+	OUT	STPORT
+	XRA	A		; Return false
+	RET
+;.....
+;
+;
+MDINST1:ORI	0FFH		; We have a character
+	RET			; And return
+;.....
+;
+;
+; Send a character to the modem.
+;
+MDOUTP:	OUT	DATPORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character.
+;
+MDOUTST:IN	STPORT		; Read port
+	ANI	4		; Mask crap
+	RZ
+	ORI	0FFH
+	RET
+;.....
+;
+;
+; Re-initialize modem and hang up phone by dropping DTR and leaving
+; modem inactive
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by main BYE program after caller types BYE
+;
+MDSTOP:	XRA	A		; Turn off rts/dtr, rx/tx
+	OUT	STPORT		; Command byte to 8251 control port
+	RET
+;.....
+;
+;
+; If you do not support a particular baud rate, put it here before
+; SETINV:
+;
+SETINV:	MVI	A,0FFH
+	ORI	A		; Make sure the Zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,06H		; Store baud rate parameter (300 baud)
+	MVI	B,3CH
+	JMP	SETBAUD
+;
+SET1200:MVI	A,08H		; Store baud rate parameter (1200 baud)
+	MVI	B,3CH
+	JMP	SETBAUD
+;
+SET2400:MVI	A,0BH		; Store baud rate parameter (2400 baud)
+	MVI	B,3CH
+
+SETBAUD:CALL	IORESET		; Use extended BIOS function to reset baudrate
+	XRA	A		; Say baudrate change was satisfactory
+	RET
+;.....
+;
+;
+IORESET:
+;
+; Subroutine which executes a master reset for 8251.  8251 reset is a
+; BIOS function in VIXEN extended BIOS
+;
+;	ENTRY:
+;	A	=	byte value to be replaced in BIOS
+;			(mode byte or baudrate byte)
+;
+;	B	=	hex displacement from base of BIOS
+;			for mode byte or baudrate byte
+;			(mode byte = 3BH)
+;			(baudrate byte = 3CH)
+;
+;	EXIT:
+;	NONE
+;
+	LHLD	BIOS		; Find base of BIOS
+	MOV	L,B
+	MOV	M,A
+	MVI	L,36H		; Displacement in BIOS for 8251 reset function
+	SHLD	EXTFUN
+	CALL	BIOSFUNC	; Subroutine call of BIOS 8251 reset function
+	RET
+;.....
+;
+;
+OLDIOB:	DS	1		; Original  IOBYTE
+OLDMSC:	DS	1		; Original misc. control byte for 8155 port C
+OLDVEC:	DS	2		; Original interrupt service vector
+OLDMODE:DB	1		; Original 8251 mode byte from BIOS
+OLDBAUD:DB	1		; Original baudrate byte for 8251 from BIOS
+BIOSFUNC: DB	AJUMP		; Absolute jump to the	following memory address
+EXTFUN:	DS	2		; BIOS extended function address
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

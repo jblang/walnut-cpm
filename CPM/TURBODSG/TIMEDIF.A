@@ -1,0 +1,220 @@
+;TIMEDIF.A v1.00
+; ESKAY 02-12-85
+;
+	MODULE	"TIMEDIF"
+;
+; Purpose:
+; Evaluate two ASCII character strings in HH:MM:SS format and
+; return their difference.
+;
+; Entry point:	TIMDIF
+; Externals:	STTIME
+;		ENTIME
+;		ELAPTM
+;
+; Input parameters:
+; STTIME holds a time string of HH:MM:SS format. STTIME must point
+; to the tens hours digit. The time string must be in 24 hour format.
+; The time stored there should be the beginning time of an event.
+;
+; ENTIME holds a string with the same format. The time stored there
+; should be the end of an event.
+;
+; On return, ELAPTM will be filled with the elapsed time in
+; hours and minutes and the accumulator will be cleared with the
+; ZERO flag SET. If either entry parameter contained an illegal
+; quantity, the CARRY flag will be SET and ELAPTM will be undefined.
+; NOTE: TIMDIF will not place delimiters into ELAPTM!
+;
+; Only the first 8 characters of the strings are processed and checked
+; for proper range. Be sure to zero the seconds field if not needed!
+;
+; NOTE:
+; If ENTIME is smaller than STTIME, then 24 hours are added to ENTIME.
+;
+; This routine is intended for application where the event time will
+; never be greater than 23:59:59 (RCPM and BBS use mainly).
+;
+	LOC	Code#
+;
+; Entry point. All registers meet their doom...
+;
+TIMDIF::
+	MOV	BX,&STTIME#	;POINT TO START TIME
+	CALL	CHFORM		;CHECK PROPER FORMAT
+	JNC	__X		;RETURN IF ERROR
+	RET
+;
+__X:	MOV	BX,&ENTIME#	;POINT TO END TIME
+	CALL	CHFORM		;CHECK THAT TOO
+	JNC	__Y
+	RET
+;
+; The stage is set - let's get down to business...
+;
+__Y:	MOV	BX,&STTIME#+6	;POINT TO SECONDS START
+	CALL	GETBIN		;GET BINARY
+	MOV	DH,AL		;SAVE IT
+	MOV	BX,&ENTIME#+6	;SECONDS END
+	CALL	GETBIN		;GET BINARY
+	MOV	DL,=0		;RESET OUR PRIVATE BORROW FLAG
+	SUB	AL,DH		;SUBTRACT
+	JC	__Z		;SKIP IF NO BORROW
+	JMP	SKBS
+;
+__Z:	DEC	DL		;SET OUR BORROW FLAG
+	ADD	AL,=60		;MAKE MOD 60
+SKBS:	MOV	BX,&ELAPTM#+7	;STORE AS RESULT
+	CALL	STORA
+;
+; Do the same stuff for minutes
+;
+	MOV	BX,&STTIME#+3	;MINUTES START
+	CALL	GETBIN		;GET BINARY
+	MOV	DH,AL		;SAVE BINARY
+	MOV	BX,&ENTIME#+3	;MINUTES END
+	CALL	GETBIN		;GET BINARY
+	INC	DL		;IF NOT BORROW...
+	JZ	__X			;THEN SKIP...
+	JMP	SKBM1
+;
+__X:	INC	DH		;...ELSE ADD BORROWED VALUE
+SKBM1:	MOV	DL,=0		;MAKE SURE BORROW FLAG RESET
+	SUB	AL,DH		;SUBTRACT
+	JC	__X		;SKIP IF NO BORROW
+	JMP	SKBM2
+;
+__X:	DEC	DL		;SET BORROW
+	ADD	AL,=60		;MAKE MOD 60
+SKBM2:	MOV	BX,&ELAPTM#+4	;STORE ELAPSED MINUTES
+	CALL	STORA
+;
+; Finally, here go the hours.
+;
+	MOV	BX,&STTIME#	;HOURS START
+	CALL	GETBIN		;GET 'EM
+	MOV	DH,AL		;SAVE START HOURS
+	MOV	BX,&ENTIME#	;HOURS END
+	CALL	GETBIN		;GET BINARY
+	INC	DL		;IF NOT BORROW...
+	JZ	__X			;...THEN SKIP...
+	JMP	SKBH1
+;
+__X:	INC	DH		;...ELSE ADD BORROWED HOUR
+SKBH1:	SUB	AL,DH		;SUBTRACT
+	JC	__X		;JUMP IF NO BORROW
+	JMP	SKBH2
+;
+__X:	ADD	AL,=24		;ELSE ADD 24 HOURS
+SKBH2:	MOV	BX,&ELAPTM#+1	;SAVE AS HOURS
+	CALL	STORA
+	XOR	AL,AL		;MAKE SURE ERROR IS RESET
+	RET			;END OF EXECUTION, BACK TO CALLER.
+;
+; Get the ASCII value at HL as a binary into A
+;
+GETBIN:	MOV	AL,[BX]		;GET TENS
+	AND	AL,=0X0F	;STRIP ASCII OFFSET
+	MOV	CH,AL		;SAVE TENS
+	XOR	AL,AL		;SET ACCUMULATOR
+	MOV	CL,=10		;SET UP CHEAP MULTIPLIER
+MUL:	ADD	AL,CL
+	DEC	CH
+	JZ	__X
+	JMP	MUL
+;
+__X:	MOV	CH,AL		;SAVE TENS
+	INC	BX		;POINT TO UNITS
+	MOV	AL,[BX]		;GET UNITS
+	AND	AL,=0X0F		;SAME TREATMENT
+	ADD	AL,CH		;ADD THE TENS
+	RET
+;
+; Check format of HH:MM:SS string. Checks all digits for presence
+; and validity.
+;
+CHFORM:	MOV	AL,[BX]		;GET 10S H
+	CMP	AL,='0'
+	JNC	__X
+	RET
+;
+__X:	CMP	AL,='3'
+	CMC	
+	JNC	__Y
+	RET
+;
+__Y:	INC	BX
+	MOV	AL,[BX]		;GET 1S H
+	CALL	CK10		;CHECK DECIMAL
+	JNC	__Z
+	RET
+;
+__Z:	INC	BX		;GET COLON
+	MOV	AL,[BX]
+	CMP	AL,=':'
+	STC	
+	JZ	__A
+	RET
+;
+__A:	INC	BX		;POINT TO 10S M
+	MOV	AL,[BX]
+	CALL	CK6		;CHECK HEX
+	JNC	__B
+	RET
+;
+__B:	INC	BX
+	MOV	AL,[BX]		;1S M
+	CALL	CK10
+	JNC	__C
+	RET
+;
+__C:	INC	BX
+	MOV	AL,[BX]		;GET DELIMITER
+	CMP	AL,=':'
+	STC	
+	JZ	__D
+	RET
+;
+__D:	INC	BX
+	MOV	AL,[BX]		;GET 10S S
+	CALL	CK6
+	JNC	__E
+	RET
+;
+__E:	INC	BX
+	MOV	AL,[BX]
+CK10:	CMP	AL,='0'
+	JNC	__X
+	RET
+;
+__X:	CMP	AL,='9'+1
+	CMC	
+	RET
+;
+CK6:	CMP	AL,='0'
+	JNC	__X
+	RET
+;
+__X:	CMP	AL,='7'
+	CMC	
+	RET
+;
+; Store accumulator as ASCII digits at HL and HL+1
+;
+STORA:	MOV	CH,=-1
+TLP:	INC	CH
+	SUB	AL,=10		;SUBTRACT 10
+	JC	__X		;UNTIL BORROW
+	JMP	TLP
+;
+__X:	ADD	AL,=10		;MAKE MOD 10
+	OR	AL,='0'		;MAKE ASCII
+	MOV	[BX],AL
+	DEC	BX
+	MOV	AL,='0'
+	ADD	AL,CH
+	MOV	[BX],AL
+	RET
+;
+	END
+

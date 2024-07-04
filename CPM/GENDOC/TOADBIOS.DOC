@@ -1,0 +1,529 @@
+          The Latest Version of Toad Hall's TOADCPM.COM
+                    (Version 2.2, 10 Dec 83)
+
+
+     Using various patches (credit given below), I've patched CPM 
+2.2 to add some things I've found very useful:
+
+
+PRINTER:   In  Version  2.1,  it's  configured for  a  9600  baud 
+printer,  using  the Data Ready protocol (donno if it's the  best 
+for  my Mannesman Tally,  but it works!).   Version 2.2  now  has 
+XON/XOFF,  which  works just fine using exactly the same cabling.  
+Seems to cause a bit less delay when simultaneously printing  and 
+making  keyboard  entries  during  UNSPOOL  or  WordStar's  PRINT 
+utility.   [Note:   As of 10 Dec I went back to Xon/Xoff, just to 
+see if there was a difference.  None, really.]
+
+
+ASSEMBLY SETTINGS:  (Look at the TOADBIOS.ASM listing for details 
+-- it's for the XON/XOFF, 19200 baud Version 2.2, but all changes 
+are  fully  documented.)  You'll see it's for a 64K  system  with 
+DEBUG set to ON to give me various sizes and locations during MAC 
+assembly, and NONSTANDARD set to 1 (donno why; I thought Morrow's 
+BIOS  was conventional,  but I'm just following the advice of  my 
+vendor/-confidant  Jack  Long at Cost Plus Computers -- and  he's 
+batting a thousand so far!).   The original CBIOS&.ASM had at one 
+point a value set to DECISION I I/O instead of Mult/IO; suspecting 
+this  might  be giving me some problems in  using  the  clock,  I 
+changed it to Mult/IO, which is exactly what's in my Decision I.
+
+
+DUPLICATE *.COM  FILES:   I  dislike  having  to  duplicate  .COM 
+programs  (utilities and other files) in different User Areas and 
+disks when my trusty 5 Meg hard disk is just sitting there as the 
+default A disk most of the time.
+
+    I've  used DUPUSR.COM (a program to put a kind of pointer  in 
+each User area directory so you get the name of a program or file 
+in that directory, but not the actual file.  This means no actual 
+disk  storage  space  used.),  but  DUPUSR  has  one  SEVERE  AND 
+DANGEROUS problem:   if you erase a DUPUSR-created file name  and 
+don't  hit  CTRL  C right after the erasure,  you can  have  some 
+SEVERE directory damage!   About the third time I trashed my hard 
+disk  directory through carelessness like this,  I decided  there 
+had to be a better way!
+
+     I  read an article out in Netland by Neil Maron that gave  a 
+patch to make the system look on drive A: if your .COM file isn't 
+on the logged in drive.   Additionally,  if it isn't on A: in the 
+same  User Area,  it'll look to User Area 0 for that file  before 
+giving  up.   This means I can keep all the common utilities  and 
+.COM files in User Area 0 on my hard disk,  configure my CP/M  to 
+always use the hard disk as A:, and I'm in business.  
+
+     There are only a couple of places where this fails me.
+
+    a.   WordStar:   You can have WS.COM on disk A,  User Area 0, 
+all  right,  BUT  you  must have the *.OVR files it uses  in  the 
+default disk (A for me) and the User Area you're working in!   WS 
+can  be  installed or patched to look to a default disk  for  its 
+.OVR files,  but it does NOT know how to look to User Area 0!  No 
+problem,  really  -- this  is  where I take the  chance  and  use 
+DUPUSR.   I  DUPUSR the .OVR files to all appropriate User  Areas 
+where  I might want to run WS.COM.   I naturally use STAT to make 
+the  .OVR  files Read/Only and $SYS so they don't clutter  up  my 
+directory  and I won't erase them by accident.   I  don't  bother 
+copying  WS or the .OVR files to other disks,  but instead depend 
+on the default disk (A).
+
+     b.  MBASIC (Microsoft BASIC v.  5.1) doesn't seem to want to 
+accept  a  compound command line like MBASIC STARTREK  if  MBASIC 
+isn't actually on that disk or in that User Area.   (I think it's 
+a function of Neil's patch only looking at the .COM file name and 
+not handling the STARTREK extension properly.)  No big problem -- 
+I  have  two options:   (1)  RUN MBASIC (which works  just  fine, 
+reaching  out to A:  and then if necessary User Area 0 on  A:  to 
+find  MBASIC)  and then when in MBASIC,  LOAD or RUN  whatever  I 
+want; or (2) DUPUSR MBASIC into necessary User Areas so I'll know 
+it's there.  (Again protect it with R/O and $SYS.)
+
+    c.  SUBMIT may give some problems.  So far I've had none, but 
+there are lots of fancy applications,  modified SUBMITs, etc. out 
+there  where  this may hang up.   If there's a problem  with  any 
+SUBMIT applications,  just DUPUSR it into the User Area requiring 
+SUBMIT applications and forget about it.
+
+    d.   My library is a bit limited,  but if you have any  other 
+fancy  programs  that  do lots of overlaying,  calling  in  other 
+programs,  etc.,  you'd better not depend on this A:  User Area 0 
+patch working correctly.   I suspect Visicalc, DBaseII, and those 
+kinds of application programs won't take kindly to it!
+
+     One  thing -- if you DON'T have your hard disk set up as  A, 
+then you need to change those JMPs around.   Make CP/M first look 
+to User Area 0 on the present disk,  and then to Drive  A.   That 
+way,  if  you're working in your hard disk,  it'll check out User 
+Area  0  there  first before running off to  look  at  some  poor 
+innocent floppy.  
+
+
+USER AREA WITH > PROMPT:   I HATE not knowing which User Area I'm 
+in,  and  I've had some real problems.   Examples:   You get  the 
+infamous  BDOS ERR ON d:  error message;  you get kicked back  to 
+User  Area  0 automatically;  you don't know or remember  it  and 
+erase or do something to a file;  and successfully trash the very 
+special,  unique,  and  wonderful file in User Area 0 you had  NO 
+intention of messing with!
+
+    In any case,  it's a pain having to go back to the right User 
+Area  again.   The  original  code was written by  Bruce  Kendall 
+(address unknown)  7-12-80,  and  tightened up  by  Bruce  Ratoff
+11-17-80.  I made all the Morrow Decision CP/M-specific stuff.
+     Basically, it patches a little CALL into the portion of your 
+CCP  that prints the > prompt,  reaches out to a wee little patch 
+that was poked into an area of NOPs in the CCP that gets the User 
+Area and then displays current disk,  user area (in hex  -- sorry 
+abot that -- had to keep it small),  and > prompt, and goes right 
+on about its business!   Real simple.  [Note:  I grabbed a little 
+routine  from another program (donno where),  and made this patch 
+now print the User Area in decimal after the disk.   Couldn't  do 
+this  with  a  "hot patch" in the actual BIOS;  had to do  it  in 
+assembler in the source code.  If you HAVE source code, great!]
+
+    The  TOADCPM.COM  on this disk (assuming you have  the  disk) 
+includes that patch.   The code is at the end of this article  if 
+you  want  to  implement  it yourself in  your  own  BIOS.   It's 
+definitely nice to have,  and not at all hard to implement.  Note 
+that  I  did NOT make this a stand-alone little  program  that'll 
+reach out and patch your CP/M in memory.   You'll have to use DDT 
+for this,  and if you aren't sure of the procedures,  a  step-by-
+step  (hopefully eminently logical and easy to follow)  procedure 
+is  outlined right after the source code.
+
+    The  memory locations given are for Morrow Design's CP/M  for 
+their Decision I (where the CCP starts at 0B00H in the DDT image, 
+and at D400H in real memory).  If your CCP starts somewhere else, 
+you'll  have to figure out your own locations for  COUT  (console 
+out), GTCMD (Get Command), PATCH (my patch in the NOP area of the 
+CCP),  etc.   Not  very hard -- you can use the H tool in DDT  to 
+figure  out some offsets.   (If you're doing these hacks in  your 
+own CCP and BIOS,  it's time for you to figure out DDT,  offsets, 
+DDT images, real images, etc. anyway!)
+
+
+AUTOSTART:   There  have  been several articles around on how  to 
+make   a  "turn-key"  system  with  CP/M  and   its   "Autostart" 
+capability.   Basically,  they  involve making a version of  CP/M 
+that has a .COM file name already in the CCP where CP/M looks for 
+a  program  name  to execute.   When you boot up (cold  or  warm, 
+depending),  that program will run.  One article fully explaining 
+it is "'Turn-Key' CP/M Systems" by James J.  Frantz, published in 
+Creative Computing,  December 1979.   (It's for CP/M Version 1.4, 
+but not to worry - that part still is the same in Ver 2.2.)
+
+    One little problem with this,  though!  Morrow's CBIOS& has a 
+kind of switch (variable name AUTOST) in the source code that you 
+have to turn on for Autostart to work!  You have several options:  
+Never, only on cold boot, only on warm boot, and on both cold and 
+warm boot.   This version is engaged for warm and cold boot.  The 
+default command "AUTO" is plugged in at the front of the CCP, but 
+will  have  absolutely  no  effect so long as you  don't  have  a 
+AUTO.COM file in User Area 0!  If you do ... it'll run!  (You can 
+get  rid of this with DDT by replacing from 0B07H (DDT image)  up 
+to the remaining 20's with 20, and then SAVE 48 TOADCPM.COM. 
+
+     If  you're  hacking  up  a special  CP/M  for  an  Autostart 
+program,  the warm boot and cold boot commands can be entered  as 
+DB's  right  around  page  12 of Morrow's CBIOS  Revision  E  for 
+Version  2.2  (Mar 4 1982) as provided with my  Decision  I.   In 
+memory,  if you want to poke it into your CCP,  it's right at the 
+very  start  of your CCP (0B00H in the DDT image  on  my  system) 
+where you can see the Digital Research copyright.
+
+     I'm not going to give that full procedure here -- plenty  of 
+other references out there already published.  But you can put it 
+right in your CBIOS while editing it a lot easier than looking up 
+hex and poking into memory.   Remember,  though -- just poking in 
+the  Autostart command (with its accompanying requirements,  like 
+length of command in CCP+7, and a NOP or 00 after the command) is 
+NOT sufficient with Morrow's CBIOS!   You HAVE to turn that Auto-
+start switch on!  (Drove me crazy for a while until I figured out 
+that was the problem!)
+
+
+COLDBOOT  TO  YOUR HARD DISK:   My system originally used  an  8" 
+floppy  to cold-boot,  and then I had to run "BOOTMW" to make  my 
+hard disk A:.  This was a bit of bother, and I accidentally found 
+the  answer:   Load the Hard Disk version of CP/M on the  floppy!  
+
+     Morrow  supplied me with MOVCPM-5 to create a CP/M for my  5 
+Meg hard disk,  and that's what I used (SYSGENing it to the  hard 
+disk,  etc.).   Fine  and  dandy -- saved a nice CPM-HD on  file.  
+Then  I accidentally used DDT to do some patches on THAT  version 
+of CP/M,  saved it,  and SYSGENed it onto an 8"  floppy!   (Never 
+would  have  done  it on purpose -- obviously a  hard  disk  CP/M 
+shouldn't  be on a floppy!)  Damned if it didn't work just  fine!  
+I put in the floppy, do a reset, she boots, and bingo -- the cold 
+boot message comes on, showing the HDCMA hard disk as A:, and the 
+8"  as  B:.   And in fact,  that's what's happened -- not just  a 
+bogus message.  Works fine, and I've had no problems whatsoever.
+
+    One  little  thing:   You  need the new  improved  CP/M  with 
+improved  TDBIOS on your hard disk too,  else the warm boot  just 
+boots up the old normal CP/M.  So SYSGEN TOADCPM (or your version 
+of your hard disk CP/M with TOADBIOS.ASM) onto both your floppies 
+and  your  hard disk.   Works - guaranteed.   (Keep a  couple  of 
+floppies around with a normal (i.e., A: is a floppy) just in case 
+your hard disk goes down some day!)
+
+
+TERMINAL/SERIAL BAUD UPGRADE:   Version 2.2 relies on a different 
+approach.   Jack  Long  at  Cost-Plus said he tried  to  set  the 
+switches  on the CPU board to have the Decision I do a cold  boot 
+from the hard disk.   Worked,  OK,  but then refused to recognize 
+any  other  disks!   This put me off for a while,  but  found  my 
+technique of booting from a floppy and switching over to the hard 
+disk  was giving me problems when I tried to upgrade my I/O board 
+and terminal to 19,200 baud.
+
+     The Mult/IO board has no baud rate switches at all, and will 
+initialize at 9600 baud.  On a cold boot, the Morrow Designs CP/M 
+bots from the floppy, loads the monitor (the FFFF: business), and 
+then  expects some sort of monitor command.   ("B" is all  that's 
+necessary  to tell it to boot off the PROM.)   Unfortunately,  if 
+the  Mult/IO board is running at a default 9600  baud,  and  your 
+terminal  is set to 19200,  the doggoned monitor can't read  that 
+"B",  and you never WILL get booted!  Real hassle, that -- and if 
+you  cold boot with everything set at 9600,  then you have to use 
+Morrow Design's BAUD.COM to kick up the CPU board and Mult/IO  to 
+19200,  physically  kick  up the terminal to 19200 (can't send  a 
+command to it,  you know -- not if the serial port's putting  out 
+twice as fast as the terminal can read!) ... a real pain!
+
+     Finally  got it working by setting the console default  baud 
+rate  to  19200,  setting  the terminal switches  to  19200,  and 
+setting  Switch 6 on the Morrow CPU board to ON (engages  a  cold 
+boot from the floppy,  skips the monitor, and boots right up with 
+no  terminal  input required.   The CBIOS initializes the  serial 
+port to 19200,  using that default baud rate, before the terminal 
+ever comes into play.
+
+     One little side effect I STILL haven't figured out:   every-
+thing  boots  up  fine (provided you gave the  hard  disk  a  few 
+seconds  to  come up to speed before hitting that reset  button), 
+but  after  the cold boot message and A0> prompt,  I  get  a  ^Q!  
+Donno  why  - think I'm overflowing the buffer with my cold  boot 
+message.  No big thing; hope to fix it soon.
+
+     I  have  not yet tried to cold boot from the hard  disk  (by 
+setting switches 1 through 5 to ON ON ON ON ON.   I don't  really 
+like  the  idea since it demands a lot of a barely  running  hard 
+disk that MIGHT not be up to speed yet!  
+
+[Note:   I've now added modem port (serial port 3) initialization 
+to 1200 baud on cold boot and port  initializations.   Sorry,  no 
+code  here  since it's quite Morrow-specific;  will add  to  this 
+document later.]
+
+COMPANY  CREDIT LINE ON COLD BOOT:   You can see the little "Toad 
+Hall" logo come on,  plus some patch comments,  on the cold  boot 
+message.   Easy  - just added it into the CBIOS when editing  it.  
+That's on page 76 of Morrow's CBIOS& listing, way toward the end.  
+Just add in whatever you want (well,  keep it reasonable -- don't 
+want  to make this CBIOS TOO big,  you know!)  Don't forget  ACRs 
+and ALFs (carriage returns and line feeds) where appropriate.   I 
+mentioned above that ^Q problem after a cold boot.   I suspect it 
+comes  from an excessive cold boot message,  so be  warned!   [It 
+didn't!   Still don't know the answer.  Suspect just some garbage 
+left  around  the  Multi I/O board that wasn't  purged  correctly 
+after  initialization  that shows when running  the  terminal  at 
+19200 baud!]
+
+
+MISCELLANEOUS LOCATIONS:  If you MAC TOADBIOS.ASM, you'll get most 
+of these as a DEBUG message.  However, just for your information:
+
+     OFFSETC        3700           Offset in CP/M when R'ing
+                                   TOADBIOS.HEX on top of your
+                                   CPM64.COM in DDT.
+     CCP            D400           Start of CCP in real memory
+     CCP            0B00           Start of CCP in DDT image
+     BDOS           DC00           Start of BDOS in real memory
+     BIOS           EA00           Start of TOADBIOS in real memory
+     BIOSLN         16             Length of TOADBIOS in pages.
+     BIOSHEXLN      0F00           Length of TOADBIOS in hex.
+     CCPLEN         800            Length of CCP in hex.
+
+     USRPTCH1       0E8D           Actual location in DDT image
+                                   of first User Area Patch.
+     USRPTCH2       20F0           Beginning of second User Area
+                                   patch in NOP area of DDT image
+                                   of CCP.
+                    CAD3           First patch in CCP to 
+                                   jump to second patch in CCP
+                                   for A: User Area 0 default.
+                    1DB3           Location in DDT image of
+                                   first patch.
+     PATCH          12F2           DDT image location of larger
+                                   patch in CCP for default A:.
+     PATCH1         EC50           Real memory location in 
+                                   TOADBIOS of default code.
+
+                    - - - - - - - -
+
+USER AREA DISPLAY CODE:
+
+DDT IMAGE      INSTRS & REAL MEMORY LOCATIONS
+
+0E82      LXI  SP,DBAB        ;original code
+0E85      CALL D498           ;    "    ", flush
+0E88      CALL D5D0           ;    "    ", get drive
+0E8B      ADI  41             ;    "    ", 'A'
+- - - - - and here's the patch - - - - -
+0E8D      CALL E9F0           ;patch - was CALL D48C, console out
+- - - - - end of patch - - - - -
+          MVI  A,3E           ;original code - '>'
+          CALL D48C           ;    "    ", console out
+          CALL D539           ;    "    ", get cmd
+
+
+ext patch is in an area of NOPs in the CCP - check to be sure!
+(And  don't  get  too  low in  that  area:   I  think  it's  disk 
+parameters  or something!   Go too low with your patch and  it'll 
+get  overlaid  and eaten up!)  If something's  there,  just  find 
+about  1 1/2 lines of NOPs somewhere in your CCP where this  will 
+fit  (maybe  just  before the BDOS where there's  sometimes  some 
+room).   Use DDT's A (for Assembly) instruction to stick in  this 
+stuff just like you see it.   If your CCP does NOT start at D400, 
+then you'll have to figure out an offset.  Best place to do this, 
+of  course,  is  in your CBIOS in assembly -- makes it  all  much 
+easier to squeeze.
+
+DDT LOC   REAL MEMORY LOCATIONS
+
+20F0      CALL D48C           ;console out routine
+          CALL D513           ;get user routine
+          ADI  90H            ;routine to convert to number
+          DAA
+          ACI  40H
+          DAA
+          JMP  D48C           ;console out again, which returns
+                              ;us automatically to right after
+                              ;the first patch at 0E8D where
+                              ;things continue like normal.
+[Note:   above  was per the original patch.   My patch NOW  reads 
+like this to produce the decimal user area:
+
+USRPTCH:
+          CALL 0D48CH         ; Console Out routine.
+          CALL 0D513H         ; Get User routine.
+          CPI  10             ; If User # >9, print leading 1.
+          JC   DUX
+          PUSH PSW            ; Save A w/User #.
+          MVI  A,'1'          ; Load the 10 digit for Conout
+          CALL 0D48CH         ; Conout.
+          POP  PSW            ; Get A w/User # back.
+          SUI  10
+DUX:      ADI  '0'
+          ORA  A              ; Clear flags.
+          JMP  0D48CH         ; Print second digit.
+; End of patch
+                              
+I include the original code below,  just for reference.   It has 
+the original locations, plus my patched Morrow locations.
+
+;  --- PATCH TO CP/M 2.X TO LIST USER # IN DRIVE PROMPT ---
+;	    ( VALID FOR CP/M 2.0, 2.1, AND 2.2)
+;		BY BRUCE KENDALL (TKI)
+;		      7/12/80
+;		TIGHTENED UP BY BRUCE RATOFF
+;		     11/17/80
+;
+;	IF YOU HAVE TRIED PLAYING WITH THE  'USER' COMMAND
+;	IN CP/M 2.X, YOU MAY HAVE BECOME ANNOYED THAT THERE
+;	WAS NO WAY OF TELLING WHAT USER AREA YOU WERE IN.  THIS
+;	PATCH SOLVES THIS PROBLEM BY DISPLAYING THE USER NUMBER
+;	IN HEX ( A SINGLE CHARACTER SINCE USER # : 0-15 ARE VALID)
+;	BETWEEN THE DRIVE NAME LETTER AND THE '>'. THAT IS, A USER
+;	LOGGED INTO USER AREA #4 WOULD SEE THE STANDARD CP/M 
+;	PROMPT (MODIFIED BY THIS PATCH) AS:
+;		A4>       ( INSTEAD OF JUST A>)
+;
+MSIZE	EQU	64	; CP/M SYSTEM SIZE IN KB
+;
+DELTA	EQU	1000H	; OFFSET FROM STD CP/M SIZE
+			; THIS WOULD BE SET TO 400H IF
+			; THE 20K CP/M WAS ACTUALLY A 19K
+			; CP/M (WHEN COMPARED TO THE STD
+			; 20K CP/M DESCRIBED IN THE CP/M
+			; MANUALS FROM DIGITAL RESEARCH).
+;
+BIAS	EQU	(MSIZE-20)*1024-DELTA ; OFFSET FROM 20K CP/M
+CCP	EQU	3400H+BIAS
+;
+OFFSET	EQU	980H-CCP ; OFFSET USED WITH  DDT IN 
+			; SYSTEM CONFIGURATION (ASSUMES
+			; THAT 'CCP' OCCURES AT 980H IN THE
+			; SYSGEN MEMORY IMAGE).
+;
+COUT	EQU	CCP+8CH ; CCP CONSOLE OUTPUT ROUTINE
+GTUSR	EQU	CCP+113H ; CCP GET USER # ROUTINE
+;
+	ORG	CCP+38DH
+;
+	CALL	PATCH	; THIS WAS A   CALL  COUT
+;
+; -----------------------------------------------
+; NOTE THE CODE IN THE NEIGHBORHOOD OF THIS PATCH WAS
+; USED TO PRINT OUT THE 'A>' PROMPT:
+;
+; CCP+382H:
+;	LXI SP,----
+;	CALL	FLUSH	; RESET BUFFERS
+;	CALL	GTDRV	; GET DRIVE #
+;	ADI	'A'	; ADD IN ASCII BIAS
+;	CALL	COUT	; <--- MAKE PATCH HERE
+;	MVI	A,'>'	; GET '>'
+;	CALL	COUT	; PRINT IT OUT
+;	CALL	GTCOMD	; GET CONSOLE COMMAND
+;	  .
+;	  .
+; -------------------------------------------------
+;
+	ORG	CCP+15F0H	; PATCH AREA AT END OF BDOS
+;
+PATCH:	CALL	COUT	; OUTPUT CHAR. IN ACC TO CONSOLE
+	CALL	GTUSR	; GET USER #
+	ADI	90H	; USE INTEL HEX/ASCII TRICK
+	DAA
+	ACI	40H
+	DAA
+	JMP	COUT	; PRINT OUT AND RETURN
+;
+; ------------------------------------------------------
+; NOTE: THE 'GTUSR' COMMAND IS JUST A SHORT ROUTINE:
+;
+;GTUSR:	MVI	E,0FFH
+;	MVI	C,32
+;	JMP	05
+; ------------------------------------------------------
+;
+	END
+                         - - - - - -
+
+
+DEFAULT TO A: 0 CODE
+
+I  gave you CCP+n locations this time so you can offset from  your 
+DDT  image  of  the start of your CCP.   You still  have  my  own 
+values, given my real memory CCP at D400 and BIOS at EA00.
+
+                              REAL MEMORY LOCATIONS
+                              IN MY SYSTEM
+
+CCP       EQU  0D400          D400      ;start of CCP
+GTUSR     EQU  CCP+113H       D513      ;Get user number routine
+STUSR     EQU  CCP+115H       D515      ;Set user number
+CCPMFCB   EQU  CCP+0D0H       D4D0      ;Open file at CPMFCB$
+CPMTYPE$  EQU  CCP+7D6H       DBD6      ;type field in CPMFCB$
+CMDSK$    EQU  CCP+7F0H       DBF0      ;loc of disk given in cmd
+CMDERR    EQU  CCP+76BH       DB6B      ;loc to type error in cmd
+WIN       EQU  CCP+6DEH       DADE      ;go here if we get file open
+
+DDT IMAGE      INSTRS & REAL MEMORY LOCATIONS
+
+11DB      JZ   CCP+6DBH       DADB      ;replaces JZ DB6B in my
+                                        ;system.  Loc of cmd err
+12F2      PATCH:              DDF2      ;replaces an unused area
+                                        ;of NOPs - check!!
+          LXI  H,CMDSK$       DBF0      ;get drive from curr cmd
+          ORA  M                        ;A=0 on entry, so fetches
+                                        ;drive
+;in next line, if explicit drive given go try User 0
+;(this will be escape even if we force A: in our cmd line
+          JNZ  PATCH1         EC50      ;Wherever you put that
+                                        ;new code in your CBIOS.
+                                        ;I put it here -- you can
+                                        ;find it by looking up
+                                        ;PATCH1 in the SYM table
+                                        ;generated by MAC
+          INR  M                        ;force explicit reference
+                                        ;to drive A
+          LXI  D,CPMTYPE$     DBD6      ;need DE set up to this
+                                        ;on entry to CCP
+          JMP  CCP+6CDH       DACD      ;Now to reenter CCP
+
+The  following  code must be patched into a blank  area  of  your 
+CBIOS  or entered into CBIOS&.ASM prior to assembly.   Be sure to 
+call it PATCH1 or something distinctive (and NOT like anything in 
+CBIOS&  or you'll have problems!) so you can find it in  the  SYM 
+table.
+
+Arrive here because explicit drive set or can't find file on A:
+
+     PATCH1:                  EC50      ;in my TOADBIOS version
+          CALL GTUSR          D513      ;get user code
+          ORA  A                        ;set flags
+          JZ   CMDERR         DB6B      ;already user 0 so we
+                                        ;fail - .COM file isn't
+                                        ;anywhere!
+          MOV  E,A                      ;get old value into E
+                                        ;for later
+          PUSH D                        ;save it
+          MVI  E,0                      ;set USER=0
+          CALL STUSR          D515
+          CALL OCPMFCB        D4D0      ;try Open again
+          POP  D                        ;get old user code back
+                                        ;before we save flags
+          PUSH PSW                      ;now save flags from call
+          CALL STUSR          D515      ;now go set back to old
+                                        ;user number
+          POP  PSW                      ;get flags back from
+                                        ;OPEN call
+          JNZ  WIN            DADE      ;we found it!
+          JMP  CMDERR         DB6B      ;nope, nowhere!
+                         - - - - - - - -
+
+That's  the code.   Hopefully you can make it work.   I'm only  a 
+novice Assembler programmer, and managed just fine!  Kind of fun, 
+too!  (Kind of nice at parties -- "What, you don't read hex?  And 
+don't work in Assembler either?")
+
+                       David P Kirschbaum
+                          SGM, US Army
+                            Toad Hall
+                       7573 Jennings Lane
+                     Fayetteville NC  28303
+  
+

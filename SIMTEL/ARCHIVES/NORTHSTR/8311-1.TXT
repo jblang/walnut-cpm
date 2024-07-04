@@ -1,0 +1,29 @@
+ 8-Nov-83 15:04:30-MST,1261;000000000000
+Mail-From: WANCHO created at  8-Nov-83 15:01:35
+Date: 8 Nov 1983  15:01 MST (Tue)
+Message-ID: <WANCHO.11966065606.BABYL@SIMTEL20>
+From: WANCHO@SIMTEL20
+To:   NORTHSTAR-USERS@SIMTEL20
+Subject: Unofficial Patch
+
+In the SELDSK routine of the BIOS in both rev 1.1.0 and 1.2.0, there
+is some obsolete code that needs to be disabled.  The original intent
+of the code was to force a write of the very first sector to a newly
+selected disk to determine right away if the disk was not READ-ONLY,
+or the door was open, etc.  However, the auto-select feature of BDOS
+subverts this and EACH sector is force-written instead of just the
+first.
+
+This bug was discovered by Sigi Kluger when he wondered why a new
+version of SWEEP took almost FIVE times longer to copy a file to
+another drive than the old version did.  The reason was that the new
+version did not log the destination drive first, but depended on that
+auto-select feature of BDOS.  It was also discovered in beta testing
+that new version that only the North Star CP/M exhibited this problem.
+The new SWEEP has since been fixed to log the drive first.
+
+The fix to the North Star 1.1.0 and 1.2.0 BIOS is a one-byte patch:
+
+at BIOS+3B7 replace the DCR A (3DH) with a NOP (00H).
+
+--Frank

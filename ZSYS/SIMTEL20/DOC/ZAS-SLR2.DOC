@@ -1,0 +1,217 @@
+            THE LIBRARIES, ZAS, AND THE SLR ASSEMBLERS -- PART 2
+
+                                  Jay Sage
+                             September 11, 1986
+
+
+                                 Background
+
+     After reading Richard Conn's article on the libraries in Micro/Systems 
+Journal (MSJ), I felt that Richard had been highly misleading in his 
+statements such as the following:
+
+     SYSLIB Version 3.6 (the most recent version) is written in the 
+     ZAS assembler language and can only be assembled by the ZAS 
+     assembler (SYSLIB.REL is provided in the distribution, so it is 
+     not necessary to be able to assemble SYSLIB in order to use it).
+     
+This statement and an identical one about Z3LIB Version 1.3 imply that 
+anyone who wants to work with the library source code has to go out and buy 
+ZAS.  I felt that this impression needed to be corrected, especially where 
+(in my opinion) ZAS is at best a mediocre assembler, particularly in 
+contrast to the superb assemblers from SLR systems that are available at 
+nearly the same price.  I released the file ZAS-SLR.DOC to clarify matters.  
+Richard has now released his rebuttal in ZAS-STD.DOC.  While Richard's 
+comments in MSJ were merely misleading, some of those in ZAS-STD.DOC could 
+well be construed as an affront to what is left of the 8-bit programmer 
+community.  More on that a little later.  First I would like to deal 
+specifically with Richard's comments in rebuttal to mine.
+
+
+                       Rebuttal to Richard's Rebuttal
+
+     In Richard's responses to my comments I thought I was reading something 
+composed by the State Department -- a lot of semantic sidestepping to 
+distract one's attention from the real issue, the misleading statements in 
+the MSJ article.
+
+     First Richard corrects me concerning his employment by Echelon.  OK, 
+let's use the words "very closely associated, including financially" 
+instead.  Actually, I may indeed have been wrong.  I had been told several 
+months ago by someone definitely in a position to know that Richard was 
+working full time for Echelon.  Perhaps I misunderstood; perhaps things did 
+not work out as planned; perhaps the legal relationship is technically not 
+employment.  It really doesn't matter.  The real issue is that Richard is 
+using ZAS not because he examined a lot of assemblers and found ZAS to be 
+the best.  He uses it, I submit, because it is the product promoted by 
+Echelon.  AND THERE IS NOTHING WRONG WITH THAT.  There would also be nothing 
+wrong with his being employed by Echelon and supporting his employer by 
+using and promoting the employer's products (the fact that Richard makes no 
+money directly from the sales of ZAS is irrelevant; I don't make any money 
+directly from my employer's sales either).  What is wrong is to promote 
+those products in a misleading way.
+
+     Richard pointed gleefully to my admission that SLR's Z80ASM assembler 
+could not fully assemble the SYSLIB source as released.  I ask the rest of 
+the community out there: Do you think that, in the nearly three hundred 
+modules and thousands of lines of code, five lines with ".IN LUDDEF" that 
+have to be changed to "INCLUDE LUDDEF.LIB" justify conveying the impression 
+that you better go out and buy ZAS if you want to use the source code?  I 
+find it very hard to believe that anyone who would know what to do with the 
+source code would have any trouble whatsoever converting the source back to 
+one of the standard assembler formats.
+
+     Richard states that SLR's Z80ASM cannot assemble the latest Z3LIB 
+without completely editing the source (though in the same text he also 
+states that he has never seen or used the SLR assembler!).  In fact, Z80ASM 
+assembles the latest releases of Z3LIB (1.3) and VLIB (1.1) without any 
+problems at all.  Perhaps Richard was referring to a future version of the 
+libraries.  Is he planning to make deliberate use of idiosyncrasies of the 
+ZAS assembler to make sure that only ZAS can be used?  Even then I am sure 
+there would be no serious difficulty in converting the code to a format 
+suitable for conventional assemblers.
+
+     To sum all this up, I repeat my previous statement that if Richard had 
+said something like "the most recent versions of the libraries are written 
+in the ZAS assembler language and might require some minor changes for use 
+with other assemblers" I would have had no problem and would not have 
+written ZAS-SLR.DOC.
+
+
+                            Two Technical Asides
+
+     While I was running the code through the SLR assemblers, I decided to 
+check my speculation that the libraries contained only 8080-compatible 
+opcodes (Richard implied repeatedly in the article that the older releases 
+of the libraries were for 8080 but that the current versions were for Z80 
+and HD64180 only).  SLR's fancier, virtual-memory assembler Z80ASM+ has an 
+option to flag any non-8080 instructions as errors (its further ability to 
+flag absolute jumps that could be replaced by relative jumps saved 
+significant code in VFILER 4.1).  I ran it on all modules of all three 
+libraries.  Only four modules contained any Z80-specific opcodes.  These 
+were in the same library-utility modules that have the ZAS-specific ".IN" 
+pseudo-ops.  Since these are the newest routines, they suggest that Richard 
+is now writing code that will not support 8080- and 8085-based computers.  
+This in not a criticism; I also think it is time to start taking advantage 
+of the Z80 opcodes.  (The SLR assemblers carry this to a very high degree, 
+increasing speed and efficiency by making extensive use of alternate and 
+index registers.)  I would leave it to the minority with 8085s to convert 
+the source and release 8080 versions of the libraries.
+
+     While I am on asides, let me note another technical shortcoming of the 
+coding in the libraries (in ZAS-SLR.DOC I noted a few inconsistencies in 
+symbol names).  None of the routines place their uninitialized data space 
+into data segments (DSEGs).  As a result, COM files made using the libraries 
+include useless bytes that slow down loading and take up extra disk space.  
+This has been a problem with all Z programs.  It's not an earthshaking 
+matter, but it is completely unnecessary.  VFILER Version 4.1 is the first Z 
+program (to my knowledge) where the main program has support for DSEGs.  I 
+am now in the process of modifying the libraries code for VFILER.  The 
+linking step is more complicated (except with SLR's virtual-memory linker 
+SLRNK+, which does it automatically), requiring two linking operations, one 
+to determine the end of the program space (CSEG) and a second one to perform 
+the linkage with the data space ORGed immediately after the program space.  
+With SLRNK this is no big deal, since it will perform two linkages in less 
+time than other linkers can do one.  And during development there is no need 
+to place the data space precisely at the end of the code space.
+
+
+                     The Standard for 8-Bit Assemblers
+
+     Now I turn my attention to the part of Richard's ZAS-STD.DOC that I 
+feel is a real chutzpah.  In that file we learn that Richard Conn (King 
+Richard, perhaps) has decreed a new standard for assembly language that we 
+all must follow if we want to be a part of the Z programming community.  He 
+argues very eloquently and convincingly for the value of standards, pointing 
+to the example of Ada, his other major interest.
+
+     I, too, place a high value on standards, especially when they are a 
+help to everyone.  But consider how standards are usually arrived at in a 
+democratic society.  Several steps are involved:
+
+    1.  Notice is given to the community that a standard is being 
+        considered;
+    
+    2.  A committee of experts and interested parties is formed to 
+        oversee the development of the standard;
+    
+    3.  Existing products are examined, studied, and evaluated;
+    
+    4.  Input is solicited from the community at large.
+    
+     Richard Conn, as far as I can tell, has done none of these things!  
+First, the announcement of "The ZAS Standard" in ZAS-STD.DOC fell like a 
+bombshell.  I have not seen any notice in Z-News or on Z-Node Central of the 
+intention to formulate and enforce an assembler standard.  There is a BIG 
+difference between ZAS as the only assembler sold and supported by Echelon 
+and ZAS as THE STANDARD assembler.  Any company may choose to market a 
+particular product, but only IBM then declares it to be a world standard 
+(actually, even IBM doesn't do that; their choice just becomes the de facto 
+standard).
+
+     Second, there has been no committee of experts, at least not a public 
+one.  Richard Conn, perhaps with others on the "Echelon Team", seems to have 
+appointed himself.  Does Echelon really think it is the IBM of the 8-bit 
+world?!
+
+     Third, from Richard's own text we see that no examination of existing 
+products has been conducted.  He states plainly in that text that he has 
+never seen the SLR assemblers.  Anyone who keeps himself at all informed 
+about activities in the computer world other than his own would surely have 
+noticed the advertisements for the SLR tools.  The utterly outrageous (but 
+true!) claims in those ads should have at least led a standards setter to 
+investigate.
+
+     Fourth, since the community was not even notified of an impending 
+standard, its input was neither solicited nor given consideration.  We have 
+been presented with a fait accompli.  I, and I am sure others, would like to 
+ask that Richard Conn show some genuine respect for the rest of the 8-bit 
+programming community by paying a little attention to our ideas in addition 
+to his own.  That means not only listening to us when we talk directly to 
+him but more importantly looking at the new programs and program 
+enhancements that we release and at the dialogue on Z-Node Central and the 
+other Z-Nodes.  And it also means actively soliciting input before he makes 
+decisions that he expects the whole community to follow.
+
+     Richard's actions would be open to criticism even if the standard 
+decreed for us were a good one, but it is not.  When Echelon first offered 
+ZAS, many of us in the community wanted to and tried to support it.  
+Unfortunately, we found it to be a very mediocre assembler plagued with a 
+continuing series of problems and deficiencies (I don't want to go into them 
+here).  I have reached the point where I am no longer willing to expend the 
+effort to check my code for ZAS compatibility; Joe Wright, a member (or 
+former member?) of the Echelon Team, has even consented to be quoted in the 
+SLR advertisements (I would, too).
+
+     It is with regret that I make the above statements about ZAS.  In 
+general, the Echelon product line is a superb one that lives up to Echelon's 
+image of excellence.  Many of the products (the DSD debugger and REVAS3 
+disassembler) are, I think, the best available.  Joe Wright's auto-install Z 
+System packages are marvels of ingenuity; ZRDOS offers excellent new 
+functionality; ZCPR3 itself, the centerpiece, is dazzling.  ZAS, 
+unfortunately, stands out like a sore thumb in this list.  When I first used 
+the SLR assemblers, my immediate reaction was: There are the assemblers that 
+belong in the Echelon product line!
+
+
+                              A Silver Lining
+
+     There is a silver lining I am happy to report.  Yesterday Richard sent 
+a message over the INFO-CPM mailing list on the Defense Data Network (ARPA-
+NET), where our previous round of files also appeared, noting that he had 
+just received copies of the SLR assemblers and, though he had not yet used 
+them, was impressed with them based on the documentation.  He also reported 
+that Echelon and SLR Systems are talking.  Perhaps this false start at 
+standard-setting will be set aright, and we will all benefit.
+
+
+                               Final Footnote
+
+     Lest anyone take the above remarks excessively seriously, I would like 
+to temper them by adding that under circumstances such as these I am given 
+to a degree of overstatement.  After all, with nothing but a steady stream 
+of superb new Z programs week after week, one looks for something to break 
+the monotony.  And why should Frank Gaude' with his Z-News be the only one
+to provide some color?  Of course, Frank's style and mine are not exactly
+the same, and I prefer Cabernet Sauvignon to Zinfandel.
+                                          

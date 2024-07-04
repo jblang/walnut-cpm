@@ -1,0 +1,2387 @@
+ 3-Jul-88 01:31:26-MDT,4143;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun,  3 Jul 88 01:30:15 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #165
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun,  3 Jul 88       Volume 88 : Issue 165
+
+Today's Topics:
+                    COMPAS/Turbo/recursion program
+                        First CP/M Fido node!
+                     MEX Overlay for DEC Rainbow
+----------------------------------------------------------------------
+
+Date: Sat, 2 Jul 88 08:08:02 edt
+From: binder@decvax.dec.com (A complicated and secret quotidian existence)
+Subject: COMPAS/Turbo/recursion program
+
+PROGRAM Tryit (INPUT, OUTPUT);
+ 
+{
+Recursion program discussed earlier in INFO-CPM Digest - implemented
+for Turbo Pascal.
+ 
+The program as originally submitted will not work in *any* correctly
+implemented Pascal, because it allows only one byte for the variable
+"nextchar".   Declaring the variable inside a procedure doesn't mean
+that the variable will have a new space created for it on every call
+to the procedure; it only means that the variable is not global.
+ 
+Furthermore, it is necessary to make your Pascal's I/O routines take
+characters as they are typed, instead of waiting for a <CR>.   Turbo
+does this by using a file read from predeclared file "Kbd".  Then it
+is necessary to write the character because file reads do not echo.
+}
+ 
+{$A-}
+ 
+{
+The above compiler directive enables recursion in the CP/M-80 incar-
+nation of Turbo.
+}
+ 
+VAR
+        index:          INTEGER;
+ 
+        nextchar:       ARRAY [1..100] OF CHAR;  { Allow 100 chars }
+ 
+PROCEDURE Readwrite;
+ 
+BEGIN
+  index := index+1;
+  READ (Kbd, nextchar [index]);
+  WRITE (nextchar [index]);
+  IF (nextchar [index] <> ' ') THEN Readwrite;
+  WRITE (nextchar [index]);
+  index := index-1
+END;
+ 
+BEGIN
+  index := 0;
+  WRITE ('Enter a word, end with a space: ');
+  Readwrite
+END.
+
+------------------------------
+
+Date: Sat, 2 Jul 1988  21:14 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: First CP/M Fido node!
+
+Pulled from Jack Winslade's DRBBS:
+
+> Public message to: JOAN RENNE
+> From: JACK WINSLADE, SYSOP DRBBS #1
+> Date sent: 23-JUN-88
+> Subject: Congratulations !!
+>
+> Let me be the first to congratulate you on being, from what I can
+> tell, the operator of the first fully-operational Fido-Compatible
+> CP/M-80 BBS on the original Fidonet.
+>
+> I've heard rumblings of a couple of attempts at getting Tom
+> Jenning's 'PUP' up on CP/M, but I know of no other CP/M-80 systems
+> that are fully operational, let alone handle hundreds of echomail
+> messages.
+>
+> I believe that you have exclusive claim to this 'first'.
+>
+> Good Day!        JSW
+>
+> P.S. For those interested, the new node number for FBBS is 14/662.
+>
+> ---
+>
+> Public message to: JACK WINSLADE
+> From: JOAN RENNE, SYSOP FBBS (Fido 14/662)
+> Date sent: 26-JUN-88
+> Subject: Node 14/662
+>
+> "They" said it couldn't be done.  And you, my friend, proved that
+> CP/M-80 machines could handle all the Fidonet and Echomail very
+> simply.  Without your help and encouragement, FBBS would still be
+> just a local bbs.
+>
+> Kudo's for Mr. Winslade!
+>
+> (kudo, kudo, kudo!)
+>
+> ---
+
+------------------------------
+
+Date: Fri, 1 Jul 88 22:37:43 edt
+From: marwood@dmc-crc.arpa (G. J. Marwood)
+Subject: MEX Overlay for DEC Rainbow
+
+ 
+I am looking for an overlay which will allow MEXplus to be run on a DEC Rainbow
+in 8-bit (Z80) mode.  An overlay (MXH-DEC.ASM) is listed in the most recent 
+overlay list, but I cannot locate this file (It is not on GEnie, SIMTEL20, 
+Royal Oak or my local RCP/M).  If anyone can help me to find this file, or any 
+other suitable MEX overlay for the Rainbow, I would appreciate it.  I have the
+VT180 overlay MXH-VT36.ASM, which I am bout to try, but I am not sure about
+its suitability.
+ 
+                              thank you in advance
+                                    Gordon Marwood
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 4-Jul-88 01:31:51-MDT,3383;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Mon,  4 Jul 88 01:30:20 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #166
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Mon,  4 Jul 88       Volume 88 : Issue 166
+
+Today's Topics:
+                    COMPAS/Turbo/recursion program
+           My request for a lead to Polydata COMPAS (Z-80)
+----------------------------------------------------------------------
+
+Date: 3 Jul 88 04:38:13 GMT
+From: rochester!ken@cu-arpa.cs.cornell.edu  (Ken Yap)
+Subject: COMPAS/Turbo/recursion program
+
+|The program as originally submitted will not work in *any* correctly
+|implemented Pascal, because it allows only one byte for the variable
+|"nextchar".   Declaring the variable inside a procedure doesn't mean
+|that the variable will have a new space created for it on every call
+|to the procedure; it only means that the variable is not global.
+
+I beg your pardon? Distinct instances of called procedures should have
+their own instances of local variables, otherwise recursion is
+handicapped.  Any Pascal compiler that doesn't implement this correctly
+is brain-damaged. (I know there are some micro compilers out there that
+require recursive procedures to be identified as such, so that they can
+get away with allocating static storage for local variables instead of
+stack storage, because stack manipulation is expensive on itty-bitty
+micros.) The relevant reference is J&W 3rd edition, paragraph 10.3.
+
+The reason why the program posted won't work as such is because of line
+buffering on most systems.
+
+	Ken
+
+------------------------------
+
+Date: 2 Jul 88 21:44:57 GMT
+From: cadnetix.COM!cadnetix!rusty@uunet.uu.net  (Rusty)
+Subject: My request for a lead to Polydata COMPAS (Z-80)
+
+In article <8807011652.AA25089@ucbvax.Berkeley.EDU> PHR00JG@TECHNION.BITNET ("Jacques J. Goldberg") writes:
+->Try this with your Pascal system
+->
+->program tryit(input,output);
+->procedure readwrite;
+->var nextchar:char;
+->begin
+->  read(nextchar); if nextchar <> ' ' then readwrite; write(nextchar);
+->end;
+->begin
+->writeln('Type in a sweet word, end with one space');
+->readwrite
+->end.
+->
+->What does it do?
+->The intention is, store the word typed until a space is met, then write
+->it reversed, preceded by a space.
+->In fact, it does not work on any of the machines I tried.
+
+Well, as you noted, unless you set input mode to binary (or immediate),
+the observation that this program requires a line terminator is not surprising.
+
+However, the reason that the msdos and cpm versions only print the last character
+is because they did not correctly handle recursion.  The return address and
+the variable 'nextchar' both got overwritten on the recursion.
+
+So, it only proves that both pascals dont do windo... I mean recursion.
+
+Sorry about that.
+Oh, yes, it prints the word backward fine on a Sun 3/50, but since I did not set
+'binary' input mode, I needed a carriage return.
+-----
+  Rusty Carruth \ Cadnetix \ 5775 Flatiron Pkwy.  \ Boulder CO 80301 \ (303) 444-8075
+  'HOME': P.O. Box 461     \ Lafayette, CO 80026   RADIO: N7IKQ
+  UUCP:cadnetix!rusty	DOMAIN:rusty@cadnetix.com  PATH?:{uunet,boulder}!cadnetix!rusty
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 5-Jul-88 01:32:54-MDT,3345;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue,  5 Jul 88 01:30:22 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #167
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue,  5 Jul 88       Volume 88 : Issue 167
+
+Today's Topics:
+                    Otrona Attache repairs needed.
+----------------------------------------------------------------------
+
+Date: 3 Jul 88 04:18:44 GMT
+From: mailrus!eecae!upba!unocss!tucker@ames.arc.nasa.gov  (Greg Tucker)
+Subject: Otrona Attache repairs needed.
+
+I doubt Jerry Pournelle is out there in "UsenetLand", but perhaps there
+is someone else who can help me.  Just recently a friend gave me her
+Otrona Attache to fix and return.  When I told her that the problem was
+probably the power supply and I couldn't fix it, she told me that I could
+keep the machine if I could get it to work.  Ah ha!  This is my problem.
+
+For those of you who are not familiar with the machine, Otrona is a company
+that went under several years ago.  However, the Attache, a CPM
+transportable with dual disk drives and 5 inch monitor, is a darn nice
+little machine.
+
+When I turn on the machine I get nothing.  Zilch.  It is completely dead.
+She said her daughter killed it when she went to Europe, and it hasn't
+worked since.  The power supply is built to work with varying voltage
+standards, however, you have to reverse a card in the back to keep it from
+blowing.  This I doubt she did.  I opened up the machine, for all the
+good it did me.  The switch is okay, and there is NO power to the fan
+(which works fine).  With my limited electronics experience I would say
+the power supply is probably the culprit, no?
+
+Now, for the questions...
+
+1. Is anyone aware of a power supply I could buy for it?  Unfortunately,
+   Attaches don't use the nice little modular boxed supplies found in
+   todays PCs, but rather an open one that runs across two pc boards.
+   I assume they did this to make it compatible with other standards.
+
+2. Does anyone know if these machines are still serviced?
+
+3. I am aware that the Attache has an input on the back for a DC power
+   supply, namely a battery pack.  However, they don't define the
+   configuration for the pins in the manual.  Does anyone know this
+   pin configuration?  Would it be possible to use another external
+   power supply using this DC input?
+
+4. Am I wasting my time?  I hope not.  All I have is a crummy little
+   Apple //e with NO good terminal emulation software, and no good
+   Kermit driver.  In addition, the Attache sure would be nice in the
+   dorm...
+
+5. Could anyone give me any additional info they might think would be
+   helpful?
+
+Thanks in advance...
+
+
+"Out there in the desert I see dreams on every wall.
+ Nothing's ever solved.
+ He said the sky's the limit on this chartered trip away.
+ Guess I'd better stay away..."   -Husker Du
+
+
+
+-- 
+ ------------------------------+---------------------------------------------
+ Gregory A. Tucker- Consultant | Internet: conslt05%zeus.dnet@fergvax.unl.edu 
+ Campus Computing              | Bitnet:   CONSLT05@UNOMA1
+ Univ. of Nebraska at Omaha    | UUCP:     uunet!btni!unocss!tucker
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 6-Jul-88 01:33:05-MDT,3454;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed,  6 Jul 88 01:30:36 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #168
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed,  6 Jul 88       Volume 88 : Issue 168
+
+Today's Topics:
+                MEXplus implementation on DEC Rainbow
+                       Otrona info, parts, etc.
+                 Z80 Pascal Compilers and recursion.
+----------------------------------------------------------------------
+
+Date: Mon, 4 Jul 88 12:27:03 edt
+From: marwood@dmc-crc.arpa (G. J. Marwood)
+Subject: MEXplus implementation on DEC Rainbow
+
+I am attempting to use the MXH-VT36.ASM MEX overlay to set up MEXplus on a
+DEC Rainbow.  All appears to be well at the command (local) mode level, but 
+no form of terminal mode will work.  The MEXplus INSTALL indicates that an
+initialization file, DEC.INI should be used, but this was not included in 
+the MEXplus package.  If anyone has had any experience with this installation
+or knows anything about DEC.INI, I would appreciate some help.
+ 
+                                  Gordon Marwood
+(P.S. I have copied this to info-dec-micro, but as I do not subscribe to 
+that list, I would appreciate direct replies to me.  Thank you!
+
+------------------------------
+
+Date: Tue, 5 Jul 88 11:18:39 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, Digital Equip. Corp. USA)
+Subject: Otrona info, parts, etc.
+
+	I thought I saw an Otrona parts and info place in the last issue
+	or so of Computer Shopper.  If I run across it again I'll post the
+	info here.
+
+	rcs
+
+------------------------------
+
+Date: Wed, 06 Jul 88 08:42:53 IST
+From: "Jacques J. Goldberg" <PHR00JG%TECHNION.BITNET@CUNYVM.CUNY.EDU>
+Subject: Z80 Pascal Compilers and recursion.
+
+Some confusing, misleading, notes have been posted about the simple recursive
+example which I quoted only to show that Turbo-Pascal and Polydata Pascal were
+behaving in the SAME incorrect way.
+
+1. Pascal IS recursive and the example works perfectly, I repeat, with UNIX
+on a VAX, with VAX-VMS, with the IBM and the Waterloo compiler on IBM-VM
+systems, with Microsoft Pascal under MS-DOS, and with JRT Pascal on my Z80
+system. It does NOT work correctly with Turbo-Pascal and Polydata Pascal under
+MS-DOS but this has nothing to do with the language implementation, only with
+its I/O interface when the unit is the keyboard.
+
+2. Turbo Pascal and Polydata Pascal DO correctly implement recursion, with the
+DEFAULT {A-} compiler option . The alternate option {A+}, under CP/M-80 ONLY,
+contrarily to what Erik Seielstad writes, makes the code NOT recursive. Again,
+the DEFAULT obeys Pascal RULES, while EXPLICITLY requesting {A+} ( A for
+ABSOLUTE code) will assume you don't want recursion and thus save speed and
+memory (so says the guide, at least...)
+
+3. Then I will repeat my request: WHO CAN GIVE ME AN ADDRESS WHERE TO BUY
+PREFERABLY Z80_Polydata_Pascal ,OR STILL ACCEPTABLE Z80_Turbo_Pascal?
+
+                                            Jacques J. Goldberg
+                                            phr00jg@technion.bitnet
+                                               ^^
+                                               ||
+                                               ---zeroes
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 7-Jul-88 01:31:37-MDT,7725;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu,  7 Jul 88 01:30:56 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #169
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu,  7 Jul 88       Volume 88 : Issue 169
+
+Today's Topics:
+                      Kaypro and Spinwriter 7710
+                        KAYPRO screen and C128
+                Pascal, recursion, and buffered input
+                    TRYIT pascal example...again.
+                      Turbo Pascal for the Z-80
+                 Z80 Pascal Compilers and recursion.
+----------------------------------------------------------------------
+
+Date: Wed 6 Jul 88 13:23:48-PDT
+From: D-ROGERS@EDWARDS-2060.ARPA
+Subject: Kaypro and Spinwriter 7710
+
+I received no reply on this before and i still need help.  I have a friend
+with a Kaypro 4 and an NEC 7710 Spinwriter.  They don't seem to talk to
+each other.  I've tried simple things like PIPing a text file to various 
+ports, e.g. LST:, PRN:, PUN:, AUX: in every case the system hangs, as 
+though waiting for a DTR.  The printer self tests OK and both units are set
+to run at 1200 baud, 8 bits, no parity.  I don't even get garbage.  The NEC
+has a DB25 connector; that with the baud and parity switches makes me believe it
+uses a serial interface.  Is there something else i need to know to get
+the Kaypro to dump a character stream?  It also has a parallel port, but 
+the software didn't have any procedures to reassign any logical devices.
+H E L P !
+				[dale]
+-------
+
+------------------------------
+
+Date: Wed, 6 Jul 88 11:00:14 EDT
+From: CPT PIERSON <pierson@AMSAA-SEER.ARPA>
+Subject: KAYPRO screen and C128
+
+I have inhereted a bunch of kaypro software.  When running these programs 
+on my C128 the programs work but the menu screens dont work properly.  I
+have been told that the Kaypro screen ESC sequences etal arent directly
+compatable with the C128.  I have a copy of the Kaypro screen info file
+from simtel20.  What can I do to allow my C128 to read the ESC sequences
+correctly?
+
+Thanks in advance 
+Jim
+
+------------------------------
+
+Date: 4 Jul 88 16:32:26 GMT
+From: ted@sbcs.sunysb.edu  (Dr. Ted Carnevale)
+Subject: Pascal, recursion, and buffered input
+
+There seems to be some confusion about these topics and the capabilities of
+at least one Pascal compiler for "itty bitty micros," as some wag put it.
+The difficulties arose about a program like this, which ought to
+accept keyboard input until a space is encountered,
+and then echo the entire input string backwards.
+============
+
+PROGRAM tryit(input,output);
+
+PROCEDURE readwrite;
+VAR nextchar:char;
+BEGIN
+  read(nextchar); if nextchar <> ' ' then readwrite; write(nextchar);
+END;
+
+BEGIN
+  writeln('Type in a word that ends with a space');
+  readwrite
+END.
+
+============
+There are two reasons this program doesn't work properly with Turbo Pascal:
+Turbo buffers keyboard input, and recursion is NOT enabled as a default.
+
+It really isn't necessary to resort to arrays for temporary storage of 
+keyboard input.  Simply enabling recursion with the {$A-} option and 
+turning off input buffering takes care of most of the problem:
+============
+
+PROGRAM tryitr(input,output);
+(* With Turbo Pascal this program works like so:
+
+print message
+REPEAT
+  accept keyboard input until CR is encountered
+UNTIL input stream contains a blank
+starting with the blank and working backward, print out the input stream
+
+Thus this input stream:
+onetwothree four five<CR>
+produces this output:
+ eerhtowteno
+
+and this input stream:
+one<CR>
+two<CR>
+three four five<CR>
+produces this output:
+ eerht
+owt
+eno
+*)
+
+(* enable recursion *)
+{$A-}
+(* use standard Pascal I/O rather than buffered keyboard input *)
+{$B-}
+
+PROCEDURE readwrite;
+VAR nextchar:char;
+BEGIN
+  read(nextchar); if nextchar <> ' ' then readwrite; write(nextchar);
+END;
+
+BEGIN
+  writeln('Type in a word that ends with a space');
+  readwrite
+END.
+
+============
+Still, the program doesn't quite work properly.  It should produce its 
+output as soon as a blank occurs in the input stream, instead of waiting
+for a carriage return to tell it to process an input line.  Reading from
+the "keyboard" input device instead of standard input takes care of this
+last problem.  Note that the {$B-} switch is no longer needed--"keyboard"
+input is not buffered.
+============
+
+PROGRAM trykbd(input,output);
+(* With Turbo Pascal this program works like so:
+print message
+REPEAT
+  accept input stream
+UNTIL blank is encountered
+starting with the blank and working backward, print out the input stream
+
+Thus this input stream:
+onetwothreeB
+produces this output:
+Beerhtowteno
+where B is a blank
+*)
+
+(* enable recursion *)
+{$A-}
+
+PROCEDURE readwrite;
+VAR nextchar:char;
+BEGIN
+  read(Kbd,nextchar); write(nextchar);
+  if nextchar <> ' ' then readwrite; write(nextchar);
+END;
+
+BEGIN
+  writeln('Type in a word that ends with a space');
+  readwrite
+END.
+
+============
+
+------------------------------
+
+Date: Tue, 5 Jul 88 16:31:54 EDT
+From: "Erik L. Seielstad" <ERIK%BROCK1P.BITNET@CICGE.RPI.EDU>
+Subject: TRYIT pascal example...again.
+
+In a recent issue of the cpm digest, I saw the following:
+>Recursion program discussed earlier in INFO-CPM Digest - implemented
+>for Turbo Pascal.
+>The program as originally submitted will not work in *any* correctly
+>implemented Pascal, because it allows only one byte for the variable
+>"nextchar".   Declaring the variable inside a procedure doesn't mean
+>that the variable will have a new space created for it on every call
+>to the procedure; it only means that the variable is not global.
+
+    I am forced to disagree.  The definition of Pascal sets up a
+stack frame at runtime for each invocation of a subroutine.  This is
+the reason ANY recursion is possible in pascal.  The program TRYIT
+was a simple example of recursion, and *should* work on all pascal
+compilers.  I tried it here on our mainframe, and it worked fine as
+written.
+    The reasson it does not work on Turbo Pascal, is Borland
+allocates static storage for all variables at compile time, unless
+the special compiler directive {A+} is used.
+    -Erik @ Brock1p
+/* the views expressed are brought to you as a public service */
+/* by me. (and nobody else but me) */
+
+------------------------------
+
+Date: Wed, 6 Jul 88 08:48:42 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, Digital Equip. Corp. USA)
+Subject: Turbo Pascal for the Z-80
+
+...should still be available directly from Borland Int'l in a number
+for formats.
+
+rcs
+
+------------------------------
+
+Date: Wed, 6 Jul 88 08:46:07 edt
+From: binder@decvax.dec.com (A complicated and secret quotidian existence)
+Subject: Z80 Pascal Compilers and recursion.
+
+In Turbo V3.0, {$A+} is the default - not {$A-} as Jacques Goldberg
+says.  This was done to provide the fastest possible compilation and
+execution in the general case.  Be that as it may...
+
+Jacques, you can buy Z80 Turbo in any one of zillions of disk formats
+directly from Borland:
+
+	Borland International
+	4585 Scotts Valley Drive
+	Scotts Valley, CA  95066
+	USA
+
+Specify CP/M-80 and your disk format.  The price for V3.0 is $69.95. 
+Do not buy V4.0, which is for MS-DOS only, specifically PCs and PC
+clones.
+
+Cheers,
+Dick Binder	(The Stainless Steel Rat)
+
+DEC Easynet:	FLUME::"binder@caliph.dec.com"
+uucp:		{ Most major hubs }!decwrl!caliph.dec.com!binder
+Internet:	binder%caliph.dec.com@decwrl.dec.com
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 8-Jul-88 07:56:42-MDT,3555;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri,  8 Jul 88 07:54:00 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #170
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri,  8 Jul 88       Volume 88 : Issue 170
+
+Today's Topics:
+                      Kaypro and Spinwriter 7710
+                   Looking for GOOD Fortran manual
+                        Solid State Music PB-1
+----------------------------------------------------------------------
+
+Date: 7 Jul 88 16:07:30 GMT
+From: ea.ecn.purdue.edu!wieland@ee.ecn.purdue.edu  (Jeffrey J Wieland)
+Subject: Kaypro and Spinwriter 7710
+
+In article <12412216898.11.D-ROGERS@EDWARDS-2060.ARPA> D-ROGERS@EDWARDS-2060.ARPA writes:
+>I received no reply on this before and i still need help.  I have a friend
+>with a Kaypro 4 and an NEC 7710 Spinwriter.  They don't seem to talk to
+...
+>the Kaypro to dump a character stream?  It also has a parallel port, but 
+>the software didn't have any procedures to reassign any logical devices.
+>H E L P !
+>				[dale]
+>-------
+
+There should be a program on your system disk called "CONFIG.COM".  This
+program permits you to change many of system's parameters, including the
+assignment of the LST: device, baud rates, numeric keypad and cursor key
+character generation, etc.  You may also reassign logical devices with
+"STAT.COM" (also on your system disk).  It is documented in your CP/M
+manual.  For example:
+
+A0>stat dev:
+
+will produce a listing of the logical device assignments.
+
+The actual pin assignments on your Kaypro should be in your Owner's Manual.
+Interfacing the Kaypro to a serial printer is discussed at some length in
+"The RS-232 Solution", available from Sybex Computer Books.  Kaypro
+apparently did some strange things to the RS-232 interface (but then who
+hasn't!).
+
+			Jeff Wieland
+			wieland@ecn.purdue.edu
+
+------------------------------
+
+Date: 7 Jul 88 21:24:16 GMT
+From: timelord@eos.arc.nasa.gov  (G. Murdock Helms)
+Subject: Looking for GOOD Fortran manual
+
+I have a copy of Microsoft Fortran 77 for a C/PM operating system that I'd 
+really like to get running in the next month and a half.
+
+There's just one little problem...the Microsoft Fortran manual is ka-ka.
+
+Does anyone have any suggestions for a more readable/understandable Fortran
+manual that can be used with this version of Microsoft and that will help
+me to do my programming?  Alternatively, I am also accepting suggestions
+for other C/PM Fortran packages that have good documentation and user
+interface.
+
+Thanks muchly!
+
+-Murdock
+{e-mail responses to timelord@eos.arc.nasa.gov}
+
+------------------------------
+
+Date: Wednesday, 6 July 1988  13:51-MDT
+From: Phil Lapsley <phil@EAST.BERKELEY.EDU>
+Subject: Solid State Music PB-1
+
+(Apologies in advance if this is the wrong place to send this to; not
+surprisingly, I couldn't find a mailing list devoted just to S-100 stuff).
+
+Yesterday I received a Solid State Music PB-1 prom burner S-100 board.
+Naturally, it came without manuals or schematics, and the person doubts
+that it works.
+
+Does anybody know if (a) SSM is still around, and if so, what their
+address/phone number is, and (b) if not, does anybody have a PB-1 manual
+or schematic that I could photocopy?
+
+Please reply directly to me, as I'm not on info-micro.  Thanks.
+
+	Phil Lapsley	ucbvax!phil	phil@ucbarpa.berkeley.edu
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+ 9-Jul-88 01:32:32-MDT,1957;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat,  9 Jul 88 01:30:43 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #171
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat,  9 Jul 88       Volume 88 : Issue 171
+
+Today's Topics:
+           CBIOS & format for Xerox 820-1 w/double dens mod
+                        CPM on Datapoint 1550
+----------------------------------------------------------------------
+
+Date: 8 Jul 88 20:59:39 GMT
+From: young@ee.ecn.purdue.edu  (Mike Young)
+Subject: CBIOS & format for Xerox 820-1 w/double dens mod
+
+	Greetings!
+
+	I have a Xerox 820-1 I'm trying to upgrade to double
+density, using the WD 2793 controller (yes, and the Emerald Microware
+upgrade kit). It runs CP/M 2.2, and does it very nicely. It occurs 
+to me that I will need a format program to handle
+double density. I could write one, but if someone else has invented this
+particular wheel, why should I? :-)
+
+	In addition, the CBIOS will also need to know how to select the
+proper density, keep track of who's double and who's single at any given
+moment, etc. (this particular system will have 2 to 4  5 1/4" DSDD drives
+on it, and I need to do a LOT of single -> double copying)
+I suspect someone's already addressed this task, and again I don't see
+the need to dig into the beast if it's already been done, so....
+
+	Any comments?
+
+
+					-Mike Young
+						young@eg.ecn.purdue.edu
+						..!pur-ee!young
+
+------------------------------
+
+Date: 8 Jul 88 02:20:37 GMT
+From: portal!cup.portal.com!Orion@uunet.uu.net
+Subject: CPM on Datapoint 1550
+
+Hi,
+      Is there anybody out there using CPM 2.2 on their Datapoint 1550?
+Is Datapoint still sell that OS for the 1550?  
+Is Digital Research sell that OS for the 1550?
+ 
+Orion
+ 
+Orion@cup.portal.com
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+10-Jul-88 01:32:41-MDT,2902;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 10 Jul 88 01:30:15 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #172
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 10 Jul 88       Volume 88 : Issue 172
+
+Today's Topics:
+           CBIOS & format for Xerox 820-1 w/double dens mod
+                            S-100 manuals
+----------------------------------------------------------------------
+
+Date: 9 Jul 88 19:52:29 GMT
+From: eve.usc.edu!mlinar@oberon.usc.edu  (Mitch Mlinar)
+Subject: CBIOS & format for Xerox 820-1 w/double dens mod
+
+In article <8480@pur-ee.UUCP> young@pur-ee.UUCP (Mike Young) writes:
+>	I have a Xerox 820-1 I'm trying to upgrade to double
+>density, using the WD 2793 controller (yes, and the Emerald Microware
+>upgrade kit). It runs CP/M 2.2, and does it very nicely. It occurs 
+>to me that I will need a format program to handle
+>double density. I could write one, but if someone else has invented this
+>particular wheel, why should I? :-)
+>
+>	In addition, the CBIOS will also need to know how to select the
+>proper density, keep track of who's double and who's single at any given
+>moment, etc. (this particular system will have 2 to 4  5 1/4" DSDD drives
+
+
+There are a couple of ROMs sold for the 820-I which have a number of
+utilities associated with them.  One is the Xpro MicroCornucopia ROM and the
+other is the MicroCode Plus2 ROM.  The Xpro is super-cheap since it has few
+features in it.  Plus2 is about $40(?) but has about 11 formats built-in, a
+way to define user-definable formats, and can read/write MS-DOS disks through
+Bridger Mitchell's DosDisk program.  There are a bunch of other features
+Plus2 has that Xpro does not; Xpro only comes with ROM, BIOS, FORMAT, and
+SYSGEN.
+
+I will have to warn you that I am a tad biased, though, since I wrote the ROM
+and all utilities for it.
+
+-Mitch
+
+------------------------------
+
+Date: 9 Jul 88 21:17:24 GMT
+From: hp-sdd!ncr-sd!crash!mwilson@hplabs.hp.com  (Marc Wilson)
+Subject: S-100 manuals
+
+     Ok, all you out there...
+
+     I recently acquired two cards:
+
+       1) IMSAI SIO-2 serial I/O baord
+       2) Vector Graphics Flashwriter II video card
+
+     Can anyone provide me with programming information, MANUALS, horror
+stories, your own experiences, etc.?
+
+     Any and all information will be appreciated!
+-- 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marc Wilson
+     ARPA: ...!crash!mwilson@nosc.mil
+           ...!crash!pnet01!pro-sol!mwilson@nosc.mil
+     UUCP: [ cbosgd | hp-sdd!hplabs | sdcsvax | nosc ]!crash!mwilson
+     INET: mwilson@crash.CTS.COM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+11-Jul-88 01:34:15-MDT,3456;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Mon, 11 Jul 88 01:30:12 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #173
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Mon, 11 Jul 88       Volume 88 : Issue 173
+
+Today's Topics:
+                      Kaypro and Spinwriter 7710
+----------------------------------------------------------------------
+
+Date: 9 Jul 88 22:03:22 GMT
+From: necntc!ima!cfisun!lakart!dg@husc6.harvard.edu  (David Goodenough)
+Subject: Kaypro and Spinwriter 7710
+
+From article <12412216898.11.D-ROGERS@EDWARDS-2060.ARPA>, by D-ROGERS@EDWARDS-2060.ARPA:
+> I received no reply on this before and i still need help.  I have a friend
+> with a Kaypro 4 and an NEC 7710 Spinwriter.  They don't seem to talk to
+> each other.  I've tried simple things like PIPing a text file to various 
+> ports, e.g. LST:, PRN:, PUN:, AUX: in every case the system hangs, as 
+> though waiting for a DTR.  The printer self tests OK and both units are set
+> to run at 1200 baud, 8 bits, no parity.  I don't even get garbage.  The NEC
+> has a DB25 connector; that with the baud and parity switches makes me believe it
+> uses a serial interface.  Is there something else i need to know to get
+> the Kaypro to dump a character stream?  It also has a parallel port, but 
+> the software didn't have any procedures to reassign any logical devices.
+> H E L P !
+> 				[dale]
+> -------
+
+I'm no Kaypro Guru, but reading between the lines from above I interpret it
+to mean that your friend's Kaypro has a serial port for a modem and a parallel
+port for a centronix style printer. The problem with the "DB25" RS232
+connectors is that there are two ways of wiring them: DTE (Data terminal
+equipment) and DCE (Data carrier equipment). DCE refers to modems, which
+transmit data on pin 3, DSR (Data Set Ready) on pin 6, DCD (Data carrier
+detect) on pin 8 and CTS (Clear to send) on pin 5. DTE refers to just about
+everything else: terminals, the PUN: RDR: port on the back of a Kaypro, and
+printers: these devices transmit data on pin 2, DTR (Data terminal ready)
+on pin 20, and RTS (Request to send) on pin 4. Now if you've been following
+all the above, you will have noticed that BOTH the printer AND the Kaypro
+are transmitting on the same pins (2,4,20) and listening to the same
+pins (3,5,6,8). What you need to do is to make up a crossover cable
+(sometimes called a null modem) which does the following: on both ends
+pin 2 at one end goes to pin 3 at the other end, pin 20 at one end
+goes to pins 6 and 8 at the other, and pin 4 at one end goes to pin
+5 at the same end:
+
+	2------------\/-----------2
+	3------------/\-----------3
+	4---+                 +---4
+	5---+                 +---5
+	6-----+           +-------6
+	8-----+-----\/----+-------8
+	20----------/\-----------20
+
+with pin 7 (ground) wired straight through. What this does is to trick
+each end into thinking the other end is a modem, and everyone is happy.
+I can't guarantee that this is the solution, but if you've been using
+the same cable to talk to the printer as you talk to a modem with then
+I'll take even's money bets that's why it wasn't working.
+-- 
+	dg@lakart.UUCP - David Goodenough		+---+
+							| +-+-+
+	....... !harvard!cca!lakart!dg			+-+-+ |
+						  	  +---+
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+12-Jul-88 01:34:46-MDT,1104;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 12 Jul 88 01:30:15 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #174
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 12 Jul 88       Volume 88 : Issue 174
+
+Today's Topics:
+                         Looking for compress
+----------------------------------------------------------------------
+
+Date: 10 Jul 88 17:28:33 GMT
+From: necntc!ima!cfisun!lakart!dg@ames.arc.nasa.gov  (David Goodenough)
+Subject: Looking for compress
+
+Some time ago in (I think) comp.os.cpm (hence the X-post, please
+accept my apologies if wrong), someone mentioned an uncompress that
+ran on a CP/M (?) machine. To whoever it was: if you read this and
+are prepared to send me the sources (if they're copyright I understand)
+I'd be very glad to get them.
+
+			Yours,
+-- 
+	dg@lakart.UUCP - David Goodenough		+---+
+							| +-+-+
+	....... !harvard!cca!lakart!dg			+-+-+ |
+						  	  +---+
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+13-Jul-88 01:35:54-MDT,6863;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 13 Jul 88 01:31:04 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #175
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 13 Jul 88       Volume 88 : Issue 175
+
+Today's Topics:
+                                 CP/M
+                        CPM for IMSAI (2 msgs)
+                      Kaypro and Spinwriter 7710
+                           MAC assembler...
+                  Need help with brain-damaged bdos.
+----------------------------------------------------------------------
+
+Date: 13 Jul 88 02:04:28 GMT
+From: dartvax!eleazar.dartmouth.edu!joeh@bu-cs.bu.edu  (Joseph L. Hill)
+Subject: CP/M
+
+I just came upon a Morrow (Micro Decision) z80 machine 
+that runs ... CPM! Whats out there? Anything? It comes with
+a few programs but I would like to find a terminal emulation
+program, compilers? Anyone own, heard of these? It seems to
+be a 64 k machine running version 2.2 cp/m.
+Any and all help, info, reply will be appreciated with
+ultimate blessing!
+
+joeh@eleazar.dartmouth
+joeh at cms1
+vmoper at cms1
+
+
+
+     Joseph L Hill     joeh@dartvax.UUCP                                  
+
+     USNET:   {linus|decvax|cornell|astrovax}!dartvax!joeh  
+      ARPA:   joeh%dartmouth@csnet-relay                    
+
+------------------------------
+
+Date: 12 Jul 88 18:33:53 GMT
+From: bgsuvax!wente@tut.cis.ohio-state.edu  (Ellsworth Wente)
+Subject: CPM for IMSAI
+
+    I have recently obtained an IMSAI computer for fun, and I am having
+trouble getting it to boot anything.  It has three 5 1/4" disk drives, and
+I have aligned one of them, but I still can't get it to boot.  I received
+about 40 disks with the system, but I think they may all be bad since they
+haven't been used for around eight years.  Everything else seems to be ok
+(computer accesses drive 0), so I have concluded that the disks have to 
+be bad.  Does anyone out there in net-land still have an S100 computer
+with a Northstar controller???  I would appreciate any help I can get.
+I would be willing to buy a copy of Northstar CPM if anyone still has
+it.  Thanks in advance!
+                  Ellsworth
+
+
+
+*******************************************************************************
+* Ellsworth A. Wente IV      Bowling Green State University Computer Services *
+* N8DTT                      Faculty/Staff/Graduate Consultant                *
+* The opinions stated above are MINE, ALL MINE!    wente@andy.bgsu.edu        *
+*******************************************************************************
+
+------------------------------
+
+Date: 12 Jul 88 22:00:30 GMT
+From: bionet!lear@presto.ig.com  (Eliot Lear)
+Subject: CPM for IMSAI
+
+If worst comes to worst, you could toggle in a program...
+
+;-)
+-- 
+Eliot Lear
+[lear@net.bio.net]
+
+------------------------------
+
+Date: 11 Jul 88 17:39:33 GMT
+From: amdahl!dlb!ardent!rap@ames.arc.nasa.gov  (Rob Peck)
+Subject: Kaypro and Spinwriter 7710
+
+In article <177@lakart.UUCP>, dg@lakart.UUCP (David Goodenough) writes:
+> From article <12412216898.11.D-ROGERS@EDWARDS-2060.ARPA>, by D-ROGERS@EDWARDS-2060.ARPA:
+> > I received no reply on this before and i still need help.  I have a friend
+> > with a Kaypro 4 and an NEC 7710 Spinwriter.  They don't seem to talk to
+> > each other.  I've tried simple things like PIPing a text file to various 
+
+I agree with Dave Goodenough's solution, that most likely a null modem
+is needed with the cable that is currently being used.  I found that one
+can often get by with just a 4-wire cable, with 1-1, 2-3, 3-2, and 7-7 in
+the cable, and pins 8-20 wired independently at each end.  Seems to keep
+the devices happy.  By the way, this is a standard cable assembly available
+from INMAC among other places.
+
+Rob Peck
+
+------------------------------
+
+Date: Tue, 12 Jul 88 13:31 N
+From: <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject: MAC assembler...
+
+Is the MAC assembler a public domain program ?  If not, are there com-
+patible assemblers available out there ?  Why I am asking this ?
+Simply, to assemble the ZCPR3 system...  Or can I assemble this also
+with the M80 assembler?
+
+Enough questions for today, see you in swing time --) Gratien: -<:>-
+
+------------------------------
+
+Date: 12 Jul 88 13:33:18 GMT
+From: simon@g.ms.uky.edu  (George Simon)
+Subject: Need help with brain-damaged bdos.
+
+Help!!!
+	I have a z80 cpm box at work that has problems, and I'm looking
+	for ideas to improve it a little.  If it were up to me, I'd
+	replace it with a Pc, but for several reasons, we need to continue
+	to use it.
+
+	The version of cpm that it is running seems to be < 2.2, and 
+	the bdos seem to be brain-damaged.
+	(1) There is no escape code to position the cursor, however 
+		calling the bios CONOUT routine to print a 0x18 with the 
+		row/col in HL does the job.  (don't even ask how I found
+		this out!)
+	(2) Bdos function 6 (direct console i/o) does not exist, but 
+		the corresponding bios calls work ok.  Other bdos calls 
+		may be ok, but I trust the bios much more.  The bdos also
+		refuses to return the version#.
+	
+	The computer itself is a Videoplan form Kontron Electronics 
+	(in Munich & California), has 1 Z80-sio, 1 ctc, 2 pio's (keyboard 
+	& printer) and a WD1771-B01 floppy controller (single density). 
+	The motherboard is a (4mhz?) KDT rev. IV.  If anyone from Kontron 
+	is reading this, and has any docs on this board, please send me 
+	e-mail.
+
+	Even its disks are strange - single density, 35 tracks x 2 sides, 
+	and 16 sectors/track yielding about 138K per disk.
+
+	I've been thinking about getting Z-cpr to replace the bdos/ccp,
+	but I'm not sure if it would even install in such a brain damaged
+	system.  I have no hardware or software docs on this machine, but
+	I have found all of the port#s for the sio/ctc/pio's, and can
+	probably find the floppy controller and video (Motorola 6845L) if
+	needed.  
+
+	Anyone got any other ideas?  I'd love to be able to do double-density,
+	but I don't know if the WD1771 can do this.  I have heard that 
+	Z-Cpr 3.4 is self-installing, but it may have problems here...
+	I have managed to get kermit running, but I'd like to get turbo
+	pascal or a c-compiler working.  Respond via e-mail, or post it
+	if you think others would be interested.
+							Thanks in advance,
+								Simon.
+
+<-------------------------------------------------------------------------->
+<---   Simon Gales@University of Ky 	     (606) 257-3597/254-9387 	--->
+<---            [ simon@ms.uky.edu ]  |  [ simon@UKMA.BITNET ]          --->
+<-------------------------------------------------------------------------->
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+14-Jul-88 01:35:13-MDT,4089;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 14 Jul 88 01:30:40 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #176
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 14 Jul 88       Volume 88 : Issue 176
+
+Today's Topics:
+                                 CP/M
+                  Need help with brain-damaged bdos.
+----------------------------------------------------------------------
+
+Date: 13 Jul 88 23:29:54 GMT
+From: tetra!budden@nosc.mil  (Rex A. Buddenberg)
+Subject: CP/M
+
+Joe,
+
+the Morrow Micro-Decision computers are pretty fine machines.
+We bought one for my Dad several years ago and he still uses it
+regularly.  Dad's desires are pretty modest; he's quite
+happy with WordStar and I've made up a couple utilities
+for him.  TurboPascal works just fine for the dinking around.
+I keep a few things like spreadsheets in Dad's portfolio so I
+can do some work while visiting and out of reach of my CPM
+machines.
+
+The MD2s and kin are pretty much middle of the road CPM so they
+don't quibble much about any middle of the road CPM software.
+
+Unfortunately, support is a bit hard to find.  George Morrow himself
+is alive and well, but the company didn't make it (they were having
+too much fun).  
+
+Rex Buddenberg
+
+------------------------------
+
+Date: 13 Jul 88 16:12:45 GMT
+From: ucsdhub!jack!crash!mwilson@ucsd.edu  (Marc Wilson)
+Subject: Need help with brain-damaged bdos.
+
+In article <9936@e.ms.uky.edu> simon@ms.uky.edu (Simon Gales) writes:
+>Help!!!
+>	I have a z80 cpm box at work that has problems, and I'm looking
+>	for ideas to improve it a lit
+>
+>	The version of cpm that it is running seems to be < 2.2, and 
+>	the bdos seem to be brain-damaged.
+>	(1) There is no escape code to position the cursor, however 
+>		calling the bios CONOUT routine to print a 0x18 with the 
+>		row/col in HL does the job.  (don't even ask how I found
+>		this out!)
+>	(2) Bdos function 6 (direct console i/o) does not exist, but 
+>		the corresponding bios calls work ok.  Other bdos calls 
+>		may be ok, but I trust the bios much more.  The bdos also
+>		refuses to return the version#.
+
+     What you are describing sounds very much like CP/M 1.4.  It implemented
+neither the BDOS 6 call, nor the BDOS 12 call ( well, it *did* do BDOS 12,
+but it used it for something else ).
+
+     As for trusting the BIOS, watch out.  There are differences between the
+2.2 BIOS and a 1.4 BIOS.
+
+>	The computer itself is a Videoplan form Kontron Electronics 
+>	(in Munich & California), has 1 Z80-sio, 1 ctc, 2 pio's (keyboard 
+>	& printer) and a WD1771-B01 floppy controller (single density). 
+>	The motherboard is a (4mhz?) KDT rev. IV.  If anyone from Kontron 
+>	is reading this, and has any docs on this board, please send me 
+>	e-mail.
+>
+>	I've been thinking about getting Z-cpr to replace the bdos/ccp,
+>	but I'm not sure if it would even install in such a brain damaged
+>	system.
+
+     I can almost guarantee that you won't be able to install the Z-System
+on this machine.  You need a 2.2 system for that.  NZCOM will probably
+blow up if you try to use it.  Save your money.
+
+>
+>	Anyone got any other ideas?  I'd love to be able to do double-density,
+>	but I don't know if the WD1771 can do this.
+
+     I know that the 1770 can, but it needs external help.  How do I know
+this?  This computer right here ( Ampro LB/Z80 ) uses the 1770.  Pick
+up the data sheets on the chip from Western Digital.  They've always been
+most helpful when I've spoken to them.
+
+     Good luck!
+
+-- 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marc Wilson
+     ARPA: ...!crash!mwilson@nosc.mil
+           ...!crash!pnet01!pro-sol!mwilson@nosc.mil
+     UUCP: [ cbosgd | hp-sdd!hplabs | sdcsvax | nosc ]!crash!mwilson
+     INET: mwilson@crash.CTS.COM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+15-Jul-88 01:31:12-MDT,2699;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 15 Jul 88 01:30:21 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #177
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 15 Jul 88       Volume 88 : Issue 177
+
+Today's Topics:
+                              C for CP/M
+                     Need ascii encoded keyboard
+                       ZCPR3.4 for Apple CP/M.
+----------------------------------------------------------------------
+
+Date: Thu 14 Jul 88 23:11:50-EDT
+From: Rodney Ferryman <FERRYMAN-R@OSU-20.IRCC.OHIO-STATE.EDU>
+Subject: C for CP/M
+
+Hello,
+
+    I would like to have C for my Apple CP/M system ... could anyone out 
+there tell me if there is Turbo C for such a configuration.  If not Turbo C,
+then is BSD C still available, and if it is, how could I get it?  I guess
+BSD C would be ok since simtel20 has several directories of stuff for it.
+Any information about C for CP/M would be welcome, and can be sent to
+the addresses following this message.
+
+            Thanks,
+                Rodney Ferryman
+
+ferryman-r@osu-20.ircc.ohio-state.edu        (try here first)
+ts6828@ohstvma                               (BITNET)
+-------
+
+------------------------------
+
+Date: 15 Jul 88 00:36:53 GMT
+From: simon@g.ms.uky.edu  (Simon Gales)
+Subject: Need ascii encoded keyboard
+
+I am in need of a cheap ascii encoded keyboard for my cp/m box.
+The original one has an 8-bit ascii parallel interface with strobe
+line.  If anyone has a used one they would like to sell, or know of
+where I can get one (in a case), please reply via e-mail.
+
+
+<-------------------------------------------------------------------------->
+<---   Simon Gales@University of Ky 	            254-9387/257-3597 	--->
+<---   			[ simon@ms.uky.edu ]  |  [ simon@UKMA.BITNET ]   		--->
+<-------------------------------------------------------------------------->
+
+------------------------------
+
+Date: Thu, 14 Jul 88 09:53 N
+From: <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject: ZCPR3.4 for Apple CP/M.
+
+I've read about the new auto-installing ZCPR system, some weeks ago in
+this very INFO-CPM bulletin. But If I remember it well they concluded
+that auto-installing would NOT work for Aplle CP/M. So, will first of
+all ZCPR3.4 be supported for Apple (probably yes) and when will the
+patching program be available (something like the file in the following
+subdirectory <cpm.apple>ap60zcpr.lbr )?
+
+I cann't remember whether NZCOM or ZCPR3.4 wasn't PD?
+
+Thanks in advance )(bye)(
+--Gratien--
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+16-Jul-88 01:32:09-MDT,12925;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 16 Jul 88 01:30:28 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #178
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 16 Jul 88       Volume 88 : Issue 178
+
+Today's Topics:
+                      Apple and CPM / AE Z80plus
+                              C Compiler
+ New CP/M files uploaded to SIMTEL20 during May, June & July to date
+----------------------------------------------------------------------
+
+Date: 15 Jul 88 19:28:10 GMT
+From: ccasths@pyr.gatech.edu  (Scott Hinckley)
+Subject: Apple and CPM / AE Z80plus
+
+I have a Laser128 with an AE Z80plus card in it running CP/AM 5.1.
+I just purchased Borland's Turbo Pascal V3.0 which seems to run just fine.
+The problem is that is all I have for the card, I would like to find a 
+communications program that works with it as this would allow me to get
+more software.
+I called one public domain company and they sent me one that is communicating
+with something other than my modem and therefore is just generating garbage.
+Also, is there a way to read disks formatted for other CP/M formats?
+
+Any help would be appreciated.
+
+REPLIES VIA E-MAIL OR COMP.SYS.APPLE PLEASE.
++=======================================================================+
+|Scott Hinckley - OCS User Assistant    AKA - Galaxy's End              |
+|Georgia Insitute of Technology, Atlanta Georgia, 30332                 |
+|uucp: ...!gatech!pyr!ccasths                                           |
+|ARPA: ccasths@pyr.gatech.edu                                           |
++=======================================================================+
+
+------------------------------
+
+Date: Fri, 15 Jul 88 18:55:47 IST
+From: "Jacques J. Goldberg" <PHR00JG%TECHNION.BITNET@CUNYVM.CUNY.EDU>
+Subject: C Compiler
+
+Request for a C Compiler:
+------------------------
+
+I am EXCEEDINGLY happy with the very cheap MIX-C compiler.
+
+I use it on the Z80/CP/M Lobo Max-80 to develop software at home, which has
+always been ported without a flaw to my MS-DOS machine, and to our IBM=VM
+(Waterloo C compiler), VAX-VMS and Unix machines.
+
+The book only that comes with it would cost more than the package, if you would
+go to a store to purchase similar material.
+
+I may have been happy, but I never had any problem in 2 years.
+
+MIX-Software used to carry many formats, and their phone is
+1-800-333-0330
+
+                                   Jacques
+
+------------------------------
+
+Date: Sat, 16 Jul 1988  00:15 MDT
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: New CP/M files uploaded to SIMTEL20 during May, June & July to date
+
+The following is a complete list of CP/M-oriented files uploaded to
+SIMTEL20 during the months of May, June, and July to date.  The column
+labeled "T" (Type) is the file format.  (7) means ASCII, (8) means
+binary.
+
+Also available:
+
+A list of all CP/M files (updated daily):
+   PD2:<CPM>CPM.CRCLST - List with CRC values
+   PD2:<CPM>CPM.ARC    - The above, ARChived (much smaller), binary(8).
+   PD2:<CPM>FILES.IDX  - Similar to below, no descriptions, comma delimited
+
+A list of many of the CP/M files, with descriptions, (updated monthly):
+   PD2:<CPM.FILEDOCS>SIMCPM.IDX - Comma delimited list
+   PD2:<CPM.FILEDOCS>SIMCPM.ARK - Same, ARChived (includes next two files)
+   PD2:<CPM.FILEDOCS>SIMCPM.INF - Description of data fields in SIMCPM.IDX
+   PD2:<CPM.FILEDOCS>SIMCPM.DB2 - How to use SIMCPM.IDX with dBASEII.
+
+Note: to save space in the following listing, the device name PD2: which
+normally appears ahead of the directory name has been omitted.
+
+Directory         Name         Size   T Description
+================= ============ ====== = =====================================
+<CPM.APPLE>       PCPICLK2.LBR  13312 8 DateStamper support w/ PCPI card
+
+<CPM.ARC-LBR>     ARK02.ARK     15559 8 Version 0.2 of ARK for CP/M
+<CPM.ARC-LBR>     LDIR-H1.LBR   12416 8 List the directory of a library
+<CPM.ARC-LBR>     LDIRB13.LBR   25088 8 Display LBR directory with dates
+<CPM.ARC-LBR>     LT28.ARK      47478 8 File typer/extractor/decompressor
+
+<CPM.BASIC>       PBS.LBR       31360 8 Pre-processor for BASIC programs
+<CPM.BASIC>       TXT2HLP.LBR   20608 8 Create help files for BASIC
+
+<CPM.BBS>         BBS-SUIT.ARK  6144  8 BBS user sues SysOp - suit details
+<CPM.BBS>         PRIVACY.ARK   7936  8 Electronic Communication Privacy Act
+
+<CPM.BBSLISTS>    HSTBBS.DZR    28160 8 Bulletin boards using USR HST modem
+<CPM.BBSLISTS>    RCPM0788.BZF  10368 8 Brief RCP/M phone number list, July
+<CPM.BBSLISTS>    RCPM0788.LZT  38016 8 North American Remote CP/M list, July
+<CPM.BBSLISTS>    RCPMSCAN.LBR  2432  8 Scan for strings in monthy RCPM list
+<CPM.BBSLISTS>    RNET0588.LZT  17664 8 Listing of ROSNET systems
+
+<CPM.BDSC-2>      L2-225.ARK    66141 8 Improved L2 linker for BDS-C compiler
+
+<CPM.BYE5>        B5C-DS.LBR    6144  8 BYE5 clock insert for DateStamper
+
+<CPM.CATLOG>      CATLA10.LBR   56704 8 Catalog library and archive files
+
+<CPM.DATABASE>    FT-CPM.ARK   148717 8 Family Ties Genealogy program
+<CPM.DATABASE>    KWIKLIST.LBR  21120 8 Menu-driven utility for printing
+
+<CPM.DATESTAMP>   PPIP17DS.LBR  4736  8 PPIP173 non-ZCPR DateStamper version
+
+<CPM.DBASEII>     DBLIBRAY.LBR  23168 8 Database for articles and books
+
+<CPM.DEBUG>       DDTZ27.ARK    77208 8 Z80/V20/8080/64180 debugger
+<CPM.DEBUG>       PATDDTZ.SZB   768   8 Patch DDTZ to use CP/M DDT commands
+<CPM.DEBUG>       WADE.LBR      77824 8 Interactive symbolic Z80 debugger
+<CPM.DEBUG>       WADESRC.LBR   99584 8 Source code for WADE Z80 debugger
+
+<CPM.DIRUTL>      ERAZ11.LBR    19968 8 Z80 Erase utility
+<CPM.DIRUTL>      RENAMZ15.LBR  23296 8 Z80 rename utility
+<CPM.DIRUTL>      UNERAZ11.LBR  21888 8 Z80 file recovery utility
+
+<CPM.FILCPY>      ACOPY18.LBR   25216 8 Z80 file copy utility
+<CPM.FILCPY>      PPIP173.ARK   67160 8 File copy utility (PIP replacement)
+
+<CPM.FILEDOCS>    CPMJUL01.LZT  92928 8 List of files in CP/M libraries
+<CPM.FILEDOCS>    ROYALOAK.DZR  25216 8 RCP/M Royal Oak directory file list
+<CPM.FILEDOCS>    ROYALOAK.MAP  508   7 Map of RCP/M Royal Oak file areas
+
+<CPM.GENDOC>      CPMSRC-B.LQT  8960  8 Software sources for CP/M
+<CPM.GENDOC>      S100BOOK.INF  848   7 Interfacing to S-100 microcomputers
+<CPM.GENDOC>      SUNRISE.RZV   6144  8 Review of Xerox 1815 laptop
+
+<CPM.GENIE>       GENIELST.BQS  1458  8 Makes weekly/monthly GEnie file list
+
+<CPM.HEATH>       HMODEM20.LBR  54272 8 X/Y/ZMODEM for Heath/Zenith 89
+<CPM.HEATH>       HMSRC20.LBR   77952 8 X/Y/ZMODEM for HZ89 source code
+
+<CPM.KAYPRO>      HOTKEY11.LBR  18048 8 Arrow/keypad redefinition for Kaypro
+<CPM.KAYPRO>      K4SKETCH.LBR  21632 8 Draw lines and pixels on Kaypro '84
+<CPM.KAYPRO>      KP-ARROW.LBR  2304  8 Change values of Kaypro's arrow keys
+<CPM.KAYPRO>      KPARKPAT.ARK  14495 8 Patch ARK02.COM for '84 Kaypro RTC
+<CPM.KAYPRO>      KPEDFONT.LBR  14592 8 Editor for Bradford font files
+
+<CPM.KERMIT>      CP409DOC.ARK  68131 8 Kermit-80 version 4.09 documentation
+<CPM.KERMIT>      CP409HEX.ARK 131563 8 Kermit-80 version 4.09 HEX files
+<CPM.KERMIT>      CP409MSS.ARK  51604 8 Kermit-80 version 4.09 doc in MSS format
+<CPM.KERMIT>      CP409SRC.ARK 416077 8 Kermit-80 ver. 4.09 ASM source code
+<CPM.KERMIT>      CPKHEX.BAS    2770  7 Kermit-80 bootstrap HEX loader in MBASIC
+
+<CPM.LIST>        BFUPDAT1.LBR  57984 8 Bradford 2.02 - uses less memory
+<CPM.LIST>        EP-ADDS.ARK   6011  8 Additional fonts for Epson Print pgm
+<CPM.LIST>        EP-COMS.ARK   28692 8 Epson Print formatter executables
+<CPM.LIST>        EP-DOCS.ARK   77649 8 Documentation for Epson Print
+<CPM.LIST>        EP-ECHED.ARK  28914 8 Font editor for Epson Print
+<CPM.LIST>        EP-FONTS.ARK 210117 8 Fonts used with Epson Print
+<CPM.LIST>        EP-INFO.ARK   6117  8 Info file of Epson Printer formatter
+<CPM.LIST>        EP-MISC.ARK   18675 8 Files needed to compile Epson Print
+<CPM.LIST>        EP-SRC.ARK   138938 8 BDS-C source for Epson Print
+
+<CPM.MISC>        MOUSE.LBR     65024 8 Programming language of Mouse
+<CPM.MISC>        SMC203.ARK   115741 8 Small-C Compiler version 2.03
+
+<CPM.MODEM>       YMODEM7.DZC   26880 8 XMODEM/YMODEM/MODEM protocol doc
+<CPM.MODEM>       ZMODEM7.DZC   49920 8 ZMODEM file transfer protocol specs
+
+<CPM.OSBORN>      EXTIME89.LBR  5760  8 Osborne Executive clock setting util
+
+<CPM.PBBS>        HP-FIX01.ARK  5536  8 Fix to HBBS/PBBS bulletin board
+
+<CPM.PCPURSUIT>   PCPD0788.LBR  6528  8 PC-Pursuit accessable RCP/Ms.
+
+<CPM.RCPM>        LUX101.LBR    50304 8 Library/archive Utility eXtension
+<CPM.RCPM>        ZCMDREN.FZX   2048  8 Fix to REN problem of ZCMD
+
+<CPM.SQUSQ>       CRN24PAT.AZM  1408  8 Patch to CRUNCH 2.4 for AZM files
+
+<CPM.SYSUTL>      EGUTIL53.LBR 142720 8 Eric Gans great CP/M utilities
+<CPM.SYSUTL>      GO108.LBR     14976 8 Move easily around drives/user areas
+
+<CPM.TURBOM2>     M2TRMFIX.LBR  2432  8 ANSI Terminal Patch for TurboModula
+
+<CPM.TURBOPAS>    WINDOW11.LBR  6656  8 ASCII windows for Turbo Pascal programs
+
+<CPM.TXTUTL>      CHOP-APP.LBR  13184 8 Divide and put ASCII text back again
+<CPM.TXTUTL>      FIG14.LBR     29824 8 Analyzes readability of text files
+<CPM.TXTUTL>      FINREP28.LBR  11136 8 Find and replace text utility
+<CPM.TXTUTL>      PGPRINT.LBR   11904 8 Pascal program prints documentation
+<CPM.TXTUTL>      QL31.LBR     100992 8 Memory-based file viewing utility
+<CPM.TXTUTL>      SEARCH21.LBR  20608 8 Search text files for a keyword
+<CPM.TXTUTL>      TITLES2.LBR   3712  8 Create an index of first lines
+
+<CPM.VDOEDIT>     VDE265SP.LBR  26880 8 VDE265 modification for film script
+<CPM.VDOEDIT>     VDE266.LBR    83968 8 Small, powerful, text editor
+<CPM.VDOEDIT>     VDKCOM12.LBR  15488 8 Convert VDE file to/from VDK file
+
+<CPM.WSTAR>       MERGETUT.LBR  18688 8 Tutorial for WordStar's MailMerge
+<CPM.WSTAR>       WSNOT134.ARK  28674 8 Produce footnotes with WordStar
+<CPM.WSTAR>       WSNOTE.QZF    1152  8 Quick reference list for wsNOTE
+
+<CPM.ZCPR33>      -NZCOM.DZC    7168  8 News about NZCOM... ready to ship
+<CPM.ZCPR33>      ARUNZ09N.LBR  41728 8 Z-System Alias Processor v0.9n
+<CPM.ZCPR33>      BCOMP11.LBR   36096 8 Screen oriented binary comparison
+<CPM.ZCPR33>      DD17.LBR      20224 8 Z80 disk directory utility
+<CPM.ZCPR33>      DOSVER03.LBR  1792  8 DOS version utility for ZCPR3
+<CPM.ZCPR33>      EASE20.LBR    51712 8 ZCPR 3.3 command line editor
+<CPM.ZCPR33>      EASE20.QZF    1152  8 Quick reference card for EASE
+<CPM.ZCPR33>      FINRP28Z.LBR  3968  8 Find/Replace utility for ZCPR
+<CPM.ZCPR33>      MCOPY47B.BUG  356   7 Bug in Mcopy version 4.7b with RSX.
+<CPM.ZCPR33>      MKDIR32.LBR   13312 8 Edit named directory files
+<CPM.ZCPR33>      MU313.LBR     20352 8 Memory utility for ZCPR3
+<CPM.ZCPR33>      NZCOM.DZC     7168  8 NZ-COM 2.0 is now available - info
+<CPM.ZCPR33>      PAGE20.LBR    16768 8 File screen print utility for ZCPR3
+<CPM.ZCPR33>      SLRLIB.LBR    22144 8 Z3 .REL files in SLR format
+<CPM.ZCPR33>      SYSENV2.LBR   4992  8 Enhanced System Environment for Z34
+<CPM.ZCPR33>      TCJ32.MZG     23552 8 Sage ZSIG Column, TCJ Issue #32
+<CPM.ZCPR33>      TRIM.LBR      5760  8 Z-Tool to truncate object files
+<CPM.ZCPR33>      W22.LBR       26624 8 Helps other programs use wild cards
+<CPM.ZCPR33>      WORDDEMO.LBR  6400  8 Word Processing under ZCPR
+<CPM.ZCPR33>      Z34RCP10.LBR  79232 8 ZCPR34 Resident Command Package
+<CPM.ZCPR33>      ZF10J.LBR     65408 8 SWEEP-like utility for ZCPR
+<CPM.ZCPR33>      ZFILES03.LZT  4864  8 Information on Z-System Utilities
+<CPM.ZCPR33>      ZPATCH13.LBR  38912 8 Screen-oriented ZCPR3 file patcher
+<CPM.ZCPR33>      ZUTILBUG.0Z2  2304  8 Latest bug report for ZCPR programs.
+
+_____________________________________
+
+TOTALS:    Bytes            3,962,913
+
+           Files                  109
+
+For those unable to access SIMTEL20 because of network restrictions,
+please remember that MOST of the new files announced to Info-Cpm are
+also available on my RCP/M Royal Oak (MI) which may be accessed at 
+300 bps (Bell 103a), 1200 bps (Bell 212a), 2400 bps (V.22 bis), or
+9600 bps (HST).  The telephone number is (313) 759-6569 (now reachable
+on PC Pursuit at 2400 bps).  They are also available from the National
+CP/M RoundTable on General Electric Information Services' GEnie.
+
+--Keith Petersen
+Maintainer of the CP/M and MSDOS archives at SIMTEL20.ARPA [26.0.0.74]
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+17-Jul-88 01:32:14-MDT,991;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 17 Jul 88 01:30:46 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #179
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 17 Jul 88       Volume 88 : Issue 179
+
+Today's Topics:
+                           MAC assembler...
+----------------------------------------------------------------------
+
+Date: 14 Jul 88 19:02:00 GMT
+From: clio!berger@uxc.cso.uiuc.edu
+Subject: MAC assembler...
+
+The MAC assembler was a commercial product.  I don't think it's supported
+anymore.  Last year, a lot of new, sealed copies were available from a
+variety of sources on close-out.
+
+			Mike Berger
+			Department of Statistics 
+			Science, Technology, and Society
+			University of Illinois 
+
+			berger@clio.las.uiuc.edu
+			{ihnp4 | convex | pur-ee}!uiucuxc!clio!berger
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+19-Jul-88 01:33:44-MDT,3616;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 19 Jul 88 01:30:29 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #180
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 19 Jul 88       Volume 88 : Issue 180
+
+Today's Topics:
+                 NZCOM and Echelon IOPs - A Problem.
+                             pipmodem.asm
+----------------------------------------------------------------------
+
+Date: Mon, 18 Jul 88 11:44:39 GMT
+From: MA18%SYSE.SALFORD.AC.UK@CUNYVM.CUNY.EDU
+Subject: NZCOM and Echelon IOPs - A Problem.
+
+Subject: Problems with Echelon supplied IOPs and NZCOM.
+I have experienced a problem with all three of the IOPs that Echelon used to
+supply (Nukey, Bprinter, and recorder) when trying to use them with my system
+running NZCOM, when everything was OK under ZCOM. I have identified the
+problem with NUKEY, but have not had the time nor the inclination to check the
+other two. I suspect the problem is generic. The cause f thof the problem is th
+the coding of Nukey assumes that ENV address is a multiple of 256. So when it
+tries to find the address of the IOP from the ENVironment it *REPLACES* the
+lower byte of the address (in L) rather than adding it in. With NZCOM on my
+new system the ENV address has a lower byte of 80H (it is E280H). It used to
+be a multiple of 256. I am not sure whose "fault" this problem is but it may
+not matter too much as there is a simple solution.
+
+I could have simply altered the existing code to set the top bit when the
+lower byte of the address was replaced. This is simple. It will work BUT it
+may recur with some other memory configuration of NZCOM. My preferred solution
+is to use an ARUNZ alias to do the following:
+load nukey into memory
+set a register to the value loc 109 (using an alias - to ensure memory is loaded
+test the register using IF (type 3 or 4)  and conditionally patch the
+    offending constant
+finally we simply GO!
+
+I intended to include the source of the two aliases - but I left them at home
+on my Z machine. This is coming to you from a PC (no comment). If this idea
+is not enough I can post the sources later in the week.
+
+I hope this is of some help.
+
+BTW NZCOM is a really nice system. I can now use ProPascal and Turbo M2
+without needing to go to CPM, and I can very easily re-load my RCP and IOP
+after using BGii.
+
+------------------------------
+
+Date: 18 Jul 88 21:21:16 GMT
+From: dartvax!eleazar.dartmouth.edu!joeh@bu-cs.bu.edu  (Joseph L. Hill)
+Subject: pipmodem.asm
+
+I grabbed pipmodem.asm from simtel20 and typed it in by hand
+on my micro decision running cpm 2.2, it compiles exactly
+as the specified in the pipmodem.doc instructions but when
+i run it and hit return the program exits and i go back
+to the A> prompt. I've checked the source code against
+the listing i produced until my eyes turned red, any ideas?
+im having an awful time trying to get this thing to see
+my modem, anyone familiar with how the jumpers should be set?
+im "winging it", also, i made a male to male cable so i could
+plug it into my modem, using only pin 2,3 and 8, trans, receve, 
+ground, any one know if that is correct for this machine? 
+
+-forever confused and destined to never get any software -joe
+
+
+
+     Joseph L Hill     joeh@dartvax.UUCP                                  
+
+     USNET:   {linus|decvax|cornell|astrovax}!dartvax!joeh  
+      ARPA:   joeh%dartmouth@csnet-relay                    
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+20-Jul-88 01:31:11-MDT,4276;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 20 Jul 88 01:30:29 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #181
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 20 Jul 88       Volume 88 : Issue 181
+
+Today's Topics:
+                      Kaypro and Spinwriter 7710
+            KERMIT for CP/M needed, bds-c source preferred
+                       Media Master and Uniform
+                          Printer mystery...
+----------------------------------------------------------------------
+
+Date: 15 Jul 88 09:33:56 GMT
+From: mandrill!hal!ncoast!mikes@tut.cis.ohio-state.edu  (Mike Squires)
+Subject: Kaypro and Spinwriter 7710
+
+In article <12412216898.11.D-ROGERS@EDWARDS-2060.ARPA> D-ROGERS@EDWARDS-2060.ARPA writes:
+>I received no reply on this before and i still need help.  I have a friend
+
+The 7710 uses hardware handshaking, if I remember correctly.  I'll be at
+a site next week that drives a NEC with a Kaypro and will try to get the cable
+info; it was written up in one of those books on intrfacing serial devices
+available at larger Daltons, etc.
+
+
+Mike Squires Allegheny College Meadville, PA 16335 814 724 3360
+uucp: ..!mandrill!ncoast!{mikes,peng!sir-alan!mikes} or ..!pitt!sir-alan!mikes
+BITNET: mikes%sir-alan@pitt.UUCP (VAX) MIKES AT SIR-ALAN!PITT.UUCP (IBM)
+still fondly using an IMSAI which uses my UNIX box as a terminal
+
+------------------------------
+
+Date: 19 Jul 88 12:42:12 GMT
+From: ukecc!beech@g.ms.uky.edu  (Wayne Beech)
+Subject: KERMIT for CP/M needed, bds-c source preferred
+
+Hello,
+
+I am looking for a version of kermit that will run under CP/M.  I am
+currently in the process of downloading the ASM source from columbia
+but would much rather have a version that is written in BDS-C.  Does
+anyone have a copy written in BDS-C or know where i can obtain one?
+
+Any help would be greatly appreciated.  Also please send any responses
+directly to my account.        
+
+------------------------------
+
+Date: Tue, 19 Jul 88 16:11:09 GMT
+From: MA18%SYSE.SALFORD.AC.UK@CUNYVM.CUNY.EDU
+Subject: Media Master and Uniform
+
+Subject: Media Master and Uniform
+Does anyone know if either of these two products is still available for Z80
+machines? I have so far only found PC versions available.
+Thanks -- Tony Addyman.
+
+------------------------------
+
+Date: Tue, 19 Jul 88 08:50 CDT
+From: RICHARD KERSHENBAUM <RICHARD@kuhub.cc.ukans.edu>
+Subject: Printer mystery...
+
+I bought a used printer last weekend to use with my Kaypro 1.  It's a Radio
+Shack LP VIII.  (Don't laugh -- it was cheap and apparently in great shape.)
+Plugged into the parallel port on the Kaypro, it prints nearly every character
+twice in ssuucceessiioonn -- not a pretty sight!  Except....when using the
+K-1 screen dump program (from simtel20), it prints perfectly.  Printing
+from WordStar, PIP and anything else I've tried results in doubled characters.
+
+I connected the printer to a friend's PC-clone, and it prints perfectly there.
+Suspecting a problem with my centronics port, I connected the same friend's
+Okidata 182 to the Kaypro.  Perfect results again.  So, all the *pieces* work
+independently, but the combination of the Kaypro and the LP VIII fails --
+except using the screen dump program. 
+
+Has anyone seen this sort of problem?  Is there any cure, or are these devices
+just flat incompatible??
+
+I'd sure appreciate any help....
+
+  ____________________________________________________
+ |                                                    )
+ | Richard M. Kershenbaum                            (
+ |       			    		      \   "Nobody does more
+ | Manager, Technical Services                   *     |    harm than folks
+ | The University of Kansas                            |    who feel bad
+ | Computer Center	       			       |    about doing it."
+ | Lawrence, Kansas 66045          (913)864-0445       |     
+ |						       |    -- William Burroughs
+ | Bitnet:   richard@ukanvax     	     	       |
+ | Internet: richard@kuhub.cc.ukans.edu 	       |
+ |_____________________________________________________|
+ 
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+21-Jul-88 01:31:58-MDT,6587;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 21 Jul 88 01:30:18 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #182
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 21 Jul 88       Volume 88 : Issue 182
+
+Today's Topics:
+                  Hard disk question - Intertec CP/M
+                 Kaypro and Spinwriter 7710 (2 msgs)
+                             Media Master
+                      SIMTEL20->CMS->DOS Success
+----------------------------------------------------------------------
+
+Date: Wed, 20 Jul 88 9:00:07 EDT
+From: "Paul V. Pullen" <pvpullen@CRDEC-VAX2.ARPA>
+Subject: Hard disk question - Intertec CP/M
+
+I have an Intertec VPU-30 linked with an Intertec DSS-10 10 Meg hard disk that 
+was working completely for years.  Recently, i took the DSS-10 to an Intertec 
+Maintance shop to try to pick up a "new" (read liquidating) unit to talk to the
+unit.  We got the unit to be able to read files on the DSS-10 but not copy
+between floppy and hard drive.  (This is not the problem, but background info).
+
+Now I have the hard drive back on my own systems here, and find I cannot copy 
+anything to the hard disk.  I can access all files on the hard drive, but if
+I try to create a new one with WordStar(tm), or PIP, it locks up the system.
+
+Any ideas what has happened out there in CP/M land?
+
+Contact me at pvpullen@crdec-vax2.arpa with e-mail or at (301) 671 3544 by 
+land line.
+
+Thanks,
+
+Paul Pullen
+USA CRDEC
+ATTN: SMCCR-SPF-E
+Edgewood Arsenal, MD 21010-5423
+
+------------------------------
+
+Date: 20 Jul 88 22:03:19 GMT
+From: uhccux!julian@humu.nosc.mil  (Julian Cowley)
+Subject: Kaypro and Spinwriter 7710
+
+In article <8246@ncoast.UUCP> mikes@ncoast.UUCP (Mike Squires) writes:
+>In article <12412216898.11.D-ROGERS@EDWARDS-2060.ARPA> D-ROGERS@EDWARDS-2060.ARPA writes:
+>>I received no reply on this before and i still need help.  I have a friend
+>
+>The 7710 uses hardware handshaking, if I remember correctly.  I'll be at
+>a site next week that drives a NEC with a Kaypro and will try to get the cable
+>info; it was written up in one of those books on intrfacing serial devices
+>available at larger Daltons, etc.
+
+I can save you a some time, I think.  The Spinwriter 7700 family
+hardware handshakes on pin 19 (Secondary Request To Send).  To set up
+a cable, you should connect pins 5 and 6 on the computer side to pin
+19 on the printer side.  A diagram for it looks like this:
+
+Computer	Printer
+-----------------------
+TD  2	<----->	2  TD	(straight through)
+RD  3	<----->	3  RD
+SG  7	<----->	7  SG
+CTS 5	<--,
+DSR 6	<--|-->	19 SRTS
+
+Sorry for not noticing this the first time :-).  By the way, I found
+this out the hard way (I'm not really a hardware hacker), even though
+I had the Spinwriter manual right in front of me.  What a drag!
+
+>Mike Squires Allegheny College Meadville, PA 16335 814 724 3360
+>uucp: ..!mandrill!ncoast!{mikes,peng!sir-alan!mikes} or ..!pitt!sir-alan!mikes
+>BITNET: mikes%sir-alan@pitt.UUCP (VAX) MIKES AT SIR-ALAN!PITT.UUCP (IBM)
+>still fondly using an IMSAI which uses my UNIX box as a terminal
+
+Julian Cowley, U. of Hawaii at Manoa
+julian@uhccux.uhcc.hawaii.edu
+{uunet,ucbvax}!ucsd!nosc!uhccux!julian
+julian@uhccux.bitnet
+
+------------------------------
+
+Date: 20 Jul 88 14:52:34 GMT
+From: tektronix!orca!tekecs!frip!andrew@ucbvax.Berkeley.EDU  (Andrew Klossner)
+Subject: Kaypro and Spinwriter 7710
+
+[]
+
+	"The 7710 uses hardware handshaking, if I remember correctly."
+
+The 7710 will do just about anything ... it will do hardware handshake,
+XON/XOFF, or ETX/ACK.  This is all selected by dip switches.  But the
+pinouts are nonstandard, so if you want hardware handshake you'll have
+to make a special cable.
+
+I've had a 7710 for six years, hooked to my TRS-80 model II running P&T
+CP/M.  (I never dreamed this system would keep working for so long!)  I
+use hardware handshake at 1200 baud.
+
+  -=- Andrew Klossner   (decvax!tektronix!tekecs!andrew)       [UUCP]
+                        (andrew%tekecs.tek.com@relay.cs.net)   [ARPA]
+
+------------------------------
+
+Date: Wed, 20 Jul 88 16:14:22 EST
+From: John C Klensin <KLENSIN@INFOODS.MIT.EDU>
+Subject: Media Master
+
+The most recent Intersecting Concepts we have indicates that
+the CP/M version is still alive and well.  Order from
+  Intersecting Concepts, 80 Long Court, Suite 1A, Thousand Oaks,
+CA 91360, USA.  Telephone +1 805 373 3900.
+
+------------------------------
+
+Date: Monday, 4 July 1988  06:15-MDT
+From: "Robert E. Zaret" <ZARET@MITVMA.MIT.EDU>
+Subject: SIMTEL20->CMS->DOS Success
+
+I recently requested help transferring files from SIMTEL20 to my micro via
+an IBM mainframe.  After reading several replies (thanks :-) and
+experimenting a bit, I have succeeded.  The trick is to issue the FTP
+command TYPE I followed by TYPE 8 before transferring a file (actually,
+TYPE 8, TYPE 32, and QUOTE TYPE seem to have the same effect).
+
+A few details: I am using MS-Kermit 2.30 and a modem to connect my micro
+to an IBM 4381 via a Series/1 protocol converter.  The 4381 is running
+CMS.  I use FTP on the 4381 to connect to SIMTEL20.  The following
+"recipe" successfully transferred the file from FTP to my micro:
+
+1)  start up FTP on the 4381 and connect to SIMTEL20
+2)  issue the FTP command TYPE I
+3)  issue the FTP command TYPE L 8
+    (or TYPE L 32 or QUOTE TYPE L 8)
+4)  use the FTP command CWD to get to the right SIMTEL20 directory
+5)  use the FTP command GET to transfer the file to the 4381
+6)  use the FTP command QUIT to log off SIMTEL20 and shut down FTP
+7)  start up CMS-Kermit on the 4381
+8)  issue the CMS-Kermit command SET FILE-TYPE BINARY (MS-Kermit doesn't
+need to be "told" that the file type is binary, but other communications
+packages, such as ProComm, do need to be "told")
+9)  use the two Kermits to transfer the file from the 4381 to my micro
+10) "unarc" the file if it is an ARC file (I use ARCE30F).
+
+The FTP commands TYPE L 8, TYPE L 32, and QUOTE TYPE L 32 seemed to have
+identical effects.  The copies of the file were the same length according
+to both CMS and DOS, and ARCE30F was able to "unarc" all three.
+
+The FTP command TYPE L 8 was inadequate unless preceded by TYPE I The FTP
+command TYPE I was inadequate unless followed by TYPE L 8, TYPE L 32, or
+QUOTE TYPE L 8.  The version of FTP I use does not recognize the TENEX
+command.
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+22-Jul-88 01:32:31-MDT,2990;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 22 Jul 88 01:30:15 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #183
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 22 Jul 88       Volume 88 : Issue 183
+
+Today's Topics:
+                         MediaMaster (2 msgs)
+                   Media Master (and Uniform, etc.)
+----------------------------------------------------------------------
+
+Date: 21 Jul 88 16:31:50 GMT
+From: rzh@lll-lcc.llnl.gov  (Roger Hanscom)
+Subject: MediaMaster
+
+=
+= Subject: Media Master
+=
+= The most recent Intersecting Concepts we have indicates that
+= the CP/M version is still alive and well.  Order from
+=    Intersecting Concepts, 80 Long Court, Suite 1A, Thousand Oaks,
+=  CA 91360, USA.  Telephone +1 805 373 3900.
+
+I've said this before (and got roundly roasted for it), BUT be
+careful of MediaMaster!!  They advertise that it works for lots
+of CP/M formats, when in fact, of the five that I tried, only
+1 (Kaypro) worked.  This was the PC version.  That was bad enough,
+but the people at Intersecting Concepts were NO help at all with
+pleas for help.
+You might try to use a copy of the program on your particular
+CP/M format BEFORE you throw your $$'s at them.
+
+(The above is MY opinion, derived from personal experience.  I
+don't want to hear about ALL the formats that MM works with.  It
+didn't work with the ones that I needed it for, and I felt/feel
+ripped off.  Your mileage may vary!)
+..............................................
+  ARPA:   rzh%freedom.llnl.gov@lll-lcc.llnl.gov
+
+------------------------------
+
+Date: Thu, 21 Jul 88 15:31:17 PDT
+From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+Subject: Media Master
+
+Coincidentally with today's info-cpm message, I had a chance to drop
+in on Mark Grabill at Intersecting Concepts, publisher of Media
+Master.  They have a slightly changed address:
+
+	68 Long Court, Suite 1B, Thousand Oaks,
+	CA 91360, USA.  Telephone +1 805 373 3900.
+
+There are different Media Master versions that run on the following CP/M
+machines, and the set of formats supported differs somewhat by machine:
+
+	Osborne Vixen
+	Kaypro 2x,4,10
+	Kaypro II/2
+	Osborne 1/Exec
+	DEC Rainbow
+
+-- bridger
+
+------------------------------
+
+Date: 21 Jul 88 13:52:52 GMT
+From: swillett@violet.Berkeley.EDU
+Subject: Media Master (and Uniform, etc.)
+
+Check out:
+
+Central Computer Products
+330 Central Ave.
+Fillmore , CA 93015
+(805) 524-4189
+Order lines:
+(800) 533-8049
+(800) 624-5628 (California)
+
+Uniform is $59, Media Master is $37
+
+These folks claim to be the largest supplier of CPM software in the country
+and I believe it .  They have a catalog which they will send you regularly
+if you get on their list.
+
+Usual disclaimer applies - no connection except satisfied customer.
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+27-Jul-88 01:34:21-MDT,2139;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 27 Jul 88 01:30:55 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #184
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 27 Jul 88       Volume 88 : Issue 184
+
+Today's Topics:
+                     Programs that print to LST:
+                  simple network for CP/M <=> MSDOS
+----------------------------------------------------------------------
+
+Date: Tue, 26 Jul 88 15:02:48 PDT
+From: secrist%msdsws.DEC@decwrl.dec.com (Richard Secrist, Digital Equip. Corp. USA)
+Subject: Programs that print to LST:
+
+Being lazy I'm looking for recommendations on a PD program that pages
+text files to LST: but also allows for a built-in delay on how fast the
+characters get sent (a la ASR-33 mode).
+
+I'm feeding a 600 baud thermal printer that can't take the characters
+at a rate of more than like 10 cps without losing it's mind.  I'm not
+a masochist or anything mind you, this is just a palm-sized printer
+I use on the road from a CP/M laptop that just can't keep up with PIP.
+
+rcs
+
+------------------------------
+
+Date: 26 Jul 88 14:30:07 GMT
+From: nic.MR.NET!gonzo.eta.com!chrise@csd1.milw.wisc.edu  (Chris Elmquist)
+Subject: simple network for CP/M <=> MSDOS
+
+I'm looking for a piece of software (which I think I remember
+seeing advertised once) that will allow an MSDOS machine
+such as a PC-AT to serve as a fileserver for several CP/M and
+MSDOS machines hooked in on a serial port.  I was thinking
+that this server code on the AT would run in the background
+so that a user could be on the console while the remotes were
+transfering files in the background.  I don't need full OS
+capability across the network, just simple file transfers and
+maybe a way to change directories and get a directory listing.
+A KERMIT server that ran in the background would be ideal!
+Has anyone seen / come across anything like this?  I'd
+appreciate any info.   Posting OK, Direct E-Mail BEST.  TNX
+ 
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+28-Jul-88 01:34:40-MDT,1831;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 28 Jul 88 01:30:18 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #185
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 28 Jul 88       Volume 88 : Issue 185
+
+Today's Topics:
+                  Need help with brain-damaged bdos.
+----------------------------------------------------------------------
+
+Date: 27 Jul 88 16:12:50 GMT
+From: necntc!ima!cfisun!lakart!dg@ames.arc.nasa.gov  (David Goodenough)
+Subject: Need help with brain-damaged bdos.
+
+From article <9936@e.ms.uky.edu>, by simon@ms.uky.edu (George Simon):
+> Help!!!
+> 	The version of cpm that it is running seems to be < 2.2, and 
+> 	the bdos seem to be brain-damaged.
+>
+> 	(2) Bdos function 6 (direct console i/o) does not exist, but 
+> 		the corresponding bios calls work ok.  Other bdos calls 
+> 		may be ok, but I trust the bios much more.  The bdos also
+							    ^^^^^^^^^^^^^
+> 		refuses to return the version#.
+		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This may be part of your problem: function 12 (0xc) in V2.0 and higher
+gives back the version number - V1.X does not: it appears that you have
+a very early version. To verify this try some tests of the random access
+routines: if they fail you almost certainly have a pre 2.0 bdos.
+ 	
+> 	Anyone got any other ideas?  I'd love to be able to do double-density,
+> 	but I don't know if the WD1771 can do this.  I have heard that 
+
+Sadly the 1771 only talks single density, and I don't know if the 1791 /
+1793 would be a dropin replacement.
+-- 
+	dg@lakart.UUCP - David Goodenough		+---+
+							| +-+-+
+	....... !harvard!cca!lakart!dg			+-+-+ |
+						  	  +---+
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+29-Jul-88 01:35:36-MDT,3188;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 29 Jul 88 01:30:37 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #186
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 29 Jul 88       Volume 88 : Issue 186
+
+Today's Topics:
+                    CP/M-80 2.2 for Lanier LT-100?
+                        Osborne Boot Diskette
+                       WordStar 5.0 for CP/M-80
+----------------------------------------------------------------------
+
+Date: 28 Jul 88 19:35:03 GMT
+From: ea.ecn.purdue.edu!wieland@ee.ecn.purdue.edu  (Jeffrey J Wieland)
+Subject: CP/M-80 2.2 for Lanier LT-100?
+
+I need CP/M-80 for a Lanier word processor (we already have the manual, but
+we can't find the software).  The model is either an LT-100 or LT-1000.
+
+			Thanks,
+			Jeff Wieland
+			wieland@ecn.purdue.edu
+
+------------------------------
+
+Date: 28 Jul 88 19:16:02 GMT
+From: attcan!brian@uunet.uu.net  (Brian Musker)
+Subject: Osborne Boot Diskette
+
+Hi folks - anyone out there know where i can locate single density
+boot diskettes for the osborne i computer? i recently acquired such
+a beast and foolishly purchased a double density diskette set to go
+with it.
+
+I suppose an alternate question would be - does anyone know how i can
+get my hands on whatever hardware/firmware will upgrade the box to support
+double density diskettes?
+
+thanks in advance!
+
+Brian Musker
+
+------------------------------
+
+Date: 28 Jul 88 19:42:24 GMT
+From: ea.ecn.purdue.edu!wieland@ee.ecn.purdue.edu  (Jeffrey J Wieland)
+Subject: WordStar 5.0 for CP/M-80
+
+I quote from the August '88 issue of Profiles, page 5:
+
+"Rumor has it that MicroPro will consider releasing a CP/M version of WordStar
+ 5.0 if there is enough demand in the CP/M community.  It wouldn't hurt to let
+ them know what you do and do not like about version 4.0."
+
+MicroPro's address is:	MicroPro International Corporation
+			33 San Pablo Avenue
+			San Rafael, CA  94903
+
+Just thought I'd get the word out...
+
+			Jeff Wieland
+			wieland@ecn.purdue.edu
+
+------------------------------
+
+Date: Wed, 27 Jul 88 23:15:47 -0900
+From: <FNGAF%ALASKA.BITNET@MITVMA.MIT.EDU>
+
+     Is there anyone else out there looking for a mainframe archiver? I
+am referring to the archiver programs which take files on a floppy
+disk, crunch, squeeze, pack, store, etc., them into a single file
+called an archive, which is a very popular space saving mechanism in
+the microcomputer world. There was a request for one in Florida and
+now there is a request for one here in Alaska, two states which are
+about as far apart as one can get and still be in the same country,
+etc., and all that jazz. Please! Help! We need a mainframe archiver!
+
+Gary A. Fowler
+FNGAF@ALASKA
+P.O. Box 902117
+Fairbanks, Ak. 99775
+(907) 474-7788
+
+------------------------------
+
+Date: Wed, 27 Jul 88 23:17:41 -0900
+From: <FNGAF%ALASKA.BITNET@MITVMA.MIT.EDU>
+
+Oops, sorry folks, I didn't mention what KIND of mainframe. We are
+operating a VAX/VMS v4.6 . . .gf
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+30-Jul-88 01:31:36-MDT,4740;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 30 Jul 88 01:30:13 MDT
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #187
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 30 Jul 88       Volume 88 : Issue 187
+
+Today's Topics:
+                                (none)
+                               C64 CPM
+                       help with zcom and zcpr1
+                  Need help with brain-damaged bdos.
+----------------------------------------------------------------------
+
+Date: 29 Jul 88 04:56:54 GMT
+From: nsc!woolsey@decwrl.dec.com  (Jeff Woolsey)
+Subject: (none)
+
+Kids these days.....   It's not a mainframe if it has wheels.
+-- 
+-- 
+And Leon's getting LARGER!
+
+Jeff Woolsey  woolsey@nsc.NSC.COM  -or-  woolsey@umn-cs.cs.umn.EDU
+
+------------------------------
+
+Date: Fri, 29 Jul 88 12:08 EDT
+From: <TLEWIS%UTKVX4.BITNET@CUNYVM.CUNY.EDU>
+Subject: C64 CPM
+
+I would like to get CPM for the Commodore 64 and I understand Commodore
+does not market it anymore.  Does anyone know how I could get it?
+
+Terry Lewis
+University of Tennessee at Martin
+TLEWIS@UTKVX1   (Bitnet)
+
+------------------------------
+
+Date: 25 Jul 88 16:06:00 GMT
+From: killer!tness7!ninja!sys1!techsup!kenb@ames.arc.nasa.gov
+Subject: help with zcom and zcpr1
+
+....zzzzz
+
+perhaps someone can help shed some light on a problem i'm having.  i 
+run pickles and trout cp/m 2.2mh on a radio shack model ii/16 with a 
+15 meg hard drive.
+
+for some time i've been successfully running zcom on the system, but 
+this eats up quite a bit of my tpa and so i have memory problems with 
+programs that are tpa hungry... compilers, ark02, ...
+
+i located a copy of zcpr1, assembled it for cb00h, where my stock ccp 
+loads, inserted it in the appropriate p&t hard drive file 
+(bioscp/m.pnt), fixed the relocation bitmap for it and ran it.  no 
+problems so far.
+
+i figured i'd use zcpr1 when i had to do memory hungry stuff, and load 
+zcom when not.  with the zcpr1 loaded, i typed in the command to bring 
+up zcom (with zrdos and zcpr33 installed) as normal.  the first 
+indication i got that things weren't loading well was when hsh errored 
+and told me it needed zcpr33 to run.  things whirred and clicked a 
+moment longer and then settled out to the prompt ">".  not much 
+functionality was left at this time...  although zcx worked.
+
+so... the question is, since the zcpr1 ccp fit exactly where the stock 
+ccp resided, why didn't zcom sign on correctly?  i even tried doing 
+the zcld again...  but things didn't change.
+
+i figure i'm missing something obvious....   if you have any ideas, 
+please let me know.   thanks...
+
+ken brookner
+uucp:     ...sys1!techsup!kenb
+GEnie:    kbrookner
+
+------------------------------
+
+Date: 29 Jul 88 01:24:32 GMT
+From: eve.usc.edu!mlinar@oberon.usc.edu  (Mitch Mlinar)
+Subject: Need help with brain-damaged bdos.
+
+In article <187@lakart.UUCP> dg@lakart.UUCP (David Goodenough) writes:
+#From article <9936@e.ms.uky.edu#, by simon@ms.uky.edu (George Simon):
+## 	The version of cpm that it is running seems to be < 2.2, and 
+## 	the bdos seem to be brain-damaged.
+##
+## 	(2) Bdos function 6 (direct console i/o) does not exist, but 
+## 		the corresponding bios calls work ok.  Other bdos calls 
+## 		may be ok, but I trust the bios much more.  The bdos also
+## 		refuses to return the version#.
+#		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#
+#This may be part of your problem: function 12 (0xc) in V2.0 and higher
+#gives back the version number - V1.X does not: it appears that you have
+
+True, but still usable as is.  In CP/M 1.3 and 1.4, it was not *intended* to
+return the version number, but rather some obscure disk function like "unload
+heads" or something like that.  The function *is* supposed to return A=00,
+which lets you know it is earlier than CP/M 2.x or MP/M.
+
+# ## 	Anyone got any other ideas?  I'd love to be able to do double-density,
+# ## 	but I don't know if the WD1771 can do this.  I have heard that
+#Sadly the 1771 only talks single density, and Idon't know if the 1791 /
+#1793 would be a dropin replacement.
+
+David is correct about the single-density 1771; also, the 1791/1793 is NOT a
+drop in replacement.  You need a bit of external clock/data separation
+circuitry to run double density as well as a higher clock rate to the chip
+itself (2 MHz instead of 1 MHz).  Potentially some major board work here...
+
+I missed out on the earlier conversation, so don't know what system you have
+and if there is some adapter kit sold for your machine.
+
+-Mitch
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************

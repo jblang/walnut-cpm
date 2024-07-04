@@ -1,0 +1,139 @@
+
+; B3SB-2.INS - Intertec Superbrain overlay file for BYE3 - 08/01/85
+;
+;	  BYE3 routine for 8251A and BR1941 baudrate generator
+;
+;	       NOTE:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; The following define the port addresses to use
+;
+DPORT	EQU	58H		; Data port
+SPORT	EQU	DPORT+1		; Status/Control port
+BRPORT	EQU	60H		; CTC baudrate port
+;
+; Baudrate table
+;
+BD300	EQU	057H		; Modem 300,  printer 1200
+BD1200	EQU	077H		; Modem 1200, printer 1200
+BD2400	EQU	0A7H		; Modem 2400, printer 1200
+;
+; Status port masks
+;
+TBMT	EQU	00000001B	; Transmitt buffer empty
+DAV	EQU	00000010B	; Data available
+DCD	EQU	10000000B	; Data carrier detect
+
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	SPORT		; Get status
+	ANI	DCD
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call.
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	SPORT		; Causing hangup
+;
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until carrier drops
+	POP	B		; Restore BC
+;
+	MVI	A,MDMODE	; Insure 8251 is out of mode
+	OUT	SPORT
+	XTHL			; Delay a little
+	XTHL			; Delay a little
+	MVI	A,MDRSET	; Reset the 8251A for new command
+	OUT	SPORT
+	XTHL
+	XTHL
+	MVI	A,MDSET1	; Set stop pulse, no parity 8 bits, x16
+	OUT	SPORT
+	XTHL
+	XTHL
+	MVI	A,17H		; Reset error flags, RCV, DTR, TX ready
+	OUT	SPORT
+	XTHL
+	XTHL
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Check the receive ready flag
+	RZ			; Return if none
+	IN	SPORT		; Get status again
+	ANI	30H		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,17H		; Reset error flags
+	OUT	SPORT
+	XRA	A		; Return false
+	RET
+;
+MDINST1:ORI	255		; We have a character
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT		; Check transmit ready flag
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; DTR low hangs up phone, keep DTR low
+	OUT	SPORT		;   so will not auto-answer at any time
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; do not support the particular rate, then simply put in a JMP to
+;
+SET300:	MVI	A,BD300		; Load 300 baud
+	JMP	SETSPD
+;
+SET1200:MVI	A,BD1200	; Poke in 1200 bps
+	JMP	SETSPD
+;
+SET2400:MVI	A,BD2400	; Load 1200 bps
+;
+SETSPD:	OUT	BRPORT
+	XRA	A		; Say it is ok
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

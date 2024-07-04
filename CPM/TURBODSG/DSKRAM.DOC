@@ -1,0 +1,79 @@
+Presenting... DSKRAM.O
+A freebie from ESKAY
+
+NOTE:
+	This module may be distributed freely without profit.  If used
+	in any commercial way, I ask to be notified of the fact.
+	Permission is granted to bundle this software with systems
+	sold for profit.
+	Thou Shalt, However, Not Ask Money for DSKRAM by Itself!!!
+
+	S. Kluger
+	7120 Skillman #2104
+	Dallas TX 75231
+
+
+DSKRAM is a RAM-disk emulator designed for 16 bit TurboDOS.
+
+1. Installation
+
+	Include DSKRAM in your slave GEN file, then replace STDSLAVE
+	with STDSLAVX.  NOTE: you may have to remove RTCMGR from
+	STDSLAVX.O; ask your OEM or dealer if you can't do it.
+	In the slave .PAR file, two equates must be added and one
+	must be changed.  NOTE: the MEMTBL equate may not be present
+	in a 256k slave PAR file...
+
+   Sample PAR files (relevant parts shown only):
+
+   a. default configuration - 512k slave with 256k ram disk
+      MEMTBL + 3 = (0x4000-0x50)	; set upper memory limit for OS
+      SEGDSK = (0x4000)			; beginning segment for ram disk
+      NUMSGS = 4			; 4 segments for ram disk (64k ea)
+
+   b. 256k slave with 128k ram disk:
+      MEMTBL + 3 = (0x2000-0x50)
+      SEGDSK = (0x2000)
+      NUMSGS = 2
+
+   c. (the max) 1MB slave with 784k ram disk
+      MEMTBL + 3 = (0x4000-0x50)
+      SEGDSK = (0x4000)
+      NUMSGS = 12
+
+	Got the message, right?  Now, of course you have to add a
+	DSKAST line to your sale PAR file, carefully skipping over
+	drives that already exist, then change your master PAR file
+	to allow everyone to access the new drive.  Here is a sample
+	assuming the slave with the ram disk is #9:
+
+      Slave:
+      DSKAST = 0x80,(0),0x81,(0),0x82,(0),0,DSKDRA	; A,B,C on master,
+      							; ram disk is D:
+      Master:
+      DSKAST = 0,DSKDRA,1,DSKDRA,0,DSKDRB,83,(9)	; A,B,C local,
+							; D drive 4 on slv 9
+
+2. Operation
+
+	The ram disk driver is a bit intelligent in that once it is
+	loaded and the drive has been set up, it will not reformat
+	the drive after a slave reset unless the directory label
+	entry is munched.
+	When bringing up the ram drive, simply ERASEDIR it.  It is
+	important that you make the directory HASHED, else the driver
+	will erase the whole "disk" after a slave reset!
+
+	The drive is set up to have 256 byte physical sectors with 4
+	sectors per "track" and 256 directory entries.  It has as
+	many "tracks" as there are k bytes assigned to it.
+
+
+3. Bugs
+
+	DSKRAM was a 2-hour creation, thanks to the simplicity of
+	TurboDOS' disk driver requirements.  It has been tested
+	and will continue to be tested.  if you turn up any bugs,
+	please let me know at the address above.
+
+      DSKAST = 0x80,(0)

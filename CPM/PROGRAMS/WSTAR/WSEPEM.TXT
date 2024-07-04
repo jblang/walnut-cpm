@@ -1,0 +1,139 @@
+                *******************************
+                * WORDSTAR MODIFICATIONS FOR  *
+                * TRANSPARENT EMPHASIZED MODE *
+                *     ON THE EPSON MX-80      *
+                *******************************
+ 
+                              by
+ 
+                       Robert M. Delaney
+                       248-D Glandore Dr.
+                       Manchester, MO  63011
+                       CIS 72255,1054
+ 
+ 
+     A summary of a MICROSYSTEMS article by Ernest E. Mau 
+recently appeared in the XA-1 data base under the name 
+WSEPSN.MOD, 70007,642.  It shows how Wordstar can use many of the 
+features of an Epson MX-80 with Graftrax+.  However it did not 
+allow easy use of the emphasized mode of the Epson, because 
+compressed print, superscripts, and subscripts cannot mix with 
+the emphasized mode; that is, the emphasized mode must be turned 
+off first before using these other modes.
+ 
+     The following changes can be made through the Install 
+program in order to allow Wordstar to use the emphasized mode in 
+a transparent manner.  A change from the Wordstar modifications 
+of Mau is that ITALICS ON has been changed from USR1:(^Q) to 
+ROLUP:(^T).  ITALICS OFF is also ^T.  The reason is that 
+WORDSTAR, after doing ROLUP: on a ^T, automatically does ROLDOW: 
+for the next ^T.  ^Q will now be used to turn off double strike, 
+superscript, and subscript modes.
+ 
+ 
+Compressed on (^A)
+ 
+PALT:    03
+PALT:+1  1B    These two lines turn
+PALT:+2  46    emphasized off.
+PALT:+3  0F    This turns compressed on.
+ 
+ 
+Compressed off (^N)
+ 
+PSTD:    03
+PSTD:+1  12    This turns compressed off.
+PSTD:+2  1B    These two lines turn
+PSTD:+3  45    emphasized on.
+ 
+ 
+Double width toggle (^Y)
+ 
+RIBBON:    03
+RIBBON:+1  1B    These lines turn
+RIBBON:+2  57    Double Width
+RIBBON:+3  01    ON.
+ 
+RIBOFF:    03
+RIBOFF:+1  1B    These lines turn
+RIBOFF:+2  57    Double Width
+RIBOFF:+3  00    OFF.
+ 
+ 
+Italics toggle  (^T)
+ 
+ROLUP:    02    This routine is used
+ROLUP:+1  1B    when ^T is given to
+ROLUP:+2  34    turn ON italics.
+ 
+ROLDOW:    02   This routine is used
+ROLDOW:+1  1B   when ^T is given to
+ROLDOW:+2  35   turn OFF italics.
+ 
+ 
+ 
+Turn OFF doublestrike, super & subscripts (^Q)
+ 
+USR1:    04
+USR1:+1  1B  Turns OFF
+USR1:+2  48  doublestrike, super & subscripts.
+USR1:+3  1B  Turns ON
+USR1:+4  45  emphasized.
+ 
+ 
+ 
+Subscript ON (^W)
+ 
+USR2:    05
+USR2:+1  1B  Turns OFF
+USR2:+2  46  emphasized.
+USR2:+3  1B  Turns ON
+USR2:+4  53  subscript (using the non-zero first byte of USR3: as 
+             the 5th byte!).
+ 
+ 
+Superscript ON (^E)
+ 
+USR3:    05
+USR3:+1  1B  Turns OFF
+USR3:+2  46  emphasized.
+USR3:+3  1B  Turns ON
+USR3:+4  53  superscript (using the zero first byte of USR4: as 
+             the 5th byte!  USR4: cannot be used.).
+ 
+ 
+USR4:(^R) cannot be used and must have 00 as first byte
+ 
+USR4:  00    This byte is used for USR3: to complete the 
+             superscript sequence.
+ 
+ 
+ 
+Printer initialization sequence
+ 
+PSINIT:    07
+PSINIT:+1  1B  These bytes give
+PSINIT:+2  40  a reset.
+PSINIT:+3  1B  Don't skip over
+PSINIT:+4  4F  perforation.
+PSINIT:+5  1B  Turn ON
+PSINIT:+6  45  emphasized.
+PSINIT:+7  0D  Carriage Return.
+ 
+ 
+Printer Finished sequence
+ 
+PSFINI:    03
+PSFINI:+1  1B  These bytes give
+PSFINI:+2  40  a reset.
+PSFINI:+3  0D  Carriage Return.
+ 
+ 
+ 
+     If a ZAP program is available, you should also modify the 
+Help menus in the file WSMSGS.OVR to reflect the preceding 
+changes.  Be very careful and only replace ASCII characters.  
+Some creative abbreviations may be necessary.  Be sure to use
+a backup copy and test it thoroughly.
+ 
+

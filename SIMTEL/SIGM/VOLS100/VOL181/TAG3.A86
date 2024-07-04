@@ -1,0 +1,439 @@
+	TAG Version 1.3 - Original by Bruce Ratoff
+;	Latest Revision: 26/Mar/84  Bill Bolton
+;
+	TITLE	'TAG - set or reset and display the attribute bits on a file'
+;
+;	Version list (most recent version first)
+;
+;26/Mar/84 CP/M-86 version created with XLT86. Version Uses
+;	  small memory model. Version 1.4, Bill Bolton ST-RCPM
+;
+;07/Jun/82 Added conditional assembly to do any combination
+;	  of "f1", "f2", "SYS" and "R/O" for setting multiple
+;	  attributes at once. Bill Bolton, Software Tools RCPM
+;
+;17/Feb/81 Added conditional assy to tag either "f1" or
+;	  "f2" bit for MP/M v1.1 compatibility.
+;	  XMODEM v4.1 now tests both "f1" and "f2" for
+;	  tagged files. TN
+;
+;19/May/80 Modified display 4 across. BRR
+;
+;18/May/80 Original version by Bruce Ratoff
+;
+;
+; The purpose of this program is to set or reset the f1' bit on a file.
+; This is used by the XMODEM program to indicate that a file may not
+; be transmitted.  The anticipated purpose is to allow remote use of
+; licensed programs without the danger of their being copied by the
+; remote users.  This should protect the licensee from liabilities
+; associated with dissemination of licensed software.
+;
+; To Set the attribute bits on a file, type:
+;    A>TAG d:filename.typ S
+; To Reset the bits (allows copying via XMODEM), type:
+;    A>TAG d:filename.typ R
+;
+; The filename.typ may contain the wildcards "*" and "?".
+;
+; Please forward all comments, suggestions and improvements to:
+;	Bruce R. Ratoff
+;	80 Gill Lane, Apt 1B
+;	Iselin, New Jersey 08830
+;
+;
+false	EQU	0			;define false.
+true	EQU	not false		;define true
+;
+f1tag	EQU	false			;True  = f1 tag
+f2tag	EQU	false			;True  = f2 tag
+systag	EQU	true			;True  = SYS tag
+rotag	EQU	true			;True  = R/O tag
+;
+;
+dfcb	EQU	5ch			;cp/m default fcb
+dbuff	EQU	80h			;default disk buffer
+;
+pchar	EQU	2			;print character function
+pmessg	EQU	9			;print message function
+seldsk	EQU	14			;select drive function
+srchfst	EQU	17			;search for first file match
+srchnxt	EQU	18			;search for next file match
+attrib	EQU	30			;set file attributes function
+;
+M	EQU	Byte Ptr 0[BX]
+;
+	CSEG
+;
+;
+; Signon message - reports version and attribute used
+;		   for tagging "f1" or "f2".
+;
+begin:
+	MOV	DX,(Offset signon)	;get signon address.
+	MOV	CL,pmessg		;print string fuction.
+	INT	224			;print it.
+drvcheck:
+	MOV	AL,Byte Ptr .dfcb	;check for specific drive
+	DEC	AL
+	MOV	DL,AL			;set up for select disk call
+	MOV	CL,seldsk
+	INC	AL			;if no specified drive, skip call
+	JZ	L_3	
+	INT	224
+L_3:
+	SUB	AL,AL			;now zap out drive spec
+	MOV	Byte Ptr .dfcb,AL
+	MOV	AL,'?'			;force extent number wild
+	MOV	Byte Ptr .dfcb+12,AL
+	MOV	AL,Byte Ptr .dfcb+17	;get "S" or "R" option
+	MOV	Byte Ptr sropt,AL
+	CMP	AL,'S'
+	JZ	okopt
+	CMP	AL,'R'
+	JZ	okopt
+	CMP	AL,' '
+	JZ	okopt
+badopt:
+	MOV	DX,(Offset ilgopt)
+	MOV	CL,pmessg		;bitch about illegal option
+	INT	224
+	MOV	CL,0
+	MOV	DL,0
+	INT	224
+okopt:
+	SUB	AL,AL			;zero out file count
+	MOV	Byte Ptr filcnt,AL
+	MOV	DX,dfcb			;find the first file and get its block map
+	MOV	CL,srchfst
+	INT	224
+	INC	AL			;search successful?
+	JNZ	gotfile			;yes, go process rest
+	MOV	DX,(Offset nofile)
+	MOV	CL,pmessg		;say "no file"
+	INT	224
+	MOV	CL,0
+	MOV	DL,0
+	INT	224
+gotfile:
+	DEC	AL			;compensate for inc above
+	ROR	AL,1			;file offset to bits 5 and 6
+	ROR	AL,1
+	ROR	AL,1
+	AND	AL,60h
+	MOV	BX,dbuff		;point to base of buffer
+	MOV	CL,AL
+	MOV	CH,0
+	LAHF				;index by file offset
+	ADD	BX,CX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	PUSH	BX			;save for the moment
+	MOV	CX,(Offset filetable)
+	CALL	filepoint		;get table pointer to bx
+	XCHG	BX,DX			;dx now points to place in table
+	MOV	AL,Byte Ptr filcnt
+	INC	AL
+	MOV	Byte Ptr filcnt,AL	;bump file count
+	POP	BX			;bx points to directory entry
+	MOV	CH,32
+	CALL	blkmov			;copy entry into table
+	MOV	CL,srchnxt		;search for another entry
+	MOV	DX,dfcb
+	INT	224
+	INC	AL			;returns 0ffh at end of search
+	JNZ	gotfile			;got another one...go save it
+;
+; end of directory encountered, now process them
+;
+tagfile:
+	MOV	CX,(Offset filetable)-32 ;allow for filcnt one greater
+					;than desired
+	CALL	filepoint
+	PUSH	BX
+	MOV	DX,dfcb			;copy next name to default fcb
+	MOV	CH,32
+	CALL	blkmov
+	SUB	AL,AL
+	MOV	Byte Ptr .dfcb,AL	;clear drive number
+	MOV	DX,-20			;point back to extent field
+	LAHF
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	MOV	M,'$'			;tag end of print here
+	POP	DX			;get back pointer to start of entry
+	LAHF				;bump fwd to name
+	INC	DX
+	SAHF
+	MOV	CL,pmessg
+	INT	224			;say what we're working on
+	MOV	AL,Byte Ptr .dfcb+12	;get extent #
+	LAHF				;save it
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	ADD	AL,'0'			;convert to ascii
+	MOV	DL,AL
+	MOV	CL,pchar
+	POP	AX
+	XCHG	AL,AH
+	OR	AL,AL			;print extent if nonzero
+	JNZ	pext
+	MOV	DL,' '
+pext:
+	INT	224
+	MOV	AL,Byte Ptr sropt	;get S or R
+	CMP	AL,' '			;display only?
+	JNZ	L_8	
+	JMP	nextfile		;Yes
+L_8:
+	ROR	AL,1			;bit 7=0 for R, 1 for S
+	AND	AL,80h
+	MOV	CH,AL			;save mask
+
+	if	f1tag
+	MOV	DX,dfcb+1		;Point to f1.
+	MOV	SI,DX			;get it
+	MOV	AL,[SI]
+	AND	AL,7fh			;strip attribute bit
+	OR	AL,CH			;set bit if option was S
+	MOV	SI,DX			;put it back
+	MOV	[SI],AL
+	endif	;f1tag
+
+	if	f2tag
+	MOV	DX,dfcb+2		;Point to f2.
+	MOV	SI,DX			;get it
+	MOV	AL,[SI]
+	AND	AL,7fh			;strip attribute
+	OR	AL,CH			;set bit if option was S
+	MOV	SI,DX			;put it back
+	MOV	[SI],AL
+	endif	;f2tag
+
+	if	systag
+	MOV	DX,dfcb+10		;Point to SYS
+	MOV	SI,DX			;get it
+	MOV	AL,[SI]
+	AND	AL,7fh			;strip attribute
+	OR	AL,CH			;set bit if option was S
+	MOV	SI,DX			;put it back
+	MOV	[SI],AL
+	endif	;systag
+
+	if	rotag
+	MOV	DX,dfcb+9		;Point to R/O
+	MOV	SI,DX			;get it
+	MOV	AL,[SI]
+	AND	AL,7fh			;strip attribute
+	OR	AL,CH			;set bit if option was S
+	MOV	SI,DX			;put it back
+	MOV	[SI],AL
+	endif	;rotag
+;
+	MOV	SI,DX			;get it
+	MOV	AL,[SI]
+	AND	AL,7fh			;strip fx'
+	OR	AL,CH			;set bit if option was S
+	MOV	SI,DX			;put it back
+	MOV	[SI],AL
+	DEC	DX			;point to start of fcb
+;
+	MOV	DX,dfcb
+	SUB	AL,AL			;zap out drive field
+	MOV	SI,DX
+	MOV	[SI],AL
+	MOV	CL,attrib		;do set attributes call
+	INT	224
+
+	if	f1tag
+	MOV	AL,Byte Ptr .dfcb+1	;get f1
+	endif	;f1tag
+
+	if	f2tag
+	MOV	AL,Byte Ptr .dfcb+2	;get f2
+	endif	;f2tag
+
+	if	systag
+	MOV	AL,Byte Ptr .dfcb+10	;get sys
+	endif	;systag
+
+	if	rotag
+	MOV	AL,Byte Ptr .dfcb+9	;get ro
+	endif	;rotag
+
+	ROL	AL,1			;isolate attribute
+	AND	AL,1
+	ADD	AL,'R'			;make an R or S
+	MOV	Byte Ptr donmsg2+1,AL
+	MOV	DX,(Offset donmsg2)
+	MOV	CL,pmessg		;print completion message for this file
+	INT	224
+	MOV	AL,Byte Ptr filcnt	;get file counter
+	AND	AL,3			;multiple of 4?
+	MOV	DX,(Offset crlf)
+	MOV	CL,9			;if so, time for new line
+	JNZ	L_9	
+	INT	224
+L_9:
+	MOV	BX,(Offset filcnt)	;point to file counter
+	DEC	M			;count it down
+	JNZ	L_10	
+	MOV	CL,0			;exit if done
+	MOV	DL,0
+	INT	224
+L_10:
+	JMP	tagfile
+;
+nextfile:
+	if	f1tag
+	MOV	AL,Byte Ptr .dfcb+1	;get f1
+	ROL	AL,1			;isolate attribute
+	AND	AL,1
+	ADD	AL,'R'			;make an R or S
+	MOV	Byte Ptr f1msg,AL
+	endif	;f1tag
+;
+	if	f2tag
+	MOV	AL,Byte Ptr .dfcb+2	;get f2
+	ROL	AL,1			;isolate attribute
+	AND	AL,1
+	ADD	AL,'R'			;make an R or S
+	MOV	Byte Ptr f2msg,AL
+	endif	;f2tag
+;
+	if	systag
+	MOV	AL,Byte Ptr .dfcb+10	;get sys
+	ROL	AL,1			;isolate attribute
+	AND	AL,1
+	ADD	AL,'R'			;make an R or S
+	MOV	Byte Ptr sysmsg,AL
+	endif	;systag
+;
+	if	rotag
+	MOV	AL,Byte Ptr .dfcb+9	;get ro
+	ROL	AL,1			;isolate attribute
+	AND	AL,1
+	ADD	AL,'R'			;make an R or S
+	MOV	Byte Ptr romsg,AL
+	endif	;rotag
+;
+	MOV	DX,(Offset donmsg1)
+	MOV	CL,pmessg		;print completion message for this file
+	INT	224
+	MOV	DX,(Offset crlf)
+	MOV	CL,9			;time for new line
+	INT	224
+	MOV	BX,(Offset filcnt)	;point to file counter
+	DEC	M			;count it down
+	JNZ	L_13	
+	MOV	CL,0			;exit if done
+	MOV	DL,0
+	INT	224
+;
+L_13:
+	JMP	tagfile			;and go work on next one
+;
+; subroutine to do block moves
+blkmov:
+	MOV	AL,M			;copy byte from m(bx) to m(dx)
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF				;bump pointers
+	INC	BX
+	INC	DX
+	SAHF
+	DEC	CH			;loop for count in ch
+	JNZ	blkmov
+	RET
+;
+;
+; subroutine to index CX by file counter
+;
+filepoint:
+	MOV	BX,Word Ptr filcnt	;get file counter
+	MOV	BH,0			;force hi ord to 0
+	SHL	BX,1			;multiply by 32
+	SHL	BX,1
+	SHL	BX,1
+	SHL	BX,1
+	SHL	BX,1
+	LAHF				;use as index to file table
+	ADD	BX,CX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	RET
+;
+	DSEG
+;
+	ORG	100H
+;
+signon	DB	13,10
+	DB	'TAG - V1.4  March 26, 1984'
+	DB	13,10
+	DB	'Tags '
+;
+	if	f1tag
+	DB	' "f1",'
+	endif	;f1tag
+;
+	if	f2tag
+	DB	' "f2",'
+	endif	;f2tag
+;
+	if	systag
+	DB	' "SYS",'
+	endif	;systag
+;
+	if	rotag
+	DB	' "R/O"'
+	endif	;rostag
+;
+	DB	13,10,13,10,'$'
+;
+ilgopt	RS	0
+	DB	'Invalid option letter$'
+;
+nofile	RS	0
+	DB	'File not found$'
+;
+donmsg2	RS	0
+	DB	'  ',9,'$'
+;
+donmsg1:
+	if	f1tag
+	DB	' f1='
+f1msg	DB	' ,'
+	endif	;f1tag
+;	
+	if	f2tag
+	DB	' f2='
+f2msg	DB	' ,'
+	endif	;f2tag
+;
+	if	systag
+	DB	' SYS='
+sysmsg	DB	' ,'
+	endif	;systag
+;
+	if	rotag
+	DB	' R/O='
+romsg	DB	' ,'
+	endif	;rotag
+;
+	DB	'$'
+;
+crlf	DB	13,10,'$'
+;
+;
+filcnt	RS	1			;count of files in filetable
+sropt	RS	1			;storage for S or R option letter
+;
+filetable EQU	(Offset $)		;start table here, take all avail memory
+;
+	END
+

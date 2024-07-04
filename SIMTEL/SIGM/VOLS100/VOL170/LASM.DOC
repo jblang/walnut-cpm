@@ -1,0 +1,134 @@
+************************************************************************
+*								       *
+*  10/01/82							       *
+*								       *
+*  LASM is an update of LINKASM, with the minor change that it prints  *
+*  the name of each linked file before it is opened.  This helps track *
+*  progress, and helps find misspelled names.			       *
+*								       *
+*						- Ward Christensen     *
+*								       *
+************************************************************************
+
+LINKASM.COM
+01/07/80		by Ward Christensen
+
+OVERVIEW:
+	LINKASM is based on CP/M assembler 1.0, and is compatible with
+1.0, 1.3, and 1.4 assemblers.  (2.0? Dunno.)
+
+			 ----------------
+
+LINKASM is a rewrite of CP/M 1.0 ASM.COM, incorporating:
+
+*	A new pseudo-op code, LINK.
+*	Smaller .COM file size (6K vs 8K).
+*	Faster execution via larger ASM, HEX, and PRN buffers
+*	   (about 29% faster with PRN file, about 17% faster without)
+*	Corrections to properly handle lower case DB values.
+*	Prints the number of source lines read
+*	Produces a symbol table for use under SID
+
+	The LINK pseudo-op allows a file to "chain" to the next .ASM
+file, thereby allowing very large source files to be processed without
+having to PIP them together.
+
+RESTRICTIONS:
+	All the linked .ASM files must be on the same disk.
+	Nested IFs are not handled (ASM.COM didn't either).  Note that
+you can use IF to conditionally link to the next module:
+
+     IF	CLOCK
+    LINK    CLOCKRTN
+     ENDIF
+;
+     IF	NOT CLOCK
+    LINK    OTHERRTN
+     ENDIF
+
+
+	For example, if CLOCK is true, then LINK CLOCKRTN (i.e.,
+CLOCKRTN.ASM) will take place, and the assembler will never see the
+ENDIF.  This is not a problem as the next encountered IF will be handled
+properly.
+			----------------
+USAGE:
+	LINKASM is totally compatible with ASM.COM, and you may there-
+fore replace ASM.  Its performance will be slightly better than ASM.COM,
+and it takes less space on disk (6K vs 8K).  Execute it just like ASM.COM:
+	
+    LINKASM NAME.ABZ
+
+where:	A is the .ASM file disk (A, etc.)
+	B is the .HEX file disk (A, etc., or Z for none)
+	Z is the .PRN file disk (A, B,... or Z for none, X for console)
+
+	The default is the logged in disk for all 3.
+
+	If you wish to write a symbol table file, follow the command line
+with the disk to be written to (A, B, ...) then a colon.  For example, to
+assemble MODEM from the A: disk, put the .HEX on the A: disk, send the
+.SYM file to B:, and the listing to the console:
+
+    LINKASM MODEM.AAX B:
+
+	To assemble it doing everything on the A: disk (assuming A: is
+the logged in disk):
+
+    LINKASM MODEM A:
+
+	The ":" must be specified after the .SYM disk.  The .SYM file is
+"partially" sorted, i.e., all Axxxx then all Bxxxx etc.  SID fully scans
+the symbol table anyway, so sorting it is not necessary, so I did this
+quick sort hack just to make it eaiser for YOU to find a symbol.
+
+			----------------
+
+	The LINK pseudo ops take a single operand:  The name of an .ASM
+file to be processed next.  For example:
+
+A:TEST1.ASM:
+
+    ORG     100H
+    LXI     H,MSG
+    MVI     C,9
+    CALL    BDOS
+    RET
+
+    LINK    TEST2
+
+----------------
+
+A:TEST2.ASM:
+
+MSG:  DB      'LINKED'
+BDOS: EQU     5
+
+----------------
+
+	Then assemble it:
+
+A>LASM TEST1.AZX
+LASM AS OF 07/06/82
+
+
+ 0100			ORG	100H
+
+ 0100 210901		LXI     H,MSG
+ 0103 0E09		MVI	C,9
+ 0105 CD0500		CALL    BDOS
+ 0108 C9		RET
+
+                        LINK	TEST2
+
+ 0109 4C494E4B45MSG:    DB	'LINKED'
+ 0005 =		BDOS:	EQU	5
+010F
+000H USE FACTOR
+8 INPUT LINES READ
+END OF ASSEMBLY
+
+			----------------
+
+				Ward Christensen
+

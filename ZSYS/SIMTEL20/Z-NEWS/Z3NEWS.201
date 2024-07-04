@@ -1,0 +1,187 @@
+                                                                 22 April 1985
+                                  Z-NEWS 201
+
+Z  TIPS:   We feel conditional testing aliases and IF12 submitted  by  Charles 
+McManis  (Sunnyvale,  CA) so important we reproduce some of his work here  for 
+your information.   Notice technique of indenting to indicate conditional nest 
+level.   Effective  during alias design,  but code is entered as one long line 
+when keystroking in actual alias. IF12.LBR is on Z-Nodes; extract IF12.COM and 
+it's ready to run after installing to your Z3 environment.
+
+"One  small modification to IF.COM allows comparing wild card  characters  and 
+ambiguous file names (AFNs).  Feature adds needed flexibility to some aliases. 
+Change affects only fcb conditional statement:   IF fcb1=fcb2,  where now fcb1 
+and fcb2 may be AFNs and still set IF state true if a match occurs.  Following 
+statement is thus accepted:
+
+       IF $1=*.?Q?  ;NOTE sets condition TRUE if $1 is a squeezed file.
+
+"Both fcb1 and fcb2 may contain ?  and * ambiguous characters.   An example of 
+use  of  this  new situation is shown in following aliases that  manipulate  a 
+library containing squeezed ZCPR3 utility source files."
+
+Alias:  PUT - Store source file in SOURCES library
+Usage:  PUT <name> [E]
+            where E indicates external files are erased at completion.
+
+	Statements			   Comments
+	----------			   --------
+ 	IF $1=*;		   Match filename with no type
+	  IF EX $1.MAC;		   Check if file exists
+	    SQ $1.MAC;		   Squeeze before storing
+	    INSERT $1.MQC;	   Insert into library
+	    IF $2=E;		   See if externals are to be erased
+	      ERA $1.M?C;	   Erase squeezed/unsqueezed copies
+	    FI;
+	  ELSE;
+	    ECHO $1.MAC NOT FOUND; Announce unable to find file
+	  FI;
+	ELSE;  			   Syntax reminder
+	  ECHO PLEASE DO NOT INCLUDE FILETYPE.;
+	FI                         Done
+
+Alias:  GET - Retrieve source file from SOURCES library
+Usage:  GET <name>
+
+	Statements			   Comments
+	----------			   --------
+	IF $1=*;	 	   Match filename with no type
+	  IF EX $1.MAC;		   Check if file exists and..
+	    ECHO FILE EXISTS!;	   ..do not overwrite if it does.
+	  ELSE;
+	    EXTRACT $1.MQC;        Get named file from library
+	  FI;
+	ELSE;                      Syntax reminder
+	  ECHO PLEASE DO NOT INCLUDE FILETYPE.;
+	FI                         Done
+
+Now the single-line nested aliases:
+
+Alias:  INSERT - Insert files into SOURCES library
+Usage:  INSERT <name.typ>
+
+	Statement			   Comment
+	---------			   -------
+	NULU -O SOURCES -A $1 -X      Add file then exit
+
+Alias:  EXTRACT - Extract files from SOURCES library
+Usage:  EXTRACT <name.typ>
+
+	Statement			   Comment
+	---------			   -------
+	NULU -O SOURCES -Q $1 -X      Extract file, unsqueeze
+                                      if necessary, then exit.
+     
+     Of  course,  INSERT and EXTRACT could be placed directly in GET and  PUT. 
+Advantage to having these outside (nested) is ease of change,  and can be used 
+alone,  if  desired.   (One day soon we will have a full editor to  enter  and 
+alter  alias command text,  making changes easily without having to completely 
+re-do.)
+     IF12 contains built-in help,  obtained by entering command name  followed 
+by ZCPR3 conventional double slash, //.  IF12 //<cr>:
+
+   IF, Version 1.2 - Conditional Test
+   Syntax:
+ 	IF condition arguments -or- IF ~condition arguments
+   where a leading "~" negates the effect of the IF Condition
+   Possible IF Conditions are:
+	T			Always TRUE
+	F			Always FALSE
+	EMPTY <file list>	T if Files are Empty
+	ERROR			T if Error Flag Set
+	EXIST <file list>	T if Files Exist
+	INPUT			T if User Hits T, Y, CR, or SP
+	NULL arg		T if No Arg Follows
+	TCAP			T if ZCPR3 TCAP Available
+	WHEEL			T if Wheel Byte Set
+	reg value		T if Register reg = value
+	fcb1=fcb2		T if the Two FCB values are =
+   Only first 2 letters of keywords are required
+   The leading "~" is effective with all conditions except fcb1=fcb2
+
+     Congratulations and thanks,  Charles, for upgrading IF and providing such 
+useful aliases--super job!
+     Do  remember,  before using Charles' aliases and new IF.COM,  to  disable 
+your  resident (RCP) IF,  if you have one;  else use a different  name,  e.g., 
+IF12,  as  upgraded COM file name and as conditional (IF12) name in Alias  and 
+Zex files.
+     The above four aliases plus those we described in newsletter 109, dated 8 
+April 1985,  demonstrate automation ease using Z System utilities.   Also,  Z-
+Node #2 Sysop,  Al Hawley, has released a file (ALIAS.FUN) showing many tricks 
+possible with aliases.
+     And  Z-Team  Member, Joseph Wright,  wisely seeing need for less  message 
+display from certain Z3 utilities,  has produced a group of "silent" utilities 
+responding to QUIET.COM.   These (CD,  LDR,  PATH, QUIET, WHEEL) are on Z-Node 
+Central  as  SILENCE.LBR  and show no messages under  QUIET--very  useful  for 
+secure installations and many turn-key applications.
+
+Additional Z-Nodes coming online:
+
+     31. Richard A. Peterson - El Paso, TX - 915/755-3342
+     32. Allan E. Levy - Satellite Beach, FL -
+     33. Mark R. Evans - San Angelo, TX -
+
+Doug Thom (San Jose,  CA),  Z-Node #25, wants all to know he is online now and 
+desires callers,  lots of them.   His modem number is 408/253-1306.   Let  him 
+know  you appreciate his activities to support high performance 8-bit computer 
+developments.
+
+EDIT by Mike Rejsa (Minneapolis,  MN) is now supported by Echelon and  bundled 
+as OS editor in our OEM packages (it's fully public domain,  not copyrighted). 
+EDIT  is adequate for short document creation and maintenance,  and ideal  for 
+use in Zex or Sub files.   We supply an easy to read and learn from operator's 
+manual.   Look  for  COM and summary command reference card on our Z-Nodes  as 
+files EDIT.OBJ/CRD.
+     EDIT  is  more than 1) an editor:   it's 2) a file patcher,  3)  list  to 
+printer with pagination, 4) hex dumper, 5) file size and disk status reporter, 
+and 6) copy file to another disk utility--in 2k-byte COM file!   EDIT  doesn't 
+generally replace WordStar,  WordMaster,  Mix,  Vedit, etc.; nonetheless, it's 
+quick  and doesn't use much disk space.   We're using EDIT in aliases and  Zex 
+batch files 'cause it loads so fast; try it and let us know what you think.
+
+Apple  (CP/M disk format) ZCPR3 Core,  Utilities,  Z3-Dot-Com and Syslib3  are 
+shipping.   For so much patience,  thanks Martin Rosenfeld,  Jerry Levy,  Mike 
+Damiani, Julio Ibarra, George Proctor, and especially, Lloyd Hogan.  Also, the 
+gang at Hughes Aircraft get several gold stars for unusual forbearance.
+
+Wyse  Technology, our favorite peripherals company,  returned a profit of  2.2 
+million  dollars on sales of 22.3 million for last quarter.   Increases of 385 
+and  238  percent,   respectively,  over  similar  period  last  year!   Their 
+competitor,  TeleVideo,  didn't  fair well with loss of 8 million on sales  of 
+26.7  million--sales  reduction of 38 percent and loss of .19  cents  a  share 
+compared to last year's .14 cent profit.  Perhaps their new Model 955 terminal 
+($699.00) will put them into hunt, be what they need to get going again.
+     Wyse has real winners with their WY-50, 75 and 85 terminals (they've sold 
+nearly 200,000 of 'em),  enough better to keep ahead of competition.   Echelon 
+wishes  Wyse  President,  Mr.  Bernard Tse,  and his team of spirited  workers 
+continued  good  fortune!   With  IBM's image  tarnished  by  PCjr  production 
+cancellation,  time  is  ripe  (interval within the octave) for  big  position 
+gains.
+
+EXPECTATIONS:   One  main  advantage of microcomputers  is  that  you  control 
+hardware/software  without  having an expert intermediary (priest)  doing  the 
+work.   But  to  be  effective you must dedicate yourself to learning  how  to 
+efficiently use your machine,  to have it do constructive work for  you!   The 
+two-edged  knife:   finding time (simply by setting priorities there's  always 
+time)  to  become more than we presently are--induced magically  by  learning, 
+through  self-discovery!   We call everything WORK that's conscientious effort 
+and  intentional suffering performed to improve ourselves.   "There's no  free 
+lunch!"  So many think,  act as if there were.   What does free-lunch mean  to 
+you?
+
+See you down the lines...
+				                                 Echelon, Inc.
+				                              101 First Street
+			                                  Los Altos, CA  94022
+				                       Telephone: 415/948-3820
+				                  Z-Node Central: 415/489-9005
+
+Trademarks:   HD64180,  Hitachi; Z80/800, Zilog; WY-50/75/85, Wyse; Model 955, 
+TeleVideo; Z-System, Z-Tools, ZCPR3, ZRDOS, Z-Com, Zas, Zlink, DSD, ZDM, ITOZ, 
+Z-Msg,  Lasting-Value  Software,  Echelon  and  their  respective  owners  and 
+authors; CP/M, Digital Research.
+
+Z-News 201 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon.
+

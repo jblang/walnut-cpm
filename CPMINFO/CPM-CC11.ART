@@ -1,0 +1,173 @@
+
+==============================================================================
+[   THE KAY*FOG RBBS  |  CPM-CC11.ART  |  posted 01/18/86  |  170 lines  9k  ]
+
+          The CP/M Connection                   Originally published in    
+                  by                               Computer Currents       
+             Ted Silveira                           2550 9th Street        
+  (copyright and all rights reserved)             Berkeley, CA  94710      
+
+
+                              September 10, 1985
+                              TOOLS FOR DBASE II
+
+     dBase II is a small industry in itself.  It has been the cause of more 
+books, seminars, applications, and add-ons than any program I can think of, 
+except perhaps Microsoft BASIC.  In the CP/M public domain, too, you can 
+find many dBase II programs, ranging from the ubiquitous mailing list to a 
+general ledger system (and ranging in quality from very good to not so 
+hot).  But even better than these canned applications, the public domain 
+also offers a number of dBase II "tools" you can use.
+
+
+[NEWBAS11]
+
+     NEWBAS11.ASM, by Gene Head, is an assembly language file that lets you 
+"patch" several useful features into dBase II.  These patches will work on 
+versions 2.3B, 2.4, 2.41, 2.41Z, and the current 2.43*.  (Note the asterisk 
+in 2.43*--versions 2.43 and 2.43Z have been dropped.)  
+
+     Two of these patches come under the heading of timesavers.  One allows 
+you to skip the opening request for today's date, while the other allows 
+you to skip the lengthy sign-on message, except for the two-line Ashton-
+Tate copyright notice.
+
+     A third patch gives dBase II a KEYIN function that allows you to check 
+the last key pressed on the console keyboard by PEEKing at a memory 
+location.  You could use this function, for example, to allow a user to 
+break out of a DO loop by hitting a key.
+
+     A fourth patch makes dBase II compatible with ZCPR and other similar 
+CP/M modifications so that you can leave DBASE.COM and DBASEOVR.COM on 
+drive A while you're logged into drive B (or C or D) where your command and 
+data files are.  With this patch, dBase II will still be able to locate 
+DBASEOVR.COM when it needs to.  It won't, however, be able to locate the 
+help file, DBASEMSG.TXT, unless you have it on the default drive.
+
+     The final three patches can be very useful if you're setting up a 
+dBase II application to be used by someone else.  The FORCE patch keeps a 
+user from getting to the dot prompt by forcing a warm boot if a valid 
+command file isn't specified at startup.  The PREDEFINED patch goes even 
+further by forcing the execution of a predefined command file on startup.  
+And the ESCAPE patch prevents a user from aborting to the dot prompt by 
+hitting the ESCAPE key.  (The command SET ESCAPE OFF does the same thing, 
+except that it doesn't take effect until after dBase II is loaded and 
+starting to run, leaving the system vulnerable for a short time.)  Taken 
+together, these patches can help you build a more secure application that 
+will prevent an untrained (or hostile) user from breaking out of your 
+program and wreaking havoc at the dot prompt.
+
+
+[DB2&3MAX.INF]
+
+     DB2&3MAX.INF isn't a program or a patch file.  It's actually an 
+electronic reprint of the article "Maximizing Performance with dBase II and 
+III," by Alan Simpson, originally published in _Personal Systems_, put out 
+by the San Diego Computer Society.  
+
+     Simpson concentrates on getting the fastest performance out of dBase 
+for various kinds of sorts, searches, reports, edits, and so on.  He 
+doesn't resort to any patching or poking of dBase itself.  Instead, he 
+points out that dBase often offers more than one way to perform a 
+particular task and goes on to compare these different ways to show which 
+is the fastest in a given situation.  He runs these speed comparisons on a 
+typical mailing list of 1000 names (MAIL), and the results are remarkable.
+
+     To give just one example, Simpson compares times for copying all 
+entries for "Miller" (10 of them) from MAIL to a new file (TEMP).  The 
+command
+
+USE MAIL INDEX NAMES
+COPY TO TEMP FOR LNAME = "Miller"
+
+took 200.6 seconds.  But the command
+
+USE MAIL INDEX NAMES
+FIND Miller
+COPY TO TEMP WHILE LNAME = "Miller"
+
+took only 18.7 seconds, less than one-tenth the time.
+
+     If you haven't already discovered such tricks yourself, this file 
+makes interesting reading.
+
+
+[DTUNE23]
+
+     DTUNE23, by James Gronek, is a sort of file processor you can use to 
+"tune" your dBase II command files.  Its main function is to reduce the 
+size of the CMD file by removing all comment lines and trimming all dBase 
+II reserved words to four letters (that's all dBase II needs to see).  This 
+processing does shrink your files noticeably (I used it to reduce one 
+heavily commented file from 14K to 4K).  As a side benefit, the smaller 
+file should run at least a little faster since dBase II won't have to spend 
+as much time reading it.  In this process, DTUNE23 does not destroy your 
+old command file (with its valuable comments); it just renames it from 
+filename.CMD to filename.SRC.
+
+     DTUNE23 does some other useful things, too.  It can produce a 
+structured version of either the original source file or the new trimmed 
+file.  (Structured files are indented to set off program loops, making the 
+file much easier to read, especially if it has nested loops.)  DTUNE23 can 
+also produce a line-numbered version of the source file together with a 
+cross-reference file that lists the occurrences of all non-reserved words 
+used.
+
+
+[VDBTYPE]
+
+     Though not everyone knows it, it's possible to add functions to dBase 
+II through assembly language routines.  VDBTYPE.ASM, by Norman Strassner, 
+is an assembly language file that adds a neat file-viewing function to 
+dBase II.  With it, you can view a normal text file, a squeezed text file, 
+or even a squeezed text file inside a library (LBR) file--all without ever 
+leaving dBase II.  
+
+     It's handy enough to be able to scan a file on your disk (a DOC file, 
+for example) without having to exit dBase II, but VDBTYPE has greater 
+possibilities.  You could, for example, create a dBase II application, and 
+then work up a dozen or more help files to go along with it.  If you 
+include VDBTYPE in your application, you could squeeze all the help files 
+and store them in a single library file (saving considerable disk space) 
+yet still give users quick access to them when needed.
+
+     To use VDBTYPE, you must turn the ASM file into a HEX file (using 
+CP/M's ASM.COM or the public domain LASM.COM).  Once dBase II is running, 
+you use the LOAD command to get the HEX file into memory and the SET CALL 
+command to let dBase II know where VDBTYPE is.  The only thing you may need 
+to alter in the assembly language source file is the memory address at 
+which VDBTYPE will load (it comes set to load at the lowest possible 
+address, 41984 or A400h).  Once loaded, VDBTYPE will coexist happily with 
+dBase II, which doesn't normally use any memory above 41984.  If you do any 
+sorts, however, VDBTYPE will be wiped out, and you'll have to reload it 
+after the sort is complete.
+
+
+[WHERE TO FIND IT]
+
+     If you have a modem, you can find these files on most major RCP/M 
+(Remote CP/M) systems.  If you don't have a modem, and your local users' 
+group doesn't have the files you want, you now have another option--FOG.
+
+     FOG is the First Osborne Group, a large and active users' group that 
+now supports various CP/M computers--Morrow, Kaypro, and others.  This 
+week, I'm going to send off a batch of public domain software for FOG to 
+include in its library, and from now on, I'll try to make sure they have 
+the public domain programs I write about.  Between us, we should be able to 
+cover 90-95% of them.  (Be patient--it takes time to catalog this stuff.)  
+FOG dues are $24 per year, and you can mail-order disks from their library.  
+You can reach FOG at
+
+     FOG
+     P.O. Box 3474
+     Daly City, CA 94015-0474
+
+------------------------------------------------------------------------------
+      Ted Silveira is a freelance writer and contributing editor to several
+   computer-oriented publications.  He appreciates suggestions or feedback
+   and can be reached through the KAY*FOG RBBS (415)285-2687 and CompuServe
+   (72135,1447) or by mail to 2756 Mattison Lane, Santa Cruz, CA 95065.
+
+-------------------------  End of CPM-CC11.ART Text  -------------------------
+
+

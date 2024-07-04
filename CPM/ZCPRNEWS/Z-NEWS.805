@@ -1,0 +1,285 @@
+EI                            Z-NEWS 805                     28 September 1987
+==============================================================================
+Of  Significance.   S-100 Journal plans a magazine column called Into the  80s 
+to  cover  the  "Zilog and Zilog-like line of CPUs  and  compatible  operating 
+systems."   CPUs and OSs to be covered are Z80, Z180 (HD64180),  Z280,  Z8000, 
+CP/M v2.2, ZCPR, and Z-System.  If you are interested in becoming a regular or 
+semi-regular  columnist  and have a background in Z-System, CP/M,  and  S-100, 
+call Jay Vilhena at 801/373-0696.  Or send a brief description of your  exper-
+ience to him at S-100 Journal, P.O. Box 1914, Orem, UT 84057.
+     ZAS  and ZLINK shine!  Judging from your response assembler/linker is  an 
+unqualified success.  Combination is what it should be, do what it should  do.
+But, in our reporting of upgrade price we made an error.  ZAS/ZLINK v3.0  disk 
+is  $20 as reported but new 75-page manual is an additional $10.  Now, we  owe 
+Al Hawley and Dave McCord a round of thanks for job-well-done: Al for the pro-
+gram  enhancements  and code, Dave for the manual re-write,  and  for  keeping 
+track  of reported bugs and how to reproduce them.  In Programmer's  Scrapbook 
+below,  more on how to use ZAS's error reporting ability and automatic  assem-
+ble/edit cycles using your existing editor.
+------------------------------------------------------------------------------
+Z-Node Activity.  So much activity related to ZCPR33 and its new capabilities.
+Be  sure  to  get  such new files as  CD32,  LX16,  NZEX-C,  DU313,  GETVAR12, 
+LBREXT22,  and Z33IF11.  Thanks Bob Peddicord, Bruce Morgen, Jay  Sage,  Dreas 
+Nielsen  for  your continued interest in supporting Z-System.  And  we  salute 
+Terry  Hazen  and  his ACOPY14, DD14, and RENAMZ11  featuring  file  attribute 
+support.
+     Our  comments  in Z-News 802-2 re "//=$1" being required  in  scripts  by 
+ZCPR33  instead of "$1=//" couldn't be ignored by Jay.  See file  on  Z-Nodes.
+He  fixed  the problem in Z33IF11.  He recommends we forget the use  of  equal 
+sign and get into habit of using EQ instead.  EQ form goes with other  operat-
+ors,  NE, GT, etc.  So we use "IF EQ $1 //" from here on.  Thanks Jay for  re-
+acting--reaction wasn't called for but we all appreciate your concern for  our 
+well being.
+     Likely  the event of the fortnight is Richard Jacobson's upgrades  to  72 
+megabytes hard disk storage for each of his two RASs, a total of 144 megabytes 
+for  Z-Node #15.  He started with but 900k-bytes!  If interested in  big  sys-
+tems, and up-to-date support, call Chicago, 312/649-1730 or 312/664-1730.
+
+Programmer's Scrapbook -- using ZAS-ZLINK with your editor.  ZAS and ZLINK use 
+Z-System Message Buffers to permit closed-loop assemble-edit cycles per Z-News 
+802-3,  Items 2 & 3.  File name being edited is stored as System File #4.   If 
+errors occur during assembly, the line number of the first error is stored  in 
+the ZCPR3 Message Buffer at base offset location 4 in Hex, error type at  off-
+set  7.  User area and drive letter are at offsets 2 and 3.  A  specially  de-
+signed  editor can use this information to advantage in an  interactive  loop.
+(Let's get Paul Pomerleau to enhance LZED.)  On either assemble or link  error 
+ZCPR3  Program  Error Flag shows a non-zero condition, useful for  testing  in 
+alias script with FCP's "if er" or "if ~er" to go from assembler and linker to 
+editor and back.
+     Here's  a recursive ARUNZ alias quintet to get started  with  interactive 
+development using your present editor, LZED in our example.  It's the best  we 
+can do until we get a custom editor.
+
+   zz if z80=$.1;$d1$u1:;era $:1.bak;/zz2 $1;else;sak /p4 not z80 file;fi
+
+   zz2 $z zif;BASE:zas $:1;if err;sak /zp3 ctrl-c cancels;BASE:lzed $1;     <<Š    /$0 $1;else;/zz3 $1
+
+   zz3 $z zif;BASE:zlink $:1,a:vlib/,a:z33lib/,a:z3lib/,a:syslib/;          <<
+    era $:1.rel;fi;/zz5 $1
+
+   zz4 $z zif;BASE:lzed $1;/zz2 $1
+
+   zz5 $z zif;if ~err;echo  link/load c%>omplete;else;                      <<
+    sak /zp3 link/load error occured (ctrl-c cancels);/zz4 $1;fi;$d0$u0:
+
+ZZ  suite, likely our longest "alias."  Recursive feature of Jay Sage's  ARUNZ 
+makes ZZ possible.
+     We  won't  give possible variations here--that you can do  for  your  own 
+requirements.  We normally use "zz" from a simple ZFILER script, the 2 number-
+ed  line:  "2!/zz $p", but it can be used from the Z command  line.   We  find 
+ARUNZ aliases work well from ZFILER (and VFILER) CMD scripts.
+
+  "While  everyone else is pursuing multi-tasking and  multi-user  systems, 
+   I'm  going the other way towards one user with  multiple  systems."--Art 
+   Carlson, Publisher, The Computer Journal.  "Computers are so cheap...why 
+   buy  a printer buffer when you can get a complete system for  $350...now 
+   if I just had a master operating system which would manage multi-systems 
+   instead of multi-tasking..." [Term3 under ZCPR3 is a candidate.]
+
+From  The  Mail Box.  "Are you going to support Z280 chip with ZAS,  ZDM,  and 
+DSD...and  what  is your policy regarding utilities  updates?"  writes,  among 
+other  things, David Johnson, Sunnyvale, CA.  David, we support any  CPU  that 
+runs Z80 object code.  The Z280 is so great an extension over the Z80 it  will 
+be  some  time, months, before we announce these products with  specific  Z280 
+support.  Utilities: we try to supply the latest versions of the utilities, as 
+Item  #2 of the Price List.  Because of so many utilities and so many  changes 
+occurring  to  them so often, there are times we ship other than  the  latest.
+Many  versions  we  never release.  We do our best to  be  current  with  each 
+utility  but  we know there are times when we are not--as is  said  so  often, 
+"It's not a perfect world."
+     Ed Garcia of Los Angeles wonders why, in a technical newsletter, we  have 
+"political editorials" under the Of Angels and Eagles section.  Ed, our  news-
+letter has never been declared as technical, but one that addresses the  whole 
+human  being.   Read Z-News 305-2 and 408-3, and our  favorite,  304-4.   Many 
+United  States and world issues are important enough to discuss here and  com-
+puter  users are at one cutting edge of mentality where most effective  energy 
+can  be  tapped.  We present our views hoping to stimulate thought,  to  offer 
+possibilities.  Ed also thinks USA $209 billion 1986 foriegn debt (Z-News 803-
+5),  largest  of any country, is meant as our balance of trade  deficit.   No, 
+it's  debt; we owe it to foreign-country entities.  Our national debt to  our-
+selves is over 2 trillion dollars.  Second largest country, Brazil, owes  $109 
+billion.  Thanks, Ed, for your stimulating thoughts.
+
+Software Update Service.  SUS #12 fills...we use 8" SSSD diskette capacity  of 
+241k-bytes as our common denominator for all SUS diskettes.  Eight inch  disk-
+ettes  are  so expensive these days that we simply cannot afford  to  use  two 
+diskettes for one SUS mailing.  Also the logistics of two sets of masters  are 
+prohibitively expensive, so...
+
+                     DIRectory, Version 1.4  01/22/86Š -SUS    .012    0r| CMD     .LBR   20 | FOR-NXT2.LBR   44 | LX16    .LBR   20 
+ STATPAT .LBR    2 | Z33VERR .LBR   14 | Z3VARS  .LBR   18 | ZAPG    .SZ    26 
+ ZF10F   .LBR   36 | ZLDIR   .LBR   10 | ZMANG-20.LBR   48 
+          F0:BACKUP -- 11 files using 238k (148k remain of 386k total)
+
+CMD.LBR  contains up-to-date ZFILER and ALIAS script files loaded with  macros 
+and aliases we currently use around the office.  It also contains ready-to-run 
+versions of Bruce Morgen's ZLDIR and C.B.Falconer's LT to work with TLF of  Z-
+News  803.   (LT  is  patched to ignore all  popular  binary  file  types,  so 
+"*.*<cr>" at GETVAR prompt usually selects only text files.  LT lets you  type 
+one file after another; entering "^x" within LT moves to next file in selected 
+list.)   LX16  is  latest  version of  library  utility.   STATPAT  is  Howard 
+Goldstein's  patch to CP/M's STAT utility so it works with ZCPR v3.3  (see  Z-
+User's Corner below).  And ZAPG is Echelon VP Dave McCord's ZCPR3  Application 
+Programmers Guide, ready to print out and answers your questions about how  to 
+write  programs to take advantage of Z-System features.  See Z-News 803-2  for 
+more on contents of #12 diskette.
+
+Z-User's  Corner.   Many an alias we have developed, some with  great  length.
+Many  have been over 136 characters.  Few printers can handle lines  so  long.
+Pray,  how  do we get a hard copy of them to study?  Well, quickest  and  most 
+convenient  way is to use PRINT with its "L" option.  PRINT word (line)  wraps 
+based  on  your Environment Descriptor.  Four printer line widths  are  stored 
+there.   CPSEL  selects  the  one you wish  active.   When  line  goes  beyond 
+printer's  capability  a  new line is  started  automatically.   Double  left-
+pointing arrows, "<<", are placed at line end to indicate a wrap has occurred.
+Correct pagination occurs automatically no matter how many wraps occur.   Best 
+of all, the L option numbers each line, so each alias multiple command-line is 
+numbered--the  print-out, a wonder to behold.  A line without a number  is  an 
+extension  of the previous line, making it easy to distinguish dependent  from 
+independent lines.
+     Okay, we confess we don't actually use QUIET S and QUIET R in our  alias-
+es.  We use POKE FE28 1 and POKE FE28 0 to get the job done faster.  The  rea-
+son  we show QUIET being used is we don't know the base address of your  envi-
+ronment  descriptor--most  are at FE00, but not all.  Use SHOW  to  find  your 
+base, add 28 Hex offset to it, and then you can use memory-based POKE to  turn 
+the  quiet flag off and on quickly, more quickly than with  disk-based  QUIET.
+(Surely  Jay is working on an RCP command to poke the quiet flag  location  in 
+the  SYS.ENV segment.)  Our tests indicate a saving of 1.9 seconds using  POKE 
+over  QUIET,  using  our Ampro Bookshelf Z80 computer.  Savings  is  a  little 
+greater than using direct ECP access over path of Z-News 804-1, which  reminds 
+us  of  a  mistake  there.  Our two last command  lines  tested  should  read: 
+a15:cmdrun   tpa   and  root:cmdrun  tpa.   (Remember,  arunz.com   is   named 
+cmdrun.com.)   In  our  tabulation we inadvertently omitted  the  "cmdrun"  to 
+access TPA utility through ALIAS.CMD script--the times reported are correct.
+     If  you  own and use CP/M's STAT program to determine active  user  areas 
+(USR:  command)  or other things, you need to patch it to continue to  use  it 
+under ZCPR v3.3.  Howard Goldstein has provided us a patch to fix STAT so  the 
+USR:, DEV:, etc. attributes don't look like invalid directory entries to  Z33.
+The  fix is in STATPAT.LBR on Z-Nodes and on SUS #12.  We have  assembled  the 
+source  into a HEX file ready to overlay your STAT.COM file.  We use MLOAD  to 
+do it (there are other ways).  Here's command line to make patch work:
+
+                            MLOAD STAT.COM,STATPAT
+ŠHave STAT.COM and STATPAT.HEX in same directory as MLOAD.COM.  If you  haven't 
+used  MLOAD  before, review its built-in help by entering  the  command  name, 
+i.e.,  the verb MLOAD, followed by carriage return, "MLOAD<cr>".  Here we  see 
+that STATPAT is a HEX file to overlay the binary COM file.  The result is STAT 
+program  changed to be compatible with the way the new 3.3  command  processor 
+works.
+     Helpful  conventions to remember: "LIST" sends text to  printers;  "TYPE" 
+and "VIEW" sends text to console screens.
+     Jay Sage passes along important alias suggestion.  Instead of using  "cmd 
+ROOT:lx cmd $*" in ALIAS.CMD to access "cmd" in COMMAND.LBR, place ":  ROOT:lx 
+/ $0 $*" as last line in script file.  Colon indicates the default alias line.
+If  "cmd"  is  not found, the default, ":" line, is  passed  as  the  command.
+Remember,  "$0" is the command's name.  Using Bruce Morgen's LX v1.6  and  its 
+ability to pass errors, using "/" option, to whatever error handler is instal-
+led makes process perfect.  The ALIAS.CMD has but one line to handle all files 
+in COMMAND.LBR.  Now we can add files to COMMAND.LBR and they are automatical-
+ly  handled.  Wonderful!  When Jay pauses long enough from enhancing  New-ZEX, 
+we  will develop some ZEX scripts to go with all those aliases developed  over 
+the years.
+
+Hardware Beat.  Texas Instruments, Dallas-based semiconductor giant, announces 
+sample  shipments  of  4-megabit DRAM chips expected first  quarter  of  1988.
+Milestone  puts  TI in same league as Japanese Mitsuhishi  and  Matsushita  as 
+leading  others in dense memory chip production technology.  And TI's  use  of 
+advanced  stepped trenching technique for both transistor and capacitor,  same 
+as used currently in their 1-megabit chips, speaks well for easily  producting 
+16- and beyond densities.  Many companies haven't yet mastered such  trenching 
+technique.   Such densities put memory in the non-scarce catogory.  What  will 
+our computers be like when 16-megabit chips cost $3 or less each.
+     National  buys Fairchild, seed from which many semiconductor houses  grew 
+from;  Advanced  Micro  Devices (AMD) merge with  Monolithic  Memories  (MMI).
+Silicon Valley is dead--long live Silicon Valley!
+
+Software  Beat.  WordStar v4.0 works fine with NuKey.  You have  both  NuKey's 
+extensive  key  re-definition and WS's shorthand macros, all  under  Z-System.
+WS's ^\ or <esc> functions clear screen after using NuKey's define and display 
+re-definition  functions.   Order your copy of WordStar from  us  at  discount 
+price  of $195, Item 68.  Multi-colored documentation is something to  behold.
+Set  of manuals, over 500 pages, makes easy the learning of ends and  outs  of 
+this  high-feature word processor.  Become a registered WS  owner--order  from 
+Echelon.  NuKey is priced $39.95, Item 44, requires IOP segment be  installed.
+Z-News 702-1 discribes NuKey's many features.
+     We  haven't  tried  to confirm this but we heard that  the  company  that 
+produces  MS-DOS WordPerfect word processor may be coming out with  some  CP/M 
+products.  Could it be they are using the same logic that prompted MicroPro to 
+upgrade WordStar?  Time tells...
+
+In Other Words.  The more you use a computer the more you want responsiveness.
+An inexpensive hard disk is initially a seemingly significant improvement over 
+a double-sided 8 incher floppy, and especially over a similar 5.25 incher.  As 
+you gain experience, you wish for instant response to your commands.  We  have 
+spoken  of  RAMdisk,  a drive consisting of semiconductor  memory  instead  of 
+magnetic,  as  being a wave of the future.  File fragmentation  problems  with 
+hard  disks make RAMdisk so attractive.  Speed differences make so  much  dif-
+ference with complex aliases and other situations requiring many disk accesses Što get job done.  Anything that slows us down, acts as barrier to or distracts 
+our thinking process is something we work to remove.  Think SemiDisk DT42...
+==============================================================================
+Of  Angels and Eagles.  Our broadsides have leveled everything ugly in  sight.
+Let's  look  at the beauty remaining because, somewhere out  there,  life  has 
+deeper meanings than what shows through the rat-race glitter.  Welcome!   Join 
+us  and  journey beyond time and space, to a realm of the real.  We,  at  over 
+10,000  feet  elevation in the Sierra Nevada mountain range, breathe  in  deep 
+breaths  of clean air, and why shouldn't it be?  It's the same air the  angels 
+and eagles breathe.
+
+        "Everyone needs beauty as well as bread."  "Coyotes...are  beauti-
+    ful  animals, and, although cursed by man, are beloved of God.   Their 
+    sole fault is that they are fond of mutton."--John Muir, Sierra Nevada 
+    (Scottish-born) Naturalist, 1838-1914.  "We be of one blood, thou  and 
+    I."--Mowgli, speaking to wolves, from Jungle Book by Rudyard  Kipling, 
+    English author, 1865-1936.
+
+     We wake with little stirring, eyes still full of sleep, to hear the giant 
+blue jays proclaiming the glory of a new morning.  Next the mountain chickadee 
+(jenny  wrens  don't come up this high) and nut hatches  move  around,  making 
+little noise, in search of day's breakfast among the coniferous groves.  Night 
+has  been  normal cool for Autumn, and the day looks to be  Summer  warm.   On 
+rising, we feel the Sun low on the eastern horizon, much lower than it was  in 
+June, telling of Winter to come.
+     From  white fir to pine branch to trunk, checking under chips and  layers 
+of tree bark, they hop searching for bits of food to fill tiny bodies  through 
+even  tinier  beaks.   Suddenly,  a huge woodpecker  shows  on  stage,  colors 
+reflecting  the  Sun's spectrum.  Fat, for he gets all he wants.  No  worm  or 
+insect escapes such a long snout.  Here is a "gentleman" who knows what he  is 
+about.  Confident, master of his environment, he goes about his business.   Is 
+he master or simply a master's servant?  Wait...are we awake or are we  dream-
+ing?   A cup of coffee settles the issue--we started the pot still  in-trance, 
+still mesmerized by all the winged, feathered activity--we are awake!
+     Seldom  have we tried to write news in the morning but here we are  doing 
+just that.  And good news at that.
+     The good news is: we can see into the magic of creation if our egos  stay 
+out  of the way, if our senses are opened to streams of living data,  data  so 
+easily turned into wisdom.  See you down the lines...
+
+
+Echelon, Inc.       885 North San Antonio Road         Los Altos, CA 94022 USA 
+Telephone: 415/948-3820   Telex: 4931646    Z-Node Central (RAS): 415/948-6656
+
+
+Trademarks:  Little Board, Bookshelf, Ampro Computers; SB180, SB180FX,  GT180, 
+Micromint; ON!, Oneac; DT42, The SemiDisk, Deep Thought 42, SemiDisk  Systems; 
+XLR8,   M.A.N.   Systems;   VAX,   Digital   Equipment;   Macintosh,    Apple; 
+Z80/180/280/8000,  Zilog;  HD64180, Hitachi; Z-System, ZOS, ZCPR3,  ZRDOS,  Z-
+Tools,  Zas,  Zlink,  Z-Msg, Term3, Quick-Task,  NuKey,  Z80  Turbo  Modula-2, 
+Lasting-Value Software, Echelon; CP/M, Digital Research; Unix, AT&T; TurboROM, 
+Advent;  Graphix  Toolbox,  Turbo Pascal, Borland  Int'l;  WordStar,  Newword, 
+MicroPro Int'l; LZED, Zivio; JetFind, Bridger Mitchell.
+
+Š                  *                                        *
+
+
+
+                                 Fly with Z!
+
+
+
+                  *                                        *
+
+
+Z-News  805  is  Copyright  MCMLXXXVII Echelon,  Inc.   All  Rights  Reserved.
+Permission  to reprint, wholly or partially, automatically granted  if  source 
+credit is given to Echelon.
+                         

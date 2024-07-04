@@ -1,0 +1,104 @@
+
+Taken directly from the DIGISCAN manual, 22/4/91 by M.L.C...
+
+
+3.1. Digiscan file format.
+
+
+    Digiscan uses the same file format that electric paintbrush uses to store
+its picture files. All digiscan graphic files have a '.EP' file extention and
+may be loaded directly into Electric Paintbrush. This format is identical to
+the MacPaint file format.
+
+    Each picture is a 576x720 bit image, occupying 720 horizontal scan lines
+of 72 bytes. A bit set (1 value) indicates a RESET pixel and a reset bit (0
+value) indicates a SET pixel. Thus, the value of each bit in the bit map must
+be inverted (ie, logically NOTed) in order to display the picture on a
+microbee as white pixels on a black background.
+
+    As each picture file would take over 50k of disk space, the bit image data
+has been compressed. This reduced the image data to around 10k (rubbish! That
+is wrong. A picture can take from 2k to 40k depending on complexity - M.L.C),
+although this will vary, depending on the complexity of the bit map - a
+completely blank picture contains only 1952 bytes.
+
+    The bytes in each scan are encoded into two types of records - mixed data
+and repeating data.
+
+    A mixed data record consists of a byte indicating the record length (1-72
+bytes) and the raw data. This type of record is used when each byte in a scan
+line is different from its neighbour. Such records actually take up one more
+byte than the original scan line data.
+
+    Repeating data records are a much more efficient method of storing data.
+Most images contain repeating bit patterns. Repeating data records are
+represented by a byte to indicate the number of bytes to repeat and the actual
+bit pattern that will be repeated. This method allows you to compress up to
+127 bytes of uncompressed data into two bytes.
+
+    Combinations of mixed data and repeating records may be stored in the same
+file. The eighth bit in the first byte of the first record (known as the
+counter byte) identifies the record type. If the eighth bit is set (1 value)
+then that record is a repeating record. If the eighth bit is reset (0 value)
+then it is a mixed data record.
+
+    As well as storing image data, the first 512 bytes of a MacPaint picture
+file is a pattern header. The header is used for storing pattern data, but is
+not used by either Electric Paintbrush or Digiscan. It has been retained for
+file compatibility.
+
+
+3.1.1. Mixed data records.
+
+    A mixed data record consists of a counter byte (indicating the record
+length of 1-72 bytes) and the image data.
+
+    The eighth bit of the counter byte will always be reset (0 value) with
+mixed data records. The least significant 7 bits of the counter byte contain
+the number of data bytes in the record. This value starts from zero -
+therefore, if the value counter byte is 15 then the following 16 bytes will
+form the bit image.
+
+
+3.1.2. Repeating data records.
+
+    A repeating data record is formed by two bytes. The first byte is always
+the counter byte while the second byte is always the data byte.
+
+    The eighth bit of the counter byte will always be set (1 value) with
+repeating data records. The seven least significant bits of the counter byte
+contain a value representing the number of bytes that are to be repeated. This
+number can be obtained by logically NOTing the counter byte and adding 1 (the
+basic and turbo pascal subroutines shown below will return this value from the
+count byte). The data byte contains the bit map of the data to be displayed.
+
+
+procedure GetNum(z:byte);
+        begin
+          z:=1-z;
+        end;
+
+
+
+    05000 VAR (Z)
+    05010 Z=256-Z
+    05020 Z=Z+1
+    05030 RETURN
+
+
+    Please note that a repeating data record can only repeat a maximum of 72
+bytes (ie, one complete line of the picture).
+
+
+
+    END OF NOTES...
+
+
+
+    This was taken DIRECTLY and VERBATIMLY (yuk!) out of the (unreleased and
+unfinished and unpolished) Digiscan manual. DON'T whinge to me if it doesn't
+make sense!!!
+
+
+                                 M.L.C 8-)
+

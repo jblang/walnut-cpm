@@ -1,0 +1,92 @@
+
+
+If your Osborne-1 Double-density machine has the
+MPI drives in it you have probably been using a
+utility program called fast to increase the step
+rate. The drives run quieter and do indeed step
+faster.  If you aren't sure if your drives are
+MPI you can tell by looking to see if there is
+a switch 'lever' hanging down on the right side
+of the drives. If this is the case then you can
+make use of the following information.
+
+The problem I've had with the FAST.COM program is
+that it is under 20 bytes long but takes up 1k of
+disk space. Further, you either have to type in FAST
+every time you boot up or (as I did) simply make
+FAST the name of your auto-load program. This, of
+course precludes the use of the auto-load function
+for anything more worthwhile.  I have written a small
+routine that sits on the system tracks just above
+the area where the 'function' keys are stored. After
+a cold boot the routine is overwritten by other
+bios stuff but has done it's job by then so it
+doesn't matter.
+
+The assembly routine below can be entered in a
+number of ways, two of which are the most practical.
+
+1. Create a new CP/M using MOVCPM and save it to
+   disk. Use DDT to load the new CP/M and then enter
+   the following:
+
+a1f80
+jmp e278	;changes the cold start jump to our routine
+.		;exit a option
+a20f8		;our routine
+mvi a,0
+sta ef13
+mvi a,fb	;restore cold start jump
+sta e101
+mvi a,e4
+sta e102
+jmp e4fb	;continue with cold start routines
+,		;exit a option
+
+   Now use ^C to exit ddt and run sysgen answering
+   the 'source?' prompt with just a carriage return
+   and the 'destination?' prompt with the drive that
+   contains the disk you wish to modify.
+
+   From then on the system will set the step rate to
+   6 ms every time a cold start or reset is done.
+
+
+
+
+2. The other method is to use the DSKNURSE or DU
+   utility program:
+
+with the disk to change the system tracks on in the
+b: drive and du in the a: drive enter:
+
+
+du;lb;g0;t1;s7;d;ch78,3e,00,32,13,ef,3e,fb,32;w
+
+
+After the du prompt returns enter:
+
+
++;d;ch0;01;e1;3e;e4;32;02;e1;c3;fb;e4;w;x
+
+
+The system tracks have now been modified to change
+the step rate to 6 ms on each cold start.
+
+
+THIS HAS ONLY BEEN TESTED WITH A DOUBLE-DENSITY
+OSBORNE. IT WILL NOT WORK WITH SINGLE-DENSITY
+MACHINES.
+
+
+Simon Ewins,
+676 Oriole Parkway,
+Toronto, Ontario.
+(416) 484-9427
+
+
+--------- end -------------------------------------
+
+08/01/83
+
+

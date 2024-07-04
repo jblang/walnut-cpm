@@ -1,0 +1,133 @@
+
+; B5AC-1 - Apple-Cat insert for BYE5 - 07/17/85
+;
+;		Novation Apple-Cat routines for BYE5
+;
+; This version is for the Apple ][ running with an Apple-Cat modem card.
+; Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written to work with BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Apple-Cat modem address equates
+;
+SLOT	EQU	2		; Apple-Cat residing in Slot #2
+SLOTVAL	EQU	SLOT*16		; Number to add for proper slot
+;
+MCSTATP	EQU	0E080H+SLOTVAL	; Carrier status
+LNCTL	EQU	0E081H+SLOTVAL	; Line control
+PHCTL	EQU	0E082H+SLOTVAL	; Phone control
+BSRINT	EQU	0E083H+SLOTVAL	; BSR and interrupts
+RCVCTL	EQU	0E089H+SLOTVAL	; Receiver control
+MDPORT	EQU	0E08AH+SLOTVAL	; Mode (parity/stop bits) port
+BAUDPT	EQU	0E08BH+SLOTVAL	; Baud rate port
+XRINT	EQU	0E08CH+SLOTVAL	; Transmit/receive interrupts
+TRXCTL	EQU	0E08DH+SLOTVAL	; Transmitter control
+MODSEL	EQU	0E08FH+SLOTVAL	; Modem select port
+;
+RSPORT	EQU	0E08FH+SLOTVAL	; Receive status port
+RDPORT	EQU	0E08BH+SLOTVAL	; Receive data port
+TSPORT	EQU	0E08FH+SLOTVAL	; Transmit status port
+TDPORT	EQU	0E08EH+SLOTVAL	; Transmit data port
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:LDA	MCSTATP		; Get carrier status
+	ANI	20H		; Got a carrier?
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,1FH		; Turn off transmitter
+	STA	TRXCTL
+	MVI	A,0		; Hang up phone
+	STA	PHCTL
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	MVI	A,10H		; Clear receiver
+	STA	TRXCTL
+	LDA	RDPORT		; Read character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	RSPORT		; Get modem status
+	ANI	08H		; Data available?
+	RZ			; Nope
+	ORI	0FFH		; Return true
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	STA	TDPORT		; Send character
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:LDA	TSPORT		; Get modem status
+	ANI	10H		; Check transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;.....
+;
+;
+MDSTOP:	MVI	A,1FH		; Turn off transmitter
+	STA	TRXCTL
+	MVI	A,0		; Hang up phone
+	STA	PHCTL
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximim
+; speed you have available.
+;
+SET1200	EQU	$		; 1200 bps not supported
+SET2400	EQU	$		; 2400 bps not supported
+;
+SETINV:	ORI	0FFH		; Make sure the Zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	CALL	MDINP		; Set for 300 baud
+	CALL	MDINP
+	MVI	A,22H		; Set 300 baud
+	STA	BAUDPT
+	MVI	A,03H		; Set 8 data bits, no parity, 1 stop bit
+	STA	MDPORT		; 03H = 1 stop, 0DH = 2 stop bits
+	XRA	A
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

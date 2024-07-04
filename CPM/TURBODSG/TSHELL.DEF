@@ -1,0 +1,71 @@
+; tShell definition file v0.10
+; (c) Copyright 1985, S. Kluger
+; All Rights Reserved
+;
+; This file contains the definition for the unscrambled
+; userfile entry and for the resident user configuration block.
+;
+; version control:
+;  0.01	11/09/85 initially defined
+;  0.02 11/20/85 made level also indicate entry deleted
+;  0.10 12/22/85 added TIMECL-inhibit
+;
+;
+;	+----------------------+
+;	| userfile entry block |
+;	+----------------------+
+;
+USERID:	ds	8		; userid (8 char max, blank fill)	     8
+PASSWD:	ds	8		; password (8 char max, blank fill)	    16
+LEVEL:	db	0e5h		; privilege level			    17
+				; 0 = nonprivileged, single user area
+				; 1 = nonprivileged, restricted user areas
+				; 2 = fully privileged, no user restriction
+				; bit 7 set = use menu
+				; bit 6 set = disallow exit from menu
+				; bit 5 set = execute mail if message waiting
+				; bit 4 set = system administrator
+				; bit 3 set = execute .COM only
+				; if E5 = entry deleted from user file
+USRCOD:	db	0		; user code (FF=sysadmin)		    19
+DRVACC:	dw	0		; drive access vector			    20
+USRACC:	dw	0,0		; user area access vector		    24
+DREDEF:	db	'ABCDEFGHIJKLMNOP'	; drive redefinition block	    40
+INITUS:	db	0		; logon user area			    41
+INITDR:	db	0		; logon drive (0=A)			    42
+SHRDRV:	db	0ffh		; search drive				    43
+SCREEN:	db	80h		; screen preference byte; bit definitions:  44
+				; bit 0 set: cursor steady, else blink
+				; bit 1 set: cursor underline, else block
+				; bit 2 set: normal video, else reverse
+				; bit 3 set: 80 col, else 132
+				; bit 6 set: no TIMECL
+				; bit 7 set: do not customize screen
+LASTON:	ds	5		; date and time of last logon		    49
+LASTPR:	dw	0		; ckt/node of last processor used	    51
+ERRCNT:	db	0		; logon error count			    52
+DEFPRM:	db	1		; default print mode			    54
+DEFPRT:	db	1		; default printer or queue		    53
+CMDLN:	ds	40		; 40-char command line if no menu	    94
+RESERV:	ds	128-($-USERID)	; RESERVED, UNUSED
+;
+;
+;	+--------------------------+
+;	| user configuration block |
+;	+--------------------------+
+;
+LCLID:	ds	8		; userid				     8
+LCLLV:	db	0		; privilege level (see above)		     9
+LCLDRA:	dw	0		; drive access vector			    11
+LCLUSA:	dw	0,0		; user access vector			    15
+LCLLGD:	db	0		; logged flag				    16
+LCLSHD:	db	0		; search drive				    17
+LCLUSC:	db	0		; user code				    18
+LCLRDD:	db	'ABCDEFGHIJKLMNOP'	; drive redef table		    34
+LCLDPM:	db	1		; default print mode			    35
+LCLDPR:	db	1		; default printer/queue			    36
+LCLPRC:	ds	41		; currently executing process		    77
+LCLSCM:	db	0		; screen mode				    78
+LCLRES:	ds	128-($-LCLID)	; RESERVED, UNUSED
+;
+; end of definition file data

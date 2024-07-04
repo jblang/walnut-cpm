@@ -1,0 +1,117 @@
+DIRPAT version 1.60 as of 26 Aug 84
+
+
+What is DIRPAT?
+
+It is a DIRectory PATch utility, designed to allow unerasing of accidentally
+erased files or otherwise change a TurboDOS disk directory byte by byte.
+
+THIS PROGRAM IS NOT INTENDED FOR THE INEXPERIENCED USER, AND GREAT DAMAGE
+MAY RESULT IF THIS PROGRAM IS ABUSED. DIRPAT CAN ONLY BE RUN BY A PRIVILEGED
+USER AND IT WILL REFUSE TO OPERATE IF FILES ARE OPEN ON THE CURRENT DRIVE.
+
+
+Use of DIRPAT:
+
+DIRPAT is meant to be used immediately after an accidental erasure of a file
+or similar disaster. Be sure nobody else (in a multiuser system) is accessing
+the drive in question, then execute the DIRPAT program from that drive.
+DIRPAT will ignore drive arguments and always use the current drive. The
+program will terminate with an error message if
+	1. you are  NOT running version 1.3 or later TD
+	2. a lock cannot be obtained on the drive
+	3. $.DIR cannot be found.
+
+You will get a warning message if you are running TD ver 1.3 (see below).
+
+DIRPAT will then tell you the number of 128-byte sectors in the directory
+and the maximum number of available directory entries. It reads sector 0
+into the buffer and then waits for a command.
+
+COMMANDS:
+
+The following is a brief explanation of all DIRPAT commands. Gain proficiency
+by exercising all commands on a work diskette with backed-up, non-critical
+data!
+
+
+CMD	use
+
+?	display brief help message
+A	FIND a string of up to 8 ASCII characters starting from the current
+D	display current sector in hex and ASCII
+F	FIND hex bytes (you are prompted to enter data)
+	sector up to the end of the disk. Sector pointer is positioned to
+	the first sector the string is found at or not moved if the string
+	is not found (may lock up in TD 1.3). Only 7 bits are matched, so
+	that filenames with status bits set may be found.
+G	GOTO a sector. Prompts for a sector number which must be in range
+	(between 0 and the number of sectors in the directory, minus 1).
+	Reads and displays that sector.
+H	set/reset directory hash flag. You could use the S command to do
+	this but this won't properly rebuild the directory. A FIXDIR
+	operation is performed upon exit if H was used.
+Q	QUIT to TurboDOS. If you used the W command, the disk map will be
+	regenerated. If the directory is hashed, it will be reorganized.
+	WARNING: DO NOT ABORT! Hashed directories may take VERY LONG to
+	reorganize, especially on large hard disks!
+R	READ the current sector into memory. Useful if you used the S command
+	and then changed your mind.
+S	SUBSTITUTE byte(s). Prompts for an address 00..7F and then displays
+	the current contents in hex. RETURN skips to the next byte, a PERIOD
+	ends this substitution and re-asks for another address, any valid
+	hex number 00..FF will be stored at the location displayed.
+	Example: to change location 0060 from to 00, do:
+	S, then at the prompt enter 60, and when "0060 xx " is displayed,
+	type in "00".
+W	WRITE the current sector. Used to save changes made with the S
+	command. If you have made any changes, the previous values are
+	irretrievably lost after a W.
+
+
+KNOWN PROBLEMS:
+
+The program was developed under TurboDOS version 1.4 and works with that
+version. I tried it under 1.3 and the following problems occur:
+1. The directory size is displayed as 0, but it can be accessed properly.
+   The - command should not be used at sector 0, while it is up to you
+   to figure out how far out you can step with the + or G commands.
+   The F comamnd may not work correctly.
+2. When exiting the program in a multi-user system where someone has attempted
+   to access the drive (and received a "not ready" error), the system may
+   crash completely.
+3. Due to the fact that TD version 1.22 does not support T-function calls
+   or the FIXDIR call, DIRPAT cannot be run on ver 1.22 or earlier.
+
+If you don't have TurboDOS version 1.4 run like hell to your dealer and
+get the upgrade! It's well worth it. Among many other things, the following
+command lines are now possible:
+0A}5B:
+5B}copy c7:*.* 1a:;n
+5B}dir 31a:
+
+COMMENTS:
+
+Please direct all comments, questions or requests for additional features to:
+
+S. Kluger
+c/o B-KOMP Inc.
+5949 Sherry Ln
+Dallas TX 75225
+(214) 750-KOMP
+
+
+LIABILITIES:
+
+This program is not intended for the inexperienced user. Gain proficiency by
+lots of practice on a scratch floppy.
+This program is FREE (in the public domain). Nobody in the world will ever
+guarantee it. You should not attempt to recover any losses incurred by a
+malfunction of the program or the user or both. However, your loss is everyone
+else's gain if you notify me of bugs and tell me the exact circumstances.
+That is the only way the program will be supported.
+
+
+TurboDOS is a Trademark of Software 2000, Inc.
+alls
+   or the FIXDIR call, DIRPAT cannot 

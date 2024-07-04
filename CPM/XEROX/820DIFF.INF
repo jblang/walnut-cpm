@@ -1,0 +1,279 @@
+
+                             820DIFF
+                       By Mitchell Mlinar
+                             10/6/85
+
+
+This small file is a composite difference description between the
+820-I  Etch 1 and 820-I Etch 2.   An assumption is made that  you
+have  one or the other (hopefully,  both) of the 820  schematics.
+In  addition,  I would like to thank Dan Costello for helping  me
+out  with this document by providing some nicely drawn difference
+schematics to work from.
+
+Briefly, the first board Xerox released was the Etch 1 (which had
+a serial number ending in 629A).   About a year later, Etch 2 was
+phased  into  production  (which had a serial  number  ending  in
+644A).   There  were  a  number of  minor  technical  differences
+between  them;  it  is these items that this  article  addresses.
+
+Note that with the sole exception of being able to detect double-
+sided  460 drives (special input line),  there are NO programming
+differences between the two versions.   All software which  works
+on Etch 1 will work on Etch 2.  However, the only item to observe
+is  that  there  was  a  slightly  different  ROM  release  which
+coincided  with  the  Etch 2 (v1.0 ROMs replaced by  v2.0  ROMs).
+Although all jump vectors perform the same operation,  there were
+many  more  added in v2.0.   In  addition,  location  of  monitor
+variables (real-time clock, track, sector, etc.) appear elsewhere
+in the later release.
+
+There  are  four topic areas which are different in the two  etch
+versions:  processor clock,  CRT display generator,  system port,
+and floppy controller circuitry.  Each will be addressed.
+.PA
+
+
+PROCESSOR CLOCK
+---------------
+
+The clock and clock driver are slightly different between the two
+versions.
+
+
+ETCH 1: R16, R17 = 1k           C192 = .01uF
+        C90 = 47pf              C92 = 100pF
+        U9 = 74LS04
+
+
+      +--R16--+--R17-------+
+      |       |            |
+      |     C192           +-----> E2
+      |       |            |
+      |      gnd           |
+      |                    |
+      +---(13)..U9..(12)---+
+      |                    |
+      +----[20MHz XTAL]----+
+      |                    |
+     C90                  C92
+      |                    |
+     gnd                  gnd
+
+
+
+        U9 = 74LS04
+
+
+      ^                    ^
+      |                    |
+      +----(3)..U9..(4)----+
+      |                    |
+      +----(1)..U9..(2)----+
+      |                    |
+      v                    v
+.PA
+
+
+ETCH 2: U9 = 74LS04             R14 = 100
+        R16, R17 = 470          C90 = 47pF
+        U9 = 74LS04
+
+
+   +------------------[20MHz XTAL]-----------------+
+   |                                               |
+   |                                               +--> E2
+   |                                               |
+   +---(1)..U9..(2)---+--R14--+---(13)..U9..(12)---+
+   |                  |       |                    |
+   +--------R16-------+       +---------R17--------+
+                              |
+                             C90
+                              |
+                             gnd
+
+
+
+        U9 = 74LS04
+
+
+      ^                    ^
+      |                    |
+      |                    |
+      |                    |
+      +----(1)..U9..(2)----+
+      |                    |
+      v                    v
+.PA
+
+
+CRT DISPLAY GENERATION
+----------------------
+
+The clock is again different here.   Also,  the Not Vertical Sync
+(NVSync)  is processed through a one-shot 74LS123 in Etch 1,  but
+directly taken to the output gate (U117) in Etch 2.   The earlier
+version used the 'LS123 to extend the NVSync signal to work  with
+the  Ball monitors which required it for clocking.   Most present
+monitors could care less; hence, Etch 2 removed it.
+
+
+ETCH 1: U11 = 74LS04            R4, R5 = 470
+        C26 = marked as 33pF BUT IS a jumper wire
+        XTAL = 10.69425MHz
+        C27 = marked as .01uF BUT IS 100 ohm
+
+
++------------------------"C27"------------------------------+
+|                                                           |
+|                                                           +--> E1
+|                                                           |
++---(13)..U11..(12)---+-"C26"-[XTAL]--+---(11)..U11..(10)---+
+|                     |               |                     |
++----------R4---------+               +----------R5---------+
+
+
+
+        U32 = 74LS08            U33 = 74LS32
+        U36 = 74LS10            U106 = 74LS123
+        R11 = 47k               C72 = .01uF
+        U117 = 7406
+
+
+              (9)..U33
+               |
+               |
+ U32..(6)------+---------------------(3)..U36
+               |
+               |   (+5v)--R11--+--C72--+---gnd
+               |               |       |
+               |        U106..(7)     (6)..U106
+               |
+               +-------(10)..U107..(11)----------gnd
+
+               gnd------(9)..U107..(5)-----------(5)..U117
+.PA
+
+ETCH 2: U11 = 74LS04            R4, R5 = 470
+        R10 = 100               C26 = 100pF
+
+
+   +-----------------[10.69425MHz XTAL]----------------+
+   |                                                   |
+   |                                                   +--> E1
+   |                                                   |
+   +---(13)..U11..(12)---+--R10--+---(11)..U11..(10)---+
+   |                     |       |                     |
+   +----------R4---------+       +----------R5---------+
+                                 |
+                                C26
+                                 |
+                                gnd
+
+
+
+        U32 = 74LS08            U33 = 74LS32
+        U36 = 74LS10            U117 = 7406
+
+
+                 (9)..U33
+                  |
+                  |
+    U32..(6)------+--------------------(3)..U36
+                  |
+                  |
+                 (5)..U117
+
+
+
+
+SYSTEM PORT
+-----------
+
+On Etch 1,  bit 5 of the system PIO (PA5; port 1CH) was not used.
+Etch  2  added an input from 5.25" drives to detect  double-sided
+disks.
+
+
+ETCH 1: U105 = Z80 PIO
+
+        U105..(9)---------  n/c
+
+
+
+ETCH 2: U105 = Z80 PIO          R49 = 10k
+
+
+        U105..(9)---------+-----------> J1-3 (400/460)
+                          |
+                          +---R49---<+5v>
+
+
+
+
+FLOPPY CONTROLLER
+-----------------
+
+Etch 1 and 2 differed in the data seperation circuitry.   Etch  2
+saw  the addition of a one-shot to improve clock/data  seperation
+as well as extensive re-routing of the RAW DATA signal as part of
+the improved circuitry.
+
+
+ETCH 1: U107 = 74LS157          U108 = 74LS14
+        U94 = 74LS08            U93 = 74LS193
+        U109 = FD1771
+
+         U108..(5)               (5)..U94
+                |                 |
+                |                 |
+  U108..(4)-----+-----------------+
+                |                 |
+                |                 |
+         U107..(2)               (10)..U94
+
+
+  U107..(13)----gnd        [4MHz clock]----(4)..U93
+
+
+  U107..(4)-----(27)..U109       U107..(14)----<+5v>
+
+
+  U94..(6)-----(3)..U107
+.PA
+
+
+ETCH 2: U107 = 74LS157          U108 = 74LS14
+        U94 = 74LS08            U92 = 74LS193
+        U106 = 74LS123          C72 = 100pF
+        R11 = 7.5k              U109 = FD1771
+
+
+          U108..(5)               (5)..U94
+                 |                 |
+                 |                 |
+  U107..(12)-----+-----------------+
+                                   |
+                                   |
+                                  (10)..U94
+
+
+  [4MHz clock]----(3)..U107      U107..(4)-----(4)..U93
+
+
+  U94..(6)-----(27)..U109        [2MHz clock]----(2)..U107
+
+
+
+          <+5v>----R11--+--C72--+----gnd
+                        |       |
+                        |       |
+                 U106..(7)     (6)..U106
+
+
+  U108..(4)-------+-------------(10)..U106..(5)----(14)..U107
+                  |
+                  |
+          U107..(13)      gnd----(9)..U106..(1)----<+5v>
+
+

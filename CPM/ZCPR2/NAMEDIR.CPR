@@ -1,0 +1,119 @@
+                     Named Directory Prompt for ZCPR23
+                              by Jay Denebeim
+                           SYSOP Ovation Network
+                              (606) 276-1957
+
+     One of the most powerful features of ZCPR is the use of names  instead 
+of drive/user pairs.  Unfortunatly, these are not supported by ZCPR itself!  
+When  installing  ZCPR on my system I put patches in to print then name  in 
+the  command prompt.   The form is DU:DIRNAME> if DUPRMPT is  enabled,  and 
+DIRNAME> if its not.
+     This  patch should be able to be installed on any version of ZCPR.   I 
+am  unable  to include a .dif file because my source to  ZCPR  was  garbled 
+during transmission.   If anyone has the source to the utility programs,  I 
+would  appreciate  it  if you could up-load them onto my board,  so  I  can 
+install named directory support to them too.
+     If there are any problems please contact me at:
+
+                           Ovation Network RCPM
+                              140 Moore Drive
+                           Lexington, KY  40503
+                              (606) 276-1957
+
+.pa
+     The first step is to install switches into the header file:
+
+     This  patch can be installed anywhere,  but i think the best place  to 
+put it is right after the DUPRMPT equate.   That is the only one associated 
+with command line prompt.
+
+;   The following equates enable the named directory options.
+; NAMDIR enables the named directory buffer.
+; NAMBUF specifies where in core the Buffer will reside.
+; NAMDIR enables printing of the Dir's name on the command line.
+;	set it to TRUE and the prompt will be dn:name>
+;	set it to FALSE and the prompt will be dn>
+;
+NAMDIR	equ	TRUE		;ENABLE NAMED DIRS
+NAMBUF	equ	0F300H		;LOCATION OF BUFFER
+NAMPMT	equ	TRUE		;PRINT NAME ON COMMAND LINE
+
+
+     The other changes are made to the ZCPR.ASM file, pay careful attention 
+to the relative jumps in the file.
+
+     If all the prompt options are enabled,  this jump command in the CONT: 
+routine in section 2 of ZCPR should be changed to the 3 byte form:
+     Change this line:
+
+        JRNZ    RS1
+
+     To this:
+
+        JNZ	RS1
+
+     The jump on no print of 0 while in user 0 should be changed.
+
+     Change  this  line in the SUPRES conditional assembly section  of  the 
+RESTRT: routine from:
+
+        JRZ     RS000
+
+     To this:
+        JRZ     RSJ00
+.pa
+     Finally  insert the following routine between the DUPRMPT  conditional 
+assembly of the RESTRT routine, and the RS000: routine:
+
+; PRINT DIRECTORY NAME IF THERE
+;
+RSJ00:
+	IF	NAMPMT AND NAMDIR
+	LXI	H,NAMBUF	;POINT TO NAMED DIR BUFFER
+	INX	H		;POINT TO NUMBER OF ENTRIES
+	MOV	B,M		;GET IT
+	XRA	A		;TEST NUMBER OF ENTRIES
+	CMP	B		;TO SEE IF ZERO
+	JRZ	RS000		;AND SKIP ROUTINE IF SO
+	LDA	CURDR		;GET CURRENT DRIVE NUMBER
+	INX	H		;POINT TO DRIVE OF FIRST ENTRY
+	LXI	D,10		;SET UP ENTRY LENGTH
+RSJ01:
+	MOV	C,M		;GET DISK FROM TABLE
+	CMP	C		;IS THIS THE CURRENT ONE
+	JRZ	RSJ02		;TEST USER ROUTINE
+	DAD	D		;POINT TO NEXT ENTRY
+	DCR	B		;REDUCE COUNTER
+	JRNZ	RSJ01		;IF MORE, LOOP
+	JR	RS000		;ELSE NO ENTRY FOR THIS DISK
+RSJ02:
+	LDA	CURUSR		;GET CURRENT USER
+	INX	H		;POINT TO USER IN THIS ENTRY
+RSJ020:
+	MOV	C,M		;GET USER FROM TABLE
+	CMP	C		;IS THIS THE CURRENT ONE
+	JRZ	RSJ03		;PRINT NAME OUT
+	DAD	D		;POINT TO NEXT ENTRY
+	DCR	B		;REDUCE COUNTER
+	JRNZ	RSJ020		;IF MORE, LOOP
+	JR	RS000		;ELSE NO ENTRY FOR THIS USER
+RSJ03:
+	IF	DUPRMPT
+	MVI	A,':'		;USE : AS SEPARATER
+	CALL	CONOUT
+	ENDIF	;DUPRMPT
+	INX	H		;POINT TO FIRST CHAR OF NAME
+	MVI	B,8
+RSJ030:
+	MOV	A,M		;GET CHAR
+	CPI	' '		;END OF NAME?
+	JRZ	RS000		;WE IS DONE
+	CALL	CONOUT		;PUT CHAR ON SCREEN
+	INX	H		;POINT TO NEXT
+	DCR	B		;REDUCE CHAR COUNT
+	JRNZ	RSJ030		;GO FOR MORE
+	ENDIF	;NAMPMT
+;
+
+     I hope you enjoy these changes to ZCPR.
+

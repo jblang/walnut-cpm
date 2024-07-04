@@ -1,0 +1,141 @@
+; B5C-SB.INS - Clock routine for SB-180
+;
+; Uses the the wallclock data area of the BIOS to return the current
+; time to BYE5. The first time check after midnight will automatically
+; update the BYE5 date area, but since the SB-180 does not store the
+; current date, this area must first be intitialized to the correct date
+; by some other means.
+;
+; (Dec 16 1986)	Initial release for BYE510 and above. Note that
+;		this insert uses the Z80 "LDIR" instruction to
+;		minimize the time that interrupts are disabled.
+;		Since all SB-180s use the HD64180 CPU chip, this
+;		should be no problem.
+;						-- Stuart Rose
+;
+;----------------------------------------------------------------
+;
+; This clock insert uses BCDBIN and BINBCD subroutines.  It requires that
+; configuration tags BCD2BIN and BIN2BCD as well as CLOCK be set to YES.
+;
+;	Note: This is an insert -- not an overlay
+;
+	 IF	CLOCK OR RSPEED
+
+WBOOT	equ	0000H		; address of warm boot vector
+CENTURY	equ	19H		; current century (19xx) in BCD
+TIMOFF	equ	33		; offset to time routine in BIOS jump table
+
+TIME:	call	getclk		; get the time from the system clock
+
+	lda	TMPBUF+2	; get hours (binary)
+	sta	CCHOUR		; save as current hour
+	call	BINBCD		; convert to BCD
+	sta	RTCBUF		; and store BCD hours in RTCBUF
+	lda	TMPBUF+1	; get minutes (binary)
+	sta	CCMIN		; save as current minute
+	call	BINBCD		; convert to BCD
+	STA	RTCBUF+1	; and store tore BCD minutes in RTCBUF
+	lda	TMPBUF		; Get seconds (binary)
+	call	BINBCD		; convert to BCD
+	STA	RTCBUF+2	; and store BCD seconds in RTCBUF
+
+	lda	OLDHRS		; get old system hours
+	mov	B,A		; save it
+	lda	TMPBUF + 2	; get new system hours
+	sta	OLDHRS		; store it
+	sub	B		; day rollover?
+	rnc			; nope
+
+	mvi	A,CENTURY	; yep, get current century
+	sta	RTCBUF+3	; and store in RTC buffer
+
+	lda	RTCBUF+6	; get the day of the month (BCD)
+	adi	1		; bump up ...
+	daa			; adjust to BCD ...
+	sta	RTCBUF+6	; store the new day ...
+	mov	B,A		; and save
+	lxi	H,monmap	; point to the month map
+	lda	RTCBUF+5	; get the month of the year (BCD)
+	call	BCDBIN		; convert to binary
+	dcr	A		; remove offset (for base zero)
+	call	chkly		; check for leap year
+	adc	A		; multiply by 2 (with carry for ly)
+	mvi	D,0		; and create an offset
+	mov	E,A		;
+	dad	D		; add offset
+	mov	A,M		; get number of days this month
+	sub	B		; rollover?
+	rnc			; nope
+	mvi	A,01H		; yep reset the day of the month
+	sta	RTCBUF+6	;
+
+	lda	RTCBUF+5	; get the month of the year (BCD)
+	adi	1		; bump up ...
+	daa			; adjust to BCD ..
+	sta	RTCBUF+5	; store the new month ...
+	cpi	12+1		; rollover?
+	rc			; nope
+	mvi	A,01H		; yep reset the month of the year
+	sta	RTCBUF+5	;
+
+	lda	RTCBUF+4	; get the year (BCD)
+	adi	1		; bump up ...
+	daa			; adjust to BCD ...
+	sta	RTCBUF+4	; and store the new year
+
+	ret			; done
+;
+; This routine checks for leap years. If the current year is a leap
+; year, then this routine returns with the CARRY set.
+;
+chkly:	lda	RTCBUF+4	; get the year (BCD)
+	call	BCDBIN		; convert to binary
+	mov	B,A		; save it
+	ani	0FCH		; year = year mod 4
+	cmp	B		; same as original?
+	cmc			; set CARRY if so
+	ret
+;
+; This routine will read from the SB-180 wallclock data area
+;
+getclk:	call	biosclk		; point to BIOS RTC data area
+	lxi	D,TMPBUF	; point to temporary buffer
+	lxi	B,3		; moving 3 bytes
+	di			; disable interrupts
+	db	0EDH,0B0H	; Z80 LDIR instruction
+	ei			; enable interrupts
+	ret			; done
+;
+; This routine will call the BIOS time routine and return with the
+; the <HL> register pair pointing to the BIOS RTC data area
+;
+biosclk:lxi	H,WBOOT+1	; point to warmboot vector
+	lxi	D,TIMOFF	; get offset to BIOS time routine
+	dad	D		; add offset
+	pchl			; and jump to it
+;
+; This is a month map for the number of day in each month of the
+; year. The first value is for a standard year, the second for a
+; leap year. Note all values are in BCD.
+;
+monmap:	db	31H,31H		; January   std,lpyr
+	db	28H,29H		; February  std,lpyr
+	db	31H,31H		; March     std,lpyr
+	db	30H,30H		; April     std,lpyr
+	db	31H,31H		; May       std,lpyr
+	db	30H,30H		; June      std,lpyr
+	db	31H,31H		; July      std,lpyr
+	db	31H,31H		; August    std,lpyr
+	db	30H,30H		; September std,lpyr
+	db	31H,31H		; October   std,lpyr
+	db	30H,30H		; November  std,lpyr
+	db	31H,31H		; December  std,lpyr
+
+OLDHRS:	db	0		; remember hours from last call
+TMPBUF:	db	0		; temporary storage for the seconds
+	db	0		; temporary storage for the minutes
+	db	0		; temporary storage for the hours
+
+	 ENDIF			; CLOCK OR RSPEED
+

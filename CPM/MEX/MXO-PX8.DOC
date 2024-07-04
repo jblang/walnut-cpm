@@ -1,0 +1,205 @@
+.fo  MXO-PX8 Version 1.0        -#-     (C) Copyright 1985 by David B. Kozinn
+.po 0
+     This  file will serve to document the MXO-PX8 overlay for MEX  version 
+1.12.  This file is not intended to document MEX itself, but rather some of 
+the  peculiarities  inherent in using this overlay.  I'll try not  to  miss 
+anything.
+
+                               Installation
+
+     MXO-PX8  should  only be installed in version 1.12 (or higher) of  MEX 
+since  it  relies  on  some variables that were  added  for  that  version, 
+specifically the MODE byte for determining when we're in terminal mode  (so 
+we  don't  try  to  use XON/XOFF flow control  then)  and  it  specifically 
+disables  the  queued  I/O mode since this interferes with the  PX-8's  own 
+interrupt  driven  I/O  routines.  No special procedures  are  needed  when 
+installing the overlay, and you may install any dialing overlay (which will 
+only be used if you are using an external modem) that is ORG'd at 0B00H. If 
+you are using an external modem dialing overlay (see the section on Dialing 
+Overlays  for  details),  you must have it after the main overlay  in  your 
+MLOAD command or it will not be recognized.  A typical MLOAD command  might 
+look like this:
+
+          MLOAD MEX.COM=MEX112.COM,MXO-PX8.HEX,MXO-SM14.HEX
+
+
+                             The SET commands
+
+     SET  ?  will  tell  you  what what the  available  SET  commands  are. 
+Currently these are SET, SET DELAY, SET OFFHOOK, and SET COMM.
+
+     SET by itself will return some information about the current status of 
+the RS-232 ports.  The information returned is carrier status,  whether the 
+modem is on or off hook,  and what the DELAY value is (see below.) A couple 
+of caveats about this information: if you exit MEX then re-enter the on/off 
+hook  status will be incorrect if the modem is off-hook when you enter.  If 
+you have something plugged into the external RS-232 port that is  providing 
+DTR  then  you will always appear to have carrier no matter whether or  not 
+there is really carrier present to the modem. 
+
+     SET  DELAY  changes  the  delay value that is used  when  a  comma  is 
+encountered  in  a dialing string.  (See the section on  dialing  for  more 
+information.)  The default value is two seconds,  but any value from 0 to 9 
+may be used.
+
+     SET  OFFHOOK causes the modem to go off-hook.  This probably  isn't  a 
+really useful thing in most cases,  except that if you've disconnected when 
+using  the  external  port,  you'll need to say this to make the  port  pay 
+attention to you.
+
+     SET  COMM is the most useful of the SET commands.  When you  type  SET 
+COMM  you'll  get a menu that looks pretty much like the menu that you  get 
+from  CONFIG.  The only difference is that on the last line you can  select 
+either  the EXTERNAL or INTERNAL modem.  In this case EXTERNAL refers to  a 
+device plugged into the RS-232 plug on the back of the PX-8, which INTERNAL 
+refers  to an MFU or other direct connect modem connected directly  to  the 
+system bus.  (In other words, it's got to be attached to the bottom of your 
+PX-8.) The system will not let you select the internal modem if you haven't 
+got  one.  When you first start up the system,  the values selected are the 
+ones  that  you have set up to be your  default  communications  parameters 
+using CONFIG.  The only exception to this is whether to use the internal or 
+external  modem (since CONFIG doesn't handle that.) If an internal modem is 
+present,  it will be the default,  otherwise external will be assumed. When 
+you  exit MEX,  your overlay parameters will be retained as long as you  do 
+not do a warm boot (ie.  type control-c or do a jump to 0000H.) A warm boot 
+will cause the modem to power off, hanging up the phone line in the process 
+(if it was connected.) More about this later.
+
+                             Dialing Overlays
+
+     If you don't have an MFU (which I use to mean an actual multi-function 
+unit  or  a  system-bus connected modem) then you'll  need  to  include  an 
+overlay such as MXO-SM14 when you MLOAD to create your MEX.  If you do have 
+an  MFU,  you  may  include  such a dialing overlay  as  well  for  maximum 
+flexibility,  as  you'll  then be able to dial using both the internal  and 
+external modem.  It won't cost you anything else in terms of space since if 
+you  don't install the dialing overlay that space is still in the  program, 
+though unused.  If you choose to use an external dialing overlay,  you  may 
+also choose how you want the modem to disconnect from the line.  If you set 
+the  DISC equate to FALSE,  then the modem will disconnect by dropping DTR. 
+If you set it to TRUE,  then the character sequence to disconnect the modem 
+from the line will be used instead.  (If the preceeding few sentences don't 
+mean anything to you just forget about it,  MEX will do the right thing for 
+you.I won't discuss the use of the external modem dialing overlay any more, 
+as  it  is  documented  elsewhere.  The rest  of  this  section  will  deal 
+exclusively with the internal modem dialing routines.
+
+     As "delivered",  the MXO-PX8 overlay supports dialing via the built in 
+modem  in  a DTMF (tone) mode only.  (Future revisions of this overlay  may 
+support  pulse  dialing.)  The modem itself is capable  of  generating  all 
+sixteen DTMF tones,  which includes the familiar digits (0-9), #, and *, as 
+well as the rarely-seen (or heard) A,B,C,  and D tones.  (If you don't know 
+what the A-D tones are used for,  don't worry about it, you're not the only 
+one.  I've  included  them since they are supported by the  hardware.)  The 
+comma (,) is also specially supported: A comma in the dialing string causes 
+the dialing routine to wait approximately DELAY seconds.  DELAY is set with 
+the  SET  DELAY  command as previously mentioned,  and  the  default  is  2 
+seconds.  You may include several commas in a row if you need to. All other 
+characters  are ignored.  The current version of the overlay will not allow 
+you to send tones on a line that is already active,  it will hang up  first 
+then attempt to dial the tones. 
+
+                      Automatic XON/XOFF flow control
+
+     The  PX-8  is  a  wonderful piece of  electronics,  but  one  of  it's 
+drawbacks is a rather slow LCD display screen.  Because the screen is slow, 
+it's  easy  to overrun the internal buffer with characters coming in  while 
+the display is trying valiantly to keep up.  (By the way, this is generally 
+only  a  problem at speeds at or above about 1200 baud,  but can  occur  at 
+lower  speeds if you get a lot of linefeeds in rapid  succession.  This  is 
+because  the  screen scrolls even slower than it writes.) Because of  this, 
+I've chosen to implement automatic flow control while in terminal mode. 
+
+     When  the  internal buffer (which is about 360 bytes) gets  about  3/4 
+full,  an  X-OFF (ASCII character 11H) is sent out through the modem  port. 
+When  the buffer becomes nearly empty,  an X-ON (ASCII 13H) is  sent.  Many 
+computers  (both  mainframes and micros) alike will honor this  signal  and 
+will stop sending when told to.  If not, then you'll somehow have to insure 
+that  data is sent in small enough chunks so that the buffer does  not  get 
+overrun.  You  can  tell if this has happened since you'll the  data  being 
+displayed will not look like anything you were expecting.  (In other words, 
+you're going to get junk on the screen.) The overlay will only do this kind 
+of flow control while in terminal mode,  since it would interfere with file 
+transfers  using either file transfer protocol,  and because it just  plain 
+isn't needed then.
+
+                            File Transfer Speed
+
+     A  word  or  two about file transfer speed.  MEX is  a  big,  flexible 
+program.  The PX-8 is a small,  powerful,  but not-too-fast  computer.  The 
+combination of those two things does have it's price.  The price is that it 
+is  not  really possible to get the maximum theoretical speed at any  given 
+baud rate.  The higher the baud rate,  the lower the percentage of  maximum 
+you'll  get.  What  this  means is that you should not expect  to  get  the 
+transfer time that MEX tells you when you start a file transfer.  At higher 
+baud  rates,  you'll probably need to multiply that figure by 3-4 times  to 
+get the actual transfer time.  The good news is that even though you aren't 
+getting  the  theoretical  maximum  rate,  you can still hook  up  to  your 
+favorite  computer  at it's maximum speed without  worrying  about  loosing 
+characters during file transfer.
+
+                         More Speed-related Stuff
+
+     It  has  been reported that if you are using a floppy disk drive  with 
+your  PX-8 that you may have problems with the other end timing  out  while 
+you  write  (or  read) to disk.  This is most likely due to the  fact  that 
+normally MEX writes 128 sectors at a time to disk,  which is a fairly  slow 
+process with the battery powered external modem.  If you have problems, you 
+can  try  telling MEX to buffer smaller amounts between  disk  writes.  The 
+simplest  way  to  do  is by using the POKE command then  using  the  CLONE 
+command to produce a new working copy of MEX. The procedure is very simple. 
+When in MEX, simply type:
+                             POKE $D23,n
+Replace n with the size of the buffer that you want to use.  I recommend 4, 
+which  will cause MEX to save 32 sectors (ie.  4K bytes) in  memory  before 
+writing  to disk.  Then simply use the CLONE command to save a new copy  of 
+MEX.
+
+     Since  it's impossible to tell when a user of MEX might want to return 
+to  terminal mode,  I've chosen to implement the overlay in a  manner  such 
+that the RS-232 port is always left powered on,  even when exiting to CP/M. 
+(This  is so that you can leave MEX then return and pick up right where you 
+left off.) Because of this,  there is a constant drain on the batteries. If 
+you intend to use your PX-8 for any length of time after using MEX  without 
+turning  it  off,  then be sure to do a warm boot (by typing  a  control-C) 
+sometime  after exiting MEX.  This will cause the RS-232 port and the modem 
+to power off, and will result in extended battery life.
+
+                               Miscellaneous
+
+     I've found it helpful to do a STAT PAGE 8 then CLONE so that the  STAT 
+display  doesn't  roll off my screen before I've had a chance to  read  it. 
+You'll  probably want to change the default <ESC> sequence from <LF>  since 
+there  is no LF key on the PX-8 keyboard.  (If you don't want to,  remember 
+that you can always type control-J to send a linefeed.) Some of the  timing 
+values  used for file transfer speed will be less accurate than usual since 
+MEX  didn't  define values for some of the baud rates.  See  the  code  for 
+specifics. You'll probably want to use CONFIG to set your default baud rate 
+to  300 if you're going to be using an MFU.  That makes it possible to  use 
+the mode without having to use the SET COMM menu.
+
+                        Notes About the Source Code
+
+     I've  tried  to make the source code as readable as possible  so  that 
+others  can  build upon what I've started.  I ask that if you enhance  this 
+overlay,  you let me know so that I can keep my own versions up to date. In 
+addition,  I'll  be glad to answer any questions that I can about  how  the 
+overlay works.
+
+                                  Thanks
+
+     Special  thanks  for  the  help they've given me  in  developing  this 
+overlay must go to Justin Bell,  Chuck Freeman, and Mike Morra of Epson for 
+their help in getting me the information I needed to access the PX-8 system 
+information,  to Ron Fowler for tolerating my questions about MEX,  to John 
+Kinney and Charlie Strom for helping me to beta-test the overlay, and to my 
+wife  Sharon  for putting up with me while I tried to get the  overlay  put 
+together.
+
+          David B. Kozinn     March 5,1985
+
+Compuserve:  [76703,565]  (Preferable method)
+CP-MIG (PCS-47), EpsOnline (PCS-19), or Easyplex
+
+MCI Mail: dkozinn
+

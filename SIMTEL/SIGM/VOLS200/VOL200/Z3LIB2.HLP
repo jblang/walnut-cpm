@@ -1,0 +1,201 @@
+Introduction   ZCPR3 Flow Control
+End IF         IFEND
+Raise IF       IFT/IFF
+Test IF        IFTEST
+Toggle IF      IFELSE
+:Introduction to ZCPR3 Flow Control
+
+Basic Defintion of Flow Control:
+
+     Alì commanä sequenceó issued undeò ZCPR³ caî bå thoughô 
+tï  executå  withiî  á TRUÅ flo÷ controì  state®   Thaô  is¬ 
+wheneveò  á commanä ió executeä undeò ZCPR3¬  thå  statå  oæ 
+flo÷ controì ió TRUE®  Iæ thå statå oæ flo÷ controì ió FALSÅ 
+theî nï commandó excepô flo÷ commandó wilì bå executeä untiì 
+the state of flow control becomes TRUE.
+
+Background:
+
+     Wheî ZCPR³ firsô comeó up¬ thå statå oæ flo÷ controì ió 
+alwayó  TRUE®   Anù commanä issueä wilì bå executed®   Iæ  á 
+Flo÷   Commanä  Packagå  ió  installeä  whicè  supportó  thå 
+IF/ELSE/FÉ (Enä IF© commands¬ theî thå statå oæ flo÷ controì 
+caî bå changeä bù useò commands®  Foò example¬ thå followinç 
+terminal session illustrates:
+
+
+SCR>; any command will execute now
+SCR>era *.bak
+No Files
+SCR>dir
+MYFILE  .TXT  |  OBJECT  .BIN
+SCR>; we can set a flow control state to be false
+SCR>IF F
+ IF F
+SCR>; no command will execute now
+SCR>dir
+SCR>else
+ IF T
+SCR>dir
+MYFILE  .TXT  |  OBJECT  .BIN
+SCR>FI
+ No IF
+SCR>
+
+
+     Hence¬   wheî  anù  commanä  ió  executed¬  beforå  thå 
+executioî  actuallù begins¬  ZCPR³ wilì looë tï seå  iæ  thå 
+statå oæ thå flo÷ controì ió TRUE®  Sucè ió thå caså wheî wå 
+arå  noô withiî aî IÆ conditioî oò wheî wå arå withiî onå oò 
+more IF conditions, all of which are TRUE.
+
+     ZCPR³ allowó thå useò tï bå nesteä intï IFó uğ tï eighô 
+(8©  leveló deep®   Thaô is¬  thå structurå oæ  hió  commanä 
+sequenceó  caî takå thå forí oæ somethinç likå thå followinç 
+which can be nested into 8 levels of IFs:
+
+
+<set of commands>
+IF T
+     <set of commands>
+     IF T
+          <set of commands>
+          IF T
+               <set of commands>
+          FI
+          <set of commands>
+     ELSE
+          <set of non-executed commands>
+          IF T
+               <set of non-executed commands>
+          FI
+     FI
+ELSE
+     <set of non-executed commands>
+FI
+
+
+     Commanä  structureó likå thoså presenteä abovå arå  no÷ 
+possiblå undeò ZCPR3®   Essentially¬  ZCPR³ commandó caî no÷ 
+take the form of a programming language in their own right.     
+
+     Thå seô oæ routineó availablå iî thió parô oæ Z3LIÂ arå 
+useä tï providå thå programmeò á simplå interfacå tï controì 
+thå flo÷ controì withiî (anä outside© hió program®   Hå can¬ 
+undeò hió owî control¬  issuå commandó tï:
+
+     ® enteò thå nexô IÆ leveì iî á TRUÅ oò FALSÅ condition,
+     . toggle the state of the current IF level,
+     . drop down to the previous IF level,
+     . determine the current IF level number,
+     . or multiples of the above
+
+
+:End IF Level
+
+Z3LIB Routine: IFEND
+
+Function:
+     Droğ  tï  thå  previouó IÆ level®   Iæ thå  prograí  ió 
+currentlù withiî onå oò morå IFs¬  IFENÄ wilì droğ iô tï thå 
+next IF level down, terminating the current IF level.
+
+     Naturally¬  foò á transienô tï bå executinç now¬  therå 
+ió  currentlù  eitheò nï IÆ leveì oò therå ió  á  TRUÅ  flo÷ 
+controì  statå (alì preceedinç IFó arå TRUE)®   Iæ wå arå aô 
+somå  IÆ level¬  callinç IFENÄ dropó uó intï thå  preceedinç 
+one.
+
+Inputs: None
+
+Outputs: A=0 and Zero Flag Set (Z) if no IF level
+          A=0FFH and NZ if IFEND is successful
+
+
+Registers Affected: PSW
+
+Side Effects: None
+
+Special Error Conditions: None
+
+:Raise IF
+
+Z3LIB Routine: IFT/IFF
+
+Function:
+     Raiså thå flo÷ controì statå intï thå nexô leveì oæ IF®  
+IFÔ  raiseó  thå statå intï thå nexô leveì anä  setó  iô  tï 
+TRUE¬  whilå  IFÆ  raiseó thå statå intï thå nexô leveì  anä 
+sets it to FALSE.
+
+     Thå flo÷ controì statå caî supporô eighô (8© leveló  oæ 
+IFs¬  anä  IFÔ  anä IFÆ returî erroò codeó indicatinç iæ  aî 
+overflo÷  (anä subsequenô failurå tï enteò thå  nexô  state© 
+occurred.
+
+Inputs: None
+
+Outputs: A=0 and Zero Flag Set (Z) if IF level overflow
+          A=0FFH and NZ if IF level OK
+
+
+Registers Affected: PSW
+
+Side Effects: None
+
+Special Error Conditions: None
+
+:Test IF
+
+Z3LIB Routine: IFTEST
+
+Function:
+     Tï  determinå thå currenô IÆ level®   IFTESÔ returnó  á 
+valuå froí ° tï ¸ iî thå Á register¬  indicatinç thå currenô 
+IÆ level®  Iæ A=0¬ therå ió nï currenô IF®  Thå Zerï Flaç ió 
+set accordingly, so the following can be done:
+
+          ext  IFTEST
+          ...
+          call iftest    ;get IF level
+          jz   noif      ;process if not any IF level
+          cpi  8         ;test for max IF level
+          jz   atmax     ;process if at max IF level
+          ...
+
+Inputs: None
+
+
+Outputs: A = number of current IF level, Zero Flag set
+               accordingly
+
+Registers Affected: PSW
+
+Side Effects: None
+
+Special Error Conditions: None
+
+:Toggle IF
+
+Z3LIB Routine: IFELSE
+
+Function:
+     Togglå  thå  TRUE/FALSÅ statå oæ thå currenô IÆ  level®  
+IÆ thå prograí ió currentlù withiî aî IÆ leveì (theî iô MUSÔ 
+bå withiî á TRUÅ IÆ level)¬ callinç IFELSÅ (aî odä numbeò oæ 
+times© toggleó thå IÆ leveì tï FALSE®   Twï calló tï  IFELSÅ 
+(anù  eveî numbeò oæ calls© resulô iî thå IÆ leveì remaininç 
+aô TRUE.
+
+Inputs: None
+
+Outputs: A=0 and Zero Flag Set (Z) if no current IF
+          A=0FFH and NZ if successful
+
+
+Registers Affected: PSW
+
+Side Effects: None
+
+Special Error Conditions: None
+

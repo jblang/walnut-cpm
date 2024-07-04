@@ -1,0 +1,271 @@
+AUTOMATIC MEX: (A brief exploratory)
+By John W. Kinney, Jr.  07/07/84
+
+The following is a discussion of one way to use MEX as a basic 
+component of a simple delayed/automatic file transfer procedure 
+for CP/M 2.2.  The document has been prepared using WORDSTAR, and 
+includes sample programs and files.  
+
+This procedure has been implemented on an Intertec Superbrain 
+IIQD and a TRS-80 Mod 12 (P&T CP/M), using a Smartmodem 300.
+
+The procedure is dependent on three critical features:
+
+  SUBMIT function for CP/M
+  MBASIC automatic load function from CP/M
+  MEX command file functions
+
+The three major components are these:
+
+  SUBMIT command file (MEX.SUB)
+  MBASIC edit/timeset program (RCPM.DOW)
+  MEX initializing command file (INI.MEX)
+  
+As described here, the procedure must include SLEEP periods to 
+wait for prompts from the remote system before sending commands 
+from MEX.  These times can be determined by logging onto the 
+remote system using manual procedures; timing the prompt inter-
+vals with a stopwatch; and adding a safety factor to the measured 
+time (I've been doubling the times up to a maximum add-on of 20 
+seconds) to insure that MEX doesn't send its commands too early.
+
+Obviously, prior knowledge of the disk directories and file 
+transfer command for the RCP/M is also required in order to edit 
+INI.MEX.  This information can also be obtained on the initial 
+manual access to the remote system.
+
+BASIC PROCEDURE:  To get started, you must prepare the three 
+files as listed above (a discussion of each file follows) and 
+store them on the same disk with MBASIC.COM, MEX.COM & HELP.MEX.  
+Afterward, boot the disk and type SUBMIT MEX <CR> at the CP/M 
+prompt.  SUBMIT will assume control, look for the MEX.SUB file 
+and follow the commands included in the file.  At each step, the 
+normal abort commands are available for whatever program or 
+function is momentarily in control.  Automatic logoff, disconnect 
+and return to CP/M are built-into the overall procedure.
+
+MEX.SUB
+~~~~~~~
+The SUBMIT file must contain the following commands:
+
+  MBASIC RCPM.DOW
+  MEX
+  DIR  (This is optional: prints a directory of the disk upon 
+        completion of the transfer.)
+
+RCPM.DOW
+~~~~~~~~
+This is an MBASIC program written to let you open the INI.MEX 
+file and change the SEND/RECEIVE instructions before running MEX.  
+It can be easily modified to edit other commands, if desired.  
+
+It will also prompt you for a time of day to call up a remote 
+system.  If you have a clock on your system and want to delay 
+the file transfer to a later time, you should include a routine 
+to read your clock.  At the selected time, the program will 
+return control to the SUBMIT function, which will load MEX.
+
+The program is basically quite simple, as witnessed by the fact 
+that an essentially inexperienced programmer (yours truly) was 
+able to write it.
+
+1 REM (RCPM.DOW)
+10 REM MBASIC PROGRAM FOR *MEX* DELAYED AUTOMATIC FILE TRANSFER
+20 REM BY JOHN KINNEY, RALEIGH, NC  27601
+30 REM
+100 REM +++START OF MAIN PROGRAM
+110 GOSUB 330:REM Print header
+120 GOSUB 420:REM Read INI.MEX
+130 J=23:REM      Set line number for SEND edit (J=line #)
+140 GOSUB 200:REM Edit command line
+150 J=25: REM     Repeat for RECEIVE command line 
+160 GOSUB 200:REM Edit, etc.
+170 GOSUB 590:REM Re-write revised INI.MEX to disk
+180 GOSUB 660:REM Set the clock and wait to call remote
+190 END
+200 REM +++Display Command for Revision
+210 REM The next two lines identify the SEND/RECEIVE command lines
+220 IF J=23 THEN N$="SEND command line is:    " 
+230 IF J=25 THEN N$="RECEIVE command line is :"
+240 IF J<>23 AND J<>25 THEN N$="Command line now reads: "
+250 GOSUB 330
+260 PRINT:PRINT "The current ";N$;L$(J)
+270 PRINT
+280 INPUT "Do you want to change it?  Enter Y or N: ";X$
+290 IF X$="Y" OR X$="y" THEN 500
+300 IF X$="N" OR X$="n" THEN RETURN
+310 GOTO 330
+320 RETURN
+330 REM +++Routine to print header
+340 PRINT CHR$(12)
+350 PRINT "AUTOMEX FILE TRANSFER PROGRAM - 7/6/84"
+360 PRINT:PRINT
+370 REM The lines below simply slow down the screen display a 
+380 REM little bit to satisfy the prejudice of the programmer.
+390 FOR I=1 TO 500
+400 NEXT I
+410 RETURN
+420 REM +++Open INI.MEX & read into memory
+430 OPEN "I",#1,"INI.MEX"
+440 DIM L$(30)
+450 FOR J=1 TO 29:REM Change maximum value to actual # of lines in INI.MEX
+460 INPUT#1,L$(J)
+470 NEXT J
+480 CLOSE #1
+490 RETURN
+500 REM +++Change Command Line
+510 PRINT:PRINT "Current command:      ";L$(J)
+520 INPUT "Enter new string:   ";NL$
+530 PRINT:PRINT "New string is:        ";NL$:PRINT
+540 INPUT "Is this correct?  Enter Y or N: ";X$
+550 IF X$="N" OR X$="n" THEN 510
+560 L$(J)=NL$
+570 PRINT:PRINT:PRINT:PRINT
+580 GOTO 310
+590 REM +++ Write command revisions to file
+600 OPEN "O",#1,"INI.MEX"
+610 FOR J=1 TO 29:REM Or whatever (same as line 450)
+620 PRINT#1,L$(J)
+630 NEXT J
+640 CLOSE #1
+650 RETURN
+660 REM +++SET TIMER TO LOAD MEX AND CALL-UP RCP/M
+670 GOSUB 330:REM Header
+680 INPUT; "SET THE STARTUP TIME:  (Enter as HH:MM)";A$
+690 GOSUB 850:REM Read the clock
+700 GOSUB 330:REM Header
+710 PRINT "THE STARTUP TIME HAS BEEN SET TO  ";A$
+720 PRINT "THE CURRENT CLOCK TIME IS NOW AT  ";TM$
+730 IF TM$=A$ THEN 790:REM If clocktime matches startup time
+740 OLDTM$=TM$:REM If not, remember the present clock time
+750 REM The next three lines control screen updates
+760 GOSUB 850
+770 IF TM$>OLDTM$ THEN 690
+780 GOTO 760
+790 REM These lines ring the Bell and return to CP/M
+800 FOR B=1 TO 5
+810 PRINT CHR$(7):REM Rings the bell for Superbrain IIQD
+820 FOR I=1 TO 300:NEXT I
+830 NEXT B
+840 SYSTEM
+850 REM +++SUPERBRAIN IIQD CLOCK READ ROUTINE
+860 REM (Insert your own clock read routine here)
+870 T$=""
+880 FOR I=6 TO 0 STEP -1
+890 V=(INP(&H31+I) AND &HF):REM Reads Clock Ports
+900 IF V=15 THEN 890:REM Loops if clock is updating
+910 T$=T$+MID$(STR$(V),2):REM Assembles time variable
+920 IF I MOD 2=1 THEN T$=T$+":":REM Inserts colons
+930 NEXT I
+940 TM$=MID$(T$,1,5):REM Ignores Seconds & Tenths
+950 RETURN
+
+Please note that the Clock Read Routine included here is entirely 
+machine dependent and must be replaced with a routine designed to 
+read your particular system clock.  
+
+You may want to add the ability to edit more than two lines of 
+INI.MEX.  The program reads and writes the entire file, but as 
+included here, it only edits the SEND and RECEIVE instructions.  
+In practice, a new INI.MEX file must be prepared for each RCP/M 
+you call, containing the particular logon functions required for 
+that system.  Once the file is written, you should only need to 
+change the SEND/RECEIVE instructions, as the remainder of the 
+file will be the same for each call.  However, the program can be 
+easily modified to edit other lines by inserting additional 
+values of "J" followed by "GOSUB 200" instructions.  
+
+INI.MEX
+~~~~~~~
+It is beyond the scope of this exploratory to go into all of the 
+possibilities for using the INI.MEX file.  (Read the documenta-
+tion and use your imagination.)  The procedure I described here 
+assumes that an INI.MEX file is written for a particular RCP/M 
+system, since I intend to dedicate a single floppy disk to each 
+such system, and (when I overcome some apparent bugs in my BIOS) 
+have that disk autoload the SUBMIT file whenever it is booted.  
+
+It is apparently quite possible to have an INI.MEX file which 
+simply READs another command file, (perhaps RCPMx.MEX) which 
+could contain the SEND/RECEIVE instructions.  It would be neces-
+sary to modify the RCPM.DOW program to edit BOTH the INI.MEX file 
+(to tell it which RCPMx.MEX file to read), and the designated 
+RCPMx.MEX file (to modify the SEND/RECEIVE instructions).
+
+A small annoyance is my inability to implement the TRIGGER 
+function of MEX.  If operable, I would replace almost all of the 
+SLEEP timing functions with an appropriate TRIGGER specification.  
+This is not particularly important on single-user systems, where 
+the timing of prompts is fairly predictable, but will be essen-
+tial for dependable unattended file transfers from heavily loaded 
+multi-user systems, such as COMPUSERVE.
+
+The following INI.MEX command file is used to access the LAUREL 
+SUPERSYSTEM, operated by Hammerly Computer Services, in Laurel, 
+Maryland.  This is a multi-user system, and the prompt timing is 
+generally correct except for late afternoon and early evening, 
+when the system tends to be loaded.  <<<<Before using the file, 
+delete the % characters along with any following remarks on each 
+line.>>>>
+
+PHONE LRL=13019533753;%READS the phone number into MEX
+STAT WTECHO OFF;%Disables the Wait-for-echo function
+STAT REPLY 0;%Disables the Wait-for-reply function
+STAT TRIGGER "";%Disables the TRIGGER function
+DIAL LRL #;%Calls and repeats until a connection is made
+SLEEP 5;%Waits for remote system to settle down
+SENDOUT "^M";%Sends <CR>
+SLEEP 1;%Wait one second
+SENDOUT "^M";%Send another <CR>
+SLEEP 25;%Wait for FIRSTNAME prompt
+SENDOUT "JOHN";%Send FIRSTNAME
+SLEEP 5;%Wait for LASTNAME prompt
+SENDOUT "KINNEY";%Send LASTNAME
+SLEEP 25;%Wait for user file search & PASSWORD prompt
+SENDOUT "xxxxxxxx";%Send password
+SLEEP 25;%Wait until Bulletins start
+SENDOUT "^[";%Abort Bulletin display
+SLEEP 40;%Wait for BBS reset & Command Menu
+SENDOUT "2";%Select RCPM section
+SLEEP 30;%Wait for RCPM section Command Menu
+SENDOUT "1";%Select User area 1
+SLEEP 40;%Wait for CP/M prompt 
+SENDOUT "XMODEM S d:filename.filetype";%Send SEND command
+SLEEP 10;%Wait for transfer setup (Probably unnecessary)
+R d/u:filename.filetype;%RECEIVE command to MEX
+SLEEP 15;%Wait for remote to settle down after transfer 
+SENDOUT "BYE";%Send logoff command
+DSC;%Disconnect from telephone line
+CPM%Return control to CP/M
+
+Please note that once the file transfer is in effect, it controls 
+the system.  If successive errors are received, or if the phone 
+is accidentally disconnected, the file transfer will be aborted.  
+If this happens, MEX will return to Command Mode (be sure you 
+have not set it to return to Terminal Mode) and will properly 
+execute the DSC & CPM commands.  
+
+It is possible to end up with an open telephone call if the logon 
+procedure craps out, but this is most likely to happen on loaded 
+multi-user systems, and most of those have some means of 
+detecting lack of activity and so will automatically disconnect 
+your system in the event of a serious screw-up.  
+
+DISCLAIMER:  Nevertheless, I must emphasize that these procedures 
+are experimental.  Anyone using these procedures does so at his 
+own risk, and must pay his own telephone bill if he ends up 
+hooked up long distance for, say, an entire weekend because he 
+went camping after setting up to call a system in Ethiopia, and 
+the satellite broke down for 3 seconds just as MEX was sending 
+the User Area command.
+
+CAVEAT:  Finally, MEX will cheerfully RECEIVE a file to a non-
+existent diskfile if you make a mistake in the RECEIVE command 
+file.  Somewhere in computer limbo is a file I received using the 
+command: R A):AUTOLOD1.COM.  MEX dutifully operated the transfer, 
+but my version of CP/M steadfastly refuses to log me to USER ")" 
+to see if the file is really there.
+
+Good Luck & Happy Telecomputing,
+John Kinney
+

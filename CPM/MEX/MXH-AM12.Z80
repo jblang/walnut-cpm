@@ -1,0 +1,771 @@
+	TITLE	MXH-AM12 -- MEX Overlay for AMPRO LB
+
+; MEX overlay for the Ampro Little Board Computer
+;	
+;	New version for the XLR8 board
+;
+; Version 1.2  30 Oct 86
+;  Changed to MXHAM12, added break send capability and SET BREAK.
+;	-- Brian K. Uechi
+;
+;  Also changed to allow last cloned baud to be the default.
+;	-- Dave VanHorn
+;
+; Version 1.1  07 Feb 1986
+;  Changed to MXH-AM11 from MXO=AM10, added DCD & DTR support and
+;  made LOADable from within MEX+	--Bob Connolly
+;
+; Version 1.0: 28 Nov 1984  
+
+REV	EQU	12		;overlay revision level
+
+
+; This is a MEX overlay file for the Ampro Computer.  It is designed
+; to work with the modem connected to serial port 'B'.  It also       
+; requires the CTC and SIO parameter tables at the front of the
+; Ampro bios, as well as the I/O initialization routine in the
+; Ampro bios.  This is a non-standard bios call and if not present
+; in the bios it must be duplicated in this overlay.
+
+; Note that all overlays may freely use memory up to 0CFFH.  If the
+; overlay must work with the MEX Smartmodem overlay (MXO-SMxx.ASM),
+; the physical modem overlay should terminate by 0AFFH.
+
+;------------------------------------------------------------
+
+; Misc equates
+
+NO	EQU	0
+YES	EQU	0FFh
+TPA	EQU	100h
+CR	EQU	13
+LF	EQU	10
+TAB	EQU	9
+
+; Ampro definitions
+
+IOINT	EQU	57		;BIOS call of initialization routine
+SIOB	EQU	52h		;relative location in bios
+SIOB1	EQU	53h		;Image in memory of SIO register 4
+SIOB3	EQU	55h		;Image in memory of SIO register 5
+SIOB5	EQU	57h		;Image in memory of SIO register 3
+CT1	EQU	42h		;CTC CTL reg
+
+; port definitions
+
+MODCTL	EQU	8Ch		;modem control port B
+MODDAT	EQU	88h		;modem data port B
+
+; bit definitions
+
+MDRCVB	EQU	01h		;modem receive bit (DAV)
+MDRCVR	EQU	01h		;modem receive ready
+MDSNDB	EQU	04h		;modem send bit
+MDSNDR	EQU	04h		;modem send ready bit
+
+; MEX service processor stuff ... MEX supports an overlay service
+; processor, located at 0D00H (and maintained at this address from
+; version to version).  If your overlay needs to call BDOS for any
+; reason, it should call MEX instead; function calls below about
+; 240 are simply passed on to the BDOS (console and list I/O calls
+; are specially handled to allow modem port queueing, which is why
+; you should call MEX instead of BDOS).  MEX uses function calls
+; above about 244 for special overlay services (described below).
+
+; Some sophisticated overlays may need to do file I/O; if so, use
+; the PARSFN MEX call with a pointer to the FCB in DE to parse out
+; the name.  This FCB should support a spare byte immediately pre-
+; ceeding the actual FCB (to contain user # information).  If you've
+; used MEX-10 for input instead of BDOS-10 (or you're parsing part
+; of a SET command line that's already been input), then MEX will
+; take care of DU specs, and set up the FCB accordingly.  There-
+; after all file I/O calls done through the MEX service processor
+; will handle drive and user with no further effort necessary on
+; the part of the programmer.
+
+MEX	EQU	0D00H		;address of the service processor
+INMDM	EQU	255		;get char from port to A, CY=no more in 100 ms
+TIMER	EQU	254		;delay 100ms * reg B
+TMDINP	EQU	253		;B=# secs to wait for char, cy=no char
+CHEKCC	EQU	252		;check for ^C from KBD, Z=present
+SNDRDY	EQU	251		;test for modem-send ready
+RCVRDY	EQU	250		;test for modem-receive ready
+SNDCHR	EQU	249		;send a character to the modem (after sndrdy)
+RCVCHR	EQU	248		;recv a char from modem (after rcvrdy)
+LOOKUP	EQU	247		;table search: see CMDTBL comments for info
+PARSFN	EQU	246		;parse filename from input stream
+BDPARS	EQU	245		;parse baud-rate from input stream
+SBLANK	EQU	244		;scan input stream to next non-blank
+EVALA	EQU	243		;evaluate numeric from input stream
+LKAHED	EQU	242		;get nxt char w/o removing from input
+GNC	EQU	241		;get char from input, cy=1 if none
+ILP	EQU	240		;inline print
+DECOUT	EQU	239		;decimal output
+PRBAUD	EQU	238		;print baud rate
+
+CONOUT	EQU	2		;simulated BDOS function 2: console char out
+PRINT	EQU	9		;simulated BDOS function 9: print string
+INBUF	EQU	10		;input buffer, same structure as BDOS 10
+
+	ORG	TPA		;we begin
+
+	db	0c3h
+	DS	2		;MEX has a JMP START here
+
+; The following variables are located at the beginning of the program
+; to facilitate modification without the need of re-assembly. They will
+; be moved in MEX 2.0.
+
+PMODEM:	DB	NO		;yes=PMMI modem \ / These 2 locations are not
+SMODEM:	DB	YES		;yes=Smartmodem / \ referenced by MEX
+TPULSE:	DB	'T'		;T=touch, P=pulse (not referenced by MEX)
+CLOCK:	DB	40		;clock speed x .1, up to 25.5 mhz.
+MSPEED:	DB	6		;sets display time for sending a file
+				;0=110	1=300  2=450  3=600  4=710
+				;5=1200 6=2400 7=4800 8=9600 9=19200
+BYTDLY:	DB	5		;default time to send character in
+				;terminal mode file transfer (0-9)
+				;0=0 delay, 1=10 ms, 5=50 ms, 9=90 ms
+CRDLY:	DB	5		;end-of-line delay after CRLF in terminal
+				;mode file transfer for slow BBS systems
+				;0=0 delay, 1=100 ms, 5=500 ms, 9=900 ms
+COLUMS:	DB	5		;number of directory columns
+SETFL:	DB	YES		;yes=user-defined SET command
+SCRTST:	DB	YES		;yes=if home cursor and clear screen	10Ch
+				;routine at CLRSCRN
+	DB	0		;was once ACKNAK, now spare
+BAKFLG:	DB	NO		;yes=make .BAK file
+CRCDFL:	DB	YES		;yes=default to CRC checking
+				;no=default to Checksum checking
+TOGCRC:	DB	YES		;yes=allow toggling of Checksum to CRC	110h
+CVTBS:	DB	NO		;yes=convert backspace to rub
+TOGLBK:	DB	YES		;yes=allow toggling of bksp to rub
+ADDLF:	DB	NO		;no=no LF after CR to send file in
+				;terminal mode (added by remote echo)
+TOGLF:	DB	YES		;yes=allow toggling of LF after CR
+TRNLOG:	DB	YES		;yes=allow transmission of logon
+				;write logon sequence at location LOGON
+SAVCCP:	DB	YES		;yes=do not overwrite CCP
+LOCNXT:	DB	NO		;yes=local cmd if EXTCHR precedes
+				;no=not local cmd if EXTCHR precedes
+TOGLOC:	DB	YES		;yes=allow toggling of LOCNXTCHR
+LSTTST:	DB	YES		;yes=allow toggling of printer on/off
+				;in terminal mode. Set to no if using
+				;the printer port for the modem
+XOFTST:	DB	NO		;yes=allow testing of XOFF from remote
+				;while sending a file in terminal mode
+XONWT:	DB	NO		;yes=wait for XON after sending CR while
+				;transmitting a file in terminal mode	
+TOGXOF:	DB	YES		;yes=allow toggling of XOFF testing
+IGNCTL:	DB	NO		;yes=do not send control characters
+				;above CTL-M to CRT in terminal mode
+				;no=send any incoming CTL-char to CRT
+EXTRA1:	DB	0		;for future expansion
+EXTRA2:	DB	0		;for future expansion
+BRKCHR:	DB	'@'-40H		;^@ = Send a 300 ms. break tone
+NOCONN:	DB	'N'-40H		;^N = Disconnect from phone line
+LOGCHR:	DB	'L'-40H		;^L = Send logon
+LSTCHR:	DB	'P'-40H		;^P = Toggle printer
+UNSVCH:	DB	'R'-40H		;^R = Close input text buffer
+TRNCHR:	DB	'T'-40H		;^T = Transmit file to remote
+SAVCHR:	DB	'Y'-40H		;^Y = Open input text buffer
+EXTCHR:	DB	'^'-40H		;^^ = Send next character		127h
+
+	ds	2		;make addresses right
+
+; Low-level modem I/O routines: this will be replaced with
+; a jump table in MEX 2.0 (you can insert jumps here to longer
+; routines if you'd like ... I'd recommend NOT putting part of
+; a routine in this area, then jumping to the rest of the routine
+; in the non-fixed area; that will complicate the 2.0 conversion)
+
+INCTL1:	IN	A,(MODCTL)	;in modem control port			12Ah
+	RET
+	DB	0,0,0,0,0,0,0	;spares if needed for non-PMMI
+
+OTDATA:	OUT	(MODDAT),A	;out modem data port			134h
+	RET
+	DB	0,0,0,0,0,0,0	;spares if needed for non=PMMI
+
+INPORT:	IN	A,(MODDAT)	;in modem data port			13Eh
+	RET
+	DB	0,0,0,0,0,0,0	;spares if needed for non-PMMI
+
+; Bit-test routines.  These will be merged with the above
+; routines in MEX 2.0 to provide a more reasonable format
+
+MASKR:	AND	MDRCVB		;bit to test for receive ready		148h
+	RET
+
+TESTR:	CP	MDRCVR		;value of receive bit when ready	14Bh
+	RET
+
+MASKS:	AND	MDSNDB		;bit to test for send ready		14Eh
+	RET
+
+TESTS:	CP	MDSNDR		;value of send bit when ready		151h
+	RET
+
+
+dcdtst:	jp	dcdvec		;data carrier detect			154h
+rngdet:	jp	rngvec		;ring-detect				157h
+
+	db	0,0,0,0,0
+
+; Special modem function jump table: if your overlay cannot handle
+; some of these, change the jump to "DS 3", so the code present in
+; MEX will be retained.  Thus, if your modem can't dial, change the
+; JMP PDIAL at DIALV to DS 3, and MEX will print a "not-implemented"
+; diagnostic for any commands that require dialing.
+
+; DIALV  dials the digit in A. See the comments at PDIAL for specs.
+
+; DISCV  disconnects the modem
+
+; GOODBV is called just before MEX exits to CP/M.  If your overlay
+;        requires some exit cleanup, do it here.
+
+; INMODV is called when MEX starts up; use INMODV to initialize the modem.
+
+; NEWBDV is used for phone-number baud rates and is called with a baud-rate
+;        code in the A register, value as follows:
+
+;	 A=0:   110 baud       A=1:   300 baud      A=2:   450 baud
+;	 A=3:   600 baud       A=4:   710 baud      A=5:  1200 baud
+;	 A=6:  2400 baud       A=7:  4800 baud      A=8:  9600 baud
+;
+;        If your overlay supports the passed baud rate, it should store the
+;	 value passed in A at MSPEED (107H), and set the requested rate. If
+;	 the value passed is not supported, you should simply return (with-
+;	 out modifying MSPEED) -or- optionally request a baud-rate from the
+;	 user interactively.
+;
+; NOPARV is called at the end of each file transfer; your overlay may simply
+;	 return here, or you may want to restore parity if you set no-parity
+;	 in the following vector (this is the case with the PMMI overlay).
+
+; PARITV is called at the start of each file transfer; your overlay may simply
+;	 return here, or you may want to enable parity detection (this is the
+;	 case with the PMMI overlay).
+
+; SETUPV is the user-defined command ... to use this routine to build your own
+;	 MEX command, set the variable SETFL (117H) non-zero, and add your SET
+;	 code.  You can use the routine presented in the PMMI overlay as a 
+;	 guide for parsing, table lookup, etc.
+
+; SPMENU is provided only for MDM compatibility, and is not used by MEX 1.0 for
+;	 any purpose (it will be gone in MEX 2).
+
+; VERSNV is called immediately after MEX prints its sign-on message at cold
+;	 startup -- use this to identify your overlay in the sign-on message
+;	 (include overlay version number in the line).
+; BREAKV is provided for sending a BREAK (<ESC>-B in terminal mode).  If your
+;	 modem doesn't support BREAK, or you don't care to code a BREAK rou-
+;	 tine, you may simply execute a RET instruction.
+;
+smdisc:	ds	3		;smartmodem disc (not here}		15Fh
+DIALV:	DS	3		;dial digit in A (see info at PDIAL)	162h
+DISCV:	jp	drdtr		;disconnect the modem			165h
+GOODBV:	DS	3		;called before exit to CP/M		168h
+INMODV:	JP	NITMOD		;initialization. Called at cold-start	16Bh
+NEWBDV:	JP	PBAUD		;set baud rate				16Eh
+NOPARV:	JP	NOPAR		;set modem for no-parity		171h
+PARITV:	JP	PARITY		;set modem parity			174h
+SETUPV:	JP	SETCMD		;SET cmd: jump to a RET if no SETCMD	177h
+SPMENV:	DS	3		;not used with MEX			17Ah
+VERSNV:	JP	SYSVER		;Overlay's voice in the sign-on message	17Dh
+BREAKV:	jp	SBREAK		;1.2| send a break			180h
+
+; The following jump vector provides the overlay with access to special
+; routines in the main program (retained and supported in the main pro-
+; gram for MDM overlay compatibility). These should not be modified by
+; the overlay.
+
+; Note that for MEX 2.0 compatibility, you should not try to use these
+; routines, since this table will go away with MEX 2.0 (use the MEX
+; service call processor instead).
+
+ILPRTV:	DS	3		;replace with MEX function 9		183h
+INBUFV:	DS	3		;replace with MEX function 10		186h
+ILCMPV:	DS	3		;replace with table lookup funct. 247	189h
+INMDMV:	DS	3		;replace with MEX function 255		18Ch
+NXSCRV:	DS	3		;not supported by MEX (returns w/no action)
+TIMERV:	DS	3		;replace with MEX function 254		192h
+
+; Clear/screen and clear/end-of-screen. Each routine must use the
+; full 9 bytes alloted (may be padded with nulls).
+
+; These routines (and other screen routines that MEX 2.0 will sup-
+; port) will be accessed through a jump table in 2.0, and will be
+; located in an area that won't tie the screen functions to the
+; modem overlay (as the MDM format does).
+
+CLREOS:	LD	DE,EOSMSG	;					195h
+	LD	C,PRINT
+	CALL	MEX
+	RET
+
+CLS:	LD	DE,CLSMSG	;null unless patched  			19Eh
+	LD	C,PRINT
+	CALL	MEX
+	RET
+
+	org	200h		; area above is reserved
+
+EOSMSG:	DB	27,89,0,0,0,'$'
+
+CLSMSG:	DB	27,42,0,0,0,'$'
+
+NOPAR:	RET
+
+PARITY:	RET
+
+DRDTR:	LD	A,5		; Setup to write register 5
+	OUT	(MODCTL),A
+	LD	A,68H		; Clear RTS causing shutdown
+	OUT	(MODCTL),A
+	RET
+
+dcdvec:	ld	a,10h		;reset status
+	out	(modctl),a	;  0=NO CARRIER  255=CARRIER
+	in	a,(modctl)	;  254=NOT SUPPORTED
+	and	20h		;dcd from modem must
+	ret	z		; be connected to
+	or	0ffh		; cts (ampro) else
+	ret			; return 0feh (unsupported)
+
+rngvec:	ld	a,0feh
+	ret
+
+NITMOD:	LD	A,(Mspeed)	;set baud to last cloned rate
+
+;------------------------------------------------------------------
+
+PBAUD:	PUSH	HL		;don't alter anybody
+	PUSH	DE
+	PUSH	BC
+	LD	E,A		;code to DE
+	LD	D,0
+	LD	HL,BAUDTB	;offset into table
+	ADD	HL,DE
+	LD	A,(HL)		;fetch code
+	OR	A		;0? (means unsupported code)
+	SCF			;return error for STBAUD caller
+	JP	Z,PBEXIT	;exit if so
+	LD	(BSAVE1),A	;save it
+	LD	A,E		;get speed code back
+	LD	(MSPEED),A	;make it current
+	LD	HL,BAUDTX	;offset into second table
+	ADD	HL,DE
+	LD	A,(HL)		;get second value
+	LD	(BSAVE2),A	;save it also
+
+	LD	HL,(1)		;get location of bios
+	LD	L,CT1		;add 42 to reach CT1 in i/o table
+	LD	A,47h
+	LD	(HL),A
+	INC	HL		;move to next location
+	LD	A,(BSAVE1)	;get first table value
+	LD	(HL),A		;store it
+	LD	A,(BSAVE2)	;get second table value
+	LD	B,A		;and save it
+	LD	L,SIOB1		;move ahead to siob+1 values
+	LD	A,(HL)		;get current value
+	AND	3Fh
+	OR	B		;or it with second value
+	LD	(HL),A		;store it in work table
+	INC	HL
+	INC	HL
+	LD	A,(HL)		;get last value and make
+	OR	80h		;sure msb is set
+	LD	(HL),A		;put it back in working table
+	CALL	IOINIT		;do the initialization
+	SCF
+	CCF			;return no error for STBAUD
+
+PBEXIT:	POP	BC		;all done
+	POP	DE
+	POP	HL
+	RET
+
+IOINIT	LD	A,IOINT		;offset into bios jump table
+	LD	HL,(1)		;address of bios in HL
+	LD	L,A		;add offset
+	JP	GOHL		;and go there with auto return
+
+; table of baud rate divisors for supported rates
+
+BAUDTB:	DB	0,208,139,208,0,104	; 110, 300, 450, 600, 710,1200
+	DB	52,26,13,0		;2400,4800,9600,19200
+
+BAUDTX:	DB	0,80h,80h,40h,0,40h
+	DB	40h,40h,40h,0
+
+BSAVE1	DB	0		;current setting from
+BSAVE2	DB	0		;tables - uninitialized
+
+; Sign-on message
+
+SYSVER:	LD	DE,SOMESG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+
+SOMESG:	DB	'Ampro Overlay Version '
+	DB	REV/10+'0'
+	DB	'.'
+	DB	REV MOD 10+'0'
+	DB	CR,LF
+	DB	CR,LF
+	DB	'Set Break and ^J@ Break enabled.'
+	DB	CR,LF,'$'
+
+; Newline on console
+
+CRLF:	LD	A,CR
+	CALL	TYPE
+	LD	A,LF		;fall into TYPE
+
+; type char in A on console
+
+TYPE:	PUSH	HL		;save 'em
+	PUSH	DE
+	PUSH	BC
+	LD	E,A		;align output character
+	LD	C,CONOUT	;print via MEX
+	CALL	MEX
+	POP	BC
+	POP	DE
+	POP	HL
+	RET
+
+; Data area
+
+;------------------------------------------------------------
+
+; The remainder of this overlay implements a very versatile
+; SET command -- if you prefer not to write a SET for your
+; modem, you may delete the code from here to the END statement.
+
+; Control is passed here after MEX parses a SET command.
+
+SETCMD:	LD	C,SBLANK	;any arguments?
+	CALL	MEX
+	JP	C,SETSHO	;if not, go print out values
+	LD	DE,CMDTBL	;parse command
+	CALL	TSRCH		;from table
+	PUSH	HL		;any address on stack
+	RET	NC		;if we have one, execute it
+	POP	HL		;nope, fix stack
+
+SETERR:	LD	DE,SETEMS	;print error
+	LD	C,PRINT
+	CALL	MEX
+	RET
+
+SETEMS:	DB	CR,LF,'SET command error',CR,LF,'$'
+
+; SET command table ... note that tables are constructed of command-
+; name (terminated by high bit=1) followed by word-data-value returned
+; in HL by MEX service processor LOOKUP.  Table must be terminated by
+; a binary zero.
+
+; Note that LOOKUP attempts to find the next item in the input stream
+; in the table passed to it in HL ... if found, the table data item is
+; returned in HL; if not found, LOOKUP returns carry set.
+
+CMDTBL:	DB	'?'+80H		;"set ?"
+	DW	STHELP
+	DB	'BAU','D'+80H	;"set baud"
+	DW	STBAUD
+	DB	'BIT','S'+80H	;"set bits"
+	DW	STBITS
+	DB	'PARIT','Y'+80H	;"set parity"
+	DW	STPAR
+	DB	'STO','P'+80H	;"set stop"
+	DW	STSTOP
+	DB	'SHAK','E'+80H	;"set shake"
+	DW	STSHAK
+	DB	'BREA','K'+80H	;1.2| "set break"
+	DW	SBREAK		;1.2|
+
+	DB	0		;<<=== table terminator
+
+; SET <no-args>: print current statistics
+
+SETSHO:	LD	HL,SHOTBL	;get table of SHOW subroutines
+SETSLP:	LD	E,(HL)		;get table address
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	A,D		;end of table?
+	OR	E
+	RET	Z		;exit if so
+	PUSH	HL		;save table pointer
+	EX	DE,HL		;adrs to HL
+	CALL	GOHL		;do it
+	CALL	CRLF		;print newline
+	LD	C,CHEKCC	;check for console abort
+	CALL	MEX
+	POP	HL		;it's done
+	JP	NZ,SETSLP	;continue if no abort
+	RET
+
+GOHL:	JP	(HL)
+
+; table of SHOW subroutines
+
+SHOTBL:	DW	BDSHOW
+	DW	BITSH
+	DW	PARSH
+	DW	STPSH
+	DW	SHKSH
+	DW	0		;<<== table terminator
+
+; SET ?  processor
+
+STHELP:	LD	DE,HLPMSG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+
+; The help message
+
+HLPMSG:	DB	CR,LF,'SET command, Ampro version:',CR,LF
+	DB	CR,LF,'  >SET BAUD 300, 450, 600, 1200, 2400, 4800, or 9600.'
+	DB	CR,LF,'  >SET BITS 5, 6, 7, or 8.'
+	DB	CR,LF,'  >SET PARITY ODD, EVEN, or NONE.'
+	DB	CR,LF,'  >SET STOP 1, or 2.'
+	DB	CR,LF,'  >SET SHAKE ON, or OFF.'
+	DB	CR,LF,'  >SET BREAK  (Only used from mex readfiles to send'
+	DB	CR,LF,'               break in an auto-logon environment.)'
+	DB	CR,LF,CR,LF,'$'
+
+; SET BAUD processor
+
+STBAUD:	LD	C,BDPARS	;function code
+	CALL	MEX		;let MEX look up code
+	JP	C,SETERR	;invalid code
+	CALL	PBAUD		;no, try to set it
+	JP	C,SETERR	;not-supported code
+
+BDSHOW:	CALL	ILPRT		;display baud
+	DB	'  Baud rate: ',0
+	LD	A,(MSPEED)
+	LD	C,PRBAUD	;use MEX routine
+	CALL	MEX
+	RET
+
+; SET BITS processor
+
+STBITS:	LD	DE,BITTBL	;load lookup table
+	CALL	TSRCH		;look for 7 or 8
+	JP	C,SETERR	;if not found
+	LD	C,L		;save selection value
+	LD	HL,(1)		;get bios address
+	LD	L,SIOB3		;move to siob+3
+	LD	A,(HL)		;wr5 info 
+	AND	9Fh		;mask
+	OR	C		;add selection
+	LD	(HL),A		;store it
+	LD	A,C		;get selection
+	RLA
+	LD	C,A		;shift selection left
+	LD	L,SIOB5		;move to siob+5
+	LD	A,(HL)		;wr3 info
+	AND	3Fh		;mask
+	OR	C
+	LD	(HL),A		;store it
+	CALL	IOINIT		;do it.
+
+BITSH:	CALL	ILPRT
+	DB	'  Data bits: ',0
+	LD	HL,(1)		;get bios location
+	LD	L,SIOB3		;move to siob+3
+	LD	A,(HL)		;get current value
+	AND	60h
+	CP	60h
+	JP	Z,BITSH8
+	CP	20h
+	JP	Z,BITSH7
+	CP	40h
+	JP	Z,BITSH6
+	CALL	ILPRT
+	DB	'5',0		;show a 5
+	RET
+
+BITSH6	CALL	ILPRT
+	DB	'6',0		;show a 6
+	RET
+
+BITSH7	CALL	ILPRT
+	DB	'7',0		;show a 7
+	RET
+
+BITSH8:	CALL	ILPRT
+	DB	'8',0
+	RET
+
+BITTBL:	DB	'5'+80h
+	DW	00h
+	DB	'6'+80h
+	DW	40h
+	DB	'7'+80h
+	DW	20h
+	DB	'8'+80h
+	DW	60h
+	DB	0
+
+STPAR:	LD	DE,PARTBL
+	CALL	TSRCH
+	JP	C,SETERR
+	LD	C,L
+	LD	HL,(1)		;get bios address
+	LD	L,SIOB1		;go to siob+1
+	LD	A,(HL)
+	AND	0FCh
+	OR	C
+	LD	(HL),A
+	CALL	IOINIT
+
+PARSH:	CALL	ILPRT
+	DB	'     Parity: ',0
+	LD	HL,(1)		;get bios address
+	LD	L,SIOB1
+	LD	A,(HL)
+	AND	03h		;mask
+	CP	01h		;check for none
+	JP	Z,PARSHO
+	CP	03h
+	JP	Z,PARSHE
+
+	CALL	ILPRT
+	DB	'none',0
+	RET
+
+PARSHO	CALL	ILPRT
+	DB	'odd',0
+	RET
+
+PARSHE:	CALL	ILPRT
+	DB	'even',0
+	RET
+
+PARTBL:	DB	'OD','D'+80h
+	DW	01h
+	DB	'EVE','N'+80h
+	DW	03h
+	DB	'NON','E'+80h
+	DW	00h
+	DB	0
+
+STSTOP:	LD	DE,STPTBL
+	CALL	TSRCH
+	JP	C,SETERR
+	LD	C,L
+	LD	HL,(1)		;get bios address
+	LD	L,53h		;shift to bios+1
+	LD	A,(HL)
+	AND	0F3h
+	OR	C
+	LD	(HL),A
+	CALL	IOINIT
+
+STPSH:	CALL	ILPRT
+	DB	'  Stop bits: ',0
+	LD	HL,(1)		;get bios address
+	LD	L,53h		;shift to bios+1
+	LD	A,(HL)
+	AND	0Ch
+	CP	0Ch
+	JP	Z,STPSH2
+	CALL	ILPRT
+	DB	'1',0
+	RET
+
+STPSH2:	CALL	ILPRT
+	DB	'2',0
+	RET
+
+STPTBL:	DB	'1'+80h
+	DW	04h
+	DB	'2'+80h
+	DW	0Ch
+	DB	0
+
+STSHAK:	LD	DE,SHKTBL	;get handshake table
+	CALL	TSRCH		;search it for parameter
+	JP	C,SETERR	;if not found
+	LD	C,L		;temp store value in C
+	LD	HL,(1)		;get location of BIOS
+	LD	L,6Dh		;location of HSB in bios
+	LD	(HL),C		;put new value in it
+
+SHKSH:	CALL	ILPRT
+	DB	' Hand Shake: ',0
+	LD	HL,(1)		;get bios location
+	LD	L,6DH		;location of HSB in bios
+	LD	A,(HL)		;get current value
+	CP	1
+	JP	Z,SHKSHY	;show a yes
+	CALL	ILPRT
+	DB	'off',0
+	RET
+
+SHKSHY	CALL	ILPRT
+	DB	'on',0
+	RET
+
+SHKTBL	DB	'OF','F'+80h
+	DW	0
+	DB	'O','N'+80h
+	DW	1
+	DB	0
+
+;----------------------------------------------------------
+
+; This routine sends a 300 ms break.	1.2| vv
+;
+SBREAK:	LD	HL,(1)		;HL = A(bios jump table)
+	LD	L,SIOB3		;offset to memory image of SIO reg 5
+	LD	A,(HL)		;get memory image
+	PUSH	HL
+	PUSH	AF		;save address and original value for later
+	OR	10H		;set SEND BREAK bit in SIO reg 5
+	LD	(HL),A		;put it back in memory
+	CALL	IOINIT		;update SIO so it sends break
+	LD	DE,BRKMSG	;Tell user about break
+	LD	C,PRINT
+	CALL	MEX
+	LD	B,3		;leave break on for 300 ms
+	LD	C,TIMER
+	CALL	MEX
+	POP	AF		;restore original value of
+	POP	HL		;...memory image of SIO reg 5
+	LD	(HL),A
+	CALL	IOINIT		;update SIO
+	RET
+
+BRKMSG:	DB	'[Sending Break]','$'
+
+;----------------------------------------------------------
+
+; Compare next input-stream item in table @DE; CY=1
+; if not found, else HL=matched data item
+
+TSRCH:	LD	C,LOOKUP	;get function code
+	JP	MEX		;pass to MEX processor
+
+; Print in-line message ... blows away C register
+
+ILPRT:	LD	C,ILP		;get function code
+	JP	MEX		;go do it
+
+;------------------------------------------------------------
+
+; End of AMPRO MEX modem overlay
+
+;------------------------------------------------------------
+
+	END
+

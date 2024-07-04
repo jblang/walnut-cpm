@@ -1,0 +1,38 @@
+	DISK7P.DOC			11/11/84
+
+	DISK7P is derived from DISK v 7.7 by Frank Gaude.
+	PUBlic File enhancements added by Plu*Perfect Systems.
+;
+; copyright (c) 1983 by frank gaude'.  all rights reserved.  released to the
+; public domain for non-commercial use.  monetary gain in not permitted under
+; any circumstance by individual, partnership, or corporation.
+;
+; Enhanced to include PUBlic file support by Plu*Perfect Systems.
+	
+
+
+	The area at 103h can be patched for to set the
+	maximum drive for your system, as well as your terminal's
+	clear-screen, hiliting, and normal video strings, which
+	occupy 8 bytes each, nul-terminated.
+
+;******** CONFIGURATION PATCH AREA BEGINS AT 103H ********
+
+; highest disk drive letter in system (at 103h in 'com' file)
+
+; 103h
+MAXDR	DB	'C'		; 'a', 'b', 'c', etc.
+
+; 104h
+if kay10
+clrscr:	db	1ah,0,0,0, 0,0,0,0
+altvid:	db	ESC,'B0',ESC,'B1',0,0	;KayPro 10 rev video, LOW intensity
+normvid:db	ESC,'C0',ESC,'C1',0,0
+endif
+if not kay10
+clrstr:	db	0,0,0,0, 0,0,0,0
+altvid:	db	0,0,0,0, 0,0,0,0
+normvid:db	0,0,0,0, 0,0,0,0
+endif
+
+;**************** END OF CONFIGURATION AREA ****************

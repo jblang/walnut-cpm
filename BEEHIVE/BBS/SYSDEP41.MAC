@@ -1,0 +1,251 @@
+	.z80
+	aseg
+	org	03eceh		;For V4.1 ONLY
+				;=============
+;
+; ***************************************************************
+; ***************************************************************
+; *								*
+; * User editable overlay for XRAS V4.1 I/O section.            *
+; *								*
+; * Edit this files as shown below in order to set XRAS to      *
+; * your configuration.DO NOT CHANGE ANY EQUATES.Assemble using *
+; * M80 then overlay XRAS using your favourited debugging tool, *
+; * Or,use DDT to directly set XRAS for your requirements       *
+; *								*
+; ***************************************************************
+; ****************(c) John Rayfield 1987 ************************
+; ***************************************************************
+;
+;
+; If you decide to assemble this file and overlay XRAS.COM then
+; folow these steps.
+;
+; 1) Edit file as required
+;
+; 2) Assemble using m80 > m80 sysdep41,sysdep41=sysdep41
+;    Ignore therrors produced at the end.See note 3
+;
+; 3) Check the symbols table produced in sysdep41.prn that
+;    'ptchnd' does not exceed 4008H.If it does then you have
+;    overflowed the avaliable patch area.Re-assemble.
+;
+; 4) Run relhex.com to convert the .rel file into a form that 
+;    can be loaded by DDT > relhex sysdep41.rel <
+;
+; 5) Run DDT.COM as follows :
+;
+;	a) A>DDT XRAS.COM
+;	     ISYSDEP41.HEX
+;            R
+;            G0
+; 	   A>SAVE 115 XRAS.COM
+;
+;	
+;
+;
+;
+; *******************************************************
+; *							*
+; * System dependent console setup strings.To be set up *
+; * at installation time. Default setup is for TATUNG   *
+; *							*
+; *******************************************************
+;
+; If your system has a port or memory address dedicated to data
+; and a port or memory address which provides Received data ready
+; and Transmit buffer empty bits,then you only need to set up section
+; A to get XRAS going.This would best be done by assembling to a print
+; file and using DDT to patch XRAS.
+
+; Microbee version for 128k BIOS or greater. This means that the definitions
+; below are going to be IGNORED and alternate locations used. 
+
+;
+; SECTION A  :  IO SETUP
+; ======================
+;
+;
+; Set the following byte to 1 if your system uses memory mapped I/O
+;
+;
+iomode:	db	0			;0/1=Port/Memory mapped I/O
+;
+; if memory mapped system,addresses of data and status
+;
+datwrd:	dw	0			;Address of data byte
+sttwrd:	dw	0			;Address of status byte
+;
+; If port I/o , ports for data and status
+;	
+datprt:	db	1cH			;Data port set by install
+sttprt:	db	1DH			;Stat  "    "  "     "
+;
+; Receive and staus bits for both I/O modes
+;
+datbit:	db	1			;Rx Rdy and value
+sttbit:	db	4			;Tx  "   "    "
+;
+; END OF SECTION A
+; ================
+; 
+;
+; XINST.COM uses the following locations,so make sure thay are correct
+;           if you are going to make a binary file.
+;
+;
+; Terminal setup section
+; =======================
+;
+ltlflg:	db	0			;0/1=Yes/No local line feed required
+;
+; terminal strings ALL the following strings must be
+; four bytes long.Pad with zeroes if you do not need all four bytes
+; of a particular string!!!!!
+;
+clstr:	db	26,0,0,0		;Clear screen string
+ivonst:	db	27,')',0,0		;Inverse on
+ivofst:	db	27,'(',0,0		;Inverse off
+clead:	db	27,'=',0,0		;Cursor lead in
+xyflg:	db	0			;0=col/row-1=row/col
+xoff:	db	32			;Offset col
+yoff:	db	32			;Offset row
+;
+; End of Terminal setup
+;
+;
+;
+; *******************************************************
+; *							*
+; * system dependent I/O routines.Default set included  *
+; * here for TATUNG.					*
+; *							*
+; *******************************************************
+;
+; You do not need to change this area if your system has a port
+; or memory address dedicated to data and a port or memory
+; address which provides Received data ready and Transmit
+; buffer empty bits.
+;
+; Jump table to sys dependent routines
+;
+; DO NOT EDIT THIS TABLE . XRAS USES IT !!!!!!!
+; =============================================
+; 
+iojump:
+chrrdy:	jp	chrdy1		;Test line for char
+chrin:	jp	chrin1		;Fetch char no status
+txrdy:	jp	txrdy1		;Test Tx buff mt
+txsend:	jp	txsnd1		;Send to o/p port
+hangup:	jp	hangp1		;Hang up the phone/no aotu answer
+onhook:	jp	onhk1		;Allow auto-answer
+cardet:	jp	cardt1		;Check for carrier
+;
+; Routines follow
+
+;	The following code has been patched for a MicroBee
+;	(albeit not very well). As it stands, it will only run on a machine
+;	with BIOS version 6 or later (anything past the 128k 'bee)
+;	It assumes that the BIOS is talking to the standard serial port
+;	rather than the SCC port.
+;	It assumes that the BIOS serial port speed has already been set
+;	It will not change the BIOS serial port speed in response to
+;	the baud-rate result codes sent by a Hayes compatible modem.
+
+;				krd 18/11/91
+
+;
+; Test line for char ready
+;
+chrdy1:
+	push	hl
+	push	bc
+	ld	a,11	;read character function
+	rst	28h	;call xbios
+	jr	nz,$+5
+	ld	(chrstore),a
+	pop	bc
+	pop	hl
+	ld	a,-1
+	jr	z,$+4
+	ld	a,0
+	or	a
+	ret
+;
+; input char from modem no waiting
+;
+
+chrstore:
+	db	0	;character from XBIOS stored here
+
+chrin1:	ld	a,(chrstore)
+	ret
+;
+; TXRDY - Test for transmit buffer empty
+;
+txrdy1:	ld	a,-1	;return always true
+	or	a
+	ret
+;
+; TXSND1-Send char to line status already checked
+;
+txsnd1:	push	hl
+	push	bc
+	push	af
+	ld	c,a
+	ld	a,12	;write character to serial port
+	rst	28h
+	pop	af
+	pop	bc
+	pop	hl
+	ret
+;
+; HANGP1 - Hang up the phone
+;
+;
+; NOTE NOTE NOTE The two following routines have not been patched
+; ==============  for detecting IOMODE.
+;
+;
+;This routine drops DTR and RTS on z Z80 DART
+;
+;
+hangp1:				;talk directly to PIO.
+	in	a,(2)
+	res	2,a
+	out	(2),a
+	ret
+;
+; ONHOOK - Allow autop-answer
+;
+; This routine releases DTR and RTS on a Z80 DART
+;
+onhk1:
+	in	a,(2)
+	set	2,a
+	out	(2),a
+	ret
+;
+; Test for carrier detected
+;
+;
+cardt1:	ld	a,-1
+	or	a
+	ret			;This example always returns true
+;
+; If the folling equate exeeds 4008H then you have exeeded
+; the avaliable patch area in the XRAS program.Re-assemble
+; if this happens.XRAS will crash if you overflow it!!!!!!
+;
+;
+ptchnd	equ	$-1			;End of patch area
+;
+	if	ptchnd .GT. 4008H
+;
+;  Ignore the error generated here.It is just to remind you
+; about patch area overflow.!!!!!
+;
+	endif
+;
+	end
+

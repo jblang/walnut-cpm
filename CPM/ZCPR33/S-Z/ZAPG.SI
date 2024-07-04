@@ -1,0 +1,1205 @@
+.. intended to be printed with Newword 2.x or WS 4
+.. ^Y turns italics on and off
+.. ".bpoff" turns on draft-quality print, ".bpon" returns to letter-quality
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+               ZCPR³ Applicatioî Programmeró Guide
+
+                         bù Daviä McCord
+
+                          Julù 23¬ 1987
+
+                  Copyrighô 198· Echelon¬ Inc.
+.paŠ.FO                                i
+                T A B L E   OF   C O N T E N T S
+
+  1. Introduction...............................................1
+
+  2. The ZCPR3 Environment......................................2
+     2.1. What is a ZCPR3 Environment?..........................2
+          2.1.1. The ZCPR3 Command Processor....................2
+          2.1.2. Environment Descriptor.........................3
+                 2.1.2.1. TCAP..................................3
+          2.1.3. System Segments................................4
+                 2.1.3.1. Resident Command Package..............4
+                 2.1.3.2. Flow Command Package..................4
+                 2.1.3.3. Input/Output Package..................5
+                 2.1.3.4. Named Directory Register..............5
+          2.1.4. Buffers and Work Areas.........................6
+                 2.1.4.1. Multiple Command Line Buffer..........6
+                 2.1.4.2. Shell Stack...........................6
+                 2.1.4.3. Command Search Path...................7
+     2.2. Structures............................................7
+          2.2.1. Environment Descriptor.........................8
+          2.2.2. TCAP...........................................9
+          2.2.3. Command Search Path...........................10
+          2.2.4. Named Directory Register......................10
+          2.2.5. Multiple Command Line Buffer..................11
+          2.2.6. Shell Stack...................................12
+          2.2.7. ZCPR3 Utility Header..........................13
+     2.3. Initialization Environment...........................14
+          2.3.1. Default FCBs..................................14
+          2.3.2. Command Line Tail Text........................14
+          2.3.3. What's Your Program's Name?...................14
+
+  3. Using ZCPR3 Shell Features................................16
+     3.1. Invocation...........................................16
+          3.1.1. How Was Your Program Invoked?.................16
+          3.1.2. Pausing.......................................16
+          3.1.3. Resetting Shell Invocation Flag...............17
+          3.1.4. Environment Verification......................17
+          3.1.5. Building a Shell Stack Entry..................17
+          3.1.6. Pushing an Entry Onto the Shell Stack.........18
+          3.1.7. Pending Commands..............................18
+          3.1.8. Example Pseudocode for Invocation.............19
+     3.2. Generating Commands..................................19
+          3.2.1. Prompting the User............................19
+          3.2.2. Setting Return Parameters.....................20
+          3.2.3. Placing the Desired Command in the Buffer.....20
+          3.2.4. Pseudocode for Shell "Generate Command" Funct.21
+     3.3. Terminating a Shell..................................21
+
+  4. Programming Examples......................................22
+     4.1. Is ZCPR3 Available?..................................22
+     4.2. Is ZRDOS Available?..................................22
+.PAŠ.FO
+.HE
+.PN 1
+1. Introduction
+
+Thió documenô ió á referencå guidå tï ZCPR³ anä Ú-Systeí foò  thå 
+applicationó programmeò whï wisheó tï takå advantagå oæ  ZCPR3/Ú-
+Systeí featureó anä functionó iî theiò applications®  Iô  gatheró 
+togetheò  intï onå convenienô documenô thå informatioî needeä  bù 
+thå   applicatioî  programmeò  wheî   developinç   ZCPR³-orienteä 
+applications®  Echelon'ó policù ió tï supporô softwarå developeró 
+interesteä  iî makinç theiò producô attractivå tï thå manù  useró 
+oæ thå ZCPR3/Ú-Systeí environment®  
+
+Iô ió importanô tï notå thaô iô ió entirelù feasiblå tï writå  aî 
+applicatioî  whicè  functionó  undeò "vanilla¢  CP/M¬  yet¬  wheî 
+runninç  oî  á  computeò  wherå  Ú-Systeí  ió  available¬   takeó 
+advantagå  oæ  thå  featureó oæ ZCPR³ anä  ZRDOS®   Thus¬  takinç 
+advantagå  oæ ZCPR³ doeó noô limiô thå possiblå markeô  foò  youò 
+program¬ anä caî helğ iô tï bå morå successful.
+
+Thió  documenô ió structureä iî threå majoò sections®  First¬  wå 
+wilì discusó whaô ZCPR³ ió oî aî overvie÷ basis¬ describinç  somå 
+oæ  thå featureó anä functionó iô offers¬ witè discussioî oæ  thå 
+datá structureó anä conceptó thaô ZCPR³ ió baseä on®  Second¬  wå 
+wilì discusó iî detaiì thå mechanismó anä theorù oæ ZCPR3'ó SHELÌ 
+functions¬  whicè  havå noô beeî documenteä adequatelù  iî  otheò 
+Echeloî  publications®   Third¬ wå wilì givå  á  fe÷  programminç 
+exampleó iî aî efforô tï savå thå applicatioî programmeò timå anä 
+effort.
+
+Gooä lucë iî youò worë witè ZCPR3/Z-System.
+.paŠ2. Thå ZCPR³ Environment
+
+Thå ZCPR³ environmenô ió á superseô oæ thå CP/Í 2.²  environment®  
+Thå  ZCPR³ environmenô giveó thå useò  additionaì  functionality¬ 
+anä  giveó  thå applicationó programmeò á mucè largeò  amounô  oæ 
+informatioî  abouô thå characteristicó oæ thå  computeò  hardwarå 
+anä   softwarå  environment®   Thió  additionaì  informatioî   ió 
+accesseä  iî  á marvelouslù simplå way¬ usinç á  construcô  aptlù 
+nameä thå "environmenô descriptor"® 
+
+Iî  thió  subsectioî wå wilì describå thå componentó oæ  á  ZCPR³ 
+installatioî oî á generaì overvie÷ basis®  Wherå appropriate¬  wå 
+wilì referencå supportinç documentatioî foò furtheò information® 
+
+2.1. Whaô ió á ZCPR³ Environment?
+
+Therå arå fouò majoò "pieces¢ tï á ZCPR³ installation®  Theù areº 
+thå  ZCPR³  Commanä Processor¬ thå  Environmenô  Descriptor¬  thå 
+systeí packages¬ anä thå systeí bufferó anä worë areas® 
+
+Noô  covereä  bù  thió documenô arå thå oveò  10°  ZCPR³  utilitù 
+programs¬  whicè  arå  quitå aî asseô iî  theiò  owî  right®   Aî 
+interesteä  programmeò  coulä  refeò  tï  thå  sourcå  foò  theså 
+programó foò exampleó oæ ho÷ giveî functionó arå performed® 
+
+Iô ió recommendeä thå thå interesteä programmeò alsï revie÷ pageó 
+±-2°  oæ  ZCPR3: The Manual¬ especiallù iæ  presentlù  unfamiliaò 
+witè ZCPR3®  Thió wilì givå yoõ aî iî-deptè introductioî tï  somå 
+basiã ZCPR³ concepts® 
+
+2.1.1. Thå ZCPR³ Commanä Processor
+
+Thå  ZCPR³  Commanä Processoò ió thå equivalenô oæ thå CCĞ  iî  á 
+conventionaì  CP/Í 2.² system¬ oò COMMAND.COÍ iî  MSDOÓ  systems®  
+Itó  functioî ió tï acquirå thå nexô commanä tï bå executed¬  anä 
+theî executå it® 
+
+Foò  compatibilitù  reasons¬  thå  sizå  oæ  thå  ZCPR³   Commanä 
+Processoò  ió  2ë bytes¬ samå aó thå CP/Í 2.² CCP®  Iî  ordeò  tï 
+makå  spacå  foò  thå  manù  additionaì  featureó  offered¬  manù 
+formerlù-internaì componentó oæ thå CP/Í CCĞ havå beeî moveä  ouô 
+oæ  thå  ZCPR³ Commanä Processoò anä intï reserveä  memorù  areaó 
+(typicallù abovå thå BIOS¬ wherå theù wilì noô bå overwritteî  bù 
+systeí  activity)®  Theså componentó includå constructó  sucè  aó 
+thå commanä linå buffer¬ thå FCÂ useä wheî loadinç programs¬  thå 
+stack¬ etc® 
+
+Also¬ ZCPR³ typicallù utilizeó Z8° opcodeó iî á furtheò efforô tï 
+reducå  codå  size¬ makinç eveî morå spacå  availablå  foò  addeä 
+functions®   Otheò  ideas¬ sucè aó movinç thå  residenô  commandó 
+sucè aó DIR¬ ERA¬ etc.¬ tï á separate¬ dynamicallù-loadablå area¬ 
+arå  alsï  employed®   Thå neô resulô ió  thaô  á  typicaì  ZCPR³ 
+Commanä  Processoò possesseó highlù advanceä  commanä  processinç 
+functionó  compareä  tï  thå CCĞ oò  COMMAND.COM¬  witè  multiplå 
+.paŠhierarchieó  oæ acquirinç anä executinç commands®  (reæ pç  2µ-2¸ 
+oæ ZCPÒ 3.³ User'ó Guide©
+
+Althougè thå codå sizå oæ thå ZCPR³ Commanä Processoò remainó thå 
+samå  aó thå CP/Í 2.² CCP¬ thå actuaì memorù usagå increaseó  duå 
+tï thå placemenô oæ thå formerlù-internaì componentó intï  memorù 
+areaó  abovå  thå  BIOS®  Thå neô resulô ió á  decreaså  oæ  freå 
+memorù seeî bù applicatioî programs®  Thió ió thå tradå-ofæ ZCPR³ 
+representsº  vastlù increaseä functionalitù doeó noô comå  aô  nï 
+cost® 
+
+Echeloî haó certaiî recommendationó regardinç thió memorù  usage®  
+Á  typicaì ZCPR³ implementatioî wilì rangå betweeî 1ë anä  5ë  oæ 
+additionaì  memorù  usagå compareä tï standarä CP/Í  2.2®   Á  1ë 
+"overhead¢  provideó  aî  incompletå  implementatioî  oæ  ZCPR3'ó 
+components¬  buô  onå  iî whicè thå useò caî  uså  ZCPR³  tï  hió 
+advantage» á 5ë "overhead¢ giveó á completå implementatioî oæ alì 
+oæ  ZCPR3'ó components¬ anä iî Echelon'ó opinioî  representó  thå 
+besô  tradå-ofæ oæ freå memorù versuó thå enhanceä  functionalitù 
+thaô ZCPR³ caî offer® 
+
+2.1.2. Environmenô Descriptor
+
+Thå  environmenô descriptoò (shorô formº ENV© ió á 25¶ bytå  raí-
+residenô datá structurå whicè describeó á giveî computeò system'ó 
+ZCPR³  implementatioî  anä machinå environment®  Thå ENÖ  ió  thå 
+"heart¢  oæ á ZCPR³ installatioî anä thå  applicatioî  programmeò 
+whï  wisheó tï takå advantagå oæ ZCPR³ shoulä  becomå  intimatelù 
+acquainteä witè it®  (reæ pç 245¬ 30°-304¬ ZCPR3: The Manual© 
+
+Thå  ENÖ  ió aî ingeniouó solutioî tï thå probleí  faceä  bù  anù 
+transienô prograí oæ easilù locating¬ accessing¬ oò  manipulatinç 
+á  desireä  featurå  oò  aspecô  oæ  thå  ZCPR³  environment®   Á 
+transienô  prograí neeä onlù kno÷ thå locatioî oæ thå ENÖ anä  iô 
+maù determinå aô runtimå thå addresó anä sizå oæ anù giveî  ZCPR³ 
+Commanä  Processoò  externaì  component¬ oò  accesó  anù  oæ  thå 
+extendeä environmenô definitioî datá thereiî available® 
+
+2.1.2.1. TCAP
+
+Á significanô portioî oæ thå ENÖ (12¸ bytes© ió allocateä tï  thå 
+Terminaì  Capabilitieó Segment¬ referreä tï aó thå TCAP®  Onå  oæ 
+thå majoò shortcomingó oæ CP/Í waó thaô iô haä nï facilitieó  foò 
+describinç  thå videï characteristicó anä commandó oæ thå  user'ó 
+consolå device®  Becauså thió informatioî waó noô availablå  froí 
+thå  operatinç  system¬  everù  videï-orienteä  applicatioî   waó 
+requireä tï internallù describå thå characteristicó oæ thå systeí 
+console¬  sucè aó escapå sequenceó foò cursoò  positioning¬  etc®  
+Obviously¬  iô ió highlù redundanô foò everù applicatioî  prograí 
+tï  maintaiî  thió  informatioî internally¬  anä  iæ  thå  systeí 
+console'ó  characteristicó  eveò  change¬  thå  useò  musô   theî 
+reconfigurå eacè applicatioî individually® 
+
+Thå  TCAĞ  ió á datá areá whicè describeó thå  controì  sequenceó 
+needeä tï bå senô tï thå consolå tï perforí commoî videï-orienteä Šoperations®   Thió  includeó  cursoò  positioning¬  clearinç  thå 
+screen¬ cleaò tï enä oæ line¬ etc® Iô alsï includeó thå characteò 
+codeó  emitteä bù thå console'ó arro÷ keyó (iæ  available)®   Thå 
+benefiô oæ usinç thå TCAĞ ió simpleº transienô programó neeä  noô 
+bå reconfigureä tï ruî oî systemó witè differenô videï  commands®  
+Echeloî  calló thió concepô "terminaì independence"¬ anä useó  iô 
+extensivelù iî ouò ZCPR³-orienteä productó tï gooä advantage® 
+
+2.1.3. Systeí Segments
+
+Á  ZCPR³ Systeí Segmenô ió á codå packagå oò datá filå whicè  caî 
+bå loadeä usinç thå LDR.COÍ utilitù intï RAM¬ anä oncå sï loaded¬ 
+caî  bå  calleä  upoî bù thå ZCPR³ Commanä  Processoò  oò  ZCPR³-
+orienteä  transienô  programó tï perforí á  functioî  oò  providå 
+information® 
+
+Previouslù  mentioneä werå thå ENÖ anä TCAP¬ eacè oæ whicè  ió  á 
+Systeí  Segment® Wå wilì introducå thå remaininç typeó here¬  anä 
+givå aî overvie÷ oæ whaô functioî eacè performs® 
+
+2.1.3.1. Residenô Commanä Package
+
+Thå  Residenô Commanä Packagå (RCP© ió á direcô extensioî oæ  thå 
+ZCPR³  Commanä  Processoò  functioî oæ  providinç  residenô  (noô 
+transient©  commands¬  exemplifieä witè thå CP/Í  CCP'ó  commandó 
+DIR¬ ERA¬ REN¬ etc®  Thå basiã ideá ió tï removå theså  functionó 
+froí  thå commanä processoò tï increaså thå codå spacå  availablå 
+withiî  thå  2ë  limiô oæ thå commanä processoò  tï  bå  useä  bù 
+commanä  processinç functions®  Anotheò benefiô oæ  makinç  theså 
+noî-transienô  commandó  á separatå entitù ió thaô  theù  maù  bå 
+changeä oî-thå-flù oò eliminateä iæ desired® 
+
+Iæ aî RCĞ ió presenô iî á giveî ZCPR³ installation¬ iô ió usuallù 
+2ë-byteó iî size¬ althougè thió caî varù anä ió exactlù describeä 
+iî thå ENV®  Typicaì commandó availablå arå ERA¬ REN¬ TYPE¬ PEEK¬ 
+POKE¬  PORT¬  CP¬  anä  LIST¬  althougè  manù  combinationó   arå 
+possible® 
+
+Reæ pageó 1²-13¬ 191¬ 29±-29¶ oæ ZCPR3: The Manual™ 
+
+2.1.3.2. Flo÷ Commanä Package
+
+Thå Flo÷ Commanä Packagå (FCP© ió similaò iî manù respectó tï thå 
+RCP®  Likå thå RCP¬ thå FCĞ ió besô vieweä aó aî extensioî oæ thå 
+ZCPR³   Commanä  Processoò  intrinsiã   (noî-transient©   commanä 
+functions®   However¬  thå FCĞ provideó thå speciaì  functioî  oæ 
+conditionaì  testinç aô thå operatinç-systeí-commanä  level¬  eg¬ 
+IF¬ AND¬ OR¬ ELSE¬ etc®  Thió functioî enableó á ZCPR³ systeí  tï 
+bå   verù  intelligenô  durinç  anù  typå  oæ  batcè  oò   scripô 
+processing® 
+
+Aî  interestinç  sidå  notå oî thå FCĞ ió thaô  iô  ió  speciallù 
+supplementeä  witè á transienô program®  Becauså thå  actuaì  FCĞ 
+spacå  iî  RAÍ ió typicallù onlù 51² bytes¬  thå  morå  elaboratå 
+conditionaì   testinç  functionó  arå  placeä  iî  thió   speciaì Štransient¬ whicè ió automaticallù loadeä anä executeä bù thå  FCĞ 
+aó necessary® 
+
+2.1.3.3. Input/Outpuô Package
+
+Thå   Input/Outpuô  packagå  (IOP©  allowó  easilù   redirectablå 
+characteò  I/Ï  usinç  eitheò  custoí  driveró  oò   prå-packageä 
+commerciaì software®  Á varietù oæ implementationó arå  possible®  
+Thå  IOĞ concepô provideó á solutioî foò á shortcominç  oæ  CP/M¬ 
+specificallù  á  lacë oæ á standardizeä methoä  oæ  intercepting¬ 
+handling¬ anä redirectinç characteò-orienteä I/Ï streams® 
+
+Thå  IOĞ  solutioî lendó itselæ tï applicationó  sucè  aó  remotå 
+accesó  systems¬  wherå speciaì  handlinç  oæ  characteò-orienteä 
+peripheraló ió necessary® 
+
+Echeloî  marketó commerciaì IOP'ó whicè perforí certaiî  valuablå 
+functions¬ aó showî belowº 
+
+NuKeù ­ á keyboarä redefineò whicè allowó anù keù oî thå keyboarä 
+tï  bå redefineä intï á desireä strinç oæ characters®  Á  speciaì 
+featurå  oæ NuKeù ió itó capabilitù oæ applyinç thå  redefinitioî 
+functioî  tï  keyó whicè emiô multiplå  characteró  (eg¬  speciaì 
+editinç  oò functioî keys© aó easilù aó keyó whicè emiô á  singlå 
+character® 
+
+Input/Outpuô  Recordeò  ­ Allowó outpuô tï thå  consolå  oò  lisô 
+devicå tï bå captureä tï á file® 
+
+Backgrounä Printeò ­ Á backgrounä prinô spooleò whicè spooló datá 
+froí  disë fileó tï thå lisô device¬ whilå permittinç uså oæ  thå 
+computeò bù thå user® 
+
+2.1.3.4. Nameä Directorù Register
+
+Thå  Nameä  Directorù  Registeò  (NDR©  ió  useä  bù  ZCPR³   anä 
+compatiblå  programó tï parså anä resolvå referenceó  tï  ZCPR3'ó 
+Nameä  Directories®   Á  typicaì NDÒ ió 25¶ byteó  iî  size¬  anä 
+permitó  1´  nameä  directorieó  tï  bå  activå   simultaneously®  
+However¬ variationó arå commonplace® 
+
+Á directorù namå undeò ZCPR³ ió besô thoughô oæ aó á synonyí  foò 
+á disk/useò area® 
+
+Thå  functioî  oæ  nameä directorieó ió tï  givå  thå  useò  morå 
+meaningfuì wayó oæ referrinç tï areaó oæ hió filå storagå system®  
+Thå techniquå useä ió "flat"¬ eg¬ noî-hierarchical® 
+
+Iî  terminology¬ thå ZCPR³ Nameä Directorù functioî ió  indicateä 
+bù  thå symbologù "DIR:"¬ anä thå alternativå oæ  specifyinç  thå 
+expliciô disë anä useò areá ió symbolizeä bù "DU:"® 
+.paŠ2.1.4. Bufferó anä Worë Areas
+
+Aó stateä previously¬ á varietù oæ componentó previouslù internaì 
+tï  thå CP/Í CCĞ arå madå externaì iî á ZCPR³ installation®   Thå 
+ZCPR³ Commanä Processoò anä compatiblå utilitieó caî refeò tï anä 
+manipulatå theså areaó tï initiatå ne÷ processeó oò terminatå olä 
+ones¬ oò determinå statuó information® 
+
+Therå arå manù bufferó anä worë areas¬ toï manù tï bå covereä  iî 
+thió  overvie÷ document®  However¬ threå thaô arå verù usefuì  tï 
+thå applicationó programmeò arå thå Multiplå Commanä Linå Buffer¬ 
+thå Shelì Stack¬ anä thå Commanä Searcè Path® 
+
+2.1.4.1. Multiplå Commanä Linå Buffer
+
+Thå  Multiplå Commanä Linå Buffeò ió thå sourcå foò alì  commandó 
+executeä  bù  thå ZCPR³ Commanä  Processor®   Applicationó  whicè 
+desirå tï issuå operatinç-systeí-leveì commandó caî dï sï  easilù 
+bù  simplù  placinç thå desireä commanä iî thå buffer¬  anä  warí 
+booting®   Iô  shoulä  bå understooä thaô therå  maù  alreadù  bå 
+commandó  pendinç iî thå buffer¬ sï thå applicatioî shoulä  checë 
+foò thió situatioî anä iæ iô applieó shoulä preservå thå  pendinç 
+commands®   Thå applicatioî programmeò maù desirå hió prograí  tï 
+bå automaticallù rå-invoked» thió ió oæ courså possiblå bù simplù 
+appendinç  thå  thå commanä witè thå  strinç  ";progname"¬  wherå 
+prognamå  ió  thå namå oæ thå desireä .COÍ filå  tï  bå  invoked®  
+However¬  á betteò solutioî tï thió questioî ió thå Shelì  Stack¬ 
+describeä below® 
+
+2.1.4.2. Shelì Stack
+
+Thå  Shelì  Stacë  ió  designeä tï copå  witè  thå  situatioî  oæ 
+multiplå programó whicè alì wisè tï bå automaticallù  rå-invoked®  
+Foò example¬ thå Echeloî utilitieó MENU¬ VMENÕ (Videï Menu)¬  HSÈ 
+(Historicaì   Shell©   arå  alì  programó  whicè   neeä   tï   bå 
+automaticallù  rå-invokeä afteò generatinç systeí  commands®   Iæ 
+thå  Shelì  Stacë werå noô present¬ theså programó coulä  noô  bå 
+useä  togetheò  iî anù predictablå fashion¬ aó "nesting¢  oæ  thå 
+sequencå oæ rå-invocatioî woulä noô bå possible® 
+
+Wå  calì programó oæ thió naturå "shells¢ (deriveä froí thå  Uniø 
+meaninç  oæ  thå  word)®   Thå Shelì Stacë  ió  á  typicaì  stacë 
+structurå  (eg¬ LIFO)¬ whicè containó thå nameó oæ thå  currentlù 
+activå shells®  Thå ZCPR³ Commanä Processoò wilì ruî thå  commanä 
+oî  toğ oæ thå Shelì Stacë wheî thå Multiplå Commanä Linå  Buffeò 
+ió empty®  Thus¬ á shelì prograí maù placå aî entrù iî thå  shelì 
+stack¬  generatå thå desireä operatinç-systeí-leveì commandó  (bù 
+placinç theí iî thå Multiplå Commanä Linå Buffer)¬ havå thå ZCPR³ 
+Commanä   Processoò   executå  thå  desireä  commands¬   anä   bå 
+automaticallù rå-invokeä wheî commanä processinç ió completed® 
+
+Becauså  oæ  thå  stacë nature¬ iæ thå firsô  shelì  generateó  á 
+commanä  whicè  activateó á seconä shell¬ thå  firsô  shelì  wilì 
+remaiî suspendeä untiì thå seconä shelì ió terminated®  Meanwhilå 
+.paŠthå  seconä  shelì caî perforí alì normaì shelì  functions¬  eveî 
+invokinç á thirä shell¬ etc® 
+
+(Seå Echeloî Applicatioî Notå #1¬ ZCPR³ Shells¬ anä reæ pgó  13³-
+14· anä 22µ-22¶ ZCPR3º Thå Manual© 
+
+2.1.4.3. Commanä Searcè Path
+
+Iî thå procesó oæ attemptinç tï resolvå commandó generateä iî thå 
+system¬  thå ZCPR³ Commanä Processoò consultó thå Commanä  Searcè 
+Patè  foò informatioî oî wherå tï searcè foò  transienô  programó 
+(.COÍ  files)®   Tï illustrate¬ comparå ZCPR³  witè  conventionaì 
+CP/Í 2.2¬ aó follows® 
+
+Thå  CP/Í  CCP¬  wheî searchinç foò á  .COÍ  file¬  examineó  thå 
+directorù  oæ fileó iî thå currentlù loggeä disë anä  useò  area®  
+Iæ thå desireä filå ió noô found¬ thå commanä ió aborted®   Lateò 
+versionó  oæ CP/M¬ sucè aó CP/Í 3¬ wilì additionallù searcè  useò 
+areá zerï oæ thå currentlù loggeä drive® 
+
+ZCPR³ allowó thå useò tï specifù whaô disks/useò areaó arå tï  bå 
+searcheä  foò  invokeä programs®  Thus¬ insteaä oæ havinç  nï  oò 
+verù littlå controì (aó ió thå caså witè CP/M)¬ thå useò ió  freå 
+tï  organizå hió systeí iî á manneò mosô convenienô tï  him®   Hå 
+maù  specifù á Patè sucè aó "A0º M15º B3:¢ anä thå ZCPR³  Commanä 
+Processoò wilì searcè theså areaó oæ hió systeí wheî lookinç  foò 
+COÍ files®  Thió specificatioî ió thå "Commanä Searcè Path"® 
+
+Á  typicaì ZCPR³ implementatioî possesseó á Commanä  Searcè  Patè 
+whicè containó uğ-tï-µ entries¬ buô thå actuaì lengtè oæ thå patè 
+ió  dynamicallù changeable® Eacè entrù ió á disk/useò tï  search¬ 
+witè twï byteó peò entry® 
+
+Thå  Patè  ió  useä  alsï  bù  ZCPR³-compatiblå  transientó  wheî 
+searchinç foò datá anä accessorù files¬ eg¬ thå HELP.COÍ  prograí 
+searcheó  thå Patè foò invokeä *.HLĞ files®   Echeloî  recommendó 
+thaô  aî applicatioî thaô takeó advantagå oæ ZCPR³  alsï  utilizå 
+thå Patè function¬ iæ applicable® 
+
+2.2. Structures
+
+Iî  thió  subsectioî wå wilì documenô thå  preciså  structurå  oæ 
+variouó componentó oæ thå ZCPR³ environment¬ primarilù tï  gatheò 
+thió  informatioî  intï  á  singlå  document¬  anä  providå   thå 
+interesteä applicationó programmeò conveniencå wheî referrinç  tï 
+thió information® 
+
+Thå  arå  manù  differenô structureó whicè arå parô  oæ  á  ZCPR³ 
+installation®  Thió subsectioî wilì documenô thå oneó  deemeä  oæ 
+majoò  importance®   Iæ yoõ neeä informatioî oî á  structurå  noô 
+covereä herein¬ thå besô sourcå oæ informatioî ió thå sourcå codå 
+tï thå ZCPR³ Commanä Processor¬ anä thå sourcå codå tï thå  Z3LIÂ 
+anä VLIÂ codå libraries® 
+.paŠThå structureó illustrateä hereiî arå donå sï usinç Z8° assembleò 
+sourcå notation® 
+
+Foò   aî  examplå  oæ  thå  memorù  mağ  oæ  á   possiblå   ZCPR³ 
+installation¬  refeò tï thå samplå Z3BASE.LIÂ filå listinç oî  pç 
+24· oæ ZCPR3: The Manual® 
+
+2.2.1. Environmenô Descriptor
+
+(reæ pç 30°-303¬ ZCPR3: The Manual© 
+
+Thå  ENÖ segment¬ aó mentioneä previously¬ actuallù includeó  thå 
+ZCPR³ TCAĞ (terminaì capabilities© segmenô iî additioî tï whaô ió 
+considereä thå environmenô descriptor®  Thå TCAĞ ió discusseä  iî 
+detaiì iî thå followinç section® 
+
+Everù  ZCPR³-compatiblå  prograí  carrieó á pointeò  tï  thå  ENÖ 
+segment¬  whicè  allowó iô tï finä thå otheò  componentó  oæ  thå 
+ZCPR³ implementatioî iî á standardizeä fashion® 
+
+.po 0
+.rm 79
+.bpoff
+ENV: 
+        jp      0               ; in case someone jumps here by accident 
+        db      'Z3ENV'         ; signature string 
+        db      1               ; 1 = external ENV, 2 = internal ENV 
+ENV+9: 
+        dw      expath          ; address of PATH 
+        db      expaths         ; size of path in entries (2-byte elements) 
+ENV+0Ch: 
+        dw      rcp             ; address of RCP 
+        db      rcps            ; size of RCP in 128-byte blocks 
+ENV+0Fh: 
+        dw      iop             ; address of IOP 
+        db      iops            ; size of IOP in 128-byte blocks 
+ENV+12h: 
+        dw      fcp             ; address of FCP 
+        db      fcps            ; size of FCP in 128-byte blocks 
+ENV+15h: 
+        dw      z3ndir          ; address of NDR 
+        db      z3ndirs         ; # of entries (18 bytes each) in NDR 
+ENV+18h: 
+        dw      z3cl            ; address of multiple command line buffer 
+        db      z3cls           ; size of buffer in bytes 
+ENV+1Bh: 
+        dw      z3env           ; address of ENV 
+        db      z3envs          ; size of ENV in 128-byte blocks 
+ENV+1Eh: 
+        dw      shstk           ; address of Shell Stack 
+        db      shstks          ; number of entries 
+        db      shsize          ; size of each entry in bytes 
+ENV+22h: 
+        dw      z3msg           ; address of Message Buffer 
+ENV+24h: 
+        dw      extfcb          ; address of external 36-byte FCB 
+ENV+26h: 
+        dw      extstk          ; address of External Stack (always 48 bytes) ŠENV+28h: 
+        db      0               ; quiet flag (0 = not quiet, 1 = quiet) 
+ENV+29h: 
+        dw      z3whl           ; address of WHEEL byte 
+ENV+2Bh: 
+        db      speed           ; Processor speed in MHz 
+ENV+2Ch: 
+        db      'D'-'@'         ; maximum disk 
+        db      31              ; maximum user 
+ENV+2Eh: 
+        db      1               ; DUOK flag: 1 = OK to accept DU: 
+ENV+2Fh: 
+        db      0               ; CRT selection flag (0 or 1) 
+        db      0               ; Printer selection flag (0 or 1) 
+ENV+31h: 
+        db      80              ; width of CRT 0 
+        db      24              ; height of CRT 0 
+        db      22              ; number of lines of text to display on CRT 0 
+ENV+34h: 
+        db      132             ; width of CRT 1 
+        db      24              ; height of CRT 1 
+        db      22              ; number of lines of text to display on CRT 1 
+ENV+37h: 
+        db      80              ; width of Printer 0 
+        db      66              ; height of Printer 0 
+        db      58              ; number of lines of text on Printer 0 
+        db      1               ; formfeed flag (0=can't formfeed, 1=can) 
+ENV+3Bh: 
+        db      102             ; width of Printer 1 
+        db      66              ; height 
+        db      58              ; lines of text 
+        db      1               ; formfeed flag 
+ENV+7Eh: 
+        db      pubdrive        ; drive component of ZRDOS PUBLIC declaration 
+ENV+7Fh: 
+        db      pubuser         ; user component of ZRDOS PUBLIC declaration 
+
+.rm 65
+.bpon
+.po 8
+2.2.2. TCAP
+
+Thå  Terminaì  Capabilitieó Segmenô (TCAP© oæ ZCPR³  ió  á  majoò 
+asseô  tï  thå  operatioî  oæ  ZCPR3®   Thió  structurå  useó   á 
+combinatioî  oæ  fixeä-lengtè  anä  variablå  lengtè  fieldó   tï 
+describå keù videï terminaì characteristics® 
+
+Thå  TCAĞ  ió  alwayó locateä 12¸  byteó  abovå  thå  Environmenô 
+Descriptor®   Iô  maù bå loadeä independentlù usinç  thå  LDR.COÍ 
+utility® 
+
+Dozenó  oæ  programó  refeò  tï  thå  TCAĞ  foò  easù  "terminaì-
+independent¢  operation»  severaì programó anä  á  databaså  alsï 
+manipulatå thå TCAP®  Examplesº TCSELECÔ anä thå associateä  TCAĞ 
+databaså  Z3TCAP.TCĞ  (whicè  containó oveò 7°  TCAPó  whicè  arå 
+selecteä viá TCSELECT)¬ TCMAKE¬ etc® 
+.paŠFoò codå sampleó showinç ho÷ theså fieldó arå accesseä anä  used¬ 
+seå thå sourcå codå thå thå VLIÂ subroutinå library®  Alsï  refeò 
+tï  pageó  304¬  anä 30¹-32· oæ ZCPR³: Thå Íanual™  foò  furtheò 
+information® 
+
+.po 0
+.rm 79
+.bpoff
+(f)= fixed length 
+(v)= variable length, terminated with binary zero 
+
+        db      'Name of Terminal    '  ; 20 characters (f) 
+        db      'K'-'@'                 ; Arrow Key UP (f) 
+        db      'V'-'@'                 ; Arrow Key DOWN (f) 
+        db      'L'-'@'                 ; Arrow Key RIGHT (f) 
+        db      'H'-'@'                 ; Arrow Key LEFT (f) 
+        db      0                       ; Clear Screen Delay (ms) (f) 
+        db      0                       ; Cursor Addressing Delay (ms) (f) 
+        db      0                       ; Clear-To-End-Of-Line Delay (ms) (f) 
+        db      esc,'*',0               ; Clear Screen String (v) 
+        db      esc,'=%+ %+ ',0         ; Cursor Addressing String (v) 
+
+.bpon
+(Seå pagå 31³ oæ ZCPR3: The Manual™ foò á discussioî oæ thå cursoò addressinç 
+symbology)
+.bpoff
+
+        db      esc,'t',0               ; Clear-To-End-Of-Line String (v) 
+        db      esc,')',0               ; Begin Standout (dim) Mode (v) 
+        db      esc,'(',0               ; End Standout (normal) Mode (v) 
+        db      0                       ; Terminal Init String (v) 
+        db      0                       ; Terminal De-init String (v) 
+
+.po 8
+.rm 65
+.bpon
+2.2.3. Commanä Searcè Path
+
+Thå Commanä Searcè Patè caî bå useä bù applicationó searchinç foò 
+accessorù oò datá files¬ foò example¬ prograí overlays®  Seå  thå 
+sourcå codå tï thå Z3LIÂ routinå PFINÄ foò samplå codå tï  locatå 
+á filå alonç thå Commanä Searcè Path® 
+
+(Reæ pç ¹ oæ ZCPR3: The Manual© 
+
+Eacè  entrù ió twï byteó long®  Á terminatinç entrù ió  signifieä 
+wheî  thå disë bytå ió á binarù zero®  Iæ thå speciaì symboì  "$¢ 
+appears¬  iô  referó tï eitheò thå defaulô disë oò  defaulô  useò 
+area¬ aó appropriate® 
+
+.bpoff
+path:
+        db      'A'-'@',0       ; Drive A, user 0 (A0:) 
+        db      'A'-'@',0       ; Drive A, User 15 (A15:) 
+        db      'C'-'@',3       ; Drive C, User 3 (C3:) 
+        db      0               ; end of Path 
+.bpon
+
+2.2.4. Nameä Directorù Register
+
+Thå Nameä Directorù Registeò (NDR© allowó meaningfuì nameó tï  bå 
+associateä witè specifiã disk/useò areas®  Eacè namå maù bå  froí 
+onå  tï eighô characters¬ anä aî uğ-tï-eighô  characteò  passworä 
+maù  bå  associateä  witè á giveî name®  Refeò tï  pageó  ·-¹  oæ 
+ZCPR3º Thå Manual® Š.pa
+Thå  sizå oæ thå Nameä Directorù Registeò caî varù  significantlù 
+froí  systeí tï system®  Aó always¬ aî applicatioî shoulä  alwayó 
+examinå  thå Environmenô Descriptoò oæ thå machinå  foò  accuratå 
+sizå information® 
+
+Á  questioî  thaô  ariseó wheî therå arå twï  differenô  wayó  oæ 
+referrinç tï á directorù (iî thió case¬ eitheò thå directorù namå 
+oò thå DU:© ió whicè referencå methoä haó priority®  Foò example¬ 
+á directorù namå oæ "C:¢ maù bå resolveä onå waù iæ DUº  scanninç 
+occuró first¬ anä anotheò waù iæ DIRº scanninç takeó placå  firsô 
+(anä therå ió á Nameä Directorù witè á matchinç name)®  Echelon'ó 
+officiaì distributioî ZCPR³ alwayó scanó thå DIRº forí first¬  tï 
+prevenô  thå  situatioî oæ thå useò defininç  á  nameä  directorù 
+whicè ió noô accessible® 
+
+Passwordó  caî bå associateä witè á giveî nameä directory®   Thió 
+passworä  ió onlù oæ significancå iæ á referencå ió madå tï  thaô 
+directorù  viá thå DIRº form¬ anä ió unapplicablå  tï  referenceó 
+usinç thå DUº form®  Thus¬ iæ thå DUº forí ió allowed¬  passwordó 
+arå  bypassed®   Thió  ió  thå  reasoî  foò  thå  fielä  oæ   thå 
+Environmenô Descriptoò labeleä thå "DUOË flag"®  Wheî á securitù-
+orienteä  systeí ió implemented¬ thå systeí implementoò wilì  seô 
+thå  DUOË  flaç tï indicatå thaô programó shoulä noô  accepô  DUº 
+references»  thió  forceó thå useò tï uså onlù  DIRº  forms¬  anä 
+thereforå passwordó cannoô bå bypassed® 
+
+Echeloî recommendó thaô applicationó conforí tï thió respecô  foò 
+thå securitù oæ directories¬ aó otherwiså youò applicatioî maù bå 
+unsuitablå foò securå systeí usage® 
+
+Eacè  entrù  iî thå NDÒ ió 1¸ byteó long®  Thå  firsô  twï  byteó 
+indicatå  thå disk/useò thió entrù ió tï bå associateä  with»  iæ 
+thå  disë  bytå  ió zero¬ thió indicateó thå  enä  oæ  thå  list®  
+Followinç thå firsô twï byteó arå ¸ characteró oæ uppercaså  texô 
+whicè denotå thå actuaì namå beinç defined®  Followinç thió ió aî 
+additionaì eighô bytå fielä whicè maù contaiî á password® 
+
+.bpoff
+.po 0
+.rm 79
+z3ndir:
+        db      'A'-'@',0       ; DU: associated with this entry (A0:) 
+        db      'ROOT    '      ; Name declared by this entry 
+        db      '        '      ; Password field (blanks=no password) 
+
+        db      'B'-'@',0       ; DU: associated with this entry (B0:) 
+        db      'WORK    '      ; Name declared by this entry 
+        db      'XYZZY   '      ; password 
+
+        db      0               ; End of NDR 
+.bpon
+.po 8
+.rm 65
+
+2.2.5. Multiplå Commanä Linå Buffer
+
+Thå  ZCPR³ Multiplå Commanä Linå Buffeò ió useä bù á  varietù  oæ 
+ZCPR³ tools® Iæ yoõ wisè tï utilizå it¬ yoõ shoulä bå awarå  thaô 
+iô ió possiblå thaô pendinç commandó maù stilì bå residenô withiî 
+thå  buffer¬  anä  preservå  theí  iæ  so®   Also¬  thå  commanä-
+generatioî  procesó  shoulä  takå intï  accounô  thå  possibilitù Šgenerateä  commanä pluó pendinç commandó maù bå toï largå tï  fiô 
+intï thå buffer® 
+
+Thå  sizå oæ thå buffeò oî musô ZCPR³ systemó ió 20°  bytes¬  buô 
+thió  caî  vary® Refeò tï thå Environmenô  Descriptoò  tï  obtaiî 
+accuratå information® 
+
+Á  gooä examplå oæ sourcå codå foò handlinç thå multiplå  commanä 
+linå  buffeò  ió  giveî  iî Z3LIB'ó  GETCL1¬  GETCL2¬  anä  PUTCÌ 
+routines® 
+
+Thå  usuaì  multiplå  commanä delimiteò  ió  thå  semicoloî  (;)®  
+Leadinç  spaceó  iî  individuaì  commandó  caî  bå   significant¬ 
+especiallù undeò ZCPÒ 3.3®   
+
+.bpoff
+.po 0
+.rm 79
+Z3CL: 
+     dw      nxtcmd        ; address of next command in buffer 
+     db      z3cls         ; size of command line buffer in bytes 
+     dâ      dummù         » dummù bytå seô durinç BDOÓ "Reaä Consolå Buffer¢
+                           » Functioî 
+nxtcmd:                    ; this varies depending on command execution 
+     db      'DIR;WS TEXT1'; Uppercase string of commands 
+     db      0             ; terminating binary zero 
+
+.bpon
+.po 8
+.rm 65
+2.2.6. Shelì Stack
+
+Thå  Shelì  Stacë  ió  useä tï  assurå  predictablå  functioî  oæ 
+multiplå shelì programó ­ programó thaô arå designeä tï  generatå 
+operatinç-systeí-leveì  commandó anä bå automaticallù  rå-invokeä 
+wheî executioî oæ thoså commandó ió complete® 
+
+Aó itó namå implies¬ thå Shelì Stacë ió á standarä Lasô-Iî-Firsô-
+Ouô stack® Thå programmeò shoulä bå awarå thaô iô ió possiblå  tï 
+overflo÷  thå  stack¬ anä thió shoulä bå aî  erroò  conditioî  tï 
+checë for® 
+
+Eacè  entrù iî thå Shelì Stacë ió á uğ-tï-3²-bytå (usually©  texô 
+strinç  whicè  ió essentiallù á commanä tï reinvokå  thå  desireä 
+program¬ pluó anù desireä trailinç commanä linå parameters®   Thå 
+arå   typicallù   ´  sucè  entrieó  availablå  iî   thå   defaulô 
+configuratioî  oæ  ZCPR³ recommendeä bù Echelon¬ buô  thå  actuaì 
+numbeò  ió declareä iî thå system'ó Environmenô Descriptor®   Thå 
+topmosô  entrù  iî thå stacë wilì bå executeä wheî therå  arå  nï 
+pendinç commandó iî thå Multiplå Commanä Linå Buffer® 
+
+Seå  thå  sectioî  oæ thió documenô  titleä  "Usinç  ZCPR³  Shelì 
+Features¢ foò furtheò information¬ aó welì aó thå sourcå codå foò 
+thå   Z3LIÂ  routineó  GETSH1¬  GETSH2¬  anä  QSHELL¬   anä   thå 
+publicatioî Applicatioî Notå #± ­ ZCPR³ Shells™.
+
+Eacè  shelì  stacë  entrù  ió typicallù 3²  byteó  long¬  anä  ió 
+terminateä bù á binarù zerï (whicè musô bå counteä aó parô oæ thå 
+string'ó length)® 
+.paŠ.bpoff
+.po 0
+.rm 79
+shstk:
+        db      'VFILER A15:',0 ; VFILER is on the "top" of the stack 
+        ds      20              ; space unused by above entry 
+        db      'M15:HSH',0     ; HSH will resume when VFILER terminates 
+        ds      24              ; space unused by above entry 
+        db      0               ; no entry 
+        ds      63              ; unused space 
+
+.bpon
+.po 8
+.rm 65
+2.2.7. ZCPR³ Utilitù Header
+
+Everù ZCPR³-compatiblå prograí needó aî easù waù tï determinå thå 
+addresó  oæ thå Environmenô Descriptoò sï thaô iô maù  accesó  oò 
+manipulatå  thå expandeä functionó offereä bù ZCPR3®   Thió  easù 
+waù  oæ findinç thå Environmenô Descriptoò ió  supporteä  througè 
+thå uså oæ á standarä headeò foò transienô programs®  Onå oæ  thå 
+elementó oæ thå headeò ió á pointeò tï thå iî-RAÍ ENV¬ anä ió seô 
+eitheò  automaticallù wheî thå prograí ió loadeä anä executeä  bù 
+thå  ZCPR³  Commanä  Processoò  (iî thå caså  oæ  ZCPÒ  3.3)¬  oò 
+manuallù  usinç thå installatioî tooì Z3INS.COÍ (iî thå  caså  oæ 
+ZCPÒ  3.0)®  Thió pointeò ió thå singlå linë thaô  thå  transienô 
+haó witè thå ZCPR³ environment¬ anä obviouslù musô bå correcô foò 
+thå  systeí  thaô  iô ió runninç on¬  otherwiså  resultó  maù  bå 
+unpredictable® 
+
+Iæ youò applicatioî ió actuallù goinç tï bå directlù (aó  opposeä 
+tï  lettinç  thå ZCPR³ Commanä Processoò dï iô foò  you©  loadinç 
+anotheò prograí intï thå TPA¬ iô ió recommendeä thaô youò prograí 
+scaî  foò  thå standarä header¬ anä iæ onå ió found¬  ensurå  thå 
+pointeò  tï  thå  Environmenô  Descriptoò  containeä  thereiî  ió 
+accurate® 
+
+Iô  ió  alsï  thougè thå uså oæ thå  standarä  headeò  thaô  youò 
+prograí  caî automaticallù determinå whetheò iô ió runninç  iî  á 
+ZCPR³  system®  Seå thå subsectioî titleä "Programminç  Examples¢ 
+foò thå detailó oæ ho÷ thió ió done® 
+
+Refeò   tï  pagå  22¹  oæ  ZCPR3º  Thå  Manual™   foò   additionaì 
+information® 
+
+Thå standarä headeò foò á transienô prograí ió expecteä tï  begiî 
+aô  addresó  100h®  Tï determinå iæ á giveî .COÍ filå  ió  ZCPR³-
+compatible¬ simplù checë foò thå "Z3ENV¢ string® 
+
+.bpoff
+.po 8
+.rm 79
+100h: 
+        jp      start           ; jump over header... 
+        db      'Z3ENV'         ; signature string for identification 
+        db      1               ; denotes external environment 
+z3eadr: 
+        dw      z3env           ; pointer to ENV 
+        ...                     ; possible other data areas 
+start:                          ; the actual code start of your program 
+        ...                     ; your code 
+
+.bpon
+.po 8
+.rm 65
+.paŠ2.3. Initialization Environment
+
+Thió   subsectioî  describeó  whaô  kinä  oæ   environmenô   youò 
+applicatioî  caî  expecô wheî iô ió loadeä anä ruî bù  thå  ZCPR³ 
+Commanä  Processor®  Iô coveró thå variationó betweeî  ZCPR³  anä 
+CP/Í  regardinç  defaulô FCÂ initialization¬ anä alsï  á  featurå 
+uniquå  tï  ZCPR³  thaô allowó yoõ tï determinå  whaô  namå  youò 
+prograí waó invokeä with® 
+
+2.3.1. Defaulô FCBs
+
+Thå  twï  defaulô FCBó (aô 005Cè anä 006Ch©  arå  structureä  anä 
+initializeä  bù  thå commanä linå parseò internaì  tï  thå  ZCPR³ 
+Commanä  Processor®  Thå parseò scanó thå commanä taiì passeä  bù 
+thå  user¬  whicè maù contaiî á filenamå referencå oæ  thå  formó 
+FILENAME.TYP¬ D:FILENAME.TYP¬ U:FILENAME.TYP¬ DU:FILENAME.TYP¬ oò 
+DIR:FILENAME.TYP®    Thå   additionaì  datá  availablå   tï   thå 
+programmeò  iî theså situationó ió thå useò numbeò oæ thå  parseä 
+filename¬  whicè ió alwayó placeä aô FCB+1³ (thå S± byte¬ iî  DRÉ 
+parlance)®   Á  prograí runninç undeò ZCPR³ shoulä  preservå  thå 
+contentó oæ thió bytå internally¬ anä prioò tï openinç thå  file¬ 
+ensurå  thå appropriatå useò numbeò ió selecteä viá DOÓ  calì  3² 
+(set/geô  user)®  Remember¬ thå bytå aô FCB+° ió thå  drivå  bytå 
+(jusô  aó witè standarä cp/m© anä therefore¬ nï matteò whaô  typå 
+oæ  duº  oò  dirº prefiø waó giveî bù thå useò  aó  parô  oæ  thå 
+commanä tail¬ thå programmeò caî alwayó extracô thå resolveä  DUº 
+froí FCB+° anä FCB+1³ respectively®  Iæ thå parseò cannoô resolvå 
+thå  DUº oò DIRº specification¬ FCB+° anä FCB+1³ wilì bå  seô  tï 
+thå  currenô "default¢ DU:®  Thió applieó tï onlù thå  firsô  twï 
+tokenó oæ thå commanä tail» anù additionaì tokenó arå noô  parseä 
+foò FCÂ initialization® 
+
+Foò á sourcå codå samplå oæ thå algorithí useä tï parså  filenamå 
+specifications¬ seå thå Z3LIÂ routinå ZPRSFN® 
+
+2.3.2. Commanä Linå Taiì Text
+
+Aó  witè  cp/m¬ thå actuaì texô oæ thå commanä linå taiì  caî  bå 
+founä beginninç aô addresó 0080h®  Thå firsô bytå ió á  characteò 
+count¬ followeä bù thå text¬ terminateä witè á binarù zero®  Thió 
+ió  wherå thå programmeò maù locatå tokenó beyonä thå  firsô  anä 
+second¬ oò tï perforí hió owî parsinç iæ sï desired® 
+
+2.3.3. What'ó Youò Program'ó Name?
+
+Onå  additionaì  iteí oæ informatioî whicè maù bå usefuì  tï  thå 
+programmeò  ió  thå  determinatioî oæ thå  namå  undeò  whicè  ió 
+prograí waó invoked®  Becauså thå FCÂ builô anä useä bù thå ZCPR³ 
+Commanä  Processoò  wheî loadinç thå prograí ió  typicallù  iî  á 
+reserveä  memorù  area¬  itó contentó arå  protecteä  froí  beinç 
+overwritteî bù thå transienô loaä operation®  Thå programmeò  maù 
+determinå thå currenô namå oæ hió prograí bù firsô examininç  thå 
+ENÖ-residenô pointeò tï thå "externaì FCB¢ (founä aô ENV+24h)» iæ 
+.paŠthió ió nonzero¬ iô holdó thå addresó oæ thå externaì FCB¬  whicè 
+ió aî FCÂ containinç thå namå thió prograí waó invokeä with® 
+
+Thå  addresó  oæ  thå externaì FCÂ ió founä  iî  thå  Environmenô 
+Descriptor® 
+.paŠ3. Usinç ZCPR³ Shelì Features
+
+Thió  subsectioî  discusseó thå necessarù stepó foò  makinç  youò 
+applicatioî prograí intï á ZCPR³ Shell®  Thå advantageó oæ  usinç 
+thå  ZCPR³ Shelì Stacë havå beeî previouslù  discussed®   Becauså 
+thå internaló oæ shelì operatioî havå noô beeî adequatelù covereä 
+iî  otheò Echeloî documentation¬ iô wilì bå discusseä  iî  detaiì 
+here.
+
+Therå arå threå aspectó oæ shelì operatioî whicè arå necessarù iî 
+anù  shell¬  whicè  arå discusseä iî  detaiì  below®   Theù  areº 
+Invocation¬ Generatinç Commands¬ anä Exiting.
+
+3.1. Invocation
+
+Invocatioî  oæ á prograí witè shelì characteristicó ió  thå  mosô 
+compleø aspecô oæ usinç shelì features.
+
+3.1.1. Ho÷ Waó Youò Prograí Invoked?
+
+Thå  firsô  aspecô oæ shelì operatioî ió thå  invocatioî  oæ  thå 
+shell¬ wherå iô ió loadeä froí disë intï RAM®  Thió maù occuò  iî 
+eitheò  oæ twï ways®  Onå waù thaô thió caî occuò ió bù thå  useò 
+enterinç  á  commanä  aô  thå commanä  linå  whicè  invokeä  thió 
+program®   Thió ió referreä tï iî thå subsequenô texô aó  "manuaì 
+invocation"®   Thå otheò waù oæ invocatioî ió wheî thå  shelì  ió 
+automaticallù  invokeä  bù  thå ZCPR³ Commanä  Processoò  aó  thå 
+topmosô   entrù  iî  thå  Shelì  Stack®   Thió  ió  referreä   tï 
+subsequentlù aó "shelì invocation".
+
+Iô  ió importanô tï initiallù determinå whicè oæ theså twï  typeó 
+oæ  invocationó  tooë place¬ becauså iæ thå  shelì  waó  manuallù 
+invokeä bù thå user¬ thå shelì musô instalì aî appropriatå  entrù 
+iî thå Shelì Stack.
+
+ZCPR³  provideó á signaì aó tï whicè typå oæ invocatioî  occurreä 
+witè  á  flaç iî thå ZCPR³ Messagå Buffers®   Thå  Z3LIÂ  routinå 
+QSHELÌ readó thió flaç anä returnó aî appropriatå resulô (reæ 1·-
+4¬ 1·-µ oæ ZCPR3º Thå Libraries).
+
+3.1.2. Pausing
+
+Iæ youò prograí waó shelì invoked¬ onå decisioî yoõ musô makå  ió 
+whetheò  yoõ  wisè youò prograí tï responä tï á "pause¢  flaç  oæ 
+somå  type®   Á pauså ió usuallù necessarù tï allo÷  thå  useò  á 
+chancå  tï  observå thå resultó oæ whateveò operationó  haä  beeî 
+performeä  immediatelù prioò tï thå shelì invocation®  Á flaç  oæ 
+somå  typå wilì permiô á nï-pauså modå oæ operatioî anä  presumeó 
+thå  useò  caî  indicatå  wheî hå  wisheó  tï  pauså  upoî  shelì 
+invocatioî anä wheî hå doeó not.
+
+Somå  ZCPR³  shelló uså thå "Shelì Message¢ byteó  oæ  thå  ZCPR³ 
+Messagå  Buffeò  tï storå thå indicatioî oæ  whetheò  pausinç  ió 
+desireä  oò  not®   Theså  contentó oæ  theså  byteó  arå  easilù 
+.paŠaccesseä viá thå Z3LIÂ routineó GETSHÍ anä PUTSHÍ (reæ pagå  1µ-² 
+oæ ZCPR3º Thå Libraries).
+
+3.1.3. Resettinç Shelì Invocatioî Flag
+
+Wheî   youò  prograí  ió  shelì  invoked¬  iô  ió  thå   programó 
+responsibilitù  tï  reseô  thå flaç whicè  indicateó  iô  waó  sï 
+invoked¬  sï  anù subsequenô ZCPR³ transientó wilì  bå  presenteä 
+witè  correcô information®  Thió ió usuallù donå througè thå  uså 
+oæ Z3LIB'ó PUTCSÔ routinå (reæ pagå 17-´ oæ ZCPR3º Thå Manual).
+
+3.1.4. Environmenô Verification
+
+Aó  stateä previously¬ iæ youò prograí waó manuallù  invoked¬  iô 
+musô instalì itselæ oî thå Shelì Stack®  Iî ordeò foò thió tï  bå 
+successful¬  thå ZCPR³ implementatioî musô possesó thå  necessarù 
+elements®   Foò propeò shelì behavior¬ therå musô obviouslù bå  á 
+Shelì Stacë defineä iî thå system®  Also¬ iæ systeí commandó  arå 
+tï  bå  generateä  bù thå application¬ therå musô  alsï  exisô  á 
+Multiplå  Commanä Linå Buffer®  Iô ió adviseä thaô  youò  prograí 
+checë  foò thå presencå anä appropriatå characteristicó oæ  theså 
+elementó   oæ   thå  ZCPR³  environmenô   prioò   tï   attemptinç 
+installatioî oî thå Shelì Stack®
+
+Thå Z3LIÂ routineó GETSH± (reæ pagå 1µ-¶ oæ ZCPR3º Thå Libraries© 
+anä  GETCL± (reæ pagå 1´-´ oæ ZCPR3º Thå Libraries©  providå  thå 
+desireä informatioî oî theså systeí elements®  Theså elementó maù 
+alsï  bå  verifieä  througè direcô checkinç oæ  thå  ENV®   Theså 
+elementó  arå considereä indispensiblå tï thå operatioî oæ  ZCPR³ 
+aó  á  whole¬  anä  arå  presenô  iî  eveî  thå  smallesô   ZCPR³ 
+implementationó distributeä bù Echelon.
+
+3.1.5. Buildinç á Shelì Stacë Entry
+
+Thå  besô  waù tï thinë oæ aî entrù iî thå Shelì Stacë  ió  aó  á 
+smalì  ZCPR³  commanä line¬ whicè ió designeä  tï  reinvokå  youò 
+prograí  automatically®  Obviously¬ tï dï this¬ thå  shelì  stacë 
+entrù  musô  contaiî  thå  namå oæ youò  prograí  (refeò  tï  thå 
+previouó   subsectioî  oæ  thió  documenô  titleä  "What'ó   Youò 
+Program'ó Name?"© anä anù trailinç parameteró yoõ deeí necessary¬ 
+terminateä bù á binarù zero.
+
+Trailinç   parameteró  caî  bå  usefuì  foò   preservinç   statuó 
+informatioî  regardinç  youò program®  Wheî shelì  invoked¬  youò 
+prograí  caî  examinå  theså  trailinç  parameteró  anä   responä 
+appropriately®   Á gooä examplå oæ thió ió thå caså oæ á  prograí 
+whicè  maù  loç  intï  differenô DU:'ó  thaî  thå  onå  currentlù 
+selecteä  ("default"© bù thå ZCPR³ Commanä  Processor®   Consideò 
+thå scenariï oæ á shelì manuallù invokeä wheî A0º waó thå currenô 
+directory¬  anä withiî whicè thå useò logó intï B3:®   Then¬  thå 
+useò  initiateó somå typå oæ externaì command¬ whicè ió run¬  anä 
+theî  thå  shelì ió reinvokeä froí thå Shelì Stack®   Unlesó  yoõ 
+havå  storeä thå informatioî thaô B3º waó thå currentlù  selecteä 
+directorù anä examinå thaô informatioî oî shelì invocation¬  youò 
+.paŠprograí  wilì apparentlù changå itó loggeä directorù froí B3º  tï 
+A0:.
+
+3.1.6. Pushinç aî Entrù Ontï thå Shelì Stack
+
+Thå  acô oæ placinç á ne÷ entrù intï thå Shelì Stacë ió  referreä 
+tï aó á "push¢ operation®  Iô ió quitå easù tï utilizå thå  Z3LIÂ 
+routinå SHPUSÈ (reæ pagå 1¸-¹ oæ ZCPR3º Thå Libraries© tï perforí 
+thió function.
+
+Essentially¬  SHPUSÈ  attemptó tï movå anù existinç  Shelì  Stacë 
+entrieó onå leveì deepeò iî thå Shelì Stack¬ anä theî placeó  thå 
+ne÷ entrù oî toğ oæ thå stack.
+
+Iô  ió  adviseä thaô thå programmeò bå awarå iô  ió  possiblå  tï 
+overflo÷  thå Shelì Stack¬ anä thió shoulä bå aî erroò  conditioî 
+tï checë for.
+
+3.1.7. Pendinç Commands
+
+Thå lasô actioî á shelì musô takå afteò beinç manuallù invokeä ió 
+tï  checë thå ZCPR³ Multiplå Commanä Linå Buffeò tï determinå  iæ 
+therå  arå  anù pendinç commands®  Iæ therå  arå  stilì  commandó 
+pendinç iî thå buffer¬ thå shelì prograí musô exiô (warí boot© tï 
+permiô  thoså commandó tï bå executeä prioò tï thå actuaì uså  oæ 
+thå  shelì program®  Thå Z3LIÂ routinå GETCL² (reæ pagå  1´-´  oæ 
+ZCPR3º  Thå Libraries© allowó thå programmeò tï easilù checë  thå 
+statuó oæ thå Multiplå Commanä Linå Buffer.
+
+Aî  examplå wilì helğ tï clarifù thió subtlå topic®  VFILEÒ ió  á 
+widelù  useä  ZCPR³  shell®  Assumå thå useò invokeó  iô  witè  á 
+commanä linå of:
+
+A0:COMMAND>vfiler;dir<cr>
+
+VFILEÒ  wilì  senså iô haó beeî manuallù invoked¬  wilì  pusè  aî 
+entrù  ontï thå Shelì Stack¬ anä wheî iô detectó thaô  therå  arå 
+stilì pendinç commands¬ iô wilì exit®  Thå DIÒ commanä wilì  theî 
+bå  executed®  Afterward¬ thå Commanä Linå Buffeò ió  empty¬  anä 
+ZCPR³ wilì theî nexô ruî thå topmosô commanä iî thå Shelì  Stack¬ 
+whicè wilì shelì invokå VFILER.
+
+Thå  reasoninç foò thió aspecô oæ shelì behavioò ió aî  extensioî 
+oæ  thå  hierarchicaì naturå iî whicè ZCPR³  processeó  commands®  
+Thå  Multiplå  Commanä Linå Buffeò alwayó haó prioritù  oveò  thå 
+Shelì Stack®  Thå neeä foò thió caî besô bå observeä iî á commanä 
+sequencå sucè as:
+
+A0:COMMAND>shell1;shell2;shell3<cr>
+
+Iæ  theså shelló diä noô behavå iî thå waù outlineä  above¬  theù 
+woulä noô bå nesteä properlù iî thå shelì stack¬ anä anù  attempô 
+tï  ruî aî externaì commanä froí á shelì earlieò iî thå  sequencå 
+woulä resulô iî thå useò endinç uğ runninç thå nexô shelì oæ  thå 
+sequence.Š.pa
+3.1.8. Examplå Pseudocodå foò Invocation
+
+.bpoff
+Savå Currenô DU:
+Executå QSHELL
+IÆ Manuallù Invoked
+  Verifù Shelì Stacë availablå (GETSH1)
+  Verifù sizå oæ Shelì Stacë entrù acceptablå (alsï GETSH1)
+  Verifù numbeò oæ entrieó greateò thaî zerï (alsï GETSH1)
+  IÆ shelì wilì generatå externaì commands
+    Verifù Multiplå Commanä Linå Buffeò availablå (GETCL1)
+  ENDIF
+  IÆ anù oæ thå abovå verificationó failed
+    Aborô Shelì Functions
+  ENDIF
+  (Nexô twï lineó builä ne÷ á Shelì Stacë entry)
+  Geô Namå oæ Prograí (GETEFCB)
+  Procesó Currenô DUº aó trailinç parameteò iî ne÷ stacë entry
+  Pusè ne÷ entrù ontï Shelì Stacë (SHPUSH)
+  IÆ anù erroró durinç Push
+    Aborô Shelì Functions
+  ENDIF
+  IÆ anù pendinç commandó iî thå buffeò (GETCL2)
+    Warí Boot
+  ENDIF
+ELSÅ (thå prograí haó beeî shelì invoked)
+  IÆ pauså desired
+    Waiô foò Keypress
+  ENDIF
+  Reseô Shelì Invocatioî Flaç (PUTCSÔ witè A=0)
+ENDIF
+<Prograí codå commences>
+.bpon
+
+3.2. Generatinç Commands
+
+Thió  subsectioî discusseó generatinç ZCPR³ commandó froí  withiî 
+shelì  programs®  Iô caî bå assumeä thaô anù shelì wilì  generatå 
+operatinç-systeí-leveì  commands¬ aó otherwiså therå woulä bå  nï 
+neeä foò shelì functions.
+
+3.2.1. Promptinç thå User
+
+Althougè iô ió strictlù thå programmer'ó decisioî aó tï whaô forí 
+anù  giveî  useò prompô wilì take¬ Echeloî  recommendó  thaô  anù 
+prompô  foò  á ZCPR³ commanä mimiã thå  ZCPR³  Commanä  Processoò 
+prompt®   Thió usuallù takeó thå forí "DU:DIR>"¬ wherå DÕ ió  thå 
+defaulô  disë anä useò area¬ anä DIÒ ió thå  correspondinç  nameä 
+directorù  entrù  (iæ onå exists)®  DIRº formó  caî  bå  produceä 
+easilù usinç thå Z3LIÂ routinå DUNDÒ (reæ pagå 1µ-³ oæ ZCPR3º Thå 
+Libraries).
+
+Somå  shelì programó wilì havå builô-iî functionó tï  changå  thå 
+DUº  thaô  thå shelì ió operatinç in®  Iæ thió ió  truå  oæ  youò 
+application¬ youò prompô tï thå useò maù requirå speciaì handlinç 
+tï  sho÷ thå actuaì DUº whicè wilì bå useä bù thå  ZCPR³  Commanä 
+.paŠProcessoò wheî iô ió processinç commands¬ aó thió maù diffeò froí 
+whateveò  DUº youò shelì ió currentlù loggeä into®
+
+Consideò thå VFILEÒ prograí aó aî example®  VFILEÒ ió  originallù 
+invokeä  wheî  thå  useò waó loggeä intï A0:®   Whilå  VFILEÒ  ió 
+running¬  thå  useò  useó thå "L¢ commanä tï  loç  intï  thå  B3º 
+directory®  Iô ió importanô tï notå thaô thió changå ió  internaì 
+tï VFILEÒ anä doeó noô affecô thå ZCPR³ Commanä Processor®   (Thå 
+onlù  waù tï affecô thå ZCPR³ Commanä Processoò ió tï changå  thå 
+CDISË fielä aô addresó 0004h¬ buô iô ió considereä "illegal¢  foò 
+á transienô tï dï this.©  Iæ VFILEÒ promptó thå useò foò á  ZCPR³ 
+command¬ aî inclusioî oæ B3º iî thå prompô woulä bå incorrect¬ aó 
+thå  ZCPR³ Commanä Processoò ió noô loggeä intï  thaô  directory®  
+Thå  correcô  DUº tï displaù iî thå prompô ió  thå  originaì  DUº 
+selecteä wheî VFILEÒ waó initiallù loaded¬ A0:.
+
+3.2.2. Settinç Returî Parameters
+
+Relateä  tï thå jusô-discusseä neeä tï ensurå thå propeò  DUº  ió 
+presenteä  tï  thå user¬ iô maù alsï bå necessarù  tï  providå  á 
+mechanisí  whereiî youò shelì wilì returî tï thå propeò DUº  wheî 
+iô  ió  shelì invokeä afteò thå user'ó  commandó  arå  processed®  
+Thió  ió  becauså wheî youò prograí ió shelì invoked¬  thå  ZCPR³ 
+Commanä  Processor'ó defaulô DUº ió selected®  Iæ actioî  ió  noô 
+takeî tï handlå thió situation¬ iô maù appeaò tï thå useò thaô hå 
+raî thå ZCPR³ commanä successfully¬ buô oî rå-entrù tï thå  shelì 
+iô seemó tï bå loggeä intï thå "wrong¢ DUº (eg¬ noô thå samå  onå 
+iô waó loggeä intï wheî thå externaì command(s© werå generated).
+
+Thå  easiesô  waù  tï  handlå thió  situatioî  ió  witè  trailinç 
+parameteró iî thå Shelì Stacë topmosô entrù (whicè wå caî  assumå 
+belongó tï youò shell)®  Settinç theså parameteró tï thå  shell'ó 
+presentlù-selecteä  DUº wheî generatinç ZCPR³ commands¬ anä  theî 
+checkinç  foò  theí  oî  shelì  (re)invocatioî  wilì  permiô  thå 
+programmeò  tï pasó informatioî oæ thió typå  betweeî  successivå 
+runó  oæ thå shell®  Anù kinä oæ informatioî maù bå  passeä  thió 
+way¬  sï  lonç  aó  iô  ió  representeä  iî  legaì  commanä  linå 
+characters.
+
+3.2.3. Placinç thå Desireä Commanä iî thå Buffer
+
+Placinç  thå desireä commanä iî thå Multiplå Commanä Linå  Buffeò 
+ió  fairlù  straightforward®  Aó waó  mentioneä  previously¬  alì 
+shelló  defeò  initiallù tï anù pendinç commandó iî  thå  buffer®  
+Thus¬ iô caî bå safelù assumeä thaô therå arå nï pendinç commandó 
+tï preserve.
+
+Thå  Z3LIÂ routinå PUTCÌ (reæ pagå 1´-µ oæ ZCPR3º Thå  Libraries© 
+caî  bå  useä  tï  easilù placå thå  desireä  commandó  intï  thå 
+Multiplå  Commanä Linå Buffer®  Thå desireä commanä strinç tï  bå 
+placeä iî thå buffeò shoulä bå capitalized.
+.paŠ3.2.4. Pseudocodå foò Shelì "Generatå Command¢ Function
+
+.bpoff
+Geô originaì DUº (selecteä wheî prograí waó initiallù invoked)
+Prompô useò foò desireä command¬ usinç originaì DUº (DUNDR)
+IÆ nulì command
+  Aborô generatå commanä function
+ENDIF
+IÆ usinç á pauså flag
+  Seô iô aó appropriatå (PUTSHM)
+ENDIF
+Seô returî parameteró iî Shelì Stacë aó desired
+Placå commanä iî buffeò (PUTCL)
+Warí Boot
+.bpon
+
+3.3. Terminatinç á Shell
+
+Actually¬  terminatinç  á shelì ió quitå simplå compareä  tï  thå 
+otheò  aspectó  oæ  shelì operation®  Alì á shelì  musô  dï  wheî 
+terminatinç  ió "pop¢ thå Shelì Stack¬ anä warí boot®  Thå  Z3LIÂ 
+routinå SHPOĞ (reæ pagå 1¸-¹ oæ ZCPR3º Thå Libraries© ió  usuallù 
+useä foò thió function.
+.paŠ4. Programminç Examples
+
+Thió  subsectioî  presentó á fe÷ usefuì "tricks¢ thaô  havå  beeî 
+developeä  tï  copå  witè certaiî basiã  questionó  faceä  bù  aî 
+applicatioî runninç iî á ZCPR³ environment®  Wå recorä theí  herå 
+iî aî efforô tï savå thå applicatioî programmeò timå anä energy® 
+
+4.1. Ió ZCPR³ Available?
+
+Thió tricë buildó oî thå facô thaô everù ZCPR³-compatiblå prograí 
+shoulä  havå  thå  standarä  utilitù  headeò  (seå  thå  previouó 
+subsectioî oî thå topiã "ZCPR³ utilitù header¢ foò thå details)® 
+
+Thió  tricë  presumeó thaô youò applicatioî wilì  bå  distributeä 
+witè thå pointeò tï thå ENÖ iî thå utilitù headeò seô tï  addresó 
+0000h®   Iæ  thå pointeò ió changeä tï á nonzerï  valuå  bù  somå 
+externaì process¬ thió indicateó youò applicatioî ió runninç iî á 
+ZCPR³ environment® 
+
+Here's a code sample: 
+
+.bpoff
+.po 8
+.rm 79
+testz3: 
+        ld      hl,(z3eadr)     ; get pointer from header 
+        ld      a,l             ; setup to test 
+        or      h 
+        jp      z,noz3          ; if Z result, ZCPR3 not available 
+yesz3:                          ; if we get here, ZCPR3 is available 
+
+.bpon
+.po 8
+.rm 65
+4.2. Ió ZRDOÓ Available?
+
+Aî applicatioî maù alsï wisè tï tesô foò thå presencå oæ ZRDOÓ tï 
+takå advantagå oæ itó speciaì featureó iæ iô ió available®   Herå 
+ió á codå samplå enablinç thisº 
+
+.bpoff
+.po 0
+.rm 79
+dos     equ     5            ; bdos/zrdos entry vector 
+
+test$zrdos: 
+        ld      c,12         ; DRI return version # function 
+        call    dos          ; go perform function 
+        ld      a,l          ; get result into A 
+        cp      22h          ; did we get 2.2? 
+        jp      nz,not$zrdos ; if not, we aren't using the 2.2 BDOS or ZRDOS 
+        ld      c,48         ; now let's differentiate between BDOS and ZRDOS 
+        call    dos          ; BDOS will return 0; ZRDOS returns version 
+        ld      a,l          ; get result into A 
+        or      a            » ió iô zero?
+        jp      z,not$zrdos 
+zrdos$presentº               » iæ wå geô here¬ ZRDOÓ ió available
+        ... 
+

@@ -1,0 +1,520 @@
+                                CPR86 
+
+                A CCP REPLACEMENT FOR CP/M86 or CP/M816
+
+Written by Ken Brassler          Contact via Compuserve, CPMSIG  ID# 72345,46
+
+=============================================================================
+
+This CCP replacement has been tested on Compupro hardware, using the
+standard CP/M86 operating system from Digital Research, and also the
+proprietary CP/M816 operating system from Compupro. It is basically a
+subset of the commands offered in ZCPR2 (for the Z80 processor) written
+by Richard Conn. If the Compupro 8085/88 Dual Processor is used, CPR86
+will also manage the automatic loading and running of many 8 bit programs
+provided the necessary support software is available. (SW!.CMD)
+
+CPR86 should work on any Computer running the standard CP/M86 operating
+system, such as the Z100, IBM PC (cp/m86), DEC Rainbow etc., however, such
+installations are left as an 'exercise for the student'. If it works I'd
+like to hear about it. If it doesn't work, there is little I can do to help.
+
+Files required to install CPR86. The '?' will be replaced by a version number.
+
+1. CPR86?.DOC     This documentation
+2. INSTL?.DOC     Installation proceedure and required patches.
+3. CPR86?.BIN     Rename to CPR86.CMD after download from CIS.
+4. OVL?.BIN       Rename to OVERLAY.CMD after download from CIS.
+		  (note: .BIN file types are necessary on Compuserve only)
+
+=============================================================================
+
+                     CPR86 COMMAND DESCRIPTION
+
+
+1.0 DISK/USER SWITCHING
+
+Disk/user switching is identical to ZCPR2. Maximum user number = 31.
+
+B15:     Go to disk B, user 15
+3:       Go to user area 3 on the logged in disk.
+D:       Go to disk D in the current user area.
+
+A disk/user command by itself is considered permanent, while a D/U appended
+to a filename is considered temporary.
+
+TYPE D3:CPR860.DOC         Will read the file from D3, but return to the
+                           current D/U on program exit.
+
+A possible exception to what you are used to is that DIR C3: will also log
+you into C3, so that a subsequent ERA command will always operate on the
+most recent directory. This login can be defeated with a simple patch
+to the OVERLAY.
+
+It should be noted that transient programs, unless specifically written to
+do so, do not recognize the 'DU' format for user areas. For instance, PIP
+A0:=D1:CPR86.OVL, is an illegal command.
+
+1.1 DIRECTORY DISPLAY - DIR or DIRS
+
+Each DIR request begins by clearing the screen. The emphasis is on no
+scrolling and hard disks with lots of entries. There are 5 filenames
+horizontally, rather than 4, and the display will stop after 20 lines are
+listed. A CR will continue the display. While waiting for the CR, the
+program is in BDOS function 10, so that ^C or even ^P will be recognized.
+
+The filenames are listed alphabetically, in horizontal order. The DIR
+function is capable of displaying and alphabetizing 1024 directory entries,
+on each call.
+
+If ^P is active when entering DIR, the clear screen function and the 20
+line auto-stop are defeated, to accomodate listing the complete directory.
+
+1.2 ERASE - ERA
+
+The ERA function is highly modified. If no wildcards are used in the
+filename, the erase occurs as in normal CP/M. However, if wildcards are
+included, CPR86 automatically switches to a selective approach, where a 'y'
+has to be entered in response to EACH displayed filename. If a 'y' is
+entered, the cursor moves up and also erases the display from the console.
+If CR is entered alone, that particular file is not erased, and the name
+remains displayed on the console. Not functional, but cute. Entering an 'x'
+will exit the selective erase function before completion.
+
+If wildcards are included, and you are certain at the outset that all
+files matching the description should be erased, a "c" (confirm) with
+a leading space can be appended to the command. With this format, all
+matching files will be erased without an intervening query. Example:
+
+era cpr861.* c             The "c" confirms that no query is necessary.
+
+The program is self prompting with a single prompt string at the top of the
+screen.
+
+Be EXTREMELY careful that you do NOT enter:
+
+ERA *.* C
+
+Unless you are certain that you want to erase the entire directory without
+further query. If this does occur inadvertently, you'll have to use DU to
+restore the erased directory entries.
+
+1.3 RENAME - REN
+
+The REN function is similiar to ERA, however, wildcards are allowed in the
+.TYP position ONLY. Again, a REN request with no wildcards results in a
+'standard' rename format. With a "*" in the .TYP position of BOTH the new
+and old filename, the old .TYP is moved to the new .TYP before renaming.
+This is the only format allowed, and actually the only one necessary. This
+feature is intended solely for renaming a list of related files, such
+as .A86, .BAK, .LST, .SYM, .HEX. As a result, the command form is:
+
+ren CPR861.*=CPR860.*      The "*" must be in both .TYP positions.
+
+If the new name already exists on the disk, you will be given the choice
+of erasing the existing files, or aborting the request. NOTE: If the
+rename request has a wildcard in the .TYP position, ALL files with that
+name will be erased without further query.
+
+As in ERA, a "c" may be appended to the command when wildcards are included
+to indicate that a query preceeding each rename is not necessary.
+
+Command summary for REN and ERA:
+
+<CR>              Do not erase or rename.
+<y> <CR>          Make the change.
+<x> <CR>          Exit selective function before normal completion.
+
+1.4 TYPE
+
+TYPE will display a file of any length, one page at a time, with a page
+number at the bottom. You may scan backwards or forwards through the file,
+with only 16K in memory at any one time. When TYPEing .PRN files, line
+length is truncated to the screen width. Future commands are anticipated,
+and disk reads occur while you are reading the page, so normally, no delay
+is encountered when a command is entered. The initial page is displayed as
+soon as there is enough data in the buffer to fill a screen, so the initial
+delay is minimal.
+
+In order to type Wordstar files, only CR, LF, and TAB are passed to conout.
+All other control characters are filtered out. In addition,  the high bits
+(if any) are stripped from each character. I don't know if this will have
+any bad side effects or not, since I don't use Wordstar.
+
+If ^P is in effect when TYPE is called, the function changes to a direct
+disk to printer dump. Form feeds are now passed to the printer, to
+accomodate files which have them embedded. Paging, page numbers, and line
+width truncation are defeated. The listing is displayed on the console.
+
+If ^P is not in effect when TYPE is called, it can then be toggled on and
+off in a normal manner to list individual pages, however, the printer listing
+will be identical to the normal screen display.
+
+The TYPE commands are:
+
+<CR>      A carriage return by itself defaults to +1 page.
+<+n><cr>  Move n pages ahead and display it. Defaults to 1 if n not used.
+<-n><cr>  Move n pages back and display it. Defaults to 1 if n not used.
+<Pn><cr>  Go directly to page number "n" and display it.
+<x><cr>   Exit program.
+
+All command errors default to +1 page.
+
+The absolute page command (Pn) will incur some delay if the requested page
+is not in the 16K buffer.
+
+1.5 SET SEARCH PATH - SETP
+
+A default search path for locating transient programs is fixed within
+the program during initial installation, and may include up to 5 'DU'
+stops. Note this path is valid only for locating the transient program,
+and not for the secondary filename sent to the transient. The secondary
+file is loaded by the transient program, not CPR86, and will not recognise
+the 'DU' format unless specifically written to do so.
+
+For example, the command VEDIT FOO.ASM, will search for VEDIT along the path,
+but FOO.ASM must be located in the logged in 'DU'. If the transient program
+supports a disk switch in the command tail (most all do) then VEDIT B:FOO.ASM
+will look for FOO.ASM on disk B, current user. VEDIT B3:FOO.ASM will fail
+because VEDIT does not recognize the form 'B3:'.
+
+The command SETP allows modifying the default search path during program
+execution. The path stops are entered in the normal DU form, except
+that 'logged in D or U' can be specified by entering $ in either location.
+Again, a maximum of 5 DU stops are allowed. A valid example is:
+
+$0 A$ A0 D0 C0 <cr>
+
+This translates to, 1. Logged disk, user 0.
+                    2. Disk A, logged user
+                    3. Disk A, user 0
+                    4. Disk D, user 0
+                    5. Disk C, user 0
+
+The path always begins at the logged in DU, so the form $$ is redundant.
+
+Command lines with more than 5 stops will be truncated to the first 5
+stops.
+
+Entering only a <cr> will erase the entire path. Any errors in formatting
+the path will produce an error message, and also erase the entire path.
+
+The original default path will be in effect after any cold boot.
+
+1.6 BATCH PROCESSING - ZIP
+
+The ZIP command is an enhanced version of SUBMIT which allows all required
+program inputs to be retrieved from a disk file, rather than just the basic
+command line. Replacement text strings can be passed to the batch file
+by including them in the original command tail. Also, a pause function is
+supported which stops execution of the batch file and allows the operator
+to continue or abort the session. The normal SUBMIT function is not
+available with CPR86.
+
+To use this function, a file of type .ZIP must first be created with your
+editor that contains the exact sequence of terminal inputs that are required
+by the program or series of programs. Each input statement must occupy a
+separate line in the file. Comment statements are allowed within the file 
+at the CCP level, provided they originate at the start of a line.
+
+There are 2 special characters recognized by ZIP as program control functions
+that cannot be used as part of a filename or command line, unless, of course,
+that particular function is desired.
+
+1. "~" (7EH) when encountered in the batch file causes ZIP to halt execution
+   pending operator input to continue or abort the session.
+
+2. "\" (5CH) directs ZIP to retrieve a statement from the original ZIP
+   command tail. The actual form is "\n" where n = 1 through 9, corresponding
+   to the first through ninth character string of the command tail, which
+   are separated by a SINGLE space.
+
+Examples:
+
+A common repetitive task is creating a new system disk. The following batch
+file named NEWDISK.ZIP will perform the complete task when the command
+ZIP NEWDISK is entered. The example given uses the special Compupro versions
+of Format and Sysgen. Comments used here are NOT allowed in the actual file.
+
+format                     ;Load the format program
+b                          ;Format asks which drive?
+3                          ;Format asks bytes per sector (1024)
+y                          ;Format asks ready on B:?
+n                          ;Format asks continue?
+sysgen88 d:loader.cmd      ;Load sysgen with loader.cmd on drive D:
+b                          ;Sysgen asks drive?
+                           ;A blank line in the file simulates a CR
+                           ;2 CR's are required by Sysgen to confirm ready
+pip                        ;Load PIP
+b:=a:cpm.sys[v             ;Copy the system file
+b:=a:overlay.cmd[v         ;Copy the overlay
+                           ;CR to exit pip
+dir b:                     ;Confirm completion. ZIP will end when EOF is
+                           ;encountered
+
+
+When using a hard disk, a common task is to make back-up copies of files
+on a floppy disk in drive B. The following file named BACKUP.ZIP uses
+command tail strings to fill in the required PIP format.
+
+b0:                        ;log in drive B, user 0
+pip b:=\2:\1.A86[vg\3      ;\1, \2, \3 are filled from command tail
+
+For example, enter the command:
+zip backup cpr* d 3        ;Note SINGLE spaces are required between command
+                           ;tail strings.
+
+And the resulting PIP entry will be:
+
+pip b:=D:CPR*.a86[vg3
+
+The mixture of upper and lower case is shown only to point out that command
+tail strings are translated to upper case by normal program flow before
+being returned as part of the batch file command.
+
+When doing program development, the repetitive task of assembling and
+generating a command file can be replaced by a ZIP function. In this
+case, you would not want to continue the batch process if errors are
+reported by the assembler. The PAUSE function (~) is used to halt the
+batch process and query the operator whether to continue or abort the
+session. The following ZIP file is used in the development of CPR86, and
+accomplishes the complete installation from assembling a new source file
+to patching the resulting CMD file. Again, comments are NOT allowed in
+the actual file.
+
+asm86 cpr863 $pz sz        ;Assemble the source code.
+~                          ;Pause - Are there any errors?
+gencmd cpr863 8080         ;No errors, generate a CMD file.
+a0:                        ;Log in system disk.
+pip a:=d:cpr863.cmd[vg1    ;Copy CMD file to system disk.
+ddt86                      ;Load DDT86
+rcpr863.cmd                ;Read the CMD file.
+rcpm.sys                   ;Read CPM.SYS.
+f4cb:80,0a7f,00            ;Erase the current CCP.
+m42b:80,09ff,4cb:80        ;Replace it with the new CPR86.
+~                          ;Pause - Were the memory references correct?
+wcpm.sys                   ;Yes, write a new CPM.SYS file.
+
+A special problem occurs with DDT86 patching that can only be overcome
+by trial and error. The memory references required by the Fill (f) and
+Move (m) command will vary based on the length of the files read by DDT86,
+and also the length of the ZIP file which also occupies memory space
+during the patching process. Therefore, these memory addresses will be
+different under ZIP, then if the process were acomplished manually.
+
+The solution is to run the process under ZIP up to the second pause, note
+the load addresses reported by DDT86, then change the ZIP file to reflect
+the correct addresses. DDT86 will always read a file to an 80H boundary,
+so as the length of the source file grows, it will only be necessary to
+again modify the patch addresses after each additional 80H of code is
+generated. This could become tedious during the early stages of program
+development, but after the source code is somewhat stabilized, it is
+well worth the effort.
+
+Control characters can be included in a batch file simply by using the
+form ^C or ^c. Unfortunately, ^characters meant to be recognized by the
+CP/M86 operating system, such as ^C and ^P, will NOT be recognized when
+they originate from a batch file. The structure of CP/M86 requires that
+these characters enter the program through the BIOS CONIN function, which
+cannot be duplicated by ZIP. (or SUBMIT)
+
+1.7  AUTOMATIC PROCESSOR SWITCHING
+
+For systems using the Compupro 8085/8088 dual processor CPU, and CP/M816
+operating system from Compupro, CPR86 provides the additional feature of
+searching the 'path' for SW!.CMD, and also searching the 'path' for the
+requested 8 bit .COM program. 
+
+To decide which processor is required, CPR86 performs the following steps.
+
+1. Search for a .CMD file with the requested program name along the preset
+   search path, and if found, load the program.
+2. Search for a .COM file with the requested program name along the preset
+   search path, and if found, record the disk number where it resides.
+3. If the requested program is not located as a .CMD or .COM file, an
+   error message is displayed, and CPR86 returns to the function prompt.
+4. If a .COM file is found, CPR86 searches the preset path for the program
+   SW!.CMD and if found, loads the program.
+5. The original program request is passed to SW!.CMD, and in addition, the
+   disk where the .COM file was found is inserted in the primary default
+   file control block as an auto-disk select command.
+6. SW!.CMD then loads and runs the .COM file using the 8085 processor.
+
+SW!.CMD does not have the ability to cross user boundries, therefore it will
+attempt to load the .COM file from the logged in user area, but on the disk
+located by the search path. If the .COM file was located at path stop A2,
+and you are currently logged into B3, SW! will not be able to locate the
+file.
+
+However, CP/M86 automatically inserts an additional path stop by looking
+for a .SYS (invisible) file in user area 0. Therefore, if all .COM utility
+programs are stored as .SYS files in user 0, they WILL be found by SW!
+from any logged in DU location, provided that disk is on the search
+path.
+
+SW! requires a complete 64K block of memory, aligned at a 64K boundry, in
+order to operate. So normally, a minimum of 128K is required. Unfortunately,
+OVERLAY.CMD is loaded by the CP/M memory manager to the very top of memory,
+which, in a 128K system, will occupy part of the 64K block required by SW!.
+Currently OVERLAY.CMD is less than 4K long, but to be safe, a minimum of
+136K memory is required to run CPR86 and SW!.
+
+1.7 COMMAND CHAINING
+
+Multiple commands are supported when separated by a semi-colon. Multiple
+commands for transient programs are also supported, however, command
+chaining after the transient is only possible if the program returns to
+CP/M via a RETF (return far) instruction. It is impossible to control the
+program flow if the program terminates with a BDOS function 0 call. As
+a result, chaining of transient programs should be done using ZIP and a
+batch file.
+
+This function was added at the insistance of others, only because ZCPR2
+has it. I find it totally useless, and considered not even mentioning it
+in this documentation. If you find it useful, then use it. If you would
+like it to do more, forget it.
+
+1.8  FIND - SEARCH HARD DISK FOR AN AMBIGUOUS FILENAME
+
+FIND will scan the entire hard disk, from user 0 through user 15, on
+each logical drive. (note users 16 through 31 are not included - it
+took too long) The beginning and ending disk reference must be patched
+in OVERLAY.CMD.
+
+SYNTAX
+         find filename.typ
+
+         find cpr*.*       all files beginning with CPR
+         find *.a86        all files of type .A86
+         find ed.com       locate all duplicate files
+
+PROGRAMMERS NOTES
+
+CPR86 maintains a stack area at least 64 levels deep (128 bytes). The
+standard CCP stack area is 48 levels. Therefore, with either system,
+it should not be necessary to set up a local stack when writing a transient
+program unless some peculiar stack operations are planned. Also, when
+using the CPR86 stack, the stack segment register (SS) always points to
+the base of CPR86 which is also the base segment of the CP/M86 operating
+system. Sometimes, knowing where the system is located is very useful
+information.
+
+Software interrupt 10 (INT 10) is used by CPR86 for calls to the
+OVERLAY.
+
+==========================================================================
+
+COMMAND SUMMARY AND EXAMPLES
+
+c30:              Log into disk c, user 30.
+dir               Display directory of logged in DU. (Disk/User)
+dirs              Display system files of logged in DU.
+dir b3:           Display disk b user 3 directory, and log into b3.
+dir a1:; dir a2:; dir a3:; a0:
+                  Display directories for a1,a2, and a3, log into a0.
+dir c5:a*.*       Display all files on c5 beginning with the letter A.
+                  All wildcards described in the CP/M documentation are
+                  supported.
+
+ren cpr861.a86=cpr860.a86  (or)
+ren cpr861.a86 < cpr860.a86
+                  The file is renamed to cpr861.a86
+ren cpr861.*=cpr860.*
+                  All file types named cpr860 are changed to cpr861 with a
+                  query before each change is made.
+ren cpr861.*=cpr860.* c
+                  Same as above except no query is given.
+ren a5:cpr861.a86 = cpr860.a86
+                  The rename occurs on A5, then returns to the logged
+                  in DU.
+
+era cpr860.lst    The file is erased.
+era cpr860.*      All file types with name cpr860 are displayed, and
+                  the option to erase or skip each individual file is
+                  given.
+era cpr860.* c    Same as above except the option to skip is not given.
+era *.*           Display all files in the directory with the option to
+                  skip or erase.
+era *.* c         The entire directory is erased without further query.
+era a5:cpr860.*   Function occurs on DU a5, then returns to logged in DU.
+
+find cpr*.*       The entire hard disk will be scanned for all files
+                  beginning with CPR. They will be displayed along with
+                  the DU where they are located.
+
+COMMANDS THAT DO NOT WORK
+
+ren cpr???.a86 = cpr???.a86
+                  Wildcards allowed in .TYP position only
+ren cpr862.* = cpr861.a86
+                  Must have * in both .TYP positions
+ren cpr862.a86 = b0:cpr861.a86
+                  The DU in the second file name is ignored.
+
+============================================================================
+
+THINGS THAT MIGHT BE DONE BETTER IN FUTURE RELEASES  (bugs?)
+
+1. There is no way to abort ZIP from the keyboard. I've tried, but any
+scheme I've come up with so far also puts restrictions on ZIP operation.
+I suggest liberal use of the pause command until the .ZIP file is
+debugged. ZIP, by it's very nature, has no error trapping. Like an
+editor, ZIP will do whatever you tell it to, without trying to decide
+if it's reasonable or not.
+
+2. I have come across a bug in TYPE where it will hang if a TAB character
+immediately preceedes a CRLF. (sometimes) If this happens to you, edit
+the file to remove the TAB.
+
+3. CPR86 and OVERLAY.CMD have interrupts ENABLED! I use CPR86 with an
+interrupt driven BIOS supplied by Tom Lanier. If you get 'Wild interrupt'
+messages, and are not running interrupt driven, you must change your
+BIOS to properly initialize the 8259 interrupt controllers, and have
+ALL interrupts masked off.
+
+4. Software interrupt 10 is used for all calls to the OVERLAY. This may
+conflict with the operating system on computers other than Compupro.
+
+5. If using the Compupro Dual Processor and SW!.CMD, keep in mind that
+CPR86 only loads SW!.CMD and then passes to it the name of the program
+you requested. SW! actually runs the program, and there are several
+programs that SW! won't handle. (there are also several versions of SW!
+floating around) I don't have the source to SW!, and can't support any
+problems you may have. If you do have a problem, try entering the
+command: SW! FOO.BAR. With this form, CPR86 is completely out of the
+picture.
+
+6. You cannot chain ZIP commands. ZIP STARTUP;ZIP PROFILE will not
+work.
+
+===========================================================================
+
+I greatfully acknowledge the assistance of Charlie Strom, Paul Homchick and
+Bob Thrush who acted as beta test sites, and suggested many of the features
+included in CPR86.
+
+I certainly hope that many of you will be able to use and enjoy the
+additional flexibility of the CPR86 interface with CP/M86 and CP/M816.
+For those who will attempt to install CPR86 on computers other than
+Compupro, I will be happy to hear about your success, and willing to
+discuss your failures, on Compuserve, CPM interest group (CP-MIG or
+CPMSIG, whatever the current name is). Telephone calls to my home are
+NOT solicited.
+
+I do not believe that donating a program to the Public Domain incurs an
+implied responsibility to support that program in the future, or even
+to fix bugs that may show up, due to someones individual operating
+habits. I will keep track of all reported bugs, however, and future
+releases, if any, will attempt to correct all of them. The source code
+for CPR86.CMD and OVERLAY.CMD is not available for distribution.
+
+On the other hand, I do not believe you can "give your program away, and
+have it too". If you want to incorporate CPR86 into some commercial
+venture, you have my blessing and permission. However, I have no intention
+of becomming a free programmer for someones commercial venture - thus
+my reluctance to guarantee support.
+
+Now that you've waded through my disclaimer, I sincerely hope that you
+find CPR86 a welcome addition to your box of computer tools.
+
+end CPR86.DOC

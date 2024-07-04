@@ -1,0 +1,87 @@
+;
+;                       BYE3 CLOCK INSERT
+;                              for
+;                  Zilog Z80A CTC Binary Clock
+;                         by Don Brown
+;
+; This routine is for a clock that is maintained in low memory, CP/M page 0.  
+; Channel 3 of a Zilog Z80A CTC (60 hertz) clock is preprogrammed to interrupt
+; every 1/60th of a second so that the BIOS can maintain the current date &
+; time in locations 40h - 46h, represented in Binary.
+;
+; This is in insert (not an overly) to implement the BYE3 'RTC' and must be
+; inserted into BYE3 at the appropriately marked location in that code.
+;
+;=============================================================================
+;
+; 07/27/85	Initial Release.  Compatible with BYE337	- Don Brown
+;
+;=============================================================================
+;
+; The Real-Time clock buffer 'RTCBUF', is organized: 'HH:MM:SS YYYY/MM/DD'.
+;
+; RTCBUF: DB 99h,99h,99h	; HH:MM:SS (BCD 24 Hr. Time)
+;         DB 19h,84h,01h,31h	; YYYY/MM/DD (BCD ISO Date) 1984/01/31
+;
+;	  BCD 24 Hr. Time:  HH = 0-23
+;	                    MM = 0-59
+;			    SS = 0-59
+;
+; The BIOS stores the current Date and time, in Binary, as follows:
+;
+;	40h = Fractions of a Second (1/62nds)
+;	41h = Seconds (0-59)
+;	42h = Minutes (0-59)
+;	43h = Hours   (0-23)
+;	44h = Months  (1-12)
+;	45h = Days    (1-31)
+;	46h = Years   (1-99)
+;
+; This insert requires the 'BINBCD:', (BIN2BCD EQU YES), routine in BYE3 to
+; convert the binary date and time to BCD date and time.
+;
+;=============================================================================
+;
+; CONFIGURATION SECTION
+; ---------------------
+;
+	 IF	RTC
+CLKBASE	EQU	40h		; Base address of time & date in page 0
+CENTURY	EQU	19h		; Century (BCD) our clock doesn't have it
+;
+;=============================================================================
+;
+TIME:	LDA	CLKBASE+3	; Read the Clock - Binary Hours
+	STA	CCHOUR		; Store Binary Hours
+	CALL	BINBCD		; Convert Hours from Binary to BCD
+	STA	RTCBUF+0	; Store BCD Hours
+;
+	LDA	CLKBASE+2	; Read the Clock - Binary Minutes
+	STA	CCMIN		; Store Binary Minutes
+	CALL	BINBCD		; Convert Minutes from Binary to BCD
+	STA	RTCBUF+1	; Store BCD Minutes
+;
+	LDA	CLKBASE+1	; Read the Clock - Binary Seconds
+	CALL	BINBCD		; Convert Seconds from Binary to BCD
+	STA	RTCBUF+2	; Store BCD Seconds
+;
+	LDA	CLKBASE+4	; Read the Clock - Binary Months
+	CALL	BINBCD		; Convert Months from Binary to BCD
+	STA	RTCBUF+5	; Store BCD Months
+;
+	LDA	CLKBASE+5	; Read the Clock - Binary Days
+	CALL	BINBCD		; Convert Days from Binary to BCD
+	STA	RTCBUF+6	; Store the BCD Days
+;
+	LDA	CLKBASE+6	; Read the Clock - Binary Years
+	CALL	BINBCD		; Convert Years from Binary to BCD
+	STA	RTCBUF+4	; Store the BCD Years
+;
+	LDA	CENTURY		; Get the Century Configured in this insert
+	STA	RTCBUF+3	; Store the BCD Century
+;
+	RET			; Return to Bye
+	 ENDIF			; RTC
+;
+;=============================================================================
+

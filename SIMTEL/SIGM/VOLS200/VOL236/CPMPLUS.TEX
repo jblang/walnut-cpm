@@ -1,0 +1,746 @@
+                                    CPM-PLUS
+                                    ========
+
+                                Robert B Davies,
+                 16 Gloucester Street, Wellington, New Zealand.
+
+
+          CP/M PLUS (alias CP/M 3) is Digital Research's latest
+          update of their operating system for systems based on 8080
+          or Z80 microprocessors. I purchased a copy during a recent
+          trip to the USA and now have it running. Here are my
+          thoughts on it after trying it for a few months.
+
+
+                               OPERATING SYSTEMS
+                               --------- -------
+
+First, I need to make a few comments on what an operating system is required to
+do. It is a program that provides the interface between a user's program and the
+computer's peripherals such as the disks, keyboard, display etc. In particular,
+it builds and organizes the disk directories, reads and writes files on disk,
+loads programs as requested by the user, regains control after the user's
+program has finished, as well as loading itself from disk when the machine is
+turned on.
+
+A diagram of the set-up for CP/M is given in figure 1. The heart of the system
+is the machine independent part called the BDOS. The machine dependent part, the
+BIOS must be written by the computer manufacturer or owner and supplies a
+more-or-less machine independent interface for the BDOS. It is this splitting of
+CP/M into the BDOS and BIOS that enables it to be readily adaptable to the large
+variety of machines on which it runs. The BDOS provides the interface with what
+ever program (the transient program) is currently in core and translates its
+complex file and input/output commands into sequences of simple commands for the
+BIOS.  The CCP (console command processor) is a program that is automatically
+loaded when the machine is turned on or when user programs exit and is
+responsible for monitoring the keyboard, loading new programs when requested or,
+in the case of CP/M 2, processing the commands DIR, ERA, USER, REM, SAVE, TYPE.
+The cold boot loader is automatically loaded when the machine is turned on and
+is responsible for loading the BIOS and BDOS and then the CCP. The compilers,
+interpreters and applications programs are supplied by other organizations or at
+least separately from CP/M. However one does get a whole range of 'utilities'
+with CP/M including an editor, assembler, a program for copying files and these
+are usually regarded as part of CP/M although they are separate from the
+BDOS/BIOS and may be replaced by the user's own utilities.
+
+
+
+ +-----------+     +-----------+     +-----------+     +-----------+
+ |           |     |           |     |           |     |           |
+ | Power-on  |     |   Disks   |     | Display,  |     |   Other   | Hardware
+ |  jump     |  +->|           |     | keyboard  |     |peripherals|
+ |           |  |  |           |     |           |     |           |
+ +-----------+  |  +-----------+     +-----------+     +-----------+
+       |        |        ^                 ^                 ^
+       |        |        |                 |                 |
+       |        |        |                 |                 |
+       |        |        v                 v                 v
+       |        |     +-----------------------------------------+
+       |        |     |                                         |   Machine
+       |        |     |    Basic Input Output System (BIOS)     |   dependent
+       v        |     |                                         |   software
+ +-----------+  |     +-----------------------------------------+
+ |           |  |          ^                        ^
+ | cold-boot |<-+          | data                   | jump
+ |  loader   |             | buffers                | vector
+ |           |             v                        |
+ +-----------+        +-----------------------------------------+
+       |              |                                         |
+       +------------->|                                         |   Machine
+                      |   Basic Disk Operating System (BDOS)    |   independent
+                      |                                         |   software
+                      |                                         |
+                      |                                         |
+                      |                                         |
+                      +-----------------------------------------+
+                         ^            ^            ^
+                         | data       | BDOS       | locations
+                         | buffers    | commands   | 0-256
+                         v            |            v
+      __________________________________________________________
+     /              |              |              |             \
+ +-------+      +-------+      +-------+      +-------+      +-------+
+ |       |      |       |      |       |      |       |      |applic-|
+ |  CCP  |      |util-  |      |comp-  |      | basic |      | ation | transient
+ |       |      |  ities|      |  ilers|      |inter- |      |pro-   | programs
+ |       |      |       |      |       |      | preter|      | grams |
+ +-------+      +-------+      +-------+      +-------+      +-------+
+                                                  ^
+                                                  |
+                                                  v
+                                              +-------+
+                                              |       |
+                                              | basic |
+                                              |program|
+                                              |       |
+                                              +-------+
+
+                        Figure 1: CP/M operating system.
+
+
+
+                          WHY A NEW VERSION IS NEEDED
+                          --- - --- ------- -- ------
+
+CP/M, version 2, was released in 1979. At that time a micro-computer with 64K
+bytes of memory (ie 64 x 1024 x 8 bits of memory) would have been considered
+large and most micro-computers would have less. Similarly a floppy disk drive
+with 1 megabyte of storage (ie 1024 x 1024 x 8 bits) was again a lot of memory.
+Thus the fact that an 8080 or Z80 micro-processor can address only 64K of memory
+without complex bank-switching mechanisms wasn't really a problem. Similarly,
+CP/M 2's restriction that individual files could have a maximum length of 8
+megabytes or a disk capacity also of 8 megabytes was no real problem. Further
+most micro-computer users were enthusiasts who were able and willing to deal
+with a system that was somewhat awkward to use in places and didn't have very
+high expectations for 'user friendliness' (or for good documentation). The fact
+that it worked at all, and, in fact, works reasonably well, was enough to keep
+most users very happy.
+
+CP/M based microcomputers have turned out to be most successful and an enormous
+amount of software is now available from a large number of software writers. It
+includes compilers for most of the major computer languages, numerous editors
+and text processing programs, data-base programs, spread-sheet programs
+(visicalc clones) and apparently every conceivable business program.
+
+However, in 1983, limitations of CP/M 2 are becoming very apparent. Because of
+the success of the micro-computer, users are becoming less sophisticated. They
+want answers fast and don't want to have to fight with the operating system or
+learn to interpret weird error messages. With the advent of the 64K bit memory
+chip, the price of memory has dropped by a factor of 3 or 4 ( not corrected for
+inflation or devaluation) and it is hard to imagine purchasing a machine for
+professional use with less than 64K of memory. At the same time hard disk units
+with more than 8 megabytes of memory are available at an almost affordable
+price. The Z80 or 8080 based machines are, of course, suffering from heavy
+competition from machines like the IBM personal which are based on more advanced
+chips. Eventually, the 8 bit machines will be completely eclipsed by these
+advanced machines, at least for the professional user. However, at present,
+because of the huge amount of software available for 8 bit computers, many
+manufacturers are still producing these machines. Nevertheless, in order to
+compete with the 16 bit machines with their much improved address range, one
+wants to be able to use every trick to increase the memory available to an 8 bit
+machine.
+
+Putting all this together, any upgraded version of CP/M for 8 bit machines
+should
+
+  (i) be much more 'user-friendly'
+  (ii) have proper documentation
+  (iii) give the user access to more memory
+  (iv) allow longer files and larger capacity disks
+  (v) run programs that were written for CP/M 2
+  (vi) be implementable on a wide variety of Z80 or 8080 based machines
+  (vii) be flexible enough to allow manufacturers to add extra features
+  (viii) be ready now.
+
+
+                                   CP/M PLUS
+                                   ---- ----
+
+First, the name. It seems to be called CP/M PLUS. However, once inside the
+covers of the documentation, it's CP/M 3. The term CP/M 80 seems to be a generic
+term referring to the family of CP/Ms for Z80s or 8080s.
+
+I ordered a 'raw' version, that is, not configured to any particular system. It
+came on two eight inch floppy disks and was accompanied by 3kg of documentation.
+The disks contain the files required to generate the BDOS, an example BIOS, a
+large HELP file, and numerous utilities including 2 assemblers, a debugging
+program, an editor, a linker, a library program as well as those required for
+routine file manipulation. 
+
+The documentation came in two ring-binder files and consists of 5 modules: the
+User's Guide, Programmer's Guide, System Guide, Programmer's Utilities Guide and
+Symbolic Instruction Debugger Reference Manual. There is also a pocket guide to
+the Symbolic Instruction Debugger. The documentation is well presented and of a
+high standard. I recognize some parts as being lifted from the old CP/M 2
+documentation but its largely new and a complete contrast to Digital Research's
+documentation for CP/M 2. It is impossible for me to be sure how new users would
+get on, but my guess they would handle the User's Guide with a little outside
+help. The rest is for programmers only and, apart from a few minor gaps, is fine
+for them. Incidentally, why do they call it a User's Guide - surely they expect
+more than one person to use it. In addition there is an extensive HELP file on
+disk which covers the same material as the User's Guide. I discuss this later.
+
+
+                          BANKED AND UNBANKED VERSIONS
+                          ------ --- -------- --------
+
+CP/M 3 comes in two versions. The unbanked version is a slightly cut down
+version which is loaded into a single bank of memory - that is it can utilize a
+maximum of 64K bytes of memory - and requires the same hardware facilities as
+CP/M 2. Because is offers more facilities than CP/M 2 it occupies more core,
+about 13K instead of the 6 or 7K that CP/M requires (on my system) and hence
+less space is available for the user's programs.
+
+The banked version uses 2 or more banks (blocks of 64K bytes) of memory. One of
+these is used for storing one's program and about 4K of CP/M. The rest of CP/M
+resides on one of the other banks of memory and any remaining memory is used for
+disk and directory buffers. I will describe these buffers in the next section.
+Thus about 60K of memory is available for the user's program and a substantially
+larger than usual area is available for CP/M.
+
+To run banked CP/M 3 one must of course have a computer with at least two banks
+of memory and the necessary hardware for selecting the bank to be accessed. In
+addition, to permit communication between banks one must have about 4K of
+memory, at the top of the memory range, which is accessed independently of which
+memory block is currently selected. This is known as common memory. My CPU board
+(model CB2 produced by SSM) purchased in 1980 has 4K of memory which doesn't
+know anything about bank select and which is accessed in preference to external
+memory and so very easily provided me with the common memory facility. I don't
+know whether this was just luck or whether the board's manufacturers predicted
+the appearance of CP/M 3.
+
+My system currently has two 64k blocks of memory and one 16K one and a memory
+mapped disk drive. I have sketched out a map of its memory allocations in figure
+2. Note that a copy of the CCP is stored in memory so that it can be loaded
+almost instantly without accessing the disk at each warm boot.
+
+
+   64K                          +---------+
+                                |    A    |  4K of common memory - accessible
+                                +---------+  from all banks
+
+   60K         +---------+      +---------+
+               | used by |      |         |
+               |   disk  |      |         |           A: used by CP/M
+               |---------|      |         |           B: disk buffer area
+               |         |      |         |
+               |    A    |      |available|
+               |         |      |   for   |
+               |         |      |transient|
+               |---------|      | program |
+               |         |      |         |
+               |         |      |         |
+               |    B    |      |         |      +---------+
+               |         |      |         |      |    B    |
+               |         |      |         |      |---------|
+               |         |      |         |      |   CCP   |
+   0K          +---------+      +====A====+      +---------+
+
+                  bank 0           bank 1           bank 2
+
+                      Figure 2. Memory layout for CP/M 3.
+
+
+                             BLOCKED DISK TRANSFER
+                             ------- ---- --------
+
+CP/M programs usually expect to transfer data to and from disks in records of
+128 bytes. However the disks themselves frequently work more efficiently if
+larger blocks, say 1024 bytes, are used. If one wants to read a file
+sequentially, that is, starting at the beginning and then reading it in order,
+there is no problem. The operating system reads the first 1024 byte block into a
+buffer and passes each of the first eight 128 byte records across to the program
+as they are required. Then the second block is loaded and the process continues.
+Writing is similarly straight forward. The problem arises when a program is
+reading from and/or writing to several files. Usually there is only one buffer
+area for the blocks so if, for example, a program wants to read a 128 byte
+record from one file and then write a 128 byte record to another, the original
+1024 byte block read into the buffer by the initial read will be destroyed by
+the write operation and will have to be reloaded when the second record is
+required to be read. In the worst situation each record read will require a disk
+operation as opposed to one every 1024/128 = 8 record reads and each write will
+require both a read and a write operation. Similar considerations will apply
+when one is randomly accessing files - that is reading or writing records in an
+order that is not sequential. The resulting disk operations are likely to be
+very slow and subject the disk drive and floppy disks to unnecessary wear.
+
+The obvious solution is to use several buffers so each file being read or
+written can have its own buffer. This is what CP/M 3 does, with the buffers
+being stored in the extra memory banks so that they don't reduce the space
+available to programs. To see what difference this makes in practice, I carried
+out a series of time trials with CP/M 2, the unbanked version of CP/M 3 with
+only one buffer block and the banked version with a large number of blocks
+available. The results are given in table 1. The first example was with ratfor,
+a program which reads a file containing a program written in ratfor ("rational
+fortran") and translates it to regular fortran. Thus one file is read and
+another is written. The program makes little attempt to block the input and
+output. The second example is a regular fortran compile with one file being read
+and two written. In this case the material does tend to be read and written in
+chunks so less rereading and rewriting of the buffers might be expected than in
+the ratfor example. Minor differences in the timings are probably not
+significant since the timings depend to an extent on the way the files are
+placed on the disk and this varies from run to run.
+
+Since no blocking is required for the disk using 128 byte blocks (a standard
+single density disk), CP/M 3 does not use its blocking-deblocking code and the
+timings for the two versions of CP/M 3 are the same. For the disk using 1024
+byte records, CP/M 2 and the unbanked (or more accurately the single buffer)
+version of CP/M 3 perform about as well as for the disk with 128 byte records
+for the ratfor example and somewhat better for the fortran compile. However
+gains are made for both examples when the banked version of CP/M 3 is used. In
+fact, for the ratfor example the difference in disk activity was quite dramatic,
+almost continuous disk activity was replaced by just an occasional access when
+the banked version of CP/M 3 was used. The final set of tests was with a virtual
+disk - that is RAM memory being used to simulate a disk. 'Disk' transfer times
+are negligible and all 3 operating systems work equally well. I think the
+increase in speed with CP/M 3 is well worth having but it is not nearly as large
+as some people would have us believe.
+
+A similar system applies to the disk directories. Directory information for each
+file occupies 32 bytes so multiple buffer deblocking is also used for them. One
+can also configure CP/M 3 to use more efficient methods of scanning the
+directories to find a requested file. I can imagine such techniques would be
+important for high capacity hard disk but cannot detect any difference with my 1
+megabyte floppy disks.
+
+Note that CP/M 3 does not use the buffers when it does not have to, for example
+when the disk itself uses 128 byte records or when whole blocks can be loaded
+directly into memory, say when loading a program. CP/M 3 does not appear to make
+a cponsistent effort to minimize disk operations with random access files beyond
+the simple buffering I have just described and so, for normal use, there is no
+sense in allocating vast amounts of memory to the disk buffers.
+
+
+                  Operating         Disk      Timing (seconds)
+                   System
+                                               Ratfor    F80
+
+            CP/M 3  banked   \    128 byte       93       81
+            CP/M 3  unbanked /
+
+            CP/M 2                1K byte        94       67
+
+            CP/M 3  unbanked      1K byte        94       63
+
+            CP/M 3  banked        1K byte        72       51
+
+            CP/M 2           \
+            CP/M 3  unbanked      Semidisk       61       30
+            CP/M 3  banked   /
+
+                     Table 1: Timings for disk operations.
+
+
+                               OTHER IMPROVEMENTS
+                               ----- ------------
+
+We have now covered the best known features of CP/M 3. This section covers the
+numerous minor differences which, when put together, really make the difference.
+
+BDOS commands:
+   The BDOS commands are the commands that the transient program can direct to
+the BDOS part of the operating system. The include the commands for reading and
+writing to and from the current console and the auxiliary device (formerly the
+tape punch/reader), reading and writing to and from files, opening and closing
+files, setting options and finding the state of the system. CP/M 2.2 has 38 of
+these, CP/M 3 has 63. The extra ones are for file manipulation, implementing the
+extra facilities of CP/M 3 and include nice ones such as those for generating an
+FCB (file control block) from a file name and chaining to another program and a
+nasty one for returning CP/M 3's serial number. Apart from functions 7 and 8,
+access IO-byte, and 27, get disk allocation vector, all CP/M 2.2 BDOS functions
+work in CP/M 3.
+
+Maximum disk and file length:
+   These have been increased from 8 megabytes each to 32 and 512 megabytes
+respectively. Since a disk on my system can hold a maximum of just over 1
+megabyte, I haven't tested this.
+
+User numbers:
+   As in CP/M 2 files can be assigned to any of 16 user numbers. User numbers
+are the poor man's version of the subdirectories used on some larger computers.
+Suppose, for example, the CP/M command "USER 9" has been entered. Then any file
+generated will be tagged as belonging to user 9 and under CP/M 2 only files so
+tagged will be accessible and these will be the only files whose names will be
+listed by a call to DIR. This provides a convenient way for several users (ie
+people) to use one disk without running into conflict over file names or losing
+their files amongst those of the other users in a directory listing. Similarly,
+it is also useful for separating the files of several different projects for a
+single user. Naturally users of floppy disks will tend to have a disk for each
+project or user so user numbers are not very important but for hard disk users I
+imagine that user numbers are essential.
+
+The problem in CP/M 2 was that programs would normally access only files tagged
+with the currently assigned user number so that, in particular, the standard
+utilities such as PIP, STAT, ED etc had to be stored separately under each user
+number being used with a consequent waste of space. Worse still, to get them
+there one would normally user the 'copy from another user area' option of PIP.
+But one first had to get PIP to that user area from the default user number,
+user 0. To do this one first loaded PIP with the debugging program DDT, exited,
+entered the USER command to get to the desired user area, and then used SAVE to
+save PIP in the appropriate user area. SAVE, however, wants to know the length
+of the file to be saved. In fact, DDT has printed this out - in hex. But SAVE
+wants to know it in a decimal number of 256 byte blocks. Its easy to work out,
+but the whole procedure is awkward and not for the non-computer person.
+
+In CP/M 3, if the system can't find a file in the current user area it will look
+under the system files under user 0 (files can be tagged 'system' and will not
+show up under a normal directory listing, but they are still there and can be
+accessed and manipulated), so the duplication of utility routines and adhoc
+methods of initially copying PIP are avoided. In addition if the current user
+number is not equal to zero, it is printed out with the system prompt, so one is
+reminded what user number one is working under. 
+
+Command line editing (banked version only):
+   A line being entered can be edited without having to delete back to the
+character to be edited. In addition, the last line entered can be recovered,
+edited and entered again, so that a line rejected by a program because of syntax
+errors need not be retyped. A grumble about this facility is that the editing
+keys have been fixed by Digital Research and may not agree with the
+corresponding keys used by one favourite editor. Also, one's display unit must
+backspace without deleting on receiving control-H.
+
+One now has the option to make the delete key backspace and delete rather than
+echo as it does with CP/M 2. Another command line facility enables one to enter
+several commands on one line.
+
+Disk change:
+   CP/M 3 attempts to detect a floppy disk change so that it is not absolutely
+necessary to do a control-C when changing a disk. If the floppy disk drive sets
+a flag when the drive door is open then a disk change will always be detected.
+Otherwise, the directory is sumchecked every time a new program is begun and the
+sumcheck compared with the previous time this was done. In this situation a disk
+change will not always be detected and it is probably advisable to enter a
+control-C, particularly if the next program involves disk writes.
+
+Temporary disk:
+   Several programs such as editors, SUBMIT described in the next paragraph,
+want to generate temporary files to be deleted when they finish executing. The
+current default disk is often not the appropriate disk for these files. CP/M 3
+allows one to designate a particular drive as the default drive for these files.
+
+Submit:
+   SUBMIT is another CP/M 2 command that appears in CP/M 3 in a much cleaner
+form. XSUB is now automatically included in submit (did you ever figure out the
+rules governing XSUB?). Suppose you frequently wish to enter the same set of
+commands or a single rather complex command, possibly with some unknown
+parameters. Then you make a file containing these commands with $1, $2, ...
+replacing the items you might wish to vary from run to run. Now you can SUBMIT
+this file, if necessary specifying the unknown the variable parameters, and they
+will be executed without further intervention. Data to be read by the programs
+from the terminal or alternatively from the submit file if each such line is
+preceded by the symbol <.
+
+At power-up the the system will look for a file PROFILE.SUB and submit this
+file, if present. This provides a simple way for setting the directory search
+order (see below) or displaying a logo when the machine is turned on.
+
+Submit files can, themselves, include submit statements, but each level eats up
+a little more memory - see the section on RSX's below. As in CP/M 2 SUBMIT
+writes a file to disk containing the submit commands. However, this disk, is the
+temporary disk, I have just described, and if this is a virtual disk much of the
+grinding of the disk drive associated with SUBMIT in CP/M 2 can be avoided.
+Programs can now return a 'return code' which can be used to indicate whether a
+program performed correctly. SUBMIT files can now contain conditional lines
+which are executed only if the preceding program returned a successful code.
+
+However the extra features of SUBMIT tend to make one think "wouldn't it be nice
+if it also did this" and I wouldn't be surprised if improved versions appeared.
+
+Directory search:
+   Often the files one is working on will be on the drive designated as the
+default drive. However the utilities and compilers will be on another drive.
+CP/M 3 allows one to specify a list of up to four drives through which the CCP
+will search for a program to be executed. Note that this will not work for the
+(data) files which the program is to access. These must be on the default drive
+or have their drive names specified.
+
+In CP/M 2, to call a program, one simply enters the name of the program with the
+standard suffix, .COM, omitted. In contrast, one can configure CP/M 3 so that if
+a command is entered, the CCP attaches the suffix .SUB and attempts to find and
+submit the resulting file and failing this will try the suffix .COM and attempt
+to find and execute the resulting file. Since many of my programs are driven
+from files to be submitted, this is how I have CP/M configured on my machine.
+Alternatively, one can give .COM files precedence, or one can follow the same
+protocol as CP/M 2.
+
+Disk errors:
+   In CP/M 2 if a disk read error is detected a cryptic error message is
+returned and the program exits with the loss of any data in core. This can be
+the source of many tears if one is in, for example, a word processing program
+and is just saving one's latest best-seller after many hours of work. Of course,
+one should regularly save a manuscript, so minimizing the possibility of losing
+a large amount of work through a system failure (or power cut). In CP/M 3 the
+error message depends on the author of the BIOS. However CP/M 3 gives the
+opportunity for a program to maintain control after a disk error and so a 'soft
+landing' can be programmed.
+
+IO device assignment:
+   Like CP/M 2, there are five 'logical' devices, the console keyboard, the
+console display, the printer, the tape reader - now called the auxiliary input
+device, the tape punch - now called the auxiliary output device. However these
+can be assigned to a maximum of 16 physical devices defined in the BIOS. Five
+pairs of locations in the System Control Block (see below) replace the IO byte
+of CP/M 2 for determining the current assignments. Each logical device can be
+defined to more than one physical device, if output is to be sent to several
+devices or input is to be collected from more than one device.
+
+PUT and GET:
+   One sometimes wishes to gather up the output from a program and store it in a
+file: for example one might be testing a program, or one might want sample
+outputs for documentation. This can be done by using the command PUT before
+running the program. Similarly program input normally entered via the keyboard
+can be picked up from a file using GET which is essentially a cut down version
+of SUBMIT. By using a PUT command followed by a GET command one can feed the
+output of one program into another simulating the pipes that UNIX addicts are so
+fond of.
+
+PIP and archive:
+   PIP is essentially the same as in CP/M 2. However there is an additional
+option - the archive option. Files of a disk can be flagged as 'archived'. With
+the archive option set PIP will copy only files which are not flagged as
+archived and then flag these files also as archived. This provides a very
+convenient way of backing up new or modified files on a disk without having to
+copy the entire disk after each session.
+
+Date, password and disk label:
+   Files can be 'time stamped' with their creation dates and either their last
+access date or last update date. To use this facility the disk directory must be
+reorganized with each fourth directory entry containing the data for the
+preceding three files. Thus the maximum number of directory entries will be
+reduced by a quarter. I haven't tested this facility as my computer does not
+have a clock. One can also label a disk. This uses another directory entry
+location.
+
+CP/M 3 also provides a facility for password protecting files against either
+unauthorized reading, writing or deleting. It's only limited protection as one
+could easily write a program to override it. It's my impression that security
+devices like this cause more trouble than they are worth. However, if you don't
+have an Official Information Act in your household you might want the limited
+amount of protection provided.
+
+Help file:
+   CP/M 3 comes with a 62 kilobyte help file describing all the commands
+associated with CP/M and its standard utilities. It is organized with main
+headings, sub-topics, sub-sub-topics etc and comes with a little .COM file for
+accessing it. The help file can readily be edited or added to so you can add
+explanations of your own programs. It actually works pretty well, however again
+one keeps feeling 'wouldn't it be nice if they also included this facility'. The
+62K length would pose problems for people with low capacity disks.
+
+DIR, ERA, REN, TYPE:
+   The directory, erase, rename, type operations, DIR, ERA, REN, TYPE which were
+carried out by the CCP in CP/M 2 are now carried out by the CCP when in their
+most elementary form; if called with options they call separate programs stored
+on files DIR.COM, ERASE.COM, RENAME.COM and TYPE.COM. The options allow one to
+request a sorted directory with each file size and flags displayed, or request
+confirmation before erasing a file. RENAME does not have options, however, it
+prompts for the new and old name if these are not specified in the call and if a
+file with the new name already exists requests permission to delete it. An
+additional command DIRSYS is used for listing the names of system files.
+
+System control block (SCB):
+   Numerous pieces of information about the current state of the operating
+system is included in a 100 byte block known as the system control block. This
+includes the number of console rows and columns, the directory search order, the
+input/output redirection data, the time and date, the current column position.
+There is a BDOS command for accessing and, in some cases, altering the SCB. 
+
+Resident system extensions (RSX's):
+   Frequently one would like to squeeze a some translation between ones program
+and the BDOS or perhaps add extra BDOS commands. For example, I have an
+inexpensive imitation of Visi-calc. This program is unable provide the correct
+cursor positioning commands required by my display. The simplest solution is to
+trap the console output commands and translate them to a form suitable for my
+display. CP/M 3 contains the necessary facility for doing this. An RSX is a
+small chunk of code which is attached to a .COM file and which automatically is
+attached to the bottom of CP/M when the .COM file is loaded. It intercepts the
+appropriate BDOS commands and passes the others on to the BDOS unmodified. It
+may be programmed to vanish when the program ends or stay until it is commanded
+to detach itself.
+
+SUBMIT, GET, PUT and also SAVE (which must be entered before the program to be
+saved is run) are examples of RSX's.
+
+Another obvious application, is to intercept the command that returns CP/M's
+serial number so you can run your friend's software despite a manufacturer's
+attempt to prevent sharing software - but you wouldn't do that, would you?
+
+
+                                 THE UTILITIES
+                                 --- ---------
+
+As well as the utilities I have already described, CP/M 3 comes with the
+utilities ED, MAC, RMAC, LINK, SID, LIB. In one sense it is quite a bargain, the
+prices of these utilities, if bought separately add up to about the same as the
+cost of CP/M 3. However, in fact, they don't add very much to the software I
+already own, and beyond what was required for generating the BIOS won't get much
+use from me.
+
+ED
+   This is an augmented version of Digital Research's well-known editor. I have
+never used it or its predecessor and while I imagine it would have its uses if I
+ever came to grips with it, it seems very old fashioned compared with the screen
+editor I now use.
+
+MAC and RMAC
+   MAC is an assembler (i.e. it compiles assembly language programs), very much
+more powerful than ASM which comes with CP/M 2, with extensive macro facilities.
+RMAC is a similar assembler which produces relocatable code to be linked into
+executable files by LINK or Microsoft's L80. RMAC's macro facilities are
+required for assembling some of the routines for the BIOS. However it accepts
+only Intel's mnemonics for the machine instructions plus some imitation ones for
+the Z80 codes. I consider Intel's mnemonics almost impossible to use and so
+prefer to use Microsoft's macro assembler, M80, which accepts the much more
+understandable Zilog mnemonics.
+
+LINK
+   This is linking program used to link the output from RMAC, Digital's PL1
+compiler, and also output from Microsoft's M80 and F80 into executable code. It
+has a number of options which enable it to produce overlayable code or code that
+is relocateable at run time. It is required for linking the BIOS for CP/M 3 or
+for building RSX's. To use the overlay capability one needs either DR's PL1
+compiler to get the runtime overlay routines or one will need to do some
+detective work in order to write one's own. Unfortunately its run time is almost
+twice as long as for Microsoft's L80 so I won't be using it for linking standard
+programs.
+
+LIB
+   This is a program for building and combining libraries of relocatable files
+of the type produced by RMAC. I haven't used it yet and cannot say how it
+compares with the equivalent Microsoft product.
+
+SID
+   This is a very much augmented version of DDT (which comes with CP/M 2) and is
+used for debugging assembly language programs. I used it a little when bringing
+up CP/M 3. It, too, uses Intel mnemonics and it can be fouled up by Z80
+instructions. I won't use it much as I don't do much assembly language
+programming.
+
+
+                           COMPATIBILITY WITH CP/M 2
+                           ------------- ---- ---- -
+
+Of course, CP/M 3 must be able to run most programs written for CP/M 2 if it is
+going to have any acceptance.
+
+Programs are supposed to communicate only via the BDOS commands - see figure 1.
+However, some do access the BIOS commands or other parts of CP/M or even access
+the peripherals directly. The BDOS commands of CP/M 3 are extensions of those of
+CP/M 2 and so, as a general rule, we would expect programs that obey the rules
+to work correctly under CP/M 3. One exception is programs that access the disk
+allocation vector (which shows which disk blocks are allocated and can be used
+for seeing how much disk space is free). This vector, which is located using
+BDOS function 27 is not accessible under the banked version of CP/M 3 and so any
+programs that need it will have to be rewritten. A new BDOS function is
+available for finding the free disk space. I don't know whether this function is
+used much in commercial programs but as a last resort one could write an RSX to
+intercept BDOS function 27 and return the address of a simulated disk allocation
+vector with the correct free space.
+
+Programs which access BIOS functions may or may not work. The disk functions
+have been modified and in any case they would be unlikely to work under the
+banked version of CP/M 3 since they expect to be called from the first memory
+bank. However the character I/O commands should still work. CP/M 3 includes a
+special BDOS function for accessing the BIOS functions and presumably this gets
+the banking right. Accessing other parts of CP/M, will work only if those parts
+are in common memory in the banked version and can still be located correctly.
+
+Accessing peripherals directly via IN and OUT instructions should cause no
+problems. However, other methods of accessing peripherals may cause problems. My
+system has a memory mapped disk controller - ie, it is accessed by reading and
+writing to and from memory locations rather than by using IN and OUT
+instructions. The section of memory used is allocated to the first bank and so
+direct access to this is not possible under the banked version. Thus, in
+particular, my disk formating program which wants to access these locations will
+not run under the banked version and it is necessary for me to maintain an
+unbanked version to run this program.
+
+Some control characters seem to be handled slightly differently. In particular,
+while ^s is used for stopping output as in CP/M 2, a ^q is now required to
+restart it, rather than any character apart from ^c. Control characters ^p, ^q,
+^s, are intercepted by BDOS function 6 unless it is specially instructed not to
+and this causes a minor problem for one of my programs, a problem which I could
+overcome by writing a suitable RSX.
+
+The IO-byte used for redirecting output is now replaced by a more sophisticated
+control mechanism and BDOS functions 7 and 8 now have a different use; this
+might affect a few programs. The functions of the utility STAT which accessed
+the IO-byte have now been taken over by a series of utilities, DIR, SHOW, SET
+but I don't think this will upset many users.
+
+One possible area for problems is with systems that use interrupts. An interrupt
+is a mechanism whereby the hardware can gain temporary control of the processor,
+perhaps to pick up input from the keyboard or modem or to send another block of
+text to the printer. I do not know whether interrupts are disabled when a memory
+bank other than the one holding the program is being used, but if not there will
+be trouble.
+
+
+                          ADAPTING CP/M TO YOUR SYSTEM
+                          -------- ---- -- ---- ------
+
+The first problem is getting a copy of the raw version of CP/M 3. Digital
+Research appears to consider it too complicated for the hobbyist to convert it
+for his/her own system. In fact it isn't, although it is not a project to be
+undertaken lightly. I doubt whether Digital Research would offer any advice or
+support for any amateur attempting to this. It is not widely advertized but is
+available from a limited number of sources.
+
+CP/M 3 comes with reasonably detailed instructions. One needs to generate the
+BIOS (see figure 1), a cut down BIOS for the cold-boot loader and a program to
+load the cold-boot loader onto the system tracks of a floppy disk. One should
+start by building a minimal unbanked system and then slowly build it up till one
+gets the system one wants. Because the BDOS does the disk deblocking, rather
+than the BIOS, it is possibly a little easier than building an equivalent system
+for CP/M 2. The instructions for doing the full BIOS were reasonably good but I
+seemed to need to do a bit of detective work to build the cut-down BIOS for the
+cold-boot loader. The BIOS including the interface for the Semidisk involved
+about 1500 lines of code (a few hundred would have been copied from other
+sources), the cold-boot BIOS involved 270 lines and the program to set up the
+system tracks 350 lines.
+
+A program GENCPM is supplied for putting everything together and the process is
+much more logical and less mysterious than for CP/M 2. In particular, it seems
+very reasonable for an amateur who can program in assembly language to modify an
+existing CP/M 3 BIOS to accommodate any special requirements or new pieces of
+hardware.
+
+
+                                 FINAL COMMENTS
+                                 ----- --------
+
+I hope I have indicated some enthusiasm for this new version of CP/M. It is true
+that many of its features such as help files, the improved directory searching,
+program chaining can be implemented under CP/M 2. In addition, there still some
+rough edges, perhaps brought about by the realisation that it is better to have
+the present version now, rather than the perfect version long after the 8 bit
+chips are dead and buried. However, within the limitations of being compatible
+with CP/M 2 and the need to release it sooner rather than later, I think it
+represents a substantial improvement over CP/M 2, bringing together a large
+number of new features in a unified manner, which together add up to quite a
+lot.
+
+I think there is the opportunity for a manufacturer to put his/her own mark on
+the system without making it incompatible with standard CP/M 3. An obvious
+example would be the addition of a visual CCP, perhaps with icons or pictures
+for program selection. However, I don't expect many CP/M 3 only programs to
+appear on the market.
+
+CP/M 3 is not really a new system and the casual user would probably not notice
+any difference except perhaps that the familiar CP/M prompt appears immediately
+after a program terminates and possibly that some programs that use a lot of
+disk accesses run a little faster. With further use, however, he/she would find
+that things go wrong less often. After reading the documentation or using the
+HELP file he/she would begin using the line editing facilities and perhaps PUT,
+GET and the improved facilities of SUBMIT and begin to appreciate the host of
+minor additions. At this point the user might think about reorganizing the way
+disks are used, particularly if the system has a hard disk. This would involve
+the use of user numbers, time stamping files, and systematically backing up the
+working disks using the archive option. A programmer would appreciate some of
+the extra BDOS commands, the more logical structure and the extra memory.
+
+Should you get CP/M 3? If you are given the choice, I think the answer is yes.
+If you are getting a hard disk system, this is a very strong yes (except that
+perhaps you shouldn't be buying an 8 bit system), otherwise it really depends on
+how much you can afford and the size of your system.
+t impossible to use and

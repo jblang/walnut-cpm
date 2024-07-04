@@ -1,0 +1,166 @@
+
+; B5EP-1.INS - BYE5 insert for Epson QX-10 computers - 07/17/85
+;
+;		   Z80 SIO and Intel 8253 timer
+;
+;	    Note:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written for use with BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+PORT	EQU	11H		; Data port
+MDCTL1	EQU	PORT+2		; Status/Control port
+TMR0	EQU	06H		; 8253 baudrate generator port
+TMR1	EQU	TMR0+1		; Vector port
+;
+;
+; Now comes the time to decide how we set the baud rate.  Set it prop-
+; erly for your particular 8253 timer configuration
+;
+BDVECT	EQU	0B6H		; QX-10 Vector word
+;
+BD300	EQU	416		; 300 baud
+BD1200	EQU	104		; 1200 bps
+BD2400	EQU	52		; 2400 bps
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	08H		; Check for data carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,44H		; 1 stop, 8 bits, no parity, 32x
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear RTS causing hangup
+	OUT	MDCTL1
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 seconds delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; Initialize receive register
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; Turn on RTS so modem can answer phone
+	OUT	MDCTL1
+;
+	 IF	IMODEM		; If using intelligent modem
+	CALL	IMINIT		; Go initialize
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	01H		; Check the receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character.
+;
+MDOUTST:IN	MDCTL1
+	ANI	04H		; Check the transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear DTR
+	OUT	MDCTL1		; Causing Hang-Up
+	IN	PORT		; Clear out garbage
+	IN	PORT		; Make sure we're clear
+	RET			; Not used
+;.....
+;
+;
+; The following reoutine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	PUSH	H
+	LXI	H,BD300
+	JMP	SETBAUD
+;
+SET1200:PUSH	H
+	LXI	H,BD1200
+	JMP	SETBAUD
+;
+SET2400:PUSH	H
+	LXI	H,BD2400
+;
+SETBAUD:MVI	A,BDVECT	; Get vector address
+	OUT	TMR1		; Send to TMR
+	MOV	A,L
+	OUT	TMR0
+	MOV	A,H
+	OUT	TMR0		; Send rate
+	POP	H
+	XRA	A		; Say rate is OK
+	RET
+;.....
+;
+;			       end
+;----------------------------------------------------------------------
+

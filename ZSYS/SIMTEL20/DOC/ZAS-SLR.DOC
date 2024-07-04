@@ -1,0 +1,129 @@
+ 5-Sep-86 21:34:50-MDT,7571;000000000001
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Fri 5 Sep 86 21:34:17-MDT
+Received: from simtel20.arpa by AMSAA.ARPA id a000796; 5 Sep 86 22:40 EDT
+Date: Fri, 5 Sep 1986  19:55 MDT
+Message-ID: <KPETERSEN.12236640754.BABYL@SIMTEL20.ARPA>
+Sender: KPETERSEN@SIMTEL20.ARPA
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+To:   Info-Cpm@AMSAA.ARPA
+Subject: Assembling SYSLIB with ZAS and Z80ASM (SLR)
+Reply-To: SAGE@LL.ARPA
+
+Relayed from my RCP/M...I've had complaints from users about not being
+able to assemble the new SYSLIB, Z3LIB and VLIB wihout purchasing the
+ZAS assembler.  It used to be possible to use M80/L80.  This file
+tells about one alternative.
+
+--Keith
+
+--cut here--ZAS-SLR.DOC--cut here--
+                ASSEMBLING SYSLIB WITH ZAS AND Z80ASM (SLR)
+
+                                  Jay Sage
+                             September 4, 1986
+
+
+     I was moved to write these comments after reading Richard Conn's
+article on the libraries (SYSLIB, Z3LIB, and VLIB) in Micro/Systems Journal. 
+In that article he states that ZAS is the only assembler that is capable of
+assembling the new version 3.6 release of SYSLIB.  This statement seemed
+both odd and self-serving, odd because ZAS is always promoted as being
+compatible with other standard assemblers and self-serving because Conn is
+now an employee of Echelon, which distributes ZAS.  I began to do a little
+investigating.
+
+     Please understand that I am generally a strong supporter of Echelon,
+the company marketing the Z-System and its support programs.  They are, I
+believe, the last hope for 8-bit CP/M-type computers, and we should support
+them by buying their products and encouraging our friends to do the same. 
+However, ZAS has been a sticking point for me.  I formed a less than
+enthusiastic opinion of ZAS at the beginning and tried to help the author
+make an honest Z-System program out of it.  Unfortunately, its subsequent
+development has done nothing to change my original opinion (more on that
+below).  Once the superbly written, high performance assembly-language tools
+from SLR Systems became available at a comparable (slightly higher) price, I
+saw no reason to settle for the mediocrity of ZAS.  If Conn had said in the
+article that the SYSLIB source was written to be assembled using ZAS and
+might require slight modifications for other assemblers, I would not be
+writing this comment.
+
+     I found it hard to believe that Z80ASM would have any significant
+problem assembling SYSLIB, so I gave it a try.  The complete assembly of 189
+source modules to Microsoft-format REL files took only 11 minutes and 25
+seconds on my Ampro floppy-based system, an average of 3.6 seconds per
+module (considering the tremendous disk thrashing required to read 189
+source files and write 189 REL files, things would have been much faster
+with a hard disk).
+
+     It turned out that very strictly speaking Conn was right.  There were
+five files, the ones dealing with library management (SLUDIR, SLUOPEN,
+SLUCLOSE, SLUREAD, and SLUINIT), that produced error messages.  The reason
+was their use of ZAS's idiosyncratic ".IN" insert pseudo-op.  If one spends
+a moment with a text editor and changes the five instances of ".IN" to
+".INCLUDE", then Z80ASM works beautifully.  Knowing Steve Russell of SLR, I
+would not be surprised if the next version of Z80ASM recognizes the ".IN"
+pseudo-op.  It already tolerates ZAS's peculiar requirement of square
+brackets where other assemblers use normal parentheses.  Changing ".IN" to
+"MACLIB" and putting in the ".Z80" directives might even make M80 work (I
+did not try that).  If anyone reading Conn's comment thought that he should
+buy ZAS just to be able to work with the SYSLIB source code, he was
+seriously misled.  I am sure that almost any assembler using Zilog mnemonics
+can be made to work with very little effort.  Since the code appears to use
+no Zilog-only instructions, one could probably even convert the source back
+to the Intel mnemonics in which Conn wrote the original routines and use an
+Intel assembler.
+
+     Having gone through the assembly process with Z80ASM, I was now curious
+to see how ZAS would perform.  I got out a copy of ZAS version 2.3.  Since
+ZAS does not support internal script files and multiple assemblies as Z80ASM
+does, I prepared a ZEX script file to perform the task.  At first I wrote
+the script to invoke ZAS for each module.  Then it occurred to me that it
+was unfair to force ZAS to reload for each module when Z80ASM only had to
+load once.  So I decided to use the ZCPR "GO" command for all but the first
+module.
+
+    For some reason I decided first to make sure that ZAS could be rerun
+using "GO", as Z-System programs generally should.  I tried it manually on a
+pair of files with the command line "ZAS FILE1;GO FILE2".  It seemed to work
+fine.  I ended up with two appropriately named REL files, but something
+about the ZAS output message made me suspicious -- both files were reported
+as having the same number of lines, symbols, etc.  Sure enough -- ZAS messed
+up.  It gave the appearance of working but in fact did not, the worst kind
+of failure.
+
+     I don't know exactly what ZAS is doing, since the second output REL
+file did not correspond to either the second or the first source file.  One
+thing is for sure.  The author of ZAS still does not fully understand the
+principles of Z-System programming.  [My first disillusionment with ZAS came
+when I tried for many months to get the author to make it support the ZCPR3
+program error flag (I even sent the code to do it).  Steve Russell grasped
+the principle immediately and implemented it quickly and correctly; he even
+made the logical extensions of the concept to CP/M3 (set CP/M3 error flag)
+and CP/M2.2 (kill $$$.SUB submit file).]  ZAS apparently relies on the
+initial loading of ZAS.COM from disk to initialize some data space. 
+Programs that are to work under the "GO" command must, obviously, perform
+all required initializations in code.  Otherwise the buffers, flags, and
+file control blocks will not necessarily be in their initialized state when
+the program is rerun using "GO".
+
+     With a ZEX script that reloaded ZAS for each assembly (I had no
+choice), ZAS took 43 minutes and 30 seconds to assemble SYSLIB, nearly four
+times as long as Z80ASM.  Carrying out the five source changes to make
+SYSLIB compatible with other assemblers, including Z80ASM, would take much
+less than the 22-minute time difference.
+
+     One final note on the SYSLIB code itself.  There are some unfortunate
+inconsistencies in the code due to reliance on the truncated external
+references of the Microsoft REL format.  The SLR assemblers can optionally
+generate special SLR-format REL files (only the SLR linker can process
+these) that, among other advantages, support 16-character external names. 
+When assembling SYSLIB to SLR-format REL files, however, one discovers that
+the external and internal names of some routines in SYSLIB are not
+consistent.  The module S0FILEIO.Z80 makes reference to the externals
+"FI$CLOSE" and "FO$CLOSE".  However, the module SFILEIO, which defines these
+references, specifies the public names as "FI$CLOS" and "FO$CLOS".  With
+Microsoft truncation of externals to 6 or 7 characters (I don't know which
+ZAS does), these are equivalent.  In making the SLR versions of the
+libraries (SYSSLR.REL, Z3SLR.REL, and VSLR.REL), I had to correct these
+inconsistencies.

@@ -1,0 +1,571 @@
+; MXC-ZS10.Z80
+;
+;	MEX-Plus Clock Overlay for ZSDOS
+;
+; A hardware independent clock module, obtaining the time and date
+; from ZSDOS.
+;
+; This module passes the current ZSDOS time and date to MEX for
+; display.  It also implements the CSET command to set the ZSDOS
+; clock.  There are two separate commands:
+;
+;	CSET DATE {mm}/{dd}/{yy}
+;
+; and
+;
+;	CSET TIME {hh}:{mm}:{ss}
+;
+; Entering all elements of a date or time specification is not
+; necessary.  Missing elements will be filled in from the current
+; setting of the clock.  In other words, if you just want to change
+; the hour--perhaps to daylight saving time--enter:
+;	CSET TIME hh
+; To adjust the minutes, use:
+;	CSET TIME :mm
+; Or to tweek the seconds:
+;	CSET TIME ::ss
+; The date parameter works the same way.  As the examples indicate,
+; leading delimiters are required, but trailing delimiters are not.
+;
+; If desired, date entry can be configured to use European format:
+;	CSET DATE dd.mm.yy
+; See the EURDAT equate below.
+;
+; If ZSDOS returns no date and time, this clock module returns
+; 12:00 a.m., January 1, 1978.  Relative time is not supported.
+;
+; Please report any bugs.
+;	Gene Pizzetta
+;	481 Revere St.
+;	Revere, MA 02151
+;
+;	Voice:  (617) 284-0891
+;	Newton Centre Z-Node:  (617) 965-7259
+;	Ladera Z-Node Central:  (213) 670-9465
+;
+; Version 1.0 -- June 16, 1991 -- Gene Pizzetta
+;	Based on MXC-DS10 overlay for DateStamper by Jim Lill, ZSLIB
+;	routines by Carson Wilson, and SYSLIB routines by Richard
+;	Conn.
+;
+; System addresses
+;
+Bdos	equ	0005h
+TPA	equ	100h
+;
+; BDOS functions
+;
+ZSGTime	equ	98		; ZSDOS get time function
+ZSSTime	equ	99		; ZSDOS set time function
+;
+; MEX functions
+;
+MEX	equ	0D00h		; MEX function entry
+LOOKUP	equ	247		; table search: see CMDTBL comments for info
+SBLANK	equ	244		; scan input stream to next non-blank
+GNC	equ	241		; get char from input, cy=1 if none
+ILP	equ	240		; inline print
+PRINT	equ	9		; simulated BDOS function 9: print string
+;
+; ASCII
+;
+BELL	equ	07h
+LF	equ	0Ah
+CR	equ	0Dh
+;
+FALSE	equ	0
+TRUE	equ	not FALSE
+;
+; Date format -- Select here either American (mm/dd/yy) or European
+; (dd.mm.yy) date format for entry of date specification to CSET
+; processor.  MEX always displays the date in American format.
+;
+EURDAT	equ	FALSE		; FALSE=American, TRUE=European
+;
+	org	TPA		; we begin
+;
+	db	0C3h		; JP required by load
+;
+; Jump table for clock overlay
+;
+	org	0E00h		; start of clock overlay
+
+Start:	jp	GetTim		; get time
+	jp	GetDat		; get date
+	jp	CstCmd		; cset processor
+	ret			; clock overlay init
+	db	0,0
+	ret			; clock overlay de-init
+	db	0,0
+;
+; GetTim -- gets BCD time into DatTbl and then loads registers with
+; binary equivalents for MEX:
+;	B = hours (0-23)
+;	C = minutes (0-59)
+;	D = seconds (0-59)
+;	E = hundredths of seconds (0-99)
+;
+GetTim:	call	GetZST		; get time from ZSDOS
+	jr	z,GetTm1	; (okay, continue)
+	ld	bc,0		; no time, return midnight
+	ld	de,0
+	ret
+;
+GetTm1:	ld 	a,(hours)	; BCD hours to A
+	call	BcdBin
+	ld	b,a		; binary hours to B
+	ld	a,(minute)	; BCD minutes to A
+	call	BcdBin
+	ld	c,a		; binary minutes to C
+	ld	a,(second)	; BCD seconds to A
+	call	BcdBin
+	ld	d,a		; binary seconds to D
+	ld	e,0		; no 100th's of second
+	ret
+;
+; GetDat -- gets BCD date into DatTbl and then loads registers with
+; binary equivalents for MEX:
+;	BC = year (1978-2077)
+;	D  = month (1=Jan, 2=Feb, etc.)
+;	E  = day (1-31)
+;
+GetDat:	call	GetZST		; get date from ZSDOS
+	jr	z,GetDt1	; (okay, continue)
+	ld	e,1		; no date, return Jan. 1, 1978
+	ld	d,e
+	ld	bc,1978
+	ret
+;
+GetDt1:	ld 	a,(day)		; BCD day to A
+	call	BcdBin
+	ld	e,a		; binary day to E
+	ld	a,(month)	; BCD month to A
+	call	BcdBin
+	ld	d,a		; binary month to D
+	ld	a,(year)	; BCD year (00-99) to A
+	call	BcdBin
+	ld	c,a		; binary year in C
+	ld	b,0
+	ld	hl,1900		; add century
+	cp	78
+	jr	nc,GetDt2
+	ld	hl,2000
+GetDt2:	add	hl,bc
+	ld	c,l		; put year in BC
+	ld	b,h
+	ret
+;
+; CSET Processor for ZSDOS
+;
+CstCmd:	ld	c,SBLANK	; any arguments?
+	call	MEX
+	jr	c,CstErr	; if not, display defaults
+	ld	de,CstTbl
+	ld	c,LOOKUP
+	call	MEX		; parse the argument
+	push	hl		; save any parsed arguments
+	ret	nc		; ..and return to it
+	pop	hl		; not found
+CstErr:	ld	de,CstEms
+	ld	c,PRINT
+	call	MEX
+	ret
+;
+CstEms:	db	BELL,'  CSET syntax error -- "CSET ?" for help',CR,LF,'$'
+;
+CstTbl:	dc	'?'		; help
+	dw	CstHlp
+	dc	'DATE'		; set date
+	dw	CsDate
+	dc	'TIME'		; set time
+	dw	CsTime
+	db	0		; end of table
+;
+; CSET with "?" prints help message
+;
+CstHlp:	call	SILP
+	db	'  CSET Options:',CR,LF
+	db	'    DATE      '
+  IF EURDAT
+	db	'{dd}.{mm}.{yy}'
+  ELSE
+	db	'{mm}/{dd}/{yy}'
+  ENDIF	; EURDAT
+	db	'    (sets ZSDOS date)',CR,LF
+	db	'    TIME      {hh}:{mm}:{ss}    (sets ZSDOS time)',CR,LF
+	db	0
+	ret
+;
+; CsDate -- sets ZSDOS system date
+;
+CsDate:	call	MvDat		; move date to storage
+	jp	c,CstErr	; (none given)
+	call	GetZST		; fill DatTbl
+	jr	nz,ClkErr	; (clock error)
+	call	PrsDat		; parse date and make BCD
+	jp	nz,CstErr	; (invalid date)
+	call	SetZST		; set date
+	jr	nz,ClkErr	; (clock error)
+	call	SILP
+	db	'ZSDOS Date Set',0
+	ret
+;
+; CsTime -- sets ZSDOS system time
+;
+CsTime:	call	MvDat		; move time to storage
+	jp	c,CstErr	; (none given)
+	call	GetZST		; fill DatTbl
+	jr	nz,ClkErr	; (clock error)
+	call	PrsTim		; parse time and make BCD
+	jp	nz,CstErr	; (invalid time)
+	call	SetZST		; set time
+	jr	nz,ClkErr	; (clock error)
+	call	SILP
+	db	'ZSDOS Time Set',0
+	ret
+;
+ClkErr:	call	SILP
+	db	BELL,'ZSDOS clock error',0
+	ret
+;
+; PrsDat -- parses date specification string.  (Modified from ZSLIB's
+; ZSPARSDS module by Carson Wilson.)
+;
+PrsDat:	ld	de,DatTbl	; point to BCD date
+	ld	hl,DatStr-1	; point to command line date
+	push	de
+	ld	b,d
+	ld	c,e
+	inc	bc		; BC --> storage + 1 (month)
+  IF EURDAT
+	inc	bc		; BC --> storage + 2 (day)
+  ENDIF	; EURDAT
+;
+; Test month (or day if EurDat)
+;
+	call	GetNxt		; get next datespec character or abort
+	cp	'.'		; got character, use default month?
+	jr	z,TestDy	; (yes)
+	cp	'/'
+	jr	z,TestDy
+	call	IsDgt		; digit?
+	jp	nz,ErExit	; (no)
+	call	eval16		; must be day spec.  SYSLIB evaluates ASCII
+				; ..hex to binary and points HL to next
+TstMon:	ld	(bc),a		; save value
+	ld	a,(hl)		; get next
+	cp	'.'		; day spec?
+	jr	z,TestDy
+	cp	'/'
+	jp	nz,PsExit	; no, done
+;
+TestDy:
+  IF EURDAT
+	dec	bc		; BC --> storage + 1 (month)
+  ELSE
+	inc	bc		; BC --> storage + 2 (day)
+  ENDIF	; EURDAT
+	call	GetNxt		; get/abort 
+	cp	'.'		; got character, use default day?
+	jr	z,TestYr	; (yes)
+	cp	'/'
+	jr	z,TestYr
+	call	IsDgt		; digit?
+	jp	nz,ErExit	; (no)
+	call	eval16		; evaluate day
+TestD1:	ld	(bc),a		; save value
+	ld	a,(hl)
+	cp	' '
+	jr	z,PsExit
+	cp	'.'		; got year?
+	jr	z,TestYr
+	cp	'/'
+	jr	nz,PsExit	; (no)
+;
+TestYr:	dec	bc		; point to year
+  IF NOT EURDAT
+	dec	bc
+  ENDIF	; NOT EURDAT
+	call	GetNxt		; get/abort
+	cp	' '		; use default year?
+	jr	z,PsExit	; (yes)
+	call	IsDgt		; digit?
+	jr	nz,ErExit	; (no)
+	call	eval16		; evaluate year
+TestY1:	ld	(bc),a		; save value
+	jr	PsExit		; (no, done)
+;
+; PrsTim -- parses time specification string
+;
+PrsTim:	ld	bc,Hours
+	ld	de,DatTbl
+	ld	hl,DatStr-1
+	push	de
+TestHr:	call	GetNxt		; get next command character
+	cp	':'		; use default hour?
+	jr	z,TestMn	; (yes)
+	call	IsDgt		; digit?
+	jr	nz,ErExit	; (no, error)
+	call	eval16		; get hour
+	ld	(bc),a		; save value
+	ld	a,(hl)
+	cp	':'		; got minute?
+	jr	nz,PsExit	; (no, done)
+;
+TestMn:	inc	bc		; point to minute
+	call	GetNxt		; minute or wildcard
+	cp	':'		; use default minute?
+	jr	z,TestSc	; (yes)
+	cp	' '
+	jr	z,PsExit
+	call	IsDgt		; digit?
+	jr	nz,ErExit	; (no)
+	call	eval16		; evaluate minute
+	ld	(bc),a		; save value
+	ld	a,(hl)
+	cp	':'		; got second?
+	jr	nz,PsExit	; (no, done)
+;
+TestSc:	inc	bc		; point to second
+	call	GetNxt		; second
+	cp	' '
+	jr	z,PsExit
+	call	IsDgt		; digit?
+	jr	nz,ErExit	; (no)
+	call	eval16		; evaluate second
+	ld	(bc),a		; save value
+;
+PsExit:	pop	de		; point to stored date
+	ex	de,hl		; check value at HL
+	call	IsBcdd
+	ex	de,hl		; restore DE
+	ret			; return (Z) if date OK.
+;
+ErExit:	pop	de
+	ret
+;
+; GetNxt -- get next date/time spec character for PrsDat and PrsTim
+; On entry HL = address of next datespec position minus 1.  On exit
+; HL incremented by 1 and A = character pointed to by HL.
+;
+GetNxt:	inc	hl		; next input
+	ld	a,(hl)
+	or	a		; done?
+	ret	nz		; (no)
+	pop	de		; yes, remove return address
+	jr	PsExit		; ..and exit parse
+;
+; IsBcdD -- Test BCD date and time at HL for validity.  Returns NZ
+; on error.  (Modified from ZSLIB's ZSISBCDD module by Carson Wilson.)
+;
+IsBcdD:	push	hl
+	ld	a,(hl)		; BCD year
+	call	IsBcd
+	jr	nc,NotBcd
+	inc	hl		; month
+	ld	a,(hl)
+	or	a
+	jr	z,NotBcd
+	cp	13h
+	call	c,IsBcd
+	jr	nc,NotBcd
+	inc	hl		; day
+	ld	a,(hl)
+	or	a
+	jr	z,NotBcd
+	cp	32h
+	call	c,IsBcd
+	jr	nc,NotBcd
+	inc	hl		; hour
+	ld	a,(hl)
+	cp	24h
+	call	c,IsBcd
+	jr	nc,NotBcd
+	inc	hl		; min
+	ld	a,(hl)
+	cp	60h
+	call	c,IsBcd
+	jr	nc,NotBcd
+	inc	hl		; sec
+	ld	a,(hl)
+	cp	60h
+	call	c,IsBcd
+	jr	nc,NotBcd
+	pop	hl
+	xor	a		; return Z no error
+	ret
+
+NotBcd:	ld	a,(hl)		; return NZ for error
+	pop	hl
+	or	0FFh
+	ret
+;
+; IsBcd -- Test if byte in A is BCD.  Carry set (C) if byte is BCD.
+;
+IsBcd:	cp	09Ah		; see if nibbles in 0..9
+	ret	nc		; not BCD if > 99
+	and	00001111b	; test right nibble
+	cp	00Ah
+	ret
+;
+; SetZST -- Set current date and time from DatTbl.  Returns A=0 and
+; zero flag set (Z) if clock set, zero flag reset (NZ) on error.
+; (Modified from ZSLIB's ZSGSTIME module by Carson Wilson.)
+;
+SetZST:	ld	c,ZSSTime
+	jr	GetSet
+;
+; GetZST -- Get current date and time to DatTbl.  Returns A=0 and zero
+; flag set (Z) if buffer filled, zero flag reset (NZ) on error.
+;
+GetZST:	ld	c,ZSGTime
+;
+GetSet:	ld	de,DatTbl	; point DE to buffer
+	call	Bdos
+	dec	a		; ZSDOS returns 1 if okay
+	ret
+;
+; IsDgt -- returns Zero Flag Set if char in A is numeric (0-9).
+; Returns NZ if not.  Char in A is unaffected.  (Modified from
+; SYSLIB 3.6 SISDIGIT module by Richard Conn.)
+;
+IsDgt:	push	bc		; save BC
+	ld	c,a		; save character in C
+	and	7Fh		; mask out MSB
+	cp	'0'		; less than 0?
+	jr	c,NoDgt
+	cp	'9'+1		; less than or equal to 9?
+	jr	nc,NoDgt
+	xor	a		; set flag
+	ld	a,c		; get character
+	pop	bc		; restore BC
+	ret
+;
+NoDgt:	ld	a,0FFh		; set flag
+	or	a
+	ld	a,c		; get character
+	pop	bc		; restore BC
+	ret
+;
+; Eval16 -- Convert the string of ASCII hexadecimal digits pointed to
+; by HL into a binary value; string is converted until invalid digit is
+; encountered.  On return, HL points to error character, DE=value,
+; A=E (low order 8 bits of value).  BC not affected.  (SYSLIB 3.6
+; SEVAL2 module by Richard Conn.)
+;
+Eval16:	push	bc		; save BC
+	ld	de,0		; set DE = 0 initially
+; Get next digit and check for '0' - '9'
+E16L:	ld	a,(hl)		; get byte
+	call	Caps		; capitalize
+	cp	'0'		; check for range
+	jr	c,Done
+	cp	'F'+1		; check for range
+	jr	nc,Done
+	cp	'9'+1		; check for 0-9
+	jr	c,ProDec
+	cp	'A'		; check for out of range
+	jr	c,Done
+ProDec:	sub	'0'		; convert to binary
+	cp	10
+	jr	c,Proc
+	sub	7		; adjust for 'A'-'F'
+; Proceed with processing
+Proc:	push	af		; save value
+; Multiply DE by 16
+Mul16:	push	hl		; save HL
+	ld	hl,0		; Acc=0
+	ld	b,16		; 16 loops
+Mul16L:	add	hl,de		; HL = HL + DE
+	dec	b		; count down
+	jr	nz,Mul16L
+	ld	d,h		; new DE
+	ld	e,l
+	pop	hl		; restore HL
+; Add in A
+	pop	af		; get latest digit
+	add	a,e		; A = A + E
+	ld	e,a
+	ld	a,d		; add to D if necessary
+	adc	0
+; Continue
+	inc	hl		; point to next character
+	jr	E16L
+
+;  Done -- result already in DE; set A = E
+Done:	ld	a,e		; A = E
+	pop	bc		; restore BC
+	ret
+;
+; BcdBin -- packed BCD in A converted to binary in A.
+;
+BcdBin:	push	bc
+	ld	c,a		; move value to C
+	and	0F0h		; mask lower nibble
+	rra			; move upper nibble into lower
+	rra
+	rra
+	rra
+	ld	b,a		; times 1 
+	add	a
+	add	a		; times 4
+	add	b		; times 5 
+	add	a		; times 10
+	ld	b,a		; 10's digit to B
+	ld	a,c		; lower digit to A	
+	and	0Fh
+	add	b		; combine digits
+	pop	bc
+	ret
+;
+; Caps -- Capitalize ASCII Character in A.  (SYSLIB 3.6 SCAPS module
+; by Richard Conn.)
+;
+Caps:	and	7Fh		; mask out MSB
+	cp	61h		; less than lower-case a?
+	ret	c
+	cp	7Ah+1		; between lower-case a and z?
+	ret	nc
+	and	5Fh		; reset bit 5 to capitalize
+	ret
+;
+; MvDat -- moves date or time from command line to storage
+;
+MvDat:	ld	c,SBLANK	; any arguments?
+	call	MEX
+	ret	c		; (if not, error)
+	ld	hl,DatStr	; point to string storage
+	ld	b,8		; eight characters maximum
+	ld	c,GNC
+MvDat1:	push	hl
+	push	bc
+	call	MEX
+	pop	bc
+	pop	hl
+	jr	c,MvDat2
+	ld	(hl),a
+	inc	hl
+	djnz	MvDat1
+MvDat2:	xor	a		; zero A and clear carry
+	ld	(hl),a		; insert a final null
+	ret
+;
+; SILP -- In-line print routine (calls MEX)
+;
+SILP:	ld	c,ILP
+	jp	MEX
+;
+; DatTbl -- BCD time and date storage
+;
+DatTbl:
+Year:	db	0		; 00 - 99
+Month:	db	0		;  1 - 12
+Day:	db	0		;  1 - 31
+Hours:	db	0		; 00 - 23
+Minute:	db	0		; 00 - 59
+Second:	db	0		; 00 - 59
+;
+DatStr:	ds	9		; command line date/time storage
+;
+	end
+

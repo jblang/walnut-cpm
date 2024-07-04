@@ -1,0 +1,55 @@
+
+The SUPRBDOS program as modified by Benjamin Ho has always looked
+interesting to me, but I've never been able to get it to work on
+my system.   I've finally succeeded, and perhaps my experiences
+will be able to help someone else.
+
+
+NOTES:    1.  On the Northstar Advantage, the SYSGEN does not
+    take a file as an argument, so standard Kaypro installation
+    can't be used.  Manual installation is required with some
+    minor modifications.
+2.  On the Northstar Advantage, the  <BdosMemAddr>  is DF00.
+    The SYSGEN image is at 1D00.  The offset thus is 3E00.
+    Most users should be able to find their corresponding
+    addresses using the guide found in SUPRDOS2.LBR.
+
+
+SYMPTOMS of the original installation which didn't work:
+1.  All CCP functions worked fine (DIR, TYPE, ERA, SAVE, USER)
+    including functions that took a file as an argument.
+2.  Any attempt at running a file from disk (STAT, PIP, etc)
+    fell into a black hole.
+
+
+The MODIFICATIONS that finally did the trick:
+1.  Modify the range of bdos that gets filled with zeroes.
+    WAS:   f <BdosFileAddr>  <BdosFileAddr+$0E00>  0
+    IS:    f <BdosFileAddr>  <BdosFileAddr+$0E00-1>  0
+2.  Carefully note the serial number and patch back in after
+    having overlayed the SYSGEN image with DOS.HEX.
+
+
+The final steps in their exact sequence were:
+1.  Create a one line ORG.DAT.  Specifically:  org  0df00h
+2.  Create the file DOS.HEX using Z80MR on DOS.AZM & DOS?.MAC
+3.  A>sysgen
+    SOURCE DRIVE NAME (OR RETURN TO SKIP):       1
+    DESTINATION DRIVE NAME (RETURN TO REBOOT):   <ret>
+4.  A>ddt                    (original DDT only, *not* DDTZ)
+     -f1D00  2AFF  0          (note! 2AFF not 2B00)
+     -iDOS.HEX                (per the original instructions)
+     -r3E00                   (per the original instructions)
+     -s1D00                   (note! repatch the serial # back in)
+        00 01
+        00 02
+        00 03     etc, etc, etc
+     -^C                      (exit DDT)
+5.  A>sysgen
+    SOURCE DRIVE NAME (OR RETURN TO SKIP):       <ret>
+    DESTINATION DRIVE NAME (RETURN TO REBOOT):   1
+
+
+
+Hope this helps.  Russell Gaspari,  Los Angeles,  9/23/87.
+

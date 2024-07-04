@@ -1,0 +1,29 @@
+The following came about because of some possible problems with
+the Z80DNZCM.LBR that I release a little while ago.
+
+THIS PATCH APPLIES TO ALL VDE266 USERS, not just those who have tried
+Z80DNZCM.LBR or the just release .ZRL for Z80DOS2.
+
+Did some digging into VDE266 and found that there is a serious bug in 
+the code that is supposed to handle the BDOS errors, such as File R/O,
+disk R/O, DATA error. The following should take care of it.
+
+With VDE266.COM in memory, change the following locations to the numbers given
+(all in HEX). With a file patcher, the addresses are 100h less in the file
+itself.
+
+29B8 <- CD
+29B9 <- A7
+29BA <- 29
+
+ 3 bytes total. It will allow VDE266 to correctly restore the warm boot 
+vector at 0 in memory. Before it was restoring it with what it 
+originally pointed to! This only happened if the BDOS detected some kind
+of error and exited by doing a jump 0 or a jump to the BIOS warmboot entry.
+
+
+						Gene Nolan
+						C/O DHN* RCPM
+						215-623-4040
+						7/22/88
+

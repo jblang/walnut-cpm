@@ -1,0 +1,298 @@
+        title print program
+
+        .comment *
+
+This program should be loaded as an 'rsx'. Its function is to print a file on
+the standard listing device while, at the same time, the computer can continue
+most normal operations.
+
+The call is
+
+print filename.typ
+
+Console read operations are intercepted and listing continues while the main
+program waits for input.
+
+The program is organized as two coroutines. The first being the code
+intercepting the calls to the bios and the second being the listing program.
+Switching between the coroutines is carried out by the subroutine 'switch'.
+
+                 *
+
+                        ; rsx print program
+        .z80
+
+                        ; standard rsx heading
+serial: db 0,0,0,0,0,0
+        jp ftest        ; entry point
+next:   jp 0            ; jump to next module
+prev:   dw 2            ; previous module
+remove: db 0            ; set to 0ffh to delete this rsx
+nonbnk: db 0            ; no bank flag
+name:   db 'print   '   ; name - 8 bits
+loader: db 0            ; loader flag
+        db 0,0          ; reserved
+
+                        ; macros
+bdce    macro ?c,?e     ; set c and e, then call bdos
+        ld c,?c         ; bdos code
+        ld e,?e         ; argument
+        call bdos
+        endm
+
+bdcde   macro ?c,?de    ; set c and de, then call bdos
+        ld c,?c         ; bdos code
+        ld de,?de       ; argument
+        call bdos
+        endm
+
+ftest:                  ; check if finished
+        ld a,(remove)   ; non-zero if finished
+        and a           ; set flags
+        jr nz,next
+
+	ld a,(first)    ; check for first time through (first is set to 0 when
+	and a           ; set flags \\ other print instructions are complete.
+	jr nz,firstx    ; routine for first time through
+
+        ld a,c          ; bdos code
+        cp 10           ; buffer read
+        jr z,rd
+        cp 1            ; check if read
+        jr z,rd
+        cp 6            ; direct io
+	jr nz,next
+	ld a,e
+	cp 0fdh         ; code for wait for entry
+        jr z,rd
+        jr next
+
+rd:                     ; keep calling pr until console receives input
+        push bc         ; must keep bc,de
+        push de
+rd1:    bdce dcio,0feh  ; to get input status
+        and a           ; set flags
+        jr nz,exit      ; exit if character waiting
+        call switch
+        jr rd1          ; keep running printer if waiting for console entry
+
+firstx: push bc         ; unconditionally call print coroutine and exit
+	push de
+	call switch
+
+exit:   pop de          ; recover registers
+        pop bc
+        jr next
+
+;-------------------------------------------------------------------------------
+
+pr:                     ; print coroutine
+
+                        ; copy file spec
+        ld hl,5ch       ; parsed command string file name
+        ld de,fcb       ; where it will be stored
+        ld bc,33        ; number of bytes to be copied
+        ldir            ; block copy
+        xor a           ; clear a
+        ld hl,fcb
+        ld bc,12
+        add hl,bc
+        ld (hl),a       ; extent
+        ld bc,20
+        add hl,bc
+        ld (hl),a       ; record
+                        ; state drive explicitly
+        ld a,(fcb)      ; get disk
+        and a           ; set flags
+        jr nz,drvsp     ; drive specified
+        ld c,rcd        ; get current drive
+        call bdos
+        inc a           ; for fcb, increment by 1
+        ld (fcb),a      ; store in fcb
+drvsp:
+
+                        ; open file
+        bdcde open,fcb
+        and a           ; set flags
+        jp nz,err3      ; exit if file not opened
+
+                        ; is another file being printed with print?
+        ld hl,(next+1)  ; entry of next routine
+	ld (olddma),hl  ; keep in olddma
+search: ld hl,(olddma)  ; entry of routine
+	ld de,18
+	add hl,de       ; points to loader flag
+	ld a,(hl)       ; get loader flag
+	and a           ; set flags
+	jr nz,s4        ; this is the loader - so print not found
+	ld de,-8
+	add hl,de       ; hl now points to module's name
+	ld de,name      ; de points to 'print   '
+	ld bc,8         ; number of bytes to be compared
+s1:	ld a,(de)       ; get byte from (de)
+	cpi             ; compare with byte from (hl), update hl,bc
+	inc de          ; advance de
+	jr nz,s3        ; not 'print   '
+	jp pe,s1        ; cycle if iterations are to continue
+	ld hl,(olddma)  ; has found another 'print   ' module
+	ld de,8
+	add hl,de       ; points to remove flag
+s2:	ld a,(hl)       ; remove flag = 0 if module active
+	and a           ; set flags
+	jr nz,s4        ; continue with program
+	push hl         ; keep address
+	call switch     ; wait
+	pop hl
+	jr s2           ; check remove flag
+
+s3:	ld hl,(olddma)  ; to get to next module
+	ld de,4         ; offset to next module address
+	add hl,de       ; points to next module address
+	ld e,(hl)       ; get next module address to de
+	inc hl
+	ld d,(hl)
+	ld (olddma),de  ; store it
+	jr search
+
+s4:     xor a           ; clear a
+	ld (first),a    ; clear first time indicator
+
+cycle:                  ; read/print cycle
+                        ; get current dma
+        ld a,03ch       ; offset in scb
+        ld (scbpb),a    ; send it to scb parameter block
+        bdcde gsscb,scbpb
+        ld (olddma),hl  ; keep it
+
+                        ; get current multisector count
+        ld a,04ah       ; offset in scb
+        ld (scbpb),a    ; send it to scb parameter block
+        bdcde gsscb,scbpb
+        ld (oldcnt),a   ; keep it
+
+                        ; get current multisector error mode
+        ld a,04bh       ; offset in scb
+        ld (scbpb),a    ; send it to scb parameter block
+        bdcde gsscb,scbpb
+        ld (oldem),a    ; keep it
+
+        bdcde dma,buff  ; set dma
+        bdce count,1    ; set multisector count = 1
+        bdce errmde,0ffh; set bdos error mode
+
+        bdcde read,fcb  ; read disk
+        push af         ; keep a
+
+                        ; reset dma, multisector count, error mode
+        bdcde dma,(olddma)
+        ld a,(oldcnt)
+        bdce count,e
+        ld a,(oldem)
+        bdce errmde,a
+
+                        ; check read status
+        pop af          ; recover a
+        cp 1            ; check for end of file
+        jr z,finish
+        and a           ; set flags
+        jr nz,err       ; read fails
+
+        ld hl,buff      ; buffer location
+        ld b,128        ; counter
+
+scan:                   ; scan buffer
+        ld a,(hl)       ; get character
+        and 127         ; delete sign bit
+        cp cntrz        ; check for end of file
+        jr z,finish
+        ld c,a          ; character to c
+        push hl         ; keep hl
+        push bc         ; keep bc
+
+poll:   call switch
+        ld de,42        ; list status offset on jump vector
+        call jmpvec     ; call jump vector
+        and a           ; set flags
+        jr z,poll       ; poll if not ready
+
+        pop bc          ; get character in c
+        push bc
+
+        ld de,12        ; list offset on jump vector
+        call jmpvec     ; call jump vector
+        
+        pop bc
+        pop hl
+        inc hl          ; increment buffer address
+        djnz scan       ; increment b and scan
+        jp cycle        ; get next block
+
+jmpvec:                 ; jump vector access; expect offset in de
+        ld hl,(1)       ; jump vector
+        add hl,de       ; points to jump
+        jp (hl)         ; jump to it    
+
+                        ; error message
+mess1:  db cr,lf, '*** disk read error, printing aborted ***'
+ccb1:   dw mess1,43     ; data for print block function
+err:    bdcde lstblk,ccb1
+        jr finish
+
+                        ; end of print, send bell and formfeed
+mess2:  db bell,ff
+ccb2:   dw mess2,2
+finish: bdcde lstblk,ccb2
+
+        ld a,0ffh       ; to show printing finished & clear rsx
+        ld (remove),a
+fc:     call switch     ; main program coroutine
+        jr fc           ; keep cycling till grabbed by console
+
+mess3:  db cr,lf,'file cannot be opened$'
+err3:   bdcde prstr,mess3
+        ld a,0ffh       ; to show printing finished & clear rsx
+        ld (remove),a
+        jp 0            ; return to cpm
+
+switch:                 ; routine to switch between coroutines
+        ld hl,0         ; get stack pointer
+        add hl,sp
+        ld sp,namex
+        ex (sp),hl      ; exchange 'namex' and old sp
+        ld sp,hl        ; update stack pointer
+        ret     
+
+buff:   ds 128          ; disk buffer
+fcb:    ds 33           ; fcb
+        ds 30           ; auxiliary stack
+istack: dw pr           ; entry point for coroutine
+namex:  dw istack       ; points auxiliary stack
+olddma: ds 2            ; old dma, also used in rsx module search
+oldcnt: ds 1            ; old count
+oldem:  ds 1            ; old error mode
+first:  db 0ffh         ; set to 0 when routine starts
+scbpb:  ds 1            ; scb parameter block, first loc = offset
+        db 0            ; to get a byte or word
+
+bell    equ 7           ; bell
+lf      equ 0ah         ; line feed
+ff      equ 0ch         ; form feed
+cr      equ 0dh         ; carriage return
+cntrz   equ 1ah         ; control z
+
+bdos    equ next
+list    equ 5           ; list character
+dcio    equ 6           ; direct console io
+prstr   equ 9           ; print string
+open    equ 15          ; open file
+read    equ 20          ; read sequential
+rcd     equ 25          ; return current drive
+dma     equ 26          ; set dma
+count   equ 44          ; multisector count
+errmde  equ 45          ; set bdos error mode
+gsscb   equ 49          ; get/set scb
+lstblk  equ 112         ; list block
+
+	end
+
+         

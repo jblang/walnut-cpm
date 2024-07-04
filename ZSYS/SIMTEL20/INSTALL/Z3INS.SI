@@ -1,0 +1,748 @@
+
+
+
+
+
+
+
+
+   ***********************************************************
+   *                                                         *
+   *                   INSTALLATION MANUAL                   *
+   *                                                         *
+   *                           for                           *
+   *                                                         *
+   *  ZCPR3 -- Z80 Command Processor Replacement, Version 3  *
+   *                                                         *
+   ***********************************************************
+
+
+                               by
+
+                          Richard Conn
+
+
+
+                       Installation Manual
+                          11 June 1984
+
+
+
+
+
+
+                        ZCPR3 Version 3.0
+
+               Copyright (c) 1984 by Richard Conn
+                       All Rights Reserved
+
+
+
+     Thå   ZCPR³  System¬   includinç  itó  utilitieó   anä   itó 
+documentatioî files¬  ió copyright¬  1984¬  bù Richarä Conn®  Thå 
+appendiø listó alì fileó covereä bù thió copyright.
+
+
+
+     CP/Í ió á registereä trademarë oæ Digitaì Research.
+     WordStar is a registered trademark of Micropro.
+
+.paŠ.pn 1
+.he    ZCPR3 -- An Enhanced Z80-Based Replacement for the CP/M CCP
+.fo Installation Manual                                Page #
+
+
+
+1. O V E R V I E W   o f   Z C P R 3   I N S T A L L A T I O N 
+
+
+
+1.1. Introduction
+
+     Installatioî  oæ  ZCPR³  ió aî  involveä  process¬  anä  thå 
+installeò musô havå á workinç knowledgå oæ thå following:
+
+          1© 808° anä Z8° assemblù languagå programming
+          2) CP/M 2.2
+          3) the CP/M SYSGEN procedure
+
+
+     Therå arå threå partó oæ thå systeí whicè musô bå createä oò 
+initializeä durinç thå installatioî process:
+
+          1©  thå  Operatinç  System“ oò SYSGEÎ  image¬  whicè  ió 
+presenô  oî thå systeí trackó foò mosô computeró anä  includeó  á 
+disë boot¬  thå ZCPR³ Commanä Processor¬ thå CP/Í 2.² BDOS¬ anä á 
+modifieä BIOS
+
+          2©  thå  ZCPR³ Systeí Segments¬  whicè arå  independenô 
+fileó thaô maù bå loadeä froí disë intï thå appropriatå placeó iî 
+memorù bù thå ZCPR³ utilitù nameä LDR.COM
+
+          3© thå variouó ZCPR³ utilities¬ eacè oæ whicè haó tï bå 
+provideä witè thå addresó oæ thå ZCPR³ Environmenô Descriptor
+
+     Thå  ZCPR³ Systeí ió tieä togetheò bù thå ZCPR³  Environmenô 
+Descriptor¬  whicè  ió  á seô oæ bufferó thaô passeó  informatioî 
+betweeî  alì elementó oæ á ZCPR³ System®   Thå ZCPR³  Environmenô 
+Descriptoò  containó  informatioî sucè aó thå  addresseó  oæ  thå 
+Systeí  Segments¬  thå  addresseó  oæ severaì bufferó  whicè  arå 
+significanô tï ZCPR3¬ datá oî whaô ZCPR³ resourceó arå available¬ 
+anä  informatioî  abouô thå physicaì attributeó oæ  somå  oæ  thå 
+input/outpuô  deviceó connecteä tï thå systeí (sucè aó thå numbeò 
+oæ columnó anä lineó oî thå CRÔ screen).
+
+
+1.1.1. Operating System Memory Images
+
+     Thå installeò musô builä á propeò SYSGEÎ Memorù Imagå oæ thå 
+targeô  ZCPR³ Systeí (thå targeô operatinç system“ ió  thå  systeí 
+beinç built¬ aó opposeä tï thå hosô operatinç system“ whicè ió thå 
+systeí useä tï builä thå targeô system)®   Iî buildinç thå targeô 
+system¬  thå ZCPR³ Commanä Processoò musô bå assembleä anä á BIOÓ 
+containinç á modifieä Colä Booô routinå musô bå prepared.
+
+.paŠ1.1.2. System Segments
+
+     Thå  installeò  musô selecô anä assemblå thå  variouó  ZCPR³ 
+Systeí  Segmentó tï bå useä iî conjunctioî witè thå targeô  ZCPR³ 
+System®   Á Systeí Segment“ ió á filå whicè ió loadeä intï á fixeä 
+locatioî  iî memorù bù thå LDR.COÍ ZCPR³  utility®   Eacè  Systeí 
+Segmenô  stayó  memory-residenô  untiì á ne÷  Systeí  Segmenô  ió 
+loadeä  oveò  it®   Dependinç oî thå commandó issued¬  thå  ZCPR³ 
+Commanä  Processoò  oò  á ZCPR³ utilitù maù calì  upoî  á  loadeä 
+Systeí Segmenô tï perforí á functioî oò providå information.
+
+     Alì  Systeí  Segmentó musô bå initializeä bù thå  Colä  Booô 
+routinå   iî  thå  BIOÓ  oæ  thå  targeô  ZCPR³   System®    Thió 
+initializatioî consistó oæ zeroinç ouô thå firsô Î byteó oæ  eacè 
+segment'ó  memorù buffer¬  wherå Î dependó upoî thå segmenô beinç 
+initialized.
+
+     Thå followinç arå thå Systeí Segmentó whicè arå supporteä bù 
+ZCPR3®   Eacè  Systeí  Segmenô haó á distinctivå filå  type¬  anä 
+LDR.COÍ recognizeó thió anä loadó eacè segmenô differently.
+
+Segment File Type        Function of System Segment
+
+     *.ENV               Environment Descriptor, including a TCAP
+     *.Z3T               ZCPR3 TCAP Entry
+
+     *.FCP               Flow Command Package
+
+     *.IOP               Input/Output Package
+
+     *.NDR               Named Directory File
+
+     *.RCP               Resident Command Package
+
+
+
+     Á  package“  aó  referreä  tï abovå ió á  seô  oæ  executablå 
+subroutineó  whicè  ió  divideä intï  twï  partó  -- thå  visiblå 
+section¬  througè whicè aî interfacå tï thå routineó ió provided¬ 
+anä thå hiddeî section¬  whicè containó thå codå oæ thå routines®  
+Beinç  á Systeí Segment¬  á packagå caî bù loadeä dynamicallù anù 
+timå durinç á terminaì sessioî bù runninç thå LDR.COÍ utility.
+
+          1.1.2.1. Flow Command Packages
+
+          Á  Flo÷  Commanä Package“ ió á packagå whicè  implementó 
+thå ZCPR³ flo÷ commands®   Theså commandó arå IF¬  ELSE¬ FÉ (samå 
+aó  ENDIF)¬  anä  XIÆ (exiô alì IFs)¬  anä theiò functioî  ió  tï 
+controì  thå flo÷ oæ commanä executioî bù settinç thå Flo÷  State“ 
+tï TRUÅ oò FALSE®   Iæ thå Flo÷ Statå ió TRUE¬  alì commandó  arå 
+alloweä  tï  execute»  iæ  thå Flo÷ Statå  ió  FALSE¬  onlù  Flo÷ 
+Commandó (IF, ELSE, FI, and XIF© arå alloweä tï run.
+
+.paŠ          Aî  examplå  oæ  á  commanä  sequencå  containinç  flo÷ 
+commands is:
+
+               IF EXIST MYFILE.TXT
+                    TYPE MYFILE.TXT
+               ELSE
+                    ECHO MYFILE.TXT DOES NOT EXIST
+               FI
+
+
+          1.1.2.2. Input/Output Packages
+
+          Aî  Input/Outpuô Package“ ió á packagå whicè containó  á 
+seô oæ input/outpuô drivers®  Thå I/Ï Packagå ió useä bù thå BIOÓ 
+tï  providå  thå low-leveì devicå driveró whicè  supporô  consolå 
+input/output¬  lisô output¬  puncè output¬  anä readeò input®  Aî 
+I/Ï  Packagå caî supporô manù  morå  console¬  list¬  punch¬  anä 
+readeò  deviceó thaî thå standarä CP/Í I/Ï byte¬  anä iô addó thå 
+flexibilitù  oæ  beinç á package¬  whicè caî bå replaceä  witè  á 
+differenô packagå dynamicallù bù runninç thå LDR.COÍ utility.
+
+
+          1.1.2.3. Resident Command Packages
+
+          Á  Residenô Commanä Package“ ió á collectioî oæ  memory-
+residenô  commandó  whicè caî bå useä tï supplemenô thå  commandó 
+residenô  withiî thå ZCPR³ Commanä Processoò itselæ  (thå  ZCPR3-
+Residenô Commands)®  Theså commandó replacå á numbeò oæ COÍ fileó 
+bù onå *.RCĞ file¬  and¬ beinç memory-resident¬ theù arå executeä 
+verù  quicklù withouô anù additionaì disë accesseó takinç  place®  
+Wheî thå useò issueó á command¬  thå currenô RCĞ ió checkeä foò á 
+matcè  oæ thå commanä beforå á disë accesó ió performeä tï searcè 
+foò  á  matchinç COÍ file®   Seå thå sectioî oî  "Commanä  Searcè 
+Hierarchy¢ foò morå details.
+
+
+          1.1.2.4. Environment Descriptor and Z3TCAP
+
+          Thå  ZCPR³ Environmenô Descriptor“ ió á datá filå  whicè 
+containó  informatioî oî severaì attributeó oæ thå ZCPR³  System®  
+Additionally¬  thå  Environmenô Descriptoò containó á ZCPR³  TCAĞ 
+(Terminaì Capabilities)“ entrù whicè describeó variouó  attributeó 
+oæ  thå consolå CRT¬  sucè aó thå sequencå oæ characteró tï causå 
+itó screeî tï cleaò oò tï positioî itó cursor.
+
+
+          1.1.2.5. ZCPR3 Named Directories
+
+          Thå ZCPR³ Nameä Directory“ filå containó datá relatinç á 
+mnemonic¬  sucè aó PASCAÌ oò ROBERT¬ witè á Disë anä Useò Areá (á 
+logicaì directory)®  Undeò ZCPR3¬ Nameä Directorieó anä Disk/Useò 
+(DU© formó caî bå useä tï refeò tï logicaì directories:
+
+               DIR A15:            DIR ROOT:
+.paŠ
+1.1.3. Utilities
+
+     Tï  bå  useä effectivelù aó á parô oæ á  ZCPR³  System¬  alì 
+ZCPR³  utilitieó  musô  bå initializeä tï contaiî  eitheò  (1©  á 
+pointeò tï thå ZCPR³ Environmenô Descriptoò iæ sucè á  descriptoò 
+ió  availablå  aó á Systeí Segmenô oò (2© thå  ZCPR³  Environmenô 
+Descriptoò itself.
+
+     Thå   ZCPR³  utilitù  Z3INS.COÍ  ió  useä  tï  perforí  thió 
+initialization®  Z3INS.COÍ wilì instalì á grouğ oæ utilitieó witè 
+thå  requireä  informatioî  verù quicklù anä  makå  thió  procesó 
+relativelù  painless®   Z3INS.COÍ  itselæ  doeó noô  neeä  tï  bå 
+installed but can be for consistency sake.
+
+     Oæ  alì  thå ZCPR³ utilitieó (oveò 70© whicè  arå  containeä 
+withiî thå ZCPR³ System¬  onlù one¬  ZEX¬  cannoô bå installeä bù 
+Z3INS®  ZEØ haó tï bå assembleä iî ordeò tï bå installed.
+
+
+1.1.4. Other Basic Concepts
+
+     1.1.4.1. Command Search Hierarchy
+
+     Wheneveò  á commanä ió issued¬  thå ZCPR³ Commanä  Processoò 
+performó  á serieó oæ stepó iî determininç ho÷ thå commanä ió  tï 
+bå  performed®   Theså stepó arå calleä thå ZCPR³ Commanä  Searcè 
+Hierarchy.
+
+     Undeò  CP/Í 2.2¬  wheneveò á commanä waó issueä thå  Consolå 
+Command Processor (CCP) would perform these steps:
+
+          1®  Parså thå commanä namå anä checë tï seå iæ iô ió  á 
+residenô  commanä withiî thå CCĞ (likå DIÒ oò ERA)»  iæ resident¬ 
+executå  iô  (allowinç  thå built-iî commanä codå  tï  parså  thå 
+commanä linå thå resô oæ thå way)
+
+          2®  Parså thå resô oæ thå commanä line¬  storå  variouó 
+partó  oæ  thå commanä linå iî variouó buffers¬  anä looë oî  thå 
+currentlù  logged-iî disë (oò somå otheò disë iæ thå commanä  waó 
+oæ  thå  forí "d:command"© foò á  filå  nameä  "command.COM"»  iæ 
+found¬ executå it¬ elså givå erroò message
+
+     The ZCPR3 Command Search Hierarchy is as follows:
+
+          1® Parså thå commanä line¬ storinç variouó partó oæ thå 
+commanä  linå  iî  variouó  bufferó  (similaò  tï  thå  CP/Í  2.² 
+convention)
+
+          2® Iæ thå flo÷ commanä packagå featurå ió enabled¬ pasó 
+thå  commanä  namå tï thå flo÷ commanä package»  iæ  thå  packagå 
+respondó  iî thå affirmative¬  allo÷ thå flo÷ commanä packagå  tï 
+executå thå commanä anä resumå witè thå nexô commanä line
+
+Š          3® Iæ thå flo÷ commanä featurå ió enabled¬ checë tï seå 
+iæ  thå flo÷ statå ió TRUÅ (nï IÆ ió iî effecô oò thå currenô  IÆ 
+ió TRUE)» iæ not¬ skiğ furtheò commanä processinç anä resumå witè 
+the next command line
+
+          4®  Iæ thå residenô commanä packagå featurå ió enabled¬ 
+pasó  thå  commanä namå tï thå residenô commanä package»  iæ  thå 
+packagå respondó iî thå affirmative¬  allo÷ thå residenô  commanä 
+packagå  tï executå thå commanä anä resumå witè thå nexô  commanä 
+line
+
+          5®   Checë tï seå iæ thå commanä ió residenô withiî thå 
+ZCPR³ Commanä Processoò itself» iæ so¬ invokå thå codå tï executå 
+the command and resume with the next command line
+
+          6®  Searcè  alonç  thå Commanä Searcè Patè foò  á  filå 
+named "command.COM"; if found, load it and execute it
+
+          7®  Iæ  thå Extendeä Commanä Processoò (ECP© featurå ió 
+enabled, locate the ECP; if found, load it and execute it
+
+          8®  Iæ ZCPR³ Messageó arå enabled¬  checë tï seå iæ  aî 
+Error Handler is installed; if so, load it and execute it
+
+          9. Print a "command not found" error message
+
+     1.1.4.2. Command Search Path
+
+     Thå  Commanä  Searcè  Path“  ió á buffeò  whicè  containó  aî 
+expressioî  (iî  thå  forí  oæ bytå pairs©  oæ  thå  sequencå  oæ 
+directorieó tï examinå wheî thå ZCPR³ Commanä Processoò  searcheó 
+foò  á  COÍ file®   Iô ió recommendeä thaô thió buffeò bå  placeä 
+externaì  tï  thå  ZCPR³  Commanä Processoò  (bå  enableä  aó  aî 
+Externaì Path© sï thaô thå ZCPR³ utilitieó maù readilù accesó anä 
+modify it.
+
+     Thå elementó oæ á Commanä Searcè Patè arå bytå  pairs®   Thå 
+firsô  bytå indicateó whaô disë tï looë on¬  anä thå seconä  bytå 
+indicateó whaô useò area®   Thå valuå oæ thå firsô bytå maù bå iî 
+thå rangå froí ± tï 1¶ tï indicatå diskó 'A§ tï 'P'¬ oò thió bytå 
+maù bå thå characteò '$§ tï indicatå thå currenô disk®  Thå valuå 
+oæ  thå seconä bytå maù bå iî thå rangå froí ° tï 3± tï  indicatå 
+useò  areaó  ° tï 31¬  oò thió bytå maù bå thå characteò  '$§  tï 
+indicatå  thå currenô useò area®   Currenô Disk“ anä Currenô  Useò 
+Area“  refeò  tï thå disë anä useò areá whicè werå loggeä intï  aô 
+thå timå thå commanä waó executeä bù thå ZCPR³ Commanä Processor®  
+Á  valuå  oæ  °  foò thå firsô bytå oæ á bytå  paiò  ió  useä  tï 
+indicate the end of the Command Search Path.
+
+     The following is a sample Command Search Path expression:
+
+          DB   '$',0     ; Current disk, user area 0
+          DB   1,'$'     ; Disk A, current user area
+          DB   1,15      ; Disk A, User Area 15
+          DB   0         ; End of PathŠ
+1.2. SYSGEN Memory Images
+
+     Thå SYSGEÎ memorù imageó oæ á conventionaì CP/Í systeí anä á 
+ZCPR3-baseä systeí arå presenteä below®  Thå actuaì addresseó maù 
+varù froí systeí tï system¬  anä thå installeò shoulä bå awarå oæ 
+whaô theså addresseó arå foò thå specifiã targeô system.
+
+
+Address        CP/M Image               ZCPR3 Image
+
+               ---------------------    ----------------------
+               | BIOS              |    | BIOS with Modified |
+               |                   |    |   Cold Boot *      |
+BDOS+0E00H-->  ---------------------    ----------------------
+               | BDOS              |    | BDOS (No Change)   |
+CCP +0800H-->  ---------------------    ----------------------
+               | CP/M 2.2 CCP      |    | ZCPR3 *            |
+BOOT+0080H-->  ---------------------    ----------------------
+               | BOOT              |    | BOOT               |
+BASE+xxxxH-->  ---------------------    ----------------------
+               | Dead Space/SYSGEN |    | Dead Space/SYSGEN  |
+BASE= 100H-->  ---------------------    ----------------------
+
+
+            FIG 1-1: CP/M and ZCPR3-based SYSGEN Memory Images
+
+
+     Installatioî  requireó  á modifieä BIOÓ imagå  anä  á  ZCPR3 
+imagå  tï  bå  placeä  oveò thå originaì CP/Í 2.²  BIOÓ  anä  CCĞ 
+images®   Thå  resô oæ thå systeí caî staù thå same®   Thoså  ne÷ 
+imageó arå markeä witè aî asterisë (*© above.
+
+     Typical address values are indicated below:
+
+
+                         SYSGEN Image             SYSGEN Image
+Value                    Conventional CP/M        Morrow CP/M
+xxxxH                         800H                   ~ 980H
+BOOT  = BASE + xxxxH          900H                    1080H
+ZCPR3 = BOOT + 80H            980H                    1100H
+BDOS  = ZCPR3 + 800H         1180H                    1900H
+BIOS  = BDOS + 0E00H         1F80H                    2700H
+End of Operating System      ????H                    2DFFH
+
+                  FIG 1-2: SYSGEN Memory Image Addresses
+
+.paŠ
+1.3. System Segments
+
+     Installatioî oæ thå ZCPR³ Systeí Segmentó involveó selectinç 
+thå  featureó oæ thå segmentó anä theî assemblinç eacè segmenô iî 
+turn®   Iô  ió  recommendeä  thaô thå MAÃ  assembleò  oæ  Digitaì 
+Research be used to perform these assemblies.
+
+     Thå ZCPR³ Environmenô Descriptoò (*.ENÖ file© ió createä  bù 
+assemblinç thå filå SYSENV.ASM®   Durinç thió process¬  thå fileó 
+Z3BASE.LIÂ  anä SYSENV.LIÂ arå reaä iî anä useä bù thå assembler®  
+Z3BASE.LIÂ  defineó  thå memorù configuratioî oæ thå  systeí  anä 
+makeó   uğ  mosô  oæ  thå  environmenô  descriptoò   information®  
+SYSENV.LIÂ containó additionaì detailó oî thå system.
+
+     Thå  ZCPR³  TCAĞ fileó (*.Z3T© arå createä  bù  runninç  thå 
+TCSELECÔ oò TCMAKÅ programs®   TCSELECÔ allowó thå useò tï selecô 
+hió  terminaì froí á lisô oæ pre-defineä terminals¬  whilå TCMAKÅ 
+allowó  thå  useò  tï  definå  thå  attributeó  oæ  hió  terminaì 
+directly®   TCMAKÅ ió foò useró whoså terminaì doeó noô appeaò iî 
+thå standarä Z3TCAP.TCĞ file.
+
+     Flo÷  Commanä  Packageó (*.FCP© arå  createä  bù  assemblinç 
+SYSFCP.ASM®   Durinç  thió  process¬  thå  fileó  Z3BASE.LIÂ  anä 
+SYSFCP.LIÂ  arå  reaä iî anä useä bù thå  assembler®   SYSFCP.LIÂ 
+defineó thå featureó supporteä bù thå Flo÷ Commanä Packagå  beinç 
+created.
+
+     Input/Outpuô  Packageó  (*.IOP©  arå createä  bù  assemblinç 
+SYSIOP.ASM®   Durinç thió process¬ thå filå Z3BASE.LIÂ ió reaä iî 
+anä useä bù thå assembler®   Alì featureó oæ thå I/Ï Packagå  arå 
+hard-coded into the source of the package.
+
+     Residenô  Commanä Packageó (*.RCP© arå createä bù assemblinç 
+SYSRCP.ASM®   Durinç  thió  process¬  thå  fileó  Z3BASE.LIÂ  anä 
+SYSRCP.LIÂ  arå reaä iî anä useä bù  thå  assembler®   SYSRCP.LIÂ 
+defineó  thå  featureó supporteä bù thå Residenô Commanä  Packagå 
+being created.
+
+     Nameä  Directorù  Fileó (*.NDR© arå createä iî  onå  oæ  twï 
+waysº   (1©  bù assemblinç thå filå SYSNDR.ASÍ oò (2© bù  runninç 
+thå  MKDIR.COÍ  ZCPR³  utility®   MKDIR.COÍ allowó  thå  useò  tï 
+dynamicallù  ediô anä creatå ne÷ nameä directorù structureó whilå 
+online.
+
+
+1.4. Utilities
+
+     Thå  installatioî  oæ mosô oæ thå ZCPR³  utilitieó  involveó 
+settinç  uğ  á filå containinç thå nameó oæ thå utilitieó  tï  bå 
+installeä   anä  runninç  thå  Z3INS.COÍ  ZCPR³  utilitù  oî   aî 
+Environmenô  Descriptoò anä thió file®   Z3INÓ wilì instalì  eacè 
+utilitù nameä iî thå filå witè thå informatioî iô needó froí  thå 
+Environmenô Descriptor.
+Š     Onlù  onå ZCPR³ utilitù cannoô bå installeä iî thió  waù  -- 
+ZEX®   Duå tï thå naturå oæ ZEØ anä thå waù iô interactó witè thå 
+system¬  installatioî  oæ  ZEØ requireó aî involveä  sequencå  oæ 
+assemblieó  anä otheò operations®   Thió sequencå ió describeä iî 
+detaiì  iî  thå ZEX.ZEØ commanä file¬  and¬  oncå  ZEØ  haó  beeî 
+installeä thå firsô time¬ thå installatioî oæ ne÷ versionó oæ ZEØ 
+caî  bå donå automaticallù bù runninç thå ZEX.ZEØ commanä filå bù 
+the previous version of ZEX (issuing the command "ZEX ZEX").
+
+
+
+.paŠ
+1.5. Installation Steps
+
+     Thå installatioî procesó foò ZCPR³ involveó theså steps:
+
+          1) Selecting the features desired for the target ZCPR3
+               System
+
+          2) Planning the memory structure of the target ZCPR3
+               System (the file Z3BASE.LIB is created)
+
+          3) Modifying the Cold Boot routine in the BIOS of the
+               target ZCPR3 System to initialize the selected
+               features which require initialization
+
+          4) Enabling the desired features in the ZCPR3 Command
+               Processor (the file Z3HDR.LIB is created)
+
+          5) Overlaying the CCP with ZCPR3 and the old BIOS with
+               the new BIOS in the SYSGEN Image
+
+          6) Placing the new SYSGEN Image onto the Operating
+               System tracks of the disk
+
+          7© Selectinç thå optionó foò thå desireä Systeí
+               Segments and creating the System Segments
+
+          8) Installing the desired ZCPR3 utilities
+
+.paŠ
+1.6. Operational ZCPR3 System
+     Thió  sectioî showó aî operationaì ZCPR³ System¬  describinç 
+itó memorù image¬ Systeí Segments¬ anä utilities.
+
+1.6.1. Memory Image
+
+     Thió  memorù  imagå showó thå memorù structurå  oæ  á  ZCPR³ 
+Systeí whicè includeó alì oæ thå majoò features.
+
+Address
+ FFFF     ----------------------------------------------
+          |    ROM Area (System Dependent)             | 2K
+ F800     ---------------------------------------------- 
+          |    ZCPR3 External Stack                    |\
+ F7D0     ---------------------------------------------- \
+          |    ZCPR3 Command Line Buffer               |  \
+ F700     ----------------------------------------------   \
+          |    ZCPR3 Memory-Based Named Directory (S)  |    |
+ F600     ----------------------------------------------    |
+          |    ZCPR3 External File Control Block       |
+ F5D0     ----------------------------------------------  1K
+          |    ZCPR3 Message Buffers                   |
+ F580     ----------------------------------------------    |
+          |    ZCPR3 Shell Stack                       |    |
+ F500     ----------------------------------------------   /
+          |    ZCPR3               |      Z3TCAP (S)   |  /
+ F480     |         Environment    --------------------- /
+          |              Descriptor (S)                |/
+ F400     ----------------------------------------------
+          |    ZCPR3 Flow Command Package (S)          |  0.5K
+ F200     ----------------------------------------------
+          |    ZCPR3 Input/Output Package (S)          |  1.5K
+ EC00     ----------------------------------------------
+          |    ZCPR3 Resident Command Package (S)      |  2K
+ E400     ----------------------------------------------
+          |    ZCPR3 BIOS with Modified Cold Boot      |
+          |         Routine to Initialize All Elements |  3.5K
+          |         of the ZCPR3 System Above          |
+ D600     ----------------------------------------------
+          |    CP/M BDOS                               |  3.5K
+ C800     ----------------------------------------------
+          |    ZCPR3 Command Processor                 |  2K
+ C000     ----------------------------------------------
+          |    Transient                               |
+          |         Program                            | ~48K
+          |              Area                          |
+  100     ----------------------------------------------
+          ü    CP/Í anä ZCPR³ Bufferó                  |25¶ bytes
+    0     ----------------------------------------------
+             FIG 1-3: ZCPR3 System Memory Image (Z3BASE1.LIB)
+
+Notesº (1© Alì Areaó Abovå E400È arå initializeä bù thå Colä Booô
+               Routinå iî thå BIOS
+       (2© Thoså Areaó markeä witè (S© arå ZCPR³ Systeí SegmentsŠ
+1.6.2. System Segments
+
+Z3BASE1.LIB        Thå  Systeí Segmentó useä iî thió  systeí 
+Z3BASE2.LIB   arå  provideä  iî thå  distributioî  fileó  oæ 
+Z3HDR1.LIB    ZCPR3®  Thå ZCPR³ Systeí showî herå ió defineä 
+Z3HDR2.LIB    bù  thå filå Z3BASE1.LIB¬  anä á mucè  smalleò 
+              systeí  whicè  doeó noô includå  thå  Residenô 
+              Commanä  Package¬  Input/Outpuô  Package¬  anä 
+              Flo÷  Commanä  Packagå  featureó (onlù  1Ë  oæ 
+              additionaì    overhead©    ió    defineä    iî 
+              Z3BASE2.LIB®   Associateä witè eacè oæ thå twï 
+              Z3BASEn.LIÂ  fileó ió á Z3HDRn.LIÂ filå  whicè 
+              defineó  thå  featureó oæ  thå  ZCPR³  Commanä 
+              Processor.
+
+SYSENV.ASM          Thå Environmenô Descriptoò ió createä bù 
+SYSENV.LIB    assemblinç SYSENV.ASM¬ whicè uses  Z3BASE1.LIÂ 
+              (renameä  tï Z3BASE.LIB© anä SYSENV.LIÂ durinç 
+              thå assemblù process.
+
+SYSFCP.ASM          Therå arå twï Flo÷ Commanä Packageó useä 
+SYSFCP1.LIB   iî conjunctioî witè thió system¬  anä theù arå 
+SYSFCP2.LIB   defineä   bù   thå   fileó   SYSFCP1.LIÂ   anä 
+              SYSFCP2.LIB®  SYSFCP1.LIÂ defineó aî FCĞ whicè 
+              ió  self-containeä anä executeó withouô  usinç 
+              anù externaì files®   SYSFCP2.LIÂ executeó thå 
+              ELSE/FI/XIÆ  commandó withiî  itself¬  buô  iô 
+              executeó  IÆ  bù loadinç thå filå IF.COÍ  froí 
+              thå ROOÔ directorù anä transferrinç controì tï 
+              it®    Thió  eliminateó  thå  restrictioî   oæ 
+              capabilitieó   oæ  thå  IÆ  commanä  whicè  ió 
+              imposeä bù thå smalì sizå oæ thå FCP.
+
+SYSIOP.ASM          Thå   Input/Outpuô   Packagå   useä   iî 
+              conjunctioî  witè thió systeí ió containeä  iî 
+              thå filå SYSIOP.ASM.
+
+SYSRCP.ASM          Therå arå fouò RCPó useä iî  conjunctioî 
+SYSRCP1.LIB   witè thió system¬  anä theù arå defineä bù thå 
+SYSRCP2.LIB   fouò SYSRCPn.LIÂ fileó (î ió betweeî ± anä 4)®  
+SYSRCP3.LIB   Eacè  RCĞ containó á differenô seô oæ commandó 
+SYSRCP4.LIB   witè  á differenô seô oæ optionó  enableä  foò 
+              the included commands.
+
+
+.paŠ
+1.6.3. Utilities
+
+     Oveò  7°  utilitieó arå associateä witè  thå  ZCPR³  System®  
+Eacè  utilitù  useó  featureó  oæ  thå  systeí  aó  iô  requires¬ 
+includinç  nameä  directorù  references¬  accesó tï  thå  variouó 
+systeí segments¬  accesó tï thå TCAĞ facility¬  anä accesó tï alì 
+oæ thå datá elementó iî thå ZCPR³ Environmenô Descriptoò thaô  iô 
+needs®  Thå ZCPR³ Environmenô Descriptoò ió thå singlå sourcå foò 
+alì informatioî thaô á ZCPR³ utilitù needó abouô thå systeí iô ió 
+running in.
+
+     Consequently¬   alì   ZCPR³   utilitieó  accesó  thå   ZCPR³ 
+Environmenô  Descriptoò iî onå oæ twï waysº   (1© theù contaiî  á 
+pointeò  tï  thå descriptoò oò (2© theù  contaiî  thå  descriptoò 
+itself®   Thå  Z3INS.COÍ  utilitù  ió useä tï instalì  thå  ZCPR³ 
+utilitieó  witè thå addresó oæ thå Environmenô Descriptoò oò  thå 
+descriptoò  itself®   Clasó ± utilitieó arå thoså whï  contaiî  á 
+pointeò  tï  aî  environmenô descriptor¬  anä Clasó  ²  utilitieó 
+contain the descriptor itself.
+
+     Supportinç  thå  Environmenô Descriptoò iî á  globaì  memorù 
+buffeò ió thå recommendeä waù tï implemenô á ZCPR³ System®   Thió 
+buyó thå systeí twï distincô advantages:
+
+          1®   Eacè  utilitù  needó onlù ²  additionaì  byteó  oæ 
+overheaä  (thå pointeò tï thå Environmenô Descriptor© ratheò thaî 
+thå descriptoò itselæ (whicè occupieó 25¶ bytes).
+
+          2®   Changeó  caî  bå madå tï  thå  systeí  dynamicallù 
+withouô  havinç  tï  modifù anythinç otheò thaî  thå  Environmenô 
+Descriptor.
+
+     Thå  ZCPR³ utilitieó arå mucè smalleò anä fasteò thaî  theiò 
+ZCPR² ancestors®   Foò á completå listinç oæ alì ZCPR³  utilitieó 
+supplied with the distribution, see the appropriate section.
+
+
+1.7. Software Required for Installation
+
+1.7.1. Commercial Software
+
+     ZCPR3 ió tï bå installeä oî á workinç CP/Í 2.² system®   Thå 
+commercial software required to do this installation is:
+
+          1) A working CP/M 2.2 System
+          2) Source to the BIOS of the target CP/M 2.2 System or
+               an overlay patch for the Cold Boot Routine
+          3) the MAC assembler of Digital Research
+          4) a debugger, like DDT, for the overlay process
+          5) a disk utility, like SYSGEN, to be used to place the
+               operating system image onto the OS tracks on disk
+
+     Iæ  thå  useò desireó tï ediô anä reassemblå thå  utilities¬ 
+thå Microsofô M8° anä L8° assembleò anä linkeò arå alsï required.Š
+1.7.2. System Segment Software
+
+     Thå  softwarå  supplieä  witè ZCPR³ whicè  ió  requireä  foò 
+installatioî is:
+
+Name of File   Function
+
+ZCPR3.ASM      Source to the ZCPR3 Command Processor
+Z3HDR.LIB      Configuration File read in by ZCPR3.ASM to
+                    tailor the ZCPR3 Command Processor
+Z3BASE.LIB     Definition of the Memory Map of the ZCPR3
+                    System to be created
+
+SYSENV.ASM     ZCPR3 System Environment Descriptor
+SYSENV.LIB     Header for ZCPR3 System Environment Descriptor
+
+SYSFCP.ASM     ZCPR3 Flow Command Package source
+SYSFCP.LIB     Configuration File read in by SYSFCP.ASM to
+                    tailor the ZCPR3 Flow Command Package
+                    (this file may be derived from one of the
+                     SYSFCPn.LIB files below)
+
+SYSIOP.ASM     ZCPR3 Input/Output Package source
+
+SYSNDR.ASM     ZCPR3 Named Directory Definition File source
+SYSNDR.LIB     Header for ZCPR3 Named Directory Definition
+
+SYSRCP.ASM     ZCPR3 Resident Command Package source
+SYSRCP.LIB     Header for ZCPR3 Resident Command Package
+                    (this file may be derived from one of the
+                     SYSRCPn.LIB files below)
+
+1.7.3. Other Useful Files
+
+Name of File   Function
+
+Z3LOC.COM      Utility to locate a CP/M CCP
+
+Z3BASE1.LIB    Sample ZCPR3 BASE files (Z3BASE.LIB)
+Z3BASE2.LIB
+
+Z3HDR1.LIB     Sample ZCPR3 HDR files (Z3HDR.LIB)
+Z3HDR2.LIB
+
+SYSFCP1.LIB    Sample ZCPR3 Flow Command Package headers
+SYSFCP2.LIB
+
+SYSRCP1.LIB    Sample ZCPR3 Resident Command Package headers
+SYSRCP2.LIB
+SYSRCP3.LIB
+SYSRCP4.LIB
+
+
+.paŠ
+1.7.4. Files Required for Installing ZEX
+
+     Iæ  thå ZEØ Commanä Filå Processoò ió tï bå installeä tï  bå 
+useä  undeò  thå targeô ZCPR³ system¬  thå  followinç  fileó  arå 
+required.
+
+Name of File   Function
+
+ZEX.ASM        Source to ZEX
+
+ZEX.ZEX        ZEX Command File used to assemble new versions
+                    of ZEX once the first version is running
+
+RELS.UTL       SID/ZSID Utility File (not supplied with ZCPR3)
+
+
+1.7.5. Required Distribution Files
+
+     Thå  followinç fileó arå requireä foò thå installatioî oæ  á 
+complete ZCPR3 System.
+
+Name of File        Name of File        Name of File
+
+SYSENV.ASM          SYSFCP1.LIB         Z3BASE.LIB
+SYSFCP.ASM          SYSFCP2.LIB         Z3BASE1.LIB
+SYSIOP.ASM          SYSNDR.LIB          Z3BASE2.LIB
+SYSNDR.ASM          SYSRCP1.LIB         Z3HDR.LIB
+
+SYSRCP.ASM          SYSRCP2.LIB         Z3HDR1.LIB
+ZCPR3.ASM           SYSRCP3.LIB         Z3HDR2.LIB
+SYSENV.LIB          SYSRCP4.LIB         ZEX.ASM
+
+
+1.7.6. Useful Distribution Files
+
+     Thå  followinç fileó arå useful¬  buô noô required¬  foò thå 
+installation of a ZCPR3 System.
+
+Name of File        Name of File        Name of File
+
+Z3LOC.COM           Z3INS.COM           ZEX.ZEX
+
+
+
+.paŠ
+1.8. Required Hardware
+
+1.8.1. Hardware Required for Installation
+
+     Thå  hardwarå requirementó foò thå installatioî oæ ZCPR3 arå 
+as follows:
+
+          CP/M 2.2 - based system (or ZCPR3 - based system)
+          8080 or Z80 microprocessor
+          32K bytes of memory
+          110K bytes of disk space for source, BAK, and HEX files
+          computer terminal
+
+1.8.2. Hardware Required for Running ZCPR3
+
+     The hardware requirements for running ZCPR3 are:
+
+          ZCPR3 - based system
+          Z80 microprocessor
+          48K bytes of memory
+          110K bytes per disk (recommended minimum)
+          computer terminal
+
+
+.paŠ.fi B:Z3INS1.SI
+.paŠ.fi B:Z3INS2.SI
+.paŠ.fi B:Z3INS3.SI
+.paŠ.fi B:Z3INS4.SI
+.paŠ.fi B:Z3INS5.SI
+.paŠ.fi B:Z3INS6.SI
+.paŠ.fi B:Z3INS7.SI
+.paŠ.fi B:Z3INS8.SI
+.paŠ.FI B:Z3INS.IDX
+

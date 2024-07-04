@@ -1,0 +1,774 @@
+                    --------------------------------------
+                    AMPRO COMPUTERS, INC. APPLICATION NOTE
+                    --------------------------------------
+
+Number:  #AAN-8801         Date:  January 5, 1988         Author:  R. Lehrbaum
+                      
+Title:       Using a SCSI port for generalized I/O.
+
+Product(s):  Little Board/Z80, Little Board/186, Little Board/PC
+
+Abstract:    If the SCSI bus is not required for connection to "normal" SCSI 
+             devices, it can be used as an I/O port, and even as an I/O bus.  
+             This ap note explains how this is done.
+
+-------------------------------------------------------------------------------
+
+SCSI CATCHES ON!
+----------------
+Over the past two years, the Small Computer System Interface ("SCSI") has 
+begun to be included as a standard feature in the microcomputer products of 
+both system manufacturers (such as Apple) and board manufacturers (such as 
+AMPRO).  This is a result of three factors:
+
+  (1) SCSI has finally been approved by the American National Standards 
+      Institute (ANSI X3.131).
+
+  (2) Single chip SCSI interface IC's such as the NCR 5380 have become common 
+      and inexpensive.  (The 5380 already has at least five alternate sources.)
+
+  (3) Hard disk drives such as the Seagate 225N and tape drives such as the 
+      Teac MT2ST are now available with "embedded" SCSI controllers.
+
+Thanks to the ease of integration and very low cost of including a SCSI 
+interface (due to devices like the 5380), designers of microcomputer products 
+(systems and boards) now routinely include a SCSI bus controller.  
+
+
+ANOTHER WAY TO USE A SCSI PORT
+------------------------------
+In a lot of data acquisition and control or embedded microcomputer 
+applications, the SCSI port may go unused.  If your system's SCSI bus is not 
+required for "normal" SCSI device connection, you may be able to use the SCSI 
+interface port as a generalized I/O interface instead.
+
+The ability of a SCSI interface to be used for other types of I/O depends 
+entirely on the hardware that is being used to generate the SCSI bus signals.  
+Some SCSI interface IC's are quite "intelligent", while others are relatively 
+"dumb".  In general, because the dumb SCSI IC's require lower level control by 
+the system CPU, they provide more direct CPU control over each of the SCSI 
+interface signals than do the smarter IC's.  Therefore, the dumber the SCSI 
+IC, the more likely it is to be useful as a programmable I/O port.  On the 
+other hand, some of the smarter SCSI IC's are too specialized to allow this 
+flexibility.  
+
+This application note discusses the use of a 5380 SCSI controller IC as a 
+generalized I/O interface.  The 5380 offers nearly total control over the 17 
+signals which comprise the SCSI bus.  Although the 5380 was not designed to 
+serve as a general purpose I/O port, it has several important features which 
+make it well suited for this purpose:
+
+     o  Open collector output buffers, with 48 mA current sink capability
+     o  Schmidt-trigger conditioning on input buffers
+     o  Simple CPU bus interface with DMA logic
+     o  Seventeen software controlled I/O signals
+     o  Handshake and interrupt logic (usable in some applications)
+
+
+INSIDE THE 5380
+---------------
+The 5380 has 17 bidirectional I/O lines, which may be used as inputs or 
+outputs under software control.  It also offers several more advanced features 
+including interrupts, request/acknowledge handshaking, and DMA support.  These 
+advanced features are intended specifically for SCSI, so they are not very 
+flexible; however you may find one or more of them useful in a particular 
+application.  
+
+To fully understand the 5380 SCSI Protocol Controller device, you should 
+obtain a copy of the NCR 5380 Design Manual, available for a nominal charge 
+from NCR (see reference below).  In this ap note, we will only focus on the 
+simple I/O functions.
+
+Within the 5380 are eight readable and eight writable internal ports, normally 
+addressed as eight consecutive I/O addresses.  What follows next is a brief 
+description of the function of each of the 5380's internal registers.  The I/O 
+addresses indicated are the normal offsets from the 5380's base address in 
+your system.  Note that all of the SCSI bus signals (at the 5380 IC's pins) 
+are "active low," so the actual bus voltage levels are opposite to the 
+contents of the corresponding bits in the 5380 registers.
+
+     SCSI Data Register (00, read/write):  Writing to this register in the 
+     5380 sets the state of the SCSI bus data lines (DB0 through DB7), 
+     providing that the "Assert Data Bus" bit of the Initiator Command 
+     Register is set.  If you write to this register when the Assert Data Bus 
+     bit is not set, the register will hold your data but not assert it on the 
+     SCSI bus until the Assert Data Bus bit (in the Initiator Command 
+     Register) is set at a later time.  The SCSI Data Register's data bits are 
+     assigned as follows:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :  DB7  :  DB6  :  DB5  :  DB4  :  DB3  :  DB2  :  DB1  :  DB0  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                                 SCSI Data Register
+
+     When you read this I/O port, the value obtained represents the current 
+     state of the SCSI bus data lines, DB0 through DB7, except that the actual 
+     voltages on the bus lines are inverted relative to the contents of this 
+     register.  
+
+     Initiator Command Register (01, read/write):  This register is primarily 
+     used to control the 5380's SCSI bus interface when the chip is in the 
+     Initiator role.  Most functions are also available in the Target role.  
+     Two of the bits of this register have different uses when the register is 
+     read or written, so two charts are given.  These are as follows:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :Assert : Arb in: Lost  :Assert :Assert :Assert :Assert :Assert :
+         : RST   : Prog  :  Arb  : ACK   : BSY   :  SEL  : ATN   : Data  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                      Initiator Command Register -- Read Usage
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :Assert : Test  : Diff  :Assert :Assert :Assert :Assert :Assert :
+         : RST   : Mode  :  En   : ACK   : BSY   :  SEL  : ATN   : Data  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                     Initiator Command Register -- Write Usage
+
+     As you have probably guessed, the Initiator Command Register allows you 
+     to control the state of the RST, ACK, BSY, SEL, and ATN bus signals, and 
+     also to control whether the 5380 places its data on the SCSI bus or not.  
+     Notice that bits 6 and 5 differ according to whether you are reading or 
+     writing this register.  (Refer to the 5380 Design Manual for details on 
+     the use of these bits.)  
+
+     Here are three restrictions in using these bits to control the SCSI bus:
+
+     (1) The 5380 must be in Initiator Mode (Mode Register, bit 6) to be able 
+         to set the SCSI control bits ACK and ATN active on the SCSI bus.
+
+     (2) If the 5380 is in Initiator Mode (Mode Register, bit 6), then the 
+         data bus will not be asserted by the Assert Data Bus bit (Bit 0) 
+         unless the SCSI bus I/O signal is false (output from Initiator) and 
+         the SCSI bus control signals C/D, I/O, and MSG all match the contents 
+         of the Assert bits in the Target Command Register.  
+
+     (3) When the Assert RST bit is set, the resulting RST signal on the SCSI 
+         bus clears all of the 5380's internal registers!  (Not a very useful 
+         general purpose signal, is it?)
+
+     Mode Register (02, read/write):  This register contains many control 
+     signals governing operation of the 5380.  It allows you to place the chip 
+     in either Initiator or Target mode, and provides control over DMA and 
+     arbitration functions, parity, etc.
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :Block  : Target: Enable:Enable :Enable :Monitor: DMA   : Arbi- :
+         :Mode   : Mode  : Parity:Parity :  EOP  :  BSY  : Mode  : trate :
+         :DMA    :       : Check :Int    :  Int  :       :       :       :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                                   Mode Register
+
+     This ap note will not cover the use of the bits regarding DMA, parity, 
+     arbitration, and interrupts, as these are not required for basic 
+     operation of the SCSI interface.  Bit 6 is the most interesting bit of 
+     this register, because it determines whether the 5380 is in Target Mode 
+     or Initiator Mode.  
+
+     Target Command Register (03, read/write):  This register provides control 
+     over the bus phase control bits: REQ, MSG, C/D, and I/O, as follows:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :       :       :       :       : Assert: Assert: Assert: Assert:
+         :       :       :       :       :  REQ  :  MSG  :  C/D  :  I/O  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                              Target Command Register
+
+     These bits can only be asserted by the 5380 if the "Target Mode" bit in 
+     the Mode Register is set.  In Initiator mode, these bits have a different 
+     purpose.  In Initiator Mode, the states of the Assert MSG, Assert C/D, 
+     and Assert I/O bits must match the actual state of the bus (which can be 
+     read in the Current SCSI Bus Status Register), for data to be placed on 
+     the SCSI bus even if the Assert Data Bus bit of the Initiator Command 
+     Register is set.  Also, in Initiator Mode, if the Assert MSG, C/D, and 
+     I/O bits do match the bus state, then the "Phase Match" bit in the Bus 
+     and Status Register will be set.
+
+     Select Enable Register (04, write):  This write-only register is used as 
+     a mask in Target Mode operation to allow the 5380's built-in selection 
+     response logic to generate an interrupt.  Refer to the 5380 Design Manual 
+     for more info.
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :  DB7  :  DB6  :  DB5  :  DB4  :  DB3  :  DB2  :  DB1  :  DB0  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                               Select Enable Register
+
+     Current SCSI Bus Status Register (04, read):  This read-only register 
+     allows you to read the current state of eight control signals on the SCSI 
+     bus.  The bits are utilized as follows:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         : RST   :  BSY  :  REQ  :  MSG  :  C/D  :  I/O  :  SEL  :  DBP  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                          Current SCSI Bus Status Register
+
+     DMA Control Ports (05-07, write):  These are not registers but rather are 
+     used as control signals by the 5380's internal DMA logic.  A write 
+     operation to one of these three I/O addresses is used as a trigger to 
+     begin the corresponding DMA mode (Send, Target Receive, or Initiator 
+     Receive).  Refer to the 5380 Design Manual for more information on the 
+     use of DMA.
+
+     Bus and Status Register (05, read):  This read-only register allows you 
+     to read two SCSI bus signals -- ATN and ACK -- which are not included in 
+     the Current SCSI Bus Status Register.  In addition, six 5380 status flags 
+     which are associated with the optional use of interrupts are read through 
+     this register.  The bits of this register are utilized as follows:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         : End   :  DMA  : Parity:Inter- : Phase : Busy  :  ATN  :  ATN  :
+         :  of   :Request: Error : rupt  : Match : Error :       :       :
+         : DMA   :       :       :Request:       :       :       :       :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                              Bus and Status Register
+
+     As mentioned above, the use of DMA and interrupts is not covered in this 
+     ap note.  The "Phase Match" bit is handy, in that it shows in a single 
+     bit whether the SCSI bus phase matches the settings of the Assert bits 
+     (MSG, C/D, and I/O) in the Target Command Register.  The Phase Match bit 
+     is only meaningful, however, when the 5380 is in its Initiator Mode 
+     ("Target Mode" bit = 0).
+
+     The Busy Error bit is set if the Monitor Busy bit in the Mode Register 
+     has been set and if the SCSI bus BSY signal becomes false.  If this 
+     occurs, the 5380 output drivers all become disabled.
+
+     Latched Data Register (06, read):  Reading this register returns the 
+     latched -- not current -- state of the SCSI data lines.  Data is latched 
+     either during a DMA Target Receive operation when ACK (pin 14) goes 
+     active, or during a DMA Initiator Receive when REQ (pin 20) goes active.  
+     The DMA Mode bit in the Mode Register must be set before data can be 
+     latched in this register.  This register may also be read under DMA 
+     control using the 5380's DMA control lines.  The contents of this 
+     register are:
+
+           Bit 7     6       5       4       3       2       1     Bit 0
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+         :  DB7  :  DB6  :  DB5  :  DB4  :  DB3  :  DB2  :  DB1  :  DB0  :
+         +-------+-------+-------+-------+-------+-------+-------+-------+
+                                Latched Data Register
+
+     Reset Parity Interrupt (07, read):  A read of this address is used as a 
+     trigger to clear a parity error interrupt.
+
+
+SIMPLE I/O
+----------
+As indicated above, the 5380 has two operating modes -- Initiator Mode and 
+Target Mode -- and in Initiator Mode several constraints govern whether or not 
+data from the 5380 can be placed on the SCSI bus signals.  If the 5380 is used 
+in the Target mode, however, these constraints are not applicable.  
+Consequently, the 5380's Target mode results in more flexible operation for 
+simple programmable digital I/O.
+
+The 5380 is placed in Target mode by writing 40h to its Mode Register.  Once 
+in Target mode, fourteen of the chip's SCSI bus I/O signals can be used as 
+bidirectional lines with either input or output capability, and two additional 
+lines can be used as input-only lines.  Table 1 gives the breakdown.
+
+
+                       Table 1.  5380 Target Mode Usage
+
+         5380 Register                Signals            Function
+         --------------------------   ----------------   ------------
+         SCSI Data Register           DB0-DB7            Bidirectional
+         Target Command Register      I/O,C/D,MSG,REQ    Bidirectional  
+         Initiator Command Register   BSY,SEL            Bidirectional
+         Initiator Command Register   ACK,ATN            Input only 
+
+As indicated in Table 1, ACK and ATN are inputs only in the 5380's Target Mode 
+of operation.  All of the other SCSI signals except RST can be used as either 
+inputs or outputs.  RST is unique in that it clears all of the registers 
+within the 5380 whenever it becomes active for any reason (including being set 
+by the 5380 itself!).  In most applications you will probably want to avoid 
+using the RST signal entirely -- but be sure it is terminated along with the 
+other I/O interface signals.
+
+The data lines (DB0-DB7) are only enabled as outputs when bit 0 ("Assert Data 
+Bus") of the Initiator Command Register is a 1.  However, the state of the 
+DB0-DB7 lines can be read whether the Assert Data Bus bit is true (1) or not.  
+Since the data lines are Open Collector, they can be switched from output to 
+input functions simply by writing all 0's to the SCSI Data Register.  (The 
+chip's outputs are inverted, so setting a data bit to 0 turns the output 
+driver off.)
+
+It is also possible to utilize the 5380's internal interrupt, REQ/ACK, and DMA 
+support logic.  For example, one 5380 user has taken advantage of the chip's 
+handshake and interrupt functions to monitor the data transmitted by a 
+computer's Centronics printer port, using the 5380 as an interrupting 8-bit 
+input port.
+ 
+In many 5380-based SCSI systems, there are additional input signals intended 
+for the reading of SCSI Initiator ID jumpers.  For example on the AMPRO Little 
+Board single board computers, up to eight additional input bits are available 
+in this manner if the 5380 is not being used as a SCSI port.  If available, 
+these extra input signals can be used to augment the signals provided by the 
+5380, thereby adding up to eight additional input lines.
+
+Along the same lines, don't overlook an unused parallel printer port as a 
+source of eight more buffered outputs and one or more output and input 
+handshake signals.
+
+As you can see, a 5380 SCSI interface provides quite a few I/O signals.  The 48 
+mA output drive capacity allows long wire lengths, and also can be used to 
+drive both mechanical and solid state relays.  
+
+
+Example 1 -- Using Opto-22 I/O Modules.
+
+Opto-22 manufactures several types of "Mounting Racks" into which you can plug 
+optically isolated input and output modules.  Each module functions as either 
+a single input bit or a single output bit, and the modules are available in 
+both AC and DC versions.  Voltages of up to 240 volts DC or AC can be switched 
+or sensed, and the modules provide 4,000 volts isolation!
+
+Opto-22's Mounting Racks hold either 4, 8, 16, or 24 optically isolated 
+modules, and have model numbers PB4, PB8, PB16, and PB24, respectively.  Since 
+the 5380 provides a maximum of sixteen interface signals (as shown in Table 
+1), a single 5380 could interface with up to 16 such I/O modules, using a PB16 
+Mounting Rack.  
+
+To interface a 5380 with the Mounting Rack's optically isolated input or 
+output modules, simply connect each SCSI bus signal (from the 5380) to an 
+appropriate pin on the Mounting Rack's edgecard connector.  This can be done 
+by constructing a custom "scramble-wired" cable, or you can use a small 
+customizable adapter card made by Opto-22 for this purpose, the Model UCA3.  
+The UCA3 can accept a 50-pin header edgecard connector from the SCSI side, and 
+plugs directly into the Opto-22 Mounting Rack.  The UCA3 has user-programmed 
+connection between the input and output bus sides -- that is, it provides two 
+50-pin headers with wire-wrap posts which you wire to suit your needs.
+
+The Opto-22 Mounting Rack can accommodate a mixture of input and output 
+modules on the same rack.  It is even possible to have a combination of input 
+and output modules connected to the eight SCSI data lines (DB0-DB7) at the 
+same time.  To allow some of the data lines to function as inputs while others 
+function as outputs (at the same time), keep the Assert Data Bus bit in the 
+5380's Initiator Command Register active at all times, and write 0's to any 
+bits in the SCSI Data Register that are to be used as inputs.  Because the 
+5380's outputs are open collector (and active low), a bit which is a 0 will 
+not drive the bus at all, leaving the corresponding data line free to be 
+driven by an input module.
+
+
+CONTROLLING AN IC
+-----------------
+Using the signals illustrated in Table 1 creatively, you can even hook them up 
+directly to other IC's.  You can redefine any signal as any desired function.  
+For example, some signals can function as address signals, others as control 
+signals, still others as data signals.  
+
+Many IC's are not too fussy about timings as long as minimum setup and hold 
+times are provided.  Using a technique known as "bit banging", you can easily 
+satisfy a device's setup and hold requirements.  
+
+
+Example 2 -- Interfacing to a Typical LSI Device.
+
+As an example, a typical LSI device (such as a UART) might be interfaced to a 
+5380 as shown in Table 2.
+
+                        Table 2.  LSI Device Interface
+
+         Device Pin  Function                        SCSI Signal Used
+         ----------  ----------------------------    ----------------- 
+         D0-D7       Data in/out                     -DB0 through -DB7
+         A0,A1,A2    Internal register addressing    -I/O,-C/D,-MSG
+         -RD,-WR     Read and write (active low)     -SEL,-BSY       
+         -CS         Chip select (active low)        -REQ 
+
+
+Before going on, a word about logic levels.  The SCSI bus uses active low 
+logic levels (i.e., a "0" is the high voltage level and a "1" is the low 
+voltage level).  Assuming that the LSI device is "normal", it probably 
+requires active high data and address inputs, but active low control signals 
+(-RD,-WR,-CS).  Since the 5380 will make everything active low, the data and 
+address values written to the 5380's registers must be inverted prior to 
+writing to such a device.  
+
+In this example, the following sequence might be used for writing to a 
+register within the LSI device:
+
+  (1) Write a 40h to the Mode Register, to place the 5380 in Target Mode.
+         
+  (2) Invert the LSI device register address, and then write it to the I/O, 
+      C/D, and MSG bits in the Target Command Register while also setting the 
+      REQ bit (chip select) to 1.
+         
+  (3) Invert the data to be written, and then write it to the SCSI Data 
+      Register.
+
+  (4) Enable data output by writing an 01h ("assert data bus") to the 
+      Initiator Command Register.
+
+  (5) Turn on the -WR signal by writing an 05h ("REQ" with "assert data bus") 
+      to the Initiator Command Register.
+
+  (6) Remove the -WR signal by once again writing an 01h to the Initiator 
+      Command Register.  This provides write data hold time.
+
+  (7) Remove the chip select and address by writing 00h to the Target Command 
+      Register.
+
+  (8) Disable data output by writing 00h to the Initiator Command Register.
+
+You will want to modify this procedure slightly, based on the actual 
+requirements of the particular LSI device you need to control.  A similar 
+process is used to read the device.
+
+
+SYNTHESIZING A BUS
+------------------
+Another interesting and potentially powerful use of a 5380 SCSI interface is 
+in mimicking the functions of a bus.  Although you can't expect to generate 
+anything as complex as a Multibus or VME bus, there are several simple I/O-
+oriented buses which can be synthesized adequately using just the 5380 and a 
+scramble-wired cable between the 5380 and the bus cards or backplane.  Two bus 
+interface examples follow.
+
+
+Example 3 -- Interfacing to the "A-Bus"
+
+Alpha Products Co. has developed a series of small, low cost data acquisition 
+and control cards based on a bus called the "A-Bus".  The A-Bus is easily 
+generated by a 5380 SCSI controller IC.  A scramble wired cable or small 
+adapter card (available from Alpha Products) is all that is needed, to connect 
+between a 5380 and one or more A-Bus cards.  
+
+A-Bus cards currently available from Alpha Products include:  analog-to-
+digital converters, digital I/O, stepper motor controllers, relay outputs, 
+optically isolated inputs, and prototype cards for custom interfaces.  A five 
+slot A-Bus motherboard is also available, and multiple motherboards can be 
+daisy-chained, so quite a few A-Bus I/O cards can be connected to a single 
+5380 SCSI interface.
+
+Table 3 gives the recommended signal mapping between the 5380's SCSI interface 
+and the A-Bus backplane signals.  Alpha Products offers a small adapter card 
+which provides this interconnection, or you can wire a cable to do this 
+yourself.  
+
+It is essential that you provide termination on the SCSI/A-Bus bus, since the 
+5380 has open collector outputs.  If you don't, you will get unreliable 
+results!  However, the A-Bus devices are not designed to drive the 220/330 ohm 
+pullup/pulldown termination normally used on the SCSI bus.  Therefore, you 
+must replace the SCSI bus termination networks with higher resistance 
+terminators.  For example, you might replace the pullup/pulldown networks with 
+1K pullup devices instead.
+
+
+                        Table 3.  SCSI/A-Bus Interface
+
+      A-Bus Signal  Pin    Function               SCSI Signal   Pin  
+      ------------  ---    --------------------   -----------   ---
+      +12 Volts      1     not used; no connect
+      -12 Volts      2     not used; no connect
+      GROUND         3     Signal Ground          GROUND        odd  
+      +5 Volts       4     not used; no connect
+      INTERRUPT      5     not used; no connect
+      D0             7     Data in/out (LSB)      -DB0           2   
+      D1             8     Data in/out            -DB1           4   
+      D2             9     Data in/out            -DB2           6   
+      D3            10     Data in/out            -DB3           8   
+      D4            11     Data in/out            -DB4          10   
+      D5            12     Data in/out            -DB5          12   
+      D6            13     Data in/out            -DB6          14   
+      D7            14     Data in/out (MSB)      -DB7          16   
+      A0            15     Address (LSB)          -I/O          50   
+      A1            16     Address                -C/D          46   
+      A2            17     Address                -MSG          42   
+      A3            18     Address (MSB)          -REQ          48   
+      -IN           19     Read Strobe            -SEL          44   
+      -OUT          20     Write Strobe           -BSY          36   
+      ENABLE 0-3   21-24   not used; ground       GROUND        odd  
+
+
+Although there are not enough 5380 output signals to generate the four A-Bus 
+"Enable" signals, the implementation shown in Table 3 is sufficient to select 
+as many as sixteen A-Bus cards.  If the Enable lines are required, you might 
+consider pressing an unused parallel port (e.g. Centronics printer port) into 
+service.
+
+The following two software listings contain typical assembly language code 
+which can be used to write to an Alpha products RE-140 relay output card, and 
+read from an Alpha Products IN-141 optically isolated digital input card. 
+
+                    Listing 1.  Relay Output Card Interface
+; **************************************************************************
+; This is a demo of the Alpha products relay output card
+; using their SCSI adapter.  The code is meant to run on
+; an AMPRO Little Board/Z80 Z80-based single board system.
+;
+; Written 12/01/87 by Rick Lehrbaum
+;
+; Equates:
+;
+MODE$REG	EQU	22H	;Bit 6 used to put in target mode.
+TARGET$BIT	EQU	40H	;Value to write to MODE
+ADDRESS$REG	EQU	23H	;Lower four bits used as A0-A3.  Inverted.
+DATA$REG	EQU	20H	;Eight bits of data.  Inverted.
+CONTROL$REG	EQU	21H	;Used to control data transfer, as follows:
+	; BIT  7  6  5  4  3  2  1  0
+	;                  :  :     +------ ASSERT DATA BUS when = 1
+	;                  :  +------------ READ STROBE when = 1
+	;                  +--------------- WRITE STROBE when = 1
+; Based on these definitions, the read/write functions can use these values:
+ASSERT$BIT	EQU	01H	;Assert data bus.      Write to CONTROL.
+WRITE$BIT	EQU	08H	;Assert write strobe.  Write to CONTROL.
+READ$BIT	EQU	04H	;Assert read strobe.   Write to CONTROL.
+;
+		ORG 100H
+;	
+INIT:		
+; Initialize the 5380 interface 
+		LXI	SP,1000H	;Set stack pointer
+		XRA	A
+		OUT	CONTROL$REG	;Disable all strobes and data bus
+		MVI	A,TARGET$BIT
+		OUT	MODE$REG	;Place 5380 in target mode
+		JMP	PROGRAM
+;
+WRITE:		
+; Writes the data byte in Register C to the I/O card at
+; the address in Register B
+		MOV	A,B		;Get the address from B
+		CMA			;Invert it
+		OUT	ADDRESS$REG	;Put the address on the bus
+		MOV	A,C		;Get the data from C
+		CMA			;Invert it
+		OUT	DATA$REG	;Write it to the data port
+		MVI	A,ASSERT$BIT
+		OUT	CONTROL$REG	;Assert the data bus
+		MVI	A,ASSERT$BIT OR WRITE$BIT
+		OUT	CONTROL$REG	;Assert the write strobe
+		MVI	A,ASSERT$BIT
+		OUT 	CONTROL$REG	;Clear the write strobe
+		XRA	A
+		OUT	CONTROL$REG	;Release the data bus
+		RET
+;
+PROGRAM:
+; This a simple sample program intended for the relay output card.
+; It switches each relay on in sequence, and loops indefinitely.
+		LXI	B,0001
+LOOP:
+		CALL	WRITE
+		CALL	DELAY
+		LXI	B,0002
+		CALL	WRITE
+                MOV     A,C
+                RAL
+                MOV     C,A
+		JMP	LOOP    	; Loops forever		
+;
+DELAY:
+; Delays approximately 1 second.  
+		LXI	H,0
+DEL01:
+		DCX	H
+		MOV	A,H
+		ORI	0
+		JNZ	DEL01
+		MOV	A,L
+		ORI	0
+		JNZ	DEL01
+		RET
+;
+		END
+; **************************************************************************
+
+
+                Listing 2.  Opto-Isolated Input Card Interface
+; **************************************************************************
+; This is a demo of the Alpha products optically isolated input
+; card using the Alpha Products SCSI adapter.  The code is meant to 
+; run on an AMPRO Little Board/Z80 Z80-based single board system.
+;
+; This demo must be run from DDT or used as a subroutine by another 
+; program.
+;
+; Written 12/03/87 by Rick Lehrbaum
+;
+; Equates:
+;
+MODE$REG	EQU	22H	;Bit 6 used to put in target mode.
+TARGET$BIT	EQU	40H	;Value to write to MODE
+ADDRESS$REG	EQU	23H	;Lower four bits used as A0-A3.  Inverted.
+DATA$REG	EQU	20H	;Eight bits of data.  Inverted.
+CONTROL$REG	EQU	21H	;Used to control data transfer, as follows:
+	; BIT  7  6  5  4  3  2  1  0
+	;                  :  :     +------ ASSERT DATA BUS when = 1
+	;                  :  +------------ READ STROBE when = 1
+	;                  +--------------- WRITE STROBE when = 1
+; Based on these definitions, the read/write functions can use these values:
+ASSERT$BIT	EQU	01H	;Assert data bus.      Write to CONTROL.
+WRITE$BIT	EQU	08H	;Assert write strobe.  Write to CONTROL.
+READ$BIT	EQU	04H	;Assert read strobe.   Write to CONTROL.
+;
+		ORG 100H
+;
+INIT:		
+; Initialize the 5380 interface 
+		LXI	SP,1000H	;Set stack pointer
+		XRA	A
+		OUT	CONTROL$REG	;Disable all strobes and data bus
+		MVI	A,TARGET$BIT
+		OUT	MODE$REG	;Place the 5380 in target mode
+READ:		
+; Reads the data byte from the I/O card at the address in Register B
+; and returns the data in register C
+		MOV	A,B		;Get the address from B
+		CMA			;Invert it
+		OUT	ADDRESS$REG	;Put the address on the bus
+		MVI	A,READ$BIT
+		OUT	CONTROL$REG	;Assert the read strobe
+		IN	DATA$REG	;Read the data
+		CMA			;Invert it
+		MOV	C,A
+		XRA	A
+		OUT	CONTROL$REG	;Clear the read strobe
+		RET
+		END
+; **************************************************************************
+
+
+Example 4 -- Interfacing to the Opto-22 "PAMUX" Bus
+
+Another example of a simple I/O bus which can be easily synthesized by a 5380 
+SCSI controller is the Opto-22 "PAMUX" bus.  Like the Alpha Products A-Bus, 
+the Opto-22 PAMUX bus is a simple parallel I/O bus with data, address, and 
+read and write control signals.  Opto-22 offers an assortment of PAMUX analog 
+and digital I/O mounting racks.  Up to 16 PAMUX mounting racks can be daisy-
+chained on a single PAMUX ribbon cable bus, and each PAMUX mounting rack can 
+hold up to 32 I/O input or output modules, resulting in up to 512 I/O points.
+
+As with the Alpha Products A-Bus, all that is required to tie a 5380 SCSI bus 
+to the PAMUX bus is a scramble-wired 50 conductor cable.  A suggested wiring 
+scheme is given in Table 4.  The Opto-22 Model UCA3 "kludge card" can be used 
+to make the bus-to-bus conversion, as described in Example 1.
+
+
+                        Table 4.  PAMUX/SCSI Interface
+
+      PAMUX Signal  Pin    Function             SCSI Signal   Pin
+      ------------  ---    -----------------    -----------   ---
+      D0            47     Data in/out (LSB)    -DB0           2
+      D1            45     Data in/out          -DB1           4 
+      D2            43     Data in/out          -DB2           6
+      D3            41     Data in/out          -DB3           8
+      D4            39     Data in/out          -DB4          10
+      D5            37     Data in/out          -DB5          12
+      D6            35     Data in/out          -DB6          14 
+      D7            33     Data in/out (MSB)    -DB7          16
+      A0             1     Address (LSB)        -I/O          50
+      A1             3     Address              -C/D          46
+      A2             5     Address              -MSG          42
+      A3             7     Address (MSB)        -REQ          48
+      A4             9     not used, tie low    GROUND        odd
+      A5            11     not used, tie low    GROUND        odd
+      WRITE         13     Write Strobe         -BSY          36 
+      READ          15     Read Strobe          -SEL          44
+      RST           49     not used, tie low    GROUND        odd
+      GROUND       even    Signal Ground        GROUND        odd
+
+
+Although there are not enough 5380 output signals to generate all six PAMUX 
+address signals, the implementation shown in Table 3 is sufficient to select 
+up to 128 I/O points (32 I/O's on up to four PAMUX mounting racks).  If more 
+address lines are required, they may be able to be provided by an unused 
+parallel port (e.g. Centronics printer port) into service.  Be sure to ground 
+A4 and A5 in your adapter cable (or on the UCA3).
+
+The software routines needed to interface with the PAMUX modules are similar 
+to those indicated in Example 3 for the A-Bus.  
+
+Here are a few differences from the A-Bus example:
+
+  (1) The PAMUX module bits can individually be inputs or outputs.  As 
+      mentioned in Example 1, you can support a mixture of input and output 
+      modules in the same 8-bit group by writing 0's to the bits in the 5380's 
+      SCSI Data Register bits that are to be used as inputs so that those bits 
+      on the data bus are free to be driven by the PAMUX input modules.
+
+  (2) The PAMUX bus is designed to be terminated with 180/390 ohm 
+      pullup/pulldown terminators.  This is too heavy a termination for the 
+      5380, so do not use the standard PAMUX "TERM1" terminator.  Instead, use 
+      a standard SCSI termination (220/330 ohms) on at least one end -- and 
+      preferably both ends -- of the SCSI/PAMUX bus.
+
+  (3) All signals on the PAMUX bus are "active high", while all those of the 
+      SCSI bus are "active low".  This means that everything must be inverted, 
+      including ADDRESS, DATA, and CONTROL SIGNALS.  Consequently, the normal 
+      state of the SEL and BSY bits would need to be 1's, rather than 0's, in 
+      the 5380's Initiator Command Register.  One or the other of those bits 
+      in the 5380 is then set to a 0 to generate a READ or WRITE strobe.
+
+  (4) Opto-22 recommends a 2 microsecond minimum duration for the WRITE 
+      strobe, and that you delay for at least 2 microseconds from the setting 
+      of the READ strobe prior to reading input data.
+
+
+THE SCSI/IOP ALTERNATIVE
+------------------------
+It is important to remember that all of the techniques of using the 5380 as a 
+generalized I/O port discussed in this ap note assume that the 5380 is not 
+going to be used for normal SCSI peripheral device connection as well.  This 
+means that if you plan to use a SCSI hard disk, tape drive, bubble drive, 
+optical drive, RAM disk, or any other such SCSI device, you cannot also use 
+the bus for simple digital I/O or to interface with an I/O bus such as the 
+Alpha Products A-Bus or the Opto-22 PAMUX bus.
+
+A unique device, available from AMPRO Computers Inc., does allow the SCSI bus 
+to be used to add data acquisition and control devices along with normal SCSI 
+devices.  The SCSI/IOP is a card which acts like a "legal" SCSI target device, 
+and inplements an STD Bus device interface.  A SCSI/IOP can be used with a 
+single STD Bus I/O card, to add an individual function such as analog or 
+digital I/O, or the SCSI/IOP can plug directly into an STD Bus backplane if 
+multiple STD Bus I/O cards are required.  The Z80A microprocessor on the 
+SCSI/IOP can also be used to run tasks autonomously, so the SCSI/IOP can even 
+add improved real time performance and multi-tasking to an non-real-time, and 
+single-tasking disk operating systems such as PC-DOS and CP/M.
+
+
+REFERENCES
+----------
+The following companies were mentioned in this application note:
+
+     NCR Microelectronics Division
+     1635 Aeroplaza Drive
+     Colorado Springs, CO 80916
+     Phone:  (303) 596-5612
+             (800) 525-2252
+
+     OPTO-22
+     15461 Springdale St.
+     Huntington Beach, CA 92649
+     Phone:  (714) 891-5861
+             (800) 854-8851  
+
+     ALPHA PRODUCTS CO.
+     242 West Avenue
+     Darien, CT 06820
+     Phone:  (203) 656-1806
+
+     AMPRO COMPUTERS, INC.
+     1130 Mtn. View Alviso Rd.
+     Sunnyvale, CA 94089
+     Phone:  (408) 734-2800
+
+
+-------------------------------------------------------------------------------
+  * * * COPYRIGHT (C) 1988, AMPRO COMPUTERS INC. -- ALL RIGHTS RESERVED * * *
+-------------------------------------------------------------------------------
+
+
+
+ 
+     
+

@@ -1,0 +1,1652 @@
+********************************************************
+*                                                      *
+*        X.25 Protocol Interface for CP/M-80           *
+*                                                      *
+*                  USER MANUAL                         *
+*                                                      *
+*   (C) 1985  Ed Elizondo                              *
+*             6 Cypress Court                          *
+*             East Windsor, NJ 08520                   *
+*                                                      *
+*   NOTICE:  All Rights Reserved - These programs and  *
+*   accompanying documentation may be used freely for  *
+*   non-commercial applications.  They may not be sold *
+*   or used for commercial applications without the    *
+*   written permission of the author.                  *
+*                                                      *
+********************************************************
+
+
+
+1.  Description of System
+
+     Thå  softwarå  systeí  describeä hereiî enableó á  Z8°  CP/Í 
+baseä   microcomputeò   tï  communicatå  witè  á   networë   datá 
+communicationó equipmenô (DCE© porô usinç thå X.2µ  internationaì 
+packeô   communicationó  protocol®   Thå  systeí  implementó  thå 
+functionó oæ á singlå logicaì channeì datá terminatinç  equipmenô 
+(DTE© anä ió capablå oæ operatinç eitheò iî á terminaì modå oò iî 
+á   filå  transfeò  modå  independentlù  foò  eacè  directioî  oæ 
+transmission.
+
+     Iî  terminaì  mode¬  messageó  typeä aô  thå  locaì  consolå 
+keyboarä  arå transmitteä tï thå networë aó datá packetó aó  sooî 
+aó  á carriagå returî ió entered®   Incominç packeô messageó  arå 
+displayeä oî thå locaì consolå aó accepted.
+
+     Iî  thå  filå  transfeò mode¬  thå systeí wilì  transmiô  oò 
+receivå  fileó  oæ  datá tï oò  froí  thå  network®   sincå  eacè 
+directioî  oæ  transmissioî  ió  handleä  independently¬   iô  ió 
+possiblå  tï transmiô á filå whilå receivinç iî terminaì modå  oò 
+viceversa®   Iô  ió  alsï  possiblå  tï  utilizå  thå  systeí  iî 
+bidirectional file transfer mode.
+
+
+
+2.  Installation
+
+     Thå  currenô versioî oæ thió softwarå packagå ió  customizeä 
+tï  ruî  oî thå Digitaì Researcè Computer'ó  "Biç  Board¢  singlå 
+boarä  computer®  Thå  minimuí  hardwarå requirementó arå  á  Z8° 
+microprocessor¬  á  Ziloç  SIÏ seriaì communicationó porô  anä  á 
+Ziloç  CTÃ  counter/timer¬   alì  interfaceä  usinç  Z8°  modå  ² 
+interrupts® 
+
+     Installatioî  oæ thå systeí oî thå Digitaì  Research'ó  "Biç ŠBoard¢ microcomputeò systeí consistó oæ a© cuttinç á tracå oî thå 
+PÃ  boarä  tï  permiô SIO-Á tï operatå correctlù  iî  synchronouó 
+mode¬ b© installinç thå appropriatå jumperó tï configurå thå SIO-
+Á  porô  tï  properlù  interfacå tï  thå  externaì  networë  porô 
+connection¬ anä c© generatinç thå executalbå X25.COÍ file.
+
+
+
+2.1  Sync Jumper Removal
+
+     Aó  receiveä  froí thå manufacturer¬  pinó 1± (sync© anä  1² 
+(receiveä  data©  oæ  SIO-Á  (U113©  arå  connecteä  togetheò  tï 
+facilitatå  automatiã determinatioî oæ bauä ratå wheî á  standarä 
+(asynchronous©   terminaì  ió  connecteä  tï   thió   port®    Iî 
+synchronouó  mode¬  thå  synã terminaì oæ thå SIÏ operateó aó  aî 
+outpuô  and¬  iæ lefô connected¬  generateó undesireä transitionó 
+whicè arå superimposeä oî thå inpuô data®   Foò propeò  operatioî 
+this printed circuit board trace must be cut.
+
+
+
+2.2  SIO-A I/O Jumper Configuration
+
+     Figurå  2-±  showó  thå I/Ï strappinç  jumperó  requireä  oî 
+connectoò  JB´ oæ thå "Biç Board¢ tï configurå SIO-Á tï interfacå 
+witè á typicaì maiî framå X.2µ port®   Thå jumperó configurå  thå 
+"Biç  Board¢ aó aî RS232Ã "modem¢ usinç alì RS232Ã statuó signaló 
+(CTS¬  RTS¬  DCÄ anä DTR© anä witè thå "Biç Board¢ supplyinç  thå 
+bauä ratå clocë tï thå "terminal¢ (main frame)®  Otheò hardwarå 
+configurationó maù requirå á differenô jumpeò arrangement®   Notå 
+thaô  thå  samå  clocë sourcå musô bå useä foò thå  SIÏ  anä  thå 
+externaì  device¬  whetheò supplieä bù thå "Biç Board¢ oò bù  thå 
+externaì device.
+
+
+
+2.3  Generating the X25.COM File
+
+     Tï  generatå  thå  X25.COÍ filå foò  thå  "Biç  Board"¬  thå 
+followinç stepó arå necessary:
+
+     a©   Assemblå thå followinç fileó usinç thå Digitaì Researcè 
+RMAÃ  assembleò anä thå Digitaì Researcè standarä  SEQIO.LIÂ  anä 
+Z80.LIÂ macrï libraries:
+
+               X25.ASM
+               LEVEL1.ASM
+               LEVEL2.ASM
+               LEVEL3.ASM
+               FILES.ASM
+               BUFFERS.ASM
+               XUTIL.ASM
+
+     b©   Generatå  thå  X25.COÍ filå bù linkinç thå  .REÌ  fileó 
+resultinç froí steğ a© usinç thå Digitaì Researcè LINK-8°  linkeò Šusing the following command sequence:
+
+     LINK x25,xutil,level1,level2,level3,buffers,files{a,nr]
+
+     Notå  thaô  thå  X2µ modulå musô bå linkeä  firsô  sincå  iô 
+containó thå prograí entrù point®  Thå ordeò oæ linkinç thå otheò 
+moduleó ió immaterial.
+
+     Foò otheò hardwarå configurations¬  á ne÷ LEVEL1.ASÍ  modulå 
+musô bå generateä witè thå appropriatå hardwarå interfaceó (refeò 
+to Section 6).
+
+
+.paŠ    /------------baud rate generator supplies modem with tx clock
+    |
+    | /----------modem supplies SIO with TX clock
+    | |
+    | | /--------baud rate generator supplies SIO with TX clock
+    | | | 
+    | | | /------modem supplies SIO with RX clock
+    | | | |
+    | | | | /----baud rate generator supplies SIO with RX clock
+    | | | | |
+    | | | | | /--baud rate generator supplies modem with RX clock
+    | | | | | |
+    | | | | | |
+39  o o o o o o o o o o o o o o o o o o o o  1
+    |   |   | |   |   |   |   |   |   |
+40  o o o o o o o o o o o o o o o o o o o o  2   
+                | | | | | | | | | | | |
+                | | | | | | | | | | | |
+                | | | | | | | | | | | \----(M) RXD to pin 3
+                | | | | | | | | | | |
+                | | | | | | | | | | \------(T) TXD to pin 2
+                | | | | | | | | | |
+                | | | | | | | | | \--------(M) TXD from pin 3
+                | | | | | | | | |
+                | | | | | | | | \----------(T) RXD from pin 3
+                | | | | | | | |
+                | | | | | | | \------------(M) CTS to pin 5
+                | | | | | | |
+                | | | | | | \--------------(T) RTS to pin 4
+                | | | | | |
+                | | | | | \----------------(M) RTS from pin 4
+                | | | | | 
+                | | | | \------------------(T) CTS from pin 5
+                | | | |    
+                | | | \--------------------(M) DCD to pin 8
+                | | |         
+                | | \----------------------(T) DTR to pin 20
+                | |
+                | \------------------------(M) DTR from pin 20
+                |
+                \--------------------------(T) DCD from pin 8
+
+
+                             LEGEND
+
+(M) indicates RS232C modem configuration of the "Big Board"
+(T) indicates RS232C terminal configuration of the "Big Board"
+ 
+RXD = received data                TXD = transmitted data
+RTS = request to send              CTS = clear to send
+DTR = data terminal ready          DCD = data carrier detect
+
+            Figure 2-1 - SIO-A I-O Strapping Options
+.paŠ3.  Initialization
+
+     Executinç  thå  X25.COÍ transienô commanä shoulä  causå  thå 
+prograí  tï bå loadeä froí disk¬  sigî on¬  anä displaù thå  maiî 
+menu shown in Figure 3-1.
+
+     Aô thió point¬  thå X2µ systeí ió readù foò operatioî and/oò 
+initialization of the default parameters.
+
+
+------------------------------------------------------------------
+
+X.25 packet communications program (06/28/84)
+(c© 198´ Eä Elizondï - alì rightó reserved
+
+X.25 main menu:
+
+normal operation:          	diagnostics:
+    1. initialize link        		10. display system parameters
+    2. transmit restart packet		11. display status flags
+    3. transmit file          		12. display L1 and L2 statistics
+    4. abort file transmission		13. display L3 statistics
+    5. receive file           		14. set flow control ready flags
+    6. abort file reception   		15. transmit bad frame
+    7. transmit clear req. packet	16. change frame sequence
+    8. query link status      		17. start frame logging
+    9. disconnect link        		18. stop  frame logging
+
+miscellaneous:
+   19. change default parameters	21. exit to monitor
+   20. change remote DTE address	22. exit to CP/M
+
+option (cr to exit)= 
+
+
+------------------------------------------------------------------
+
+                  Figure 3-1 - System Main Menu
+.paŠ3.1  Initialization of System Default Parameters
+     
+     Aô   systeí  startup¬   alì  communicatioî  parameteró   arå 
+initializeä  tï  theiò defaulô values®   Thå defaulô  valueó  arå 
+obtaineä froí thå disë filå X25.PAR¬  iæ sucè á filå  exists¬  oò 
+froí  thå  optionó  selecteä aô assemblù time¬  iæ nï  sucè  filå 
+exists® Tï initializå thå defaulô valueó anä generatå thå X25.PAÒ 
+filå  foò  á giveî installation¬  selecô optioî £ 1¹ aô thå  maiî 
+menõ  prompt®   Thå systeí wilì theî prompô thå operatoò foò  thå 
+desireä communicatioî parameteró aó follows:
+
+
+
+baud rates:
+
+1.   300 baud
+2.   600 baud
+3.  1200 baud
+4.  2400 baud
+5.  4800 baud
+6.  9600 baud
+7. 19200 baud
+
+option (cr to exit)= 3
+
+     Enteò   thå  desireä  bauä  ratå  optioî  desireä  foò   thå 
+particulaò  installation®   Notå thaô thå maximuí erroò freå ratå 
+maù varù witè particulaò installations®   Iô ió recommendeä  thaô 
+thå  lowesô ratå (optioî 1© bå useä untiì thå maximuí  error-freå 
+ratå supporteä bù thå systeí haó beeî determined® 
+
+     Notå thaô thió optioî ió onlù meaningfuì iæ thå "Biç  Board¢ 
+systeí  ió  supplyinç thå clocë tï thå externaì devicå (refeò  tï 
+Sectioî 2.2)®  Iæ thå externaì devicå ió supplyinç thå clock¬ anù 
+optioî maù bå selecteä sincå iô wilì havå nï effect®   Á carriagå 
+returî   wilì  leavå  thå  optioî  unchangeä  froí  thå  previouó 
+selection® 
+
+
+
+level 2 mode:
+
+1. DTE (normal mode)
+2. DCE (test mode)
+3. self-test mode (with loopback connector)
+
+option (cr to exit)= 1
+
+
+     Thió  optioî  determineó thå assignmenô oæ  framå  addresseó 
+useä  foò linë leveì commanä anä responså frames¬  iî  accordancå 
+witè thå X.2µ standard® 
+ 
+     Foò  normaì  operatioî  optioî ± (DTE© shoulä  bå  selected®  
+Optioî  ² ió foò uså wheî twï similaò DTÅ unitó musô  communicatå Šwithouô  thå intermediarù oæ á networë DCÅ (foò examplå wheî  twï 
+"Biç  Board¢  systemó  arå connecteä togetheò  foò  debugginç  oæ 
+softwarå  modifications®   Optioî  ³  ió foò uså  onlù  iî  debuç 
+operationó  usinç  á singlå DTÅ systeí iî á  loopbacë  connectioî 
+arrangemenô  wherå transmitteä datá ió feä bacë tï  thå  receiveä 
+datá terminal®  Á carriagå returî wilì leavå thå optioî unchangeä 
+from the previous selection.
+
+
+
+level 3 mode:
+
+1. Virtual Call circuit (VC)
+2. Permanent Virtual Circuit (PVC)
+
+option (cr to exit)= 1
+
+
+     Thió   optioî   determineó   whetheò   thå   packeô    leveì 
+communicationó  modå wilì corresponä tï thå Virtuaì Calì (VC©  oò 
+Permanenô  Virtuaì Circuiô (PVC© servicå clasó oæ  operation¬  aó 
+defineä iî thå X.2µ standard®   Iî simplifieä terms¬  thå VÃ modå 
+requireó  calì  setuğ packetó beforå datá caî bå transferreä  anä 
+calì clearinç packetó afteò datá transmissioî ió complete¬  whilå 
+PVÃ  circuitó caî transfeò datá packetó aô anù time®   Mosô  maiî 
+framå   implementationó  supporô  onlù  VÃ  (optioî  1©  modå  oæ 
+operation®  Á  carriagå returî wilì leavå thió  optioî  unchangeä 
+froí thå lasô selection® 
+
+
+
+local DTE address (0-15 hex digits) =
+
+     Thió optioî determineó thå locaì DTÅ addresó oæ thå  system®  
+Aî  addresó  maù  bå entereä bù typinç froí ° tï  1µ  heø  digitó 
+(withouô anù interveninç spaces)® Iæ aî addresó ió selected¬ onlù 
+calì  requesô packetó havinç sucè aî addresó wilì bå accepteä  bù 
+thå system®   Á carriagå returî wilì seô thå addresó lengtè tï 0®  
+
+
+
+remote DTE address (0-15 hex digits) = 
+
+     Thió optioî determineó thå initiaì DTÅ addresó oæ thå remotå 
+systeí beinç accessed®   Aó before¬  aî addresó maù bå entereä bù 
+typinç  froí ° tï 1µ heø digitó (withouô anù interveninç spaces)® 
+Iæ aî addresó ió selected¬  thå addresó wilì bå incorporateä intï 
+alì  calì  requesô packetó senô bù thå system®   Notå  thaô  somå 
+main-framå  implementationó  accepô onlù ´ heø digitó foò  á  DTÅ 
+addresó  anä thaô thió addresó ió useä tï selecô thå  destinatioî 
+procesó oæ thå packeô communications®  Notå alsï thaô optioî £ 2° 
+oæ  thå maiî menõ caî bå useä tï changå thió addresó aô anù time®  
+Usinç  optioî  £ 1¹ selectó thå initiaì defaulô  valuå  foò  thió 
+address¬ whicè remainó unchangeä wheî optioî £ 2° ió selected® 
+Š
+     Afteò selectioî oæ thå abovå option¬ á ne÷ defaulô parameteò 
+filå  X25.PAÒ ió generateä oî thå currentlù loggeä disk¬  anä thå 
+systeí ió readù foò operation®    Thå selecteä parameteró maù  bå 
+verifieä bù meanó oæ maiî menõ optioî £ 10.
+  
+
+
+4.  Using the System
+
+     Assuminç  thaô thå systeí ió connecteä tï aî activå  networë 
+porô anä thaô thå systeí defaulô parameteró havå beeî initializeä 
+aó describeä iî Sectioî 3.1¬ tï uså thå systeí iî packeô terminaì 
+modå  requireó  simplù thaô thå linë connectioî  bå  established®  
+Oncå thå linë connectioî ió established¬  establishinç thå packeô 
+leveì  calì  occuró  automaticallù  wheî  thå  firsô  messagå  ió 
+transmitted®   Thå  followinç sectionó describå iî greateò detaiì 
+thå operatioî oæ thå systeí anä variouó optionó availablå  durinç 
+normaì  operation®   Á summarù oæ thå optionó availablå froí  thå 
+main menu is included in Appendix I.
+
+
+
+4.1  Special Command Characters
+
+     Wheî  thå  systeí ió iî control¬  thå followinç  characters¬ 
+wheî  typeä  locallù aô thå systeí console¬  arå  interpreteä  aó 
+speciaì commands:
+
+
+escape        - thió  characteò  makeó thå systeí returî  tï  thå 
+              maiî   menu.
+
+
+control-B     - thió characteò commandó thå systeí tï transmiô aî 
+              interrupô packet® Thå interrupô packeô wilì onlù bå 
+              transmitteä  iæ thå packeô channeì ió iî  thå  flo÷ 
+              controì  readù  statå  (p± oò d1© anä iæ  nï  otheò 
+              interruptó arå pendinç confirmation¬  otherwiså  aî 
+              erroò messagå results®             
+
+
+control-P     - thió  commanä turnó thå harä copù printeò oî  anä 
+              off¬  similaò  tï thå samå functioî iî  CP/M®   Thå 
+              consolå bell¬  iæ installed¬ ió soundeä tï indicatå 
+              wheî  thå printeò ió turneä oî iî á manneò  similaò 
+              tï CP/Í 3.0.
+
+
+control-U     - thió  commanä deleteó thå lasô (incomplete© typeä 
+              line¬ similaò tï thå samå functioî iî CP/M®    
+
+
+delete‚        - thió commanä deleteó thå lasô typeä character.
+Š.cp3
+
+carriagå
+     return   - thió  commanä transmitó thå previouslù typeä linå 
+              aó  á  datá  packet¬  provideä thå  linë  haó  beeî 
+              initializeä anä thå packeô channeì ió iî thå  readù 
+              (r1©  oò flo÷ controì readù (p± oò d1© state.
+
+
+
+4.2  Connecting the Link
+
+     Thå  firsô steğ afteò initializinç thå defaulô parameteró ió 
+tï  establisè  thå  linë  leveì  connection®    Thå  linë   leveì 
+connectioî  maù bå originateä eitheò locallù bù thå DTÅ  (system© 
+oò remotely bù thå DCE (network)® 
+
+     Assuminç  thaô  thå  systeí seriaì  communicationó  porô  ió 
+connecteä tï aî activå networë port¬  thå systeí aô thió poinô ió 
+transmittinç  continuouó flagó tï thå networë anä hopefullù  alsï 
+receivinç flagó froí thå network® 
+
+     Iæ  iô  ió desireä tï originatå thå linë connectioî  (oò  tï 
+reseô aî existinç connection© aô thå DTE¬ simplù selecô maiî menõ 
+optioî  #±  (initializå  link)®   Thió wilì causå thå  systeí  tï 
+transmiô  á SABÍ framå tï thå network®   Aî activå  networë  wilì 
+replù witè á UÁ frame¬ aô whicè poinô thå linë ió establisheä anä 
+thå  messagå  "L2º  rø  UÁ - linë connected¢ wilì appeaò  oî  thå 
+system console.
+
+     Iæ  nï UÁ framå ió receiveä froí thå DCÅ withiî 1°  seconds¬ 
+thå  SABÍ framå ió retransmitted®   Thió procesó ió  repeateä  1° 
+times¬ aô whicè point¬ iæ nï replù haó beeî received¬ thå networë 
+ió  declareä  non-operatinç anä thå messagå "L2º  tø retrù  counô 
+exhausted - no reply from dce" will appear on the system console.
+
+     Iæ desired¬  thå systeí maù awaiô initializatioî oæ thå linë 
+bù  thå  DCÅ (network)®   Thió ió accomplisheä  bù  selectinç  nï 
+optioî  (bù typinç á carriagå return© aô thå maiî menu®  Iî  thió 
+mode¬  thå  systeí wilì awaiô receptioî oæ á SABÍ framå froí  thå 
+DCÅ  and¬  wheî sucè á framå ió received¬  thå systeí wilì  replù 
+witè  á UÁ frame¬  causinç thå linë connectioî tï bå established®  
+Thió  wilì bå indicateä tï thå operatoò bù thå  messagå  "L2º  rø 
+SABM - link connected by dce" appearing on the system console.  
+
+     Notå thaô beforå thå SABÍ framå ió received¬ thå systeí wilì 
+replù  witè  á disconnecô modå (DM© framå tï anù receiveä  frameó 
+havinç thå polì biô ½ 1®  Aî activå networë wilì replù tï thió DÍ 
+framå bù transmittinç á SABÍ frame¬  thuó establishinç thå  link®  
+Aô  typicaì  main-framå  implementations¬  wheî  nï  activitù  ió 
+detecteä  afteò á perioä oæ time¬  thå networë porô  periodicallù 
+transmitó RÒ frameó witè thå polì biô seô tï 1®   Wheî thå systeí 
+ió  connecteä tï sucè á port¬  thió wilì causå thå  RR-DM-SABM-UÁ 
+handshakå  tï  occur¬  thuó automaticallù establishinç  thå  linë 
+connection.
+Š     Thå  statå oæ thå linë connectioî maù bå determineä  aô  anù 
+timå  bù  selectinç  optioî £ ¸ (querù linë status© aô  thå  maiî 
+systeí menu®  Iæ thå linë ió connecteä anä botè endó arå readù tï 
+accepô transmitteä frames¬  thå messageó "L2º dtå ready¢ anä "L2º 
+dcå ready¢ wilì appeaò oî thå systeí console.
+
+
+
+4.3  Remote DTE Address Selection
+
+     Thå  currentlù selecteä remotå DTÅ addresó maù bå  displayeä 
+bù meanó oæ optioî £ 1° oæ thå systeí maiî menu®   Tï changå  thå 
+remotå DTE address¬ foò examplå tï accesó á differenô destinatioî 
+procesó througè thå network, option # 20 may be selected.
+
+     Wheî  optioî £ 2° ió selected¬  á ne÷ remotå DTÅ addresó maù 
+bå  entereä  bù  typinç  froí ° tï 1µ  heø  digitó  (withouô  anù 
+interveninç  spaces)®   Á  carriagå returî wilì seô  thå  addresó 
+lengtè tï 0®  Aî invaliä addresó wilì repeaô thå prompô foò á ne÷ 
+address.
+
+     Thå  addresó sï selecteä wilì bå incorporateä intï anù  calì 
+requesô packetó transmitteä bù thå systeí untiì modifieä agaiî bù 
+meanó  oæ optioî £ 2° (oò reinitializinç thå systeí  parameters)®  
+Notå  thaô  selectioî oæ aî addresó bù meanó oæ optioî £ 2°  doeó 
+noô changå thå defaulô addresó initializeä aô systeí startup®  Tï 
+changå thå initiaì addresó selectioî yoõ musô uså optioî £ 1¹  tï 
+change the default parameters.
+
+
+
+4.4  Packet Level Initialization
+
+     Iæ thå linë ió establisheä bù thå DTÅ (system)¬  thå  systeí 
+automaticallù  transmitó á RESTARÔ REQUESÔ packeô tï thå network®  
+Aî activå networë wilì replù witè á RESTARÔ CONFIRMATIOÎ  packet¬ 
+whicè  indicateó thaô thå packeô leveì ió iî thå readù (p1© state
+awaitinç  á calì setup®   Thió wilì bå indicateä bù  thå  messagå 
+"L3º  rø restart¢ displayeä oî thå operatoò console®  Iæ nï replù 
+packeô ió receiveä withiî 18° seconds¬ thå RESTARÔ REQUESÔ packeô 
+ió retransmitted®   Iæ nï replù ió receiveä thå seconä time¬  thå 
+networë  ió declareä ouô oæ ordeò anä thå messagå "L3º  tø  retrù 
+counô exhausteä - nï replù froí DCE¢ ió displayed.
+
+     Iæ thå linë ió establisheä bù thå networë (DCE)¬  thå systeí 
+awaitó á RESTARÔ INDICATIOÎ packeô froí thå networë anä wheî sucè 
+á  packeô  ió  received¬  thå systeí wilì  relù  witè  á  RESTARÔ 
+CONFIRMATIOÎ  packet¬  thuó causinç thå packeô leveì tï enteò thå 
+ready (p1) state and await a call setup.
+
+     Iæ necessary¬ á RESTARÔ REQUESÔ packeô caî bå transmitteä bù 
+the system by use of option # 2 on the main menu. 
+
+
+Š4.5  Establishing the Call
+
+     Iæ thå Permanenô Virtuaì Circuiô (PVC© modå oæ operatioî haó 
+beeî  selecteä aô systeí initialization¬  anä iæ thå DCÅ supportó 
+thió  clasó oæ operation¬  nï calì setuğ ió necessarù anä  packeô 
+transmissioî anä receptioî maù begiî aô anù time® (notå thaô most 
+main-framå implementationó dï noô supporô PVÃ modå oæ operation).
+
+     Iæ  thå  Virtuaì  Calì  (VC©  modå  oæ  operatioî  haó  beeî 
+selected¬ á packeô leveì calì musô bå establisheä beforå anù datá 
+packetó  maù  bå transmitteä oò  received®   Establishmenô  oæ  á 
+packeô  leveì  calì ió automaticallù accomplisheä bù  thå  systeí 
+when the first console data packet is transmitted.  
+
+     Tï  establisè thå packeô leveì call¬  iô ió merelù necessarù 
+tï transmiô á datá packet®   Thió ió mosô easilù donå bù typinç á 
+carriagå returî aô thå systeí console®   Thå systeí automaticallù 
+transmitó  á  CALÌ  REQUESÔ  packeô  containinç  thå   previouslù 
+selecteä  DTÅ  addresses®   Aî activå networë iî thå  readù  (p1© 
+statå  wilì replù witè á CALÌ ACCEPTEÄ packet¬  iæ iô caî  accepô 
+thå call¬  oò á CALÌ REJECTEÄ packeô iæ iô cannot®   Thió wilì bå 
+indicateä  bù thå messagå "L3º  rø calì connected¢ oò  "L3º  calì 
+refuseä - tø cleaò request¢ displayeä aô thå systeí console®   Aó 
+indicateä  iî  thå  latteò message¬  á rejecteä calì  causeó  thå 
+system to transmit a CLEAR REQUEST packet in confirmation.
+
+     Wheî thå CALÌ ACCEPTEÄ packeô ió receiveä bù thå system¬ thå 
+channeì  ió theî placeä iî thå flo÷ controì readù (d1© statå  anä 
+thå systeí proceedó tï transmiô thå outstandinç datá  packet¬  iî 
+this case, a packet containing a carriage return-line feed pair.
+
+     Thå calì setuğ maù bå originateä bù thå DCE®   Iî thió case¬ 
+thå  systeí  receiveó aî INCOMINÇ CALÌ packet¬  indicateä bù  thå 
+messagå "L3º  rø incominç call¢ displayeä aô thå systeí  console®  
+Thå systeí verifieó thaô thå incominç calì packeô haó thå correcô 
+locaì  DTÅ  addresó  and¬  iæ so¬  replieó witè á  CALÌ  ACCEPTEÄ 
+packet¬  aô whicè poinô thå systeí enteró thå flo÷ controì  readù 
+(d1) state.
+
+     Iæ  thå  incominç calì packeô haó aî  invaliä  address¬  thå 
+systeí  replieó  witè á CLEAÒ REQUESÔ packet¬  indicateä  bù  thå 
+messagå  "L3º  baä addresó - tø cleaò request"®   Thå systeí theî 
+awaits another call.
+
+
+
+4.6  Operation in Packet Terminal Mode
+
+
+     Afteò  thå packeô calì ió establisheä anä thå systeí  ió  iî 
+thå  flo÷  controì readù (d1© state¬  anù messageó typeä  aô  thå 
+systeí  consolå  arå transmitteä aó datá packets¬  aó sooî  aó  á 
+carriagå returî ió typed®  
+
+     Notå  thaô thå systeí automaticallù addó á linå  feeä  afteò Šeacè  carriagå  returî thaô ió typed®   Notå alsï thaô sincå  thå 
+maximuí  packeô  sizå handleä bù thå systeí ió  12¸  datá  bytes¬ 
+longeò  messageó  typeä aô thå systeí consolå wilì bå  brokeî  uğ 
+intï  morå  thaî  onå  packeô (thå maximuí  consolå  buffeò  sizå 
+currentlù implementeä iî thå systeí ió 25¶ bytes¬ longeò messageó 
+thaî thió wilì bå truncateä tï 25¶ bytes.© 
+
+     Thå systeí promptó thå operatoò witè á '>>§ wheî iô ió readù 
+to accept the next message for transmission.
+
+     Thå  contentó oæ anù datá packetó receiveä afteò thå  packeô 
+calì  ió  establisheä  arå  displayeä  unchangeä  aô  thå  systeí 
+console¬  excepô  thaô  alì  controì characteró  otheò  thaî  thå 
+following are replaced by a period ('.'):
+
+
+
+                    carriage return
+                    line feed
+                    form feed
+                    bell
+                    horizontal tab
+                    back space
+
+
+
+4.7  Transmitting Interrupt Packets
+
+     Oncå  thå packeô calì haó beeî establisheä aó  describeä  iî 
+Sectioî 4.5¬  INTERRUPÔ packetó maù bå transmitteä aô anù timå bù 
+typinç  control-Â  (break© aô thå systeí console®   Thå DCÅ  wilì 
+replù  tï  thió interrupô packeô witè aî  INTERRUPÔ  CONFIRMATIOÎ 
+packeô  anä  takå whateveò locaì actioî haó  beeî  programmeä  iî 
+responså  tï interruptó (thió ió á networë option)®   Receipô  oæ 
+thå  interrupô  confirmatioî  wilì  bå indicateä  aô  thå  systeí 
+consolå bù thå messagå "L3º rø interrupô confirmatioî packet".
+
+     Onlù   onå  INTERRUPÔ  packeô  maù  bå   transmitteä   untiì 
+confirmed®   Attempô  bù thå operatoò tï senä á seconä  INTERRUPÔ 
+packeô  beforå thå INTERRUPÔ CONFIRMATIOÎ packeô haó beå receiveä 
+wilì resulô iî aî erroò message.
+
+
+  
+4.8  Transmitting File Data
+
+     Beforå transmittinç anù filå data¬  thå packeô calì musô  bå 
+establisheä  aó  describeä  iî Sectioî  4.5®  Oncå  thå  calì  ió 
+established¬  filå  datá  maù  bå  transmitteä  aô  anù  timå  bù 
+selectinç maiî menõ optioî £ 3®  
+
+     Wheî  optioî £ ³ ió selecteä aô thå maiî  menu¬  thå  systeí 
+wilì  asë foò á filå name¬  provideä á filå transmissioî  ió  noô 
+alreadù iî process®   Typinç á carriagå returî aô thió poinô wilì 
+aborô thå filå transmissioî request®  Typinç aî invaliä filå namå Šwilì  causå thå filå namå questioî tï bå repeated®  Á valiä  filå 
+namå maù contaiî onlù alphanumeriã characteró anä maù contaiî  aî 
+optionaì  drivå  namå  anä filå  typå  specifier¬  followinç  thå 
+standarä CP/Í convention¬ foò examplå B:test.dat.
+
+     Oncå á valiä filå namå haó beeî entered¬  thå systeí  checkó 
+tï  seå  iæ thå filå existó oî thå specifieä disk®   Iæ thå  filå 
+doeó noô exist¬  thå filå transmissioî requesô ió aborteä anä thå 
+message "L4: file not found" is displayed. 
+
+     Iæ  thå  filå exists¬  transmissioî oæ thå  filå  datá  wilì 
+proceeä automaticallù untiì thå enä oæ filå unlesó aborted®  Filå 
+transmissioî  maù bå aborteä aô anù timå bù selectinç optioî £  ´ 
+aô thå maiî menu® 
+
+     Durinç filå transmission¬  anù messageó typeä aô thå consolå 
+wilì  noô  bå  transmitteä  tï  thå  DCÅ  untiì  afteò  thå  filå 
+transmissioî ió complete®   Notå thaô thå maximuí consolå messagå 
+sizå oæ 25¶ byteó applieó alsï iî thió case® 
+
+
+
+4.9  Receiving File Data
+
+     Beforå  receivinç filå data¬  thå packeô leveì calì musô  bå 
+establisheä  aó  describeä  iî sectioî 4.5®   Oncå thå   calì  ió 
+established¬  filå datá maù bå receiveä aô anù timå bù  selectinç 
+option # 5 from the main menu.
+
+     Wheî  optioî  £ µ ió selecteä aô thå maiî menu¬  thå  systeí 
+askó foò á filå name¬ provideä filå datá receptioî ió noô alreadù 
+iî  process®   Typinç á carriagå returî aô thió poinô wilì  aborô 
+thå  filå receptioî request®   Typinç aî invaliä filå  namå  wilì 
+causå thå filå namå questioî tï bå repeated®  Again¬ á valiä filå 
+namå  maù contaiî onlù alphanumeriã characters¬  witè aî optionaì 
+filå  typå anä disë drivå specifieò iî accordancå  witè  standarä 
+CP/M convention.
+
+     Oncå  á valiä filå namå haó beeî entered¬  thå systeí checkó 
+foò  thå  existencå oæ á filå bù thå samå namå oî  thå  specifieä 
+disk®  Iæ  sucè á filå ió found¬  thå systeí askó  "filå  alreadù 
+exists¬ deletå iô (y/n)?"®  Answerinç anythinç otheò thaî "y¢ (oò 
+"Y"©  wilì aborô thå filå receptioî request®   Answerinç "y¢  (oò 
+"Y") will erase the previous file of the same name.
+
+     Oncå  thå  receivå filå haó beeî  successfullù  opened¬  alì 
+receiveä  datá  wilì  bå writteî ontï thió filå  untiì  thå  filå 
+receptioî  modå  ió aborteä bù meanó oæ optioî £ ¶ froí thå  maiî 
+menu®  
+
+     Durinç  filå datá receptioî á pluó sigî '+§ ió displayeä  oî 
+thå  screeî  aó á progresó signaì foò everù datá packeô  receiveä 
+anä writteî tï thå file®  Thå receiveä datá ió unchangeä aó iô ió 
+writteî tï thå file® 
+Š
+
+4.10  Terminating the Call
+
+     Terminatinç thå packeô leveì calì maù bå donå aô anù timå bù 
+selectinç  maiî menõ optioî £ 7®   Iæ thå linë ió connecteä  thió 
+wilì  resulô iî thå transmissioî oæ á CLEAÒ REQUESÔ packet®   Thå 
+DCÅ  wilì  normallù replù witè á DCÅ CLEAÒ  CONFIRMATIOÎ  oò  DCÅ 
+CLEAÒ  INDICATIOÎ  packet¬  aô whicè poinô thå packeô leveì  wilì 
+closå  anù transmiô oò receivå fileó thaô maù bå opeî  anä  enteò 
+thå readù (p1© statå to awaiô anotheò call.
+
+     Thå  calì maù alsï bå terminateä bù thå DCÅ bù  transmissioî 
+oæ  á CLEAÒ INDICATIOÎ packet®   Wheî thió packeô ió receiveä  aô 
+thå  DTE¬  thió wilì bå indicateä aô thå consolå bù  thå  messagå 
+"L3º  rø  cleaò indicatioî packet¬  causå ½ xx"¬  wherå xø ió thå 
+causå foò thå calì termination®   Thå DTÅ wilì replù witè á CLEAÒ 
+CONFIRMATIOÎ packet¬ closå anù transmiô oò receivå fileó thaô maù 
+bå opeî anä enteò thå readù (p1© statå tï awaiô anotheò call® 
+
+
+
+4.11  Disconnecting the Link
+
+     Thå  linë  connectioî  maù bå disconnecteä aô  anù  timå  bù 
+selectinç optioî £ ¹ froí thå maiî menu®   Thió optioî wilì causå 
+thå  transmissioî oæ á DISÃ frame®   Aî activå networë wilì replù 
+witè  á  UÁ  frame¬  aô  whicè poinô  thå  framå  leveì  linë  ió 
+disconnected®  Thió wilì bå indicateä aô thå systeí consolå bù tè 
+message "L2: rx UA - link disconnected'.
+
+     Iæ nï replù ió receiveä withiî 1° secondó thå DISÃ framå  ió 
+retransmitted®   Thió  procesó  ió repeateä 1°  times¬  aô  whicè 
+point¬  iæ  nï replù haó beeî received¬  thå networë ió  declareä 
+non-operationaì  anä thå messagå 'L2º  tø retrù counô exhausteä - 
+nï replù froí DCE¢ ió displayeä aô thå console.
+
+     Thå linë maù alsï bå disconnecteä bù thå DCÅ bù transmissioî 
+oæ  á DISÃ frame®   Wheî á DISÃ framå ió received¬  thió wilì  bå 
+indicateä bù thå messagå "L2º rø DISÃ - linë disconnecteä bù dce¢ 
+aô thå systeí console®  Thå systeí wilì replù witè á UÁ frame¬ aô 
+which point the link will be disconnected.
+
+
+
+5.  Diagnostic Facilities
+
+
+5.1  Link Query Function
+
+     Thå linë querù function¬ requesteä bù optioî £ ¸ oæ thå maiî 
+systeí  menu¬  provideó  thå currenô linë statuó aó perceiveä  bù 
+both ends of the link.
+
+     Wheî  thió optioî ió selected¬  thå systeí  interrogateó  iô Šinternaì  linë  statå flags®   Iæ thå linë ió  disconnected¬  thå 
+messagå "L2º dtå linë ió disconnected¢ ió displayed®  Iæ thå linë 
+ió connected¬  thå systeí checkó tï seå iæ thå DTÅ ió iî á  framå 
+reject¬  receivå  busy¬  oò  receivå readù  conditioî anä iæ  so¬ 
+displayó thå appropriatå status®  
+
+     Thå  systeí theî transmitó thå appropriatå RR¬  RNÒ  oò  REÊ 
+frame¬  witè thå polì biô seô tï 1¬  tï thå DCE®  Thå systeí theî 
+awaitó  á  replù framå froí thå DCÅ witè thå correspondinç  finaì 
+biô  seô tï 1®   Wheî sucè á framå ió received¬  thå systeí  theî 
+displayó thå correspondinç DCÅ status®  Iî normaì conditions¬ thå 
+messagå displayeä wilì bå "L2º  dcå ready"¬  denotinç thaô aî  RÒ 
+frame with the final bit set to 1 has been received from the DCE.
+
+     Iæ  nï replù framå (witè thå finaì biô seô tï 1© ió receiveä 
+withiî  1° seconds¬  thå RR¬  RNÒ oò REÊ framå  ió  retransmitteä 
+(witè  thå polì biô seô tï 1)®   Thió procesó ió repeateä á totaì 
+oæ 1° times®   Iæ nï replù ió receiveä afteò thå tentè time¬  thå 
+link is automatically disconnected.
+
+
+
+5.2  Diagnostic Display Screens
+
+     Fouò  diagnostiã  displaù  screenó  arå  availablå  tï   thå 
+operatoò  iî responså tï maiî menõ optionó £ 10¬  11¬  1² anä 13®  
+Á brieæ descriptioî oæ thå informatioî availablå oî theså screenó 
+ió aó followsº 
+
+
+System Parameters (option # 10)
+
+     Thió  screeî  displayó  thå currenô  statuó  oæ  alì  systeí 
+parameteró and flow control variables.
+
+
+System Status Flags (option # 11)
+
+     Thió screeî displayó thå currenô statå oæ alì systeí controì 
+flags®   Thå  definitioî oæ theså flagó maù bå founä iî  Appendiø 
+II®   Iî  normaì  packeô terminaì modå oæ  operation¬  afteò  thå 
+packeô  calì haó beeî established¬  thå statå oæ alì flagó shoulä 
+bå ° excepô foò leveì ² linë statuó biô £ ² (linë connected©  anä 
+level 3 channel status bit # 0 (flow control ready state d1).
+
+
+L1 and L2 System Statistics (option # 12)
+
+     Thió  screeî  displayó thå accumulateä totaló oæ thå  systeí 
+diagnostiã  counteró  tï bå displayeä foò thå leveì  ±  (hardwarå 
+level) and level 2 (link level) functions.
+
+
+L3 System Statistics (option # 13)
+Š     Thió  screeî displayó thå accumulateä totaló oæ  thå  systeí 
+diagnostiã  counteró  tï  bå displayeä foò thå  leveì  ³  (packeô 
+level) functions.
+
+
+
+5.3  Special Debug Functions
+
+
+     Asidå froí thå linë querù functioî describeä iî Sectioî 5.1¬ 
+three speciaì debuç functionó arå availablå tï thå systeí operatoò 
+iî  responså  tï  maiî  menõ optionó £  14¬  1µ  anä  16®   Theså 
+functions¬  intendeä mainlù tï checë ouô specifiã systeí softwarå 
+desigî areas¬ are:
+
+
+Set Flow Control Ready Flags (option # 14)
+
+     Thió  diagnostiã  functioî wilì causå thå  locaì  systeí  tï 
+behavå aó iæ thå leveì ² linë haä beeî successfullù connecteä anä 
+thå leveì ³ linë ió iî flo÷ controì readù state®   Thió  functioî 
+ió  intendeä  foò  uså mainlù durinç softwarå  checkouô  wheî  aî 
+activå networë ió noô availablå anä serveó nï usefuì purposå wheî 
+thå systeí ió connecteä tï aî activå network® 
+
+
+Transmit Bad Frame (option # 15)
+
+     Thió  diagnostiã  functioî  wilì causå á transmissioî  oæ  á 
+framå witè aî invaliä controì fielä (0ffh)®   Thió wilì forcå thå 
+DCÅ  tï  replù  witè á  CMDÒ  (commanä  reject©  response®   Thió 
+functioî  ió  intendeä  foò uså durinç softwarå checkouô  oæ  thå 
+systeí  exceptioî  conditionó  anä serveó nï  purposå  iî  normaì 
+operation.
+
+
+Change Frame Sequence (option # 16)
+
+
+     Thió diagnostiã functioî wilì decremenô (modå 7© thå currenô 
+valuå  oæ thå framå leveì senä statå variablå  V(s)®   Thió  wilì 
+causå  thå DTE tï detecô á receiveä sequencå erroò anä replù witè 
+á REÊ (reject© responså framå bacë tï thå DTE®   This¬  iî  turn¬ 
+shoulä  causå á retransmissioî oæ thå "missed¢ framå bù thå  DTE® 
+Thió functioî ió intendeä foò softwarå checkouô oæ thió exceptioî 
+condition and serves no useful purpose during normal operation. 
+
+
+
+5.4  Session Logging
+
+     Thió  usefuì diagnostiã functioî ió enableä anä disableä  bù 
+maiî menõ optionó £ 1· anä 1¸ respectively®  
+
+     Wheî thió functioî ió enabled¬  alì transmitteä anä receiveä Šframeó  arå  loggeä  iî  á  speciaì  disë  filå  (X25.LOG)®   Thå 
+informatioî loggeä consistó oæ a© thå directioî oæ  transmission¬ 
+b©  thå framå addresó fielä anä c© thå framå controì  field®   Aî 
+auxiliarù  diagnostiã  prograí (PLOG.COM© haó beeî  developeä  tï 
+prinô  ouô  thió informatioî iî tabulaò forí anä tï identifù  thå 
+addresó anä framå typå iî X.2µ notation¬  aó welì aó extracô  thå 
+sequencå   numberó  N(s©  anä  N(r)¬   anä  thå  poll/finaì   biô 
+informatioî froí thå controì fielä oæ thå frame.
+
+     Notå thaô enablinç thå logginç functioî bù meanó oæ optioî £ 
+1· eraseó anù previouslù existinç X25.LOÇ file®  Iæ iô ió desireä 
+tï loç morå thaî onå session¬  erasurå oæ thå earlieò sessioî loç 
+maù  bå  preventeä  bù renaminç thå existinç X25.LOÇ  filå  tï  á 
+differenô namå (foò examplå X25.L1).
+
+     Sessioî logginç maù bå starteä aô anù time¬  eveî beforå thå 
+link connection has been established. 
+
+
+
+
+5.5  Assembly Time Debug Options
+
+     Speciaì  assemblù  timå debuç optionó havå beeî provideä  iî 
+thå  moduleó X25.ASM¬  LEVEL2.ASÍ anä  LEVEL3.ASM®   Theså  debuç 
+optionó arå enableä bù settinç thå modulå locaì variablå  "debug¢ 
+equaì  tï "true¢ prioò tï assemblù time®   Wheî thå debuç optionó 
+are set to "true", the following functions are enabled:
+
+
+X25.ASM debug option
+
+     Settinç thå "debug¢ parameteò equaì tï "true¢ iî thå X25.ASÍ 
+modulå causeó alì receiveä consolå datá packetó tï bå taggeä witè 
+thå  symboì  <r¾ aô thå beginninç oæ eacè  packet®   Thió  allowó 
+trackinç  oî thå systeí consolå aó eacè packeô ió  receiveä  wheî 
+lonç texô messageó arå beinç exchanged® 
+
+
+LEVEL2.ASM debug option
+
+     Settinç  thå  "debug¢  parameteò  equaì  tï  "true¢  iî  thå 
+LEVEL2.ASÍ modulå causeó thå displaù aô thå systeí consolå oæ thå 
+framå   transmiô   sequencå  numbeò  N(s©  oæ   alì   transmitteä 
+informatioî frames® 
+
+     Iî  additioî  tï  thå above¬  thå debuç  optioî  causeó  thå 
+entirå contentó oæ anù receiveä frameó havinç á baä addresó tï bå 
+dumpeä (iî heø format© oî thå systeí console® 
+
+
+LEVEL3.ASM debug option
+
+     Settinç  thå  "debug¢  parameteò  equaì  tï  "true¢  iî  thå 
+LEVEL3.ASÍ modulå causeó thå displaù aô thå systeí consolå oæ thå Špackeô senä sequencå numbeò P(s© oæ alì transmitteä datá packets® 
+Iî  ordeò  tï  distinguisè thå packeô sequencå numberó  froí  thå 
+framå  sequencå  numberó  displayeä bù thå debuç  optioî  iî  thå 
+LEVEL2.ASÍ  module¬  thå  packeô sequencå numberó  arå  displayeä 
+within square brackets [n].
+
+
+
+5.6  Use of PFM Monitor
+
+     Provisionó  havå  beeî includeä iî thå systeí  tï  exiô  thå 
+systeí tï thå "Biç Board¢ PFÍ monitor¬  leavinç thå systeí statuó 
+unchanged®   Thió  allowó examinatioî oæ memorù locationó  withiî 
+thå system programs for diagnostic purposes.
+
+     Tï  exiô tï thå PFÍ monitoò selecô optioî £ 2± froí thå maiî 
+menu®  Tï returî tï thå systeí prograí withouô reinitializinç thå 
+X2µ system¬  typå "G3¢ aô thå PFÍ monitoò prompô '*'®   Thió wilì 
+bypasó thå initializatioî routineó anä returî controì tï thå maiî 
+prograí looğ iî thå system.
+
+     Foò  á  descriptioî  oæ thå variouó commandó  anä  functionó 
+availablå  froí thå PFÍ monitoò refeò tï thå PFM-8° Useró  Manuaì 
+supplied with the Digital Research Computer's "Big Board".
+
+
+
+6. System Alteration
+
+     
+     Modificationó  tï  thå systeí havå beeî facilitateä  bù  thå 
+partitioninç  anä separatioî oæ thå variouó X.2µ protocoì  leveló 
+into seven independent relocatable modules as follows:
+
+
+     1) X25.ASM     - the main sequencer and user interface
+     2) LEVEL1.ASM  - the hardware/interrupt service module
+     3) LEVEL2.ASM  - the link level (HDLC) handler
+     4) LEVEL3.ASM  - the packet level handler
+     5) BUFFERS.ASM - the data buffer handler
+     6) FILES.ASM   - the disk file handler
+     7) XUTIL.ASM   - miscellaneous utility functions   
+
+
+     Thå   system¬   aó  implemented¬   maù  bå  porteä  tï   anù 
+microprocessoò  systeí havinç thå followinç minimuí hardwarå  anä 
+softwarå requirements:
+
+
+     Z80 processor, supporting Mode 2 interrupts 
+     Z80-SIO serial interface device
+     Z80-CTC counter-timer device
+     26K minimum of user available RAM
+     CP/M (version 2.2 or later) operating system host
+Š
+     Witè  anù  implementatioî  otheò thaî thå  originaì  Digitaì 
+Researcè Computer'ó "Biç Board¢  changeó wilì bå requireä tï  thå 
+LEVEL±   module¬   whicè  containó  alì  thå  hardwarå  dependenô 
+subroutines®  Nï changeó shoulä bå requireä tï thå LEVEL2.ASÍ  oò 
+LEVEL3.ASÍ oò BUFFERS.ASÍ moduleó aó alì systeí hardwarå anä filå 
+interfacinç ió donå viá CP/Í BDOÓ functions®  Changeó tï thå useò 
+interfacå  iî thå X25.ASÍ modulå maù bå desirablå foò  particulaò 
+applicationó   (thå currenô x25.ASÍ modulå ió intendeä mostlù  aó 
+an X.25 protocol debugging tool).
+  
+
+.paŠ.op
+
+
+
+
+                           APPENDIX I
+
+
+                SUMMARY OF SYSTEM USER FUNCTIONS  
+
+.paŠ.fo                         I-#
+.pn1
+     Thå functionó availablå tï thå systeí operatoò froí thå maiî 
+menu are as follows: 
+
+
+    0®  Standbù State‚ - Iæ nï optioî ió selecteä aô thå  maiî 
+        menu¬ thå systeí returnó tï thå statå existinç beforå thå 
+        menõ displaù waó requested®   Iæ nï optioî ió selecteä aô 
+        systeí  startup¬  thå  systeí enteró á standbù statå  anä 
+        awaitó  foò  establishmenô  oæ thå linë  bù  thå  networë 
+        (DCE)®   Typinç aî escapå characteò aô thå locaì  consolå 
+        returnó thå systeí tï thå maiî menu® 
+
+
+    1.  Initializå Link‚ - Iæ thió optioî ió selected¬  thå systeí 
+        (DTE© wilì attempô tï establisè thå linë bù  transmittinç 
+        á  SABÍ  (Seô  Asynchronouó Balanceä Mode© framå  tï  thå 
+        remotå DCE®   Thå linë ió establisheä upoî thå  receptioî 
+        oæ á valiä UÁ (Unnumbereä Acknowledgement© framå froí thå 
+        DCE®   Iæ  á  valiä  UÁ framå ió noô receiveä  withiî  1° 
+        seconds¬  thå systeí retransmitó thå SABÍ frame®   Iæ  nï 
+        replù ió obtaineä afteò 1° retries¬  thå linë ió declareä 
+        inoperativå  anä thå systeí returnó tï thå standbù  statå 
+        tï  awaiô  connectioî  bù  thå  DCÅ  oò  manuaì  operatoò 
+        intervention.
+               
+        Iæ  thå  linë  ió successfullù establisheä bù  thå  locaì 
+        systeí  (DTE)¬  thå systeí wilì theî transmiô  á  RESTARÔ 
+        packeô  anä  awaiô  thå  receptioî  oæ  á  valiä  RESTARÔ 
+        CONFIRMATIOÎ  packeô  iî ordeò tï initializå  thå  packeô 
+        leveì  tï  thå  datá  transfeò  state®  Iæ  thå  linë  ió 
+        establisheä  bù thå remotå DCE¬  thå systeí wilì awaiô  á 
+        RESTARÔ packeô froí thå DCE.
+
+
+    2.  transmiô Restarô Packet‚  Wheî thió functioî ió  selected¬ 
+        thå  systeí  wilì  transmiô  á  restarô  requesô  packet¬ 
+        provideä thaô thå leveì ² linë ió connected®   Thå systeí 
+        will then enter the restart request state (r2).
+
+
+    3.  Transmiô  File‚  - Wheî  thió functioî  ió  selected¬  thå 
+        systeí  wilì asë foò á standarä CP/Í filå namå specifier®  
+        Thå  systeí  wilì  theî checë foò thå  existencå  oæ  thå 
+        specifieä  file®   Iæ  thå filå existó anä  thå  linë  ió 
+        established¬  thå  systeí  wilì proceeä tï  transmiô  thå 
+        specifieä datá filå tï thå hosô iî thå forí oæ á numbereä 
+        sequencå  oæ  datá  packets®   Iæ  thå systeí  ió  iî  VÃ 
+        (Virtuaì  Call©  mode¬  thå transmissioî oæ datá  packetó 
+        wilì  bå  precedeä witè á CALÌ REQUESÔ  packeô  anä  wilì 
+        awaiô  acceptancå  oæ  thå  calì aó  indicateä  witè  thå 
+        receptioî  oæ á valiä CALÌ ACCEPTEÄ packeô froí thå  DCE®  
+        Iæ thå systeí ió iî PVÃ (Permanenô Virtuaì Circuit© mode¬ 
+        nï  calì  setuğ ió requireä anä thå  packeô  transmissioî 
+        wilì takå placå aó sooî aó thå linë leveì ió established® 
+Š
+    4.  Aborô  Filå  Transmission‚ - Thió functioî wilì  stoğ  thå 
+        transmissioî  oæ  á  datá filå  previouslù  initiateä  bù 
+        optioî ²  anä wilì closå thå datá file.
+
+
+    5.  Receivå File‚ - Wheî thió functioî ió selected¬ thå systeí 
+        wilì asë foò á CP/Í filå specifier®  Thå systeí wilì theî 
+        checë  foò thå existencå oæ á filå bù thå samå name®   Iæ 
+        sucè  á  filå exists¬  thå systeí wilì  asë  whetheò  thå 
+        currenô filå ió tï bå deleted®   Iæ thå answeò ió 'Y'¬ oò 
+        iæ  nï previouó filå oæ thå samå namå exists¬  thå systeí 
+        wilì  opeî á filå witè thå giveî name®   Thå systeí  wilì 
+        theî  monitoò  thå networë foò anù  valiä  incominç  datá 
+        packets®  Wheî sucè á packeô ió received¬ thå datá packeô 
+        wilì bå storeä oî thå disë filå writå buffer®   Wheî  thå 
+        disë filå buffeò ió full¬ thå systeí automaticallù writeó 
+        the buffer to the disk.
+
+        Filå  receptioî  wilì continuå untiì thå  filå  receptioî 
+        mode is terminated by means of main menu option # 6.
+  
+
+    6.  Aborô  Filå  Reception‚  - Thió functioî  wilì  closå  thå 
+        receivå datá filå anä reverô thå systeí tï terminaì mode®  
+        Anù  datá  packetó  remaininç  iî  thå  networë  wilì  bå 
+        displayeä oî thå systeí console.
+
+
+    7.  Transmiô   Cleaò   Requesô  Packet‚  - Iæ  thå   linë   ió 
+        established¬  thió functioî wilì transmiô á cleaò requesô 
+        packet®  Thió  wilì  havå thå effecô oæ  terminatinç  thå 
+        Virtual Call in VC mode.
+
+
+    8.  Querù  Linë  Status‚ - Thió functioî wilì firsô displaù  á 
+        messagå  givinç  thå linë statuó oæ thå locaì  systeí  oò 
+        DTE® Iæ thå linë ió established¬ thå systeí wilì transmiô 
+        á  suitablå framå witè thå polì bit=1¬  thuó forcinç  thå 
+        remotå DCÅ tï replù witè á statuó indicatioî frame®   Thå 
+        receiveä  DCÅ  statuó  indicatioî  ió  displayeä  tï  thå 
+        operator®  Iæ nï replù ió receiveä withiî 1° seconds¬ thå 
+        querù  framå wilì bå retransmitteä uğ tï á maximuí oæ  1° 
+        times®   Iæ  nï replù ió receiveä afteò 1°  retries¬  thå 
+        linë  ió  declareä  inoperative®   Thå  purposå  oæ  thió 
+        functioî ió mainlù diagnostic.
+
+
+    9.  Disconnecô   Link‚  -  Thió  functioî  wilì   attempô   tï 
+        disconnecô  thå linë bù transmittinç á DISÃ  (Disconnect© 
+        frame®   Thå  linë  ió considereä disconnecteä  upoî  thå 
+        receptioî  oæ á valiä UÁ frame®   Iæ á valiä UÁ framå  ió 
+        noô  receiveä withiî 1° seconds¬  thå systeí  retransmitó 
+        thå  DISÃ  frame®   Iæ  nï  replù ió  obtaineä  afteò  1° 
+        retries¬  thå linë ió declareä inoperativå anä thå systeí Š        returnó tï thå standbù statå tï awaiô reconnectioî bù thå 
+        DCE or manual operator intervention.
+
+
+   10.  Displaù Systeí Parameters‚ - Thió diagnostiã functioî wilì 
+        causå thå currenô statå oæ alì systeí parameteró anä flo÷ 
+        controì variableó tï bå displayeä tï thå operator.
+
+
+   11.  Displaù  Statuó  Flags‚ - Thió  diagnostiã  functioî  wilì 
+        causå thå currenô statå oæ alì systeí controì flagó tï bå 
+        displayeä tï thå operator.
+
+
+   12.  Displaù  L± anä L² Statistics‚ - Thió diagnostiã  functioî 
+        wilì   causå  thå  accumulateä  totaló  oæ   thå   systeí 
+        diagnostiã  counteró  tï  bå displayeä foò  thå  Leveì  ± 
+        (physicaì level© anä Leveì ² (linë level© functions.
+
+ 
+   13®  Displaù  L³ Statistics‚ - Thió  diagnostiã  functioî 
+        wilì   causå   thå  accumulateä  totaló  oæ  thå   systeí 
+        diagnostiã  counteró  tï  bå displayeä foò  thå  Leveì  ³ 
+        (packet level) functions.
+
+
+   14.  Seô  Flo÷ Controì  Readù Flags‚ - Thió diagnostiã functioî 
+        wilì  causå thå locaì systeí tï behavå aó iæ thå Leveì  ² 
+        linë haä beeî successfullù connecteä anä thå Leveì ³ linë 
+        ió iî flo÷ controì readù (d1© state®   Thió functioî  waó 
+        mainlù  useä durinç thå earlù desigî stageó tï facilitatå 
+        testing.
+
+
+   15.  Transmiô  Baä Frame‚ - Thió diagnostiã functioî wilì causå 
+        thå transmissioî oæ á framå witè aî invaliä controì fielä 
+        (0ffh)®  Thió functioî ió primarilù useä tï forcå thå DCÅ 
+        tï   transmiô  á  CMDÒ  (commanä  reject©  responså   foò 
+        diagnostiã purposes.
+
+
+   16.  Changå Framå Sequence‚  Thió diagnostiã functioî wilì   
+        decremenô  (moä  7© thå currenô valuå oæ thå  senä  statå 
+        variablå  V(s)®   Thió functioî ió intendeä tï causå  thå 
+        DCÅ  tï  detecô á receiveä sequencå erroò anä  causå  thå 
+        transmissioî  oæ á REÊ (reject© responså bacë tï thå  DTÅ  
+        in order to test this exception condition.
+
+
+   17.  Starô  Framå  Logging‚  - Thió  diagnostiã  functioî  wilì 
+        enablå  logginç oî á speciaì disë filå (X25.LOG©  oæ  alì 
+        incominç anä outgoinç frames®   Aó presentlù implemented¬ 
+        thå   logginç  informatioî  includeó  thå  directioî   oæ 
+        transmission¬  thå  framå  addresó  fielä anä  thå  framå 
+        controì   field®    Aî   auxiliarù   diagnostiã   prograí Š        (PLOG.COM©   haó   beeî  developeä  tï  prinô   ouô   thå 
+        informatioî  iî tabulaò forí anä tï identifù thå  addresó 
+        anä packeô typå iî X.2µ notation¬  aó welì aó extracô thå 
+        sequencå  numberó  N(r©  anä  N(s©  anä  poll/finaì   biô 
+        informatioî froí thå controì fielä oæ thå frame.
+
+
+   18®  Stoğ  Framå Logging‚ - Thió diagnostiã functioî stopó 
+        thå framå logginç functioî describeä abovå anä closeó thå 
+        log file.
+
+
+   19.  Changå Defaulô Parameters‚ - Thió speciaì functioî permitó 
+        thå  operatoò  tï  changå thå  followinç  systeí  defaulô 
+        parameters:
+
+               baud rate (300-19200 baud in 7 steps)
+               level 2 mode (DTE, DCE or self test)
+               level 3 mode (PVC or VC)
+               local DTE address length
+               local DTE address 
+               remote DTE address length
+               remote DTE address
+
+        Afteò  thå abovå parameteró arå changed¬  thå valueó  arå 
+        writteî iî á speciaì disë filå (X25.PAR)® Wheî thå systeí 
+        ió  starteä agaiî aô á futurå session¬  thå  valueó  reaä 
+        froí thió disë filå becomå thå defaulô valueó oî restart¬ 
+        sï  thå  parameteró  remaiî  unchangeä  froí  sessioî  tï 
+        sessioî unlesó changeä bù meanó oæ thió option® 
+
+
+   20.  Changå  Remotå DTÅ Address‚  Thió functioî ió intendeä  tï 
+        facilitatå  changinç thå calleä (remote© DTÅ  addresó  iî 
+        calì  requesô packetó tï allo÷ thå systeí tï bå connecteä 
+        tï  variouó  remotå DTE'ó oò processeó viá  thå  network®  
+        Usinç  thió  functioî  doeó noô changå  thå  defaulô  DTÅ 
+        addresó useä aô systeí initialization.
+
+
+   21. Exiô tï Monitor‚ - Thió diagnostiã functioî wilì causå thå 
+        systeí  tï bå terminateä anä controì tï bå passeä tï  thå 
+        PFÍ  monitoò iî thå Digitaì Researcè  'Biç  Board'®   Thå 
+        primarù  uså oæ thió functioî ió tï permiô examinatioî oæ 
+        memorù  locationó  withiî  thå  prograí  foò   diagnostiã 
+        purposes.
+
+
+   22.  Exiô tï CP/M‚ - Thió functioî wilì causå alì opeî fileó tï 
+        bå closed¬  tï terminatå thå X2µ protocoì system¬  anä tï 
+        returî controì tï thå CP/Í operatinç system.
+
+.paŠ.op
+
+
+
+
+
+                           APPENDIX II     
+          
+
+                       SYSTEM STATUS FLAGS
+.paŠ.pn1
+.fo                          II-# 
+                       System Status Flags
+
+
+     Thå followinç systeí statuó flaç indicatoró arå availablå tï 
+the local user in response to main menu option # 11:
+
+level 1 flags
+
+	definition of rx status (rxstat) byte flags:
+
+	bit	set condition
+	0	undefined
+	1	undefined
+	2	undefined
+	3	undefined
+	4	undefined
+	5	receiver buffers unavailable
+	6	undefined
+	7	undefined
+
+	definition of tx status (txstat) byte flags:
+
+	bit	set condition
+	0	tx active
+	1	tx message complete
+	2	tx frame underrun
+	3	next tx character is control
+	4	undefined
+	5	undefined
+	6	undefined
+	7	undefined
+
+.cp10
+	definition of timer status (tistat) byte flags:
+
+	bit	set condition
+        0	level 2 timer t1 timed out
+	1	level 3 timer t20 timed out
+	2	level 3 timer t21 timed out
+	3	level 3 timer T22 timed out
+	4	level 3 timer T23 timed out
+	5	undefined
+	6	undefined
+	7	undefined
+
+
+.cp15Šlevel 2 flags
+
+	definition of link status (lkstat) byte flags:
+
+	bit	set condition
+	0	link connect in process
+	1	link disconnect in process
+	2	link connected
+	3	DCE busy
+	4	DTE busy (from level 1 module)
+	5	unassigned
+	6	DTE REJ condition
+	7	DCE REJ condition
+
+.cp10
+        definition of poll/final (P/F) byte flags:
+  
+        bit     set condition
+        0       =0 always
+        1       =0 always
+        2       =0 always
+        3       =0 always
+        4       poll/final bit
+        5       =0 always
+        6       =0 always
+        7       =0 always
+
+.cp10
+	definition of flow status (l2stat) byte flags:
+
+	bit	set condition
+	0	link query in process
+	1	DTE FRMR condition
+	2	DCE FRMR condition
+	3	unassigned
+	4	unassigned
+	5	unassigned
+	6	retransmit old I frame
+	7	timer recovery condition
+
+
+.cp15
+level 3 flags
+
+
+	definition of channel status (chstat) byte flags:
+	(note that state r1 (packet level ready)
+	 corresponds to level 2 link connected)
+
+	bit	set condition
+	0	flow control ready state (d1)
+	1	DTE restart request state (r2)
+	2	DTE waiting state (p2)
+	3	DTE reset request state (d2)
+	4	DTE clear request state (p6)
+	5	ready (p1)
+	6	undefined
+	7	undefinedŠ
+	definition of flow control (l3stat) byte flags:
+
+	bit	set condition
+	0	DTE busy
+	1	DCE busy
+	2	DTE interrupt pending confirmation
+	3	undefined
+	4	undefined
+	5	undefined
+	6	transmission completed - ready to clear
+	7	outgoing message waiting for call setup
+
+.cp10
+
+        definition of Qualifier (Q) byte flags:
+  
+        bit     set condition
+        0       =0 always
+        1       =0 always
+        2       =0 always
+        3       =0 always
+        4       =0 always
+        5       =0 always
+        6       =0 always
+        7       Q bit
+
+        definition of Delivery Confirmation (D) byte flags:
+  
+        bit     set condition
+        0       =0 always
+        1       =0 always
+        2       =0 always
+        3       =0 always
+        4       =0 always
+        5       =0 always
+        6       D bit
+        7       =0 always
+
+
+.cp15
+level 4 flags
+
+	definition of flow status (l4stat) byte flags:
+
+	bit	set condition
+	0	prompt console for packet input
+	1	unasigned
+	2	unasigned
+	3	unasigned
+	4	unasigned
+	5	unasigned
+	6	unasigned
+	7	unasigned
+
+
+Šdisk file flags
+
+	definition of disk file status (fstat) byte flags:
+
+	bit	set condition
+	0	receive file open
+	1	transmit file open
+	2	undefined
+	3	undefined
+	4	undefined
+	5	undefined
+	6	undefined
+	7	log file open
+
+.paŠ.op
+
+
+
+
+
+                          APPENDIX III
+
+
+                SYSTEM STATUS AND ERROR MESSAGES
+.paŠ.fo                         III-#
+.pn1
+     Thå  followinç  ió á completå listinç oæ alì  systeí  statuó 
+messageó anä erroò messages®   Thå generaì formaô oæ systeí erroò 
+messageó ió aó follows:
+
+
+                Ln: message [- action performed]
+
+
+     where     n =  protocol level generating the message
+
+			 1 = hardware level
+			 2 = link (frame) level
+			 3 = packet level
+		         4 = user level
+ 		 
+	Thå systeí modulå namå generatinç thå messagå ió showî iî 
+parenthesis after each message.
+
+
+
+Hardware Level (L1:) Messages
+
+
+     Therå  arå  nï  useò  messageó  generateä  bù  thå  hardwarå 
+protocol level.
+
+
+
+Link Level (L2:) Messages
+
+L2º linë connected‚ (X25.ASM© - thió statuó messagå indicateó thaô 
+the link level is presently connected.
+
+L2º  waitinç  foò linë connecô froí DCE‚  (X25.ASM© - thió  statuó 
+messagå  indicateó thaô thå linë leveì ió presentlù noô connecteä 
+and that no link connect action has been initiated by the system.
+
+L2º   attemptinç  linë  connect...‚   (LEVEL2.ASM©  - thió  statuó 
+messagå   ió  displayeä  wheî  thå  firsô  SABÍ  framå  ió  beinç 
+transmitteä aó á resulô oæ systeí menõ optioî £ ± beinç selected.
+
+L2º  attemptinç linë disconnect...‚  (LEVEL2.ASM©  -  thió  statuó 
+messagå   ió  displayeä  wheî  thå  firsô  DISÃ  framå  ió  beinç 
+transmitteä aó á resulô oæ systeí menõ optioî £ ¹ beinç selected.
+ 
+L2º   linë  ió  alreadù disconnected‚  (LEVEL2.ASM©  - thió  erroò 
+messagå ió displayeä wheî systeí menõ optioî £ ¹ ió selecteä  anä 
+te link is already disconnected.
+
+L2º  dtå  linë ió disconnected‚ (LEVEL2.ASM© - thió statuó messagå 
+ió displayeä iî replù tï á linë querù (wheî systeí menõ optioî  £ 
+¸ ió selecteä) iæ thå linë ió disconnected.
+
+L2º dtå FRMR/CMDÒ condition‚ (LEVEL2.ASM© - thió statuó messagå ió 
+displayeä  iî replù tï á linë querù iæ á commanä oò framå  rejecô Šconditioî existó iî thå system® 
+
+L2º  dtå  busy‚ (LEVEL2.ASM© - thió statuó messagå ió displayeä iî 
+reply to a link query if the system dte busy flag is set.
+
+L2º  dtå  iî framå rejecô condition‚  (LEVEL2.ASM©  - thió  statuó 
+messagå ió displayeä iî replù tï á linë querù iæ thå systeí ió iî 
+a frame sequence reject condition.
+
+L2º  dtå ready‚ (LEVEL2.ASM© - thió statuó messagå ió displayeä iî 
+replù  tï á linë querù conditioî iæ thå linë ió connecteä anä thå 
+systeí ió noô iî á CMDR/FRMÒ dtå busù oò dtå rejecô condition.
+
+L2º   interrogatinç  dcå  status...‚  (LEVEL2.ASM©  - thió  statuó 
+messagå  ió  displayeä durinç á linë querù wheî á framå ió  beinç 
+senô  tï thå dcå witè thå polì biô seô tï ± iî ordeò tï  forcå  á 
+replù froí thå dce.
+
+SABÍ  trieó  tï  gï ½ n‚ (LEVEL2.ASM© - thió progresó  messagå  ió 
+displayeä wheî á linë connecô ió iî procesó anä transmissioî oæ á 
+SABM frame is being retried.
+
+
+DISÃ  trieó  tï gï ½ n‚  (LEVEL2.ASM© - thió progresó  messagå  ió 
+displayeä  wheî á linë disconnecô ió iî procesó anä  transmissioî 
+of a DISC frame is being retried.
+
+querù  trieó tï gï ½ n‚  (LEVEL2.ASM© - thió progresó  messagå  ió 
+displayeä  wheî á linë querù ió iî procesó anä transmissioî oæ  á 
+RR, RNR, or REJ frame is being retried.
+
+L2º  T±  timeä ouô - retransmittinç É framå î - trieó tï gï  ½  k‚  
+(LEVEL2.ASM© - thió progresó messagå ió displayeä wheî aî É framå 
+haó  noô  beeî  acknowledgeä  iî thå timeouô  perioä  anä  ió  iî 
+retransmissioî ió iî process.
+
+L2º  tø retrù counô exhausteä - nï replù froí DCE‚  (LEVEL2.ASM© - 
+thió   statuó   messagå   ió  displayeä  wheî   thå   numbeò   oæ 
+retransmissionó oæ á SABM¬  DISC¬ RR¬ RNÒ oò É framå haó exceedeä 
+thå maximuí value.
+
+L2º  disconnectinç  link‚  (LEVEL2.ASM© - thió statuó  messagå  ió 
+displayeä afteò thå retrù counô ió exhausteä wheî thå systeí wilì 
+attempt to disconnect the link.
+
+L2º  rø  emptù framå (nï controì byte)‚ (LEVEL2.ASM© - thió  erroò 
+messagå indicateó thaô aî emptù framå haó beeî passeä tï thå linë 
+level handler from the interrupt hardware handler.
+
+L2: rx bad address:
+  L2º  framå  contents:‚  (LEVEL2.ASM© - thió debuç erroò  messagå 
+indicateó  thaô á framå havinç aî addresó otheò thaî Á oò  Â  haó 
+beeî  received®   Iæ thå debuç optioî hó beeî enableä  aô  modulå 
+assemblù time the contents of the frame are dumped in hex.
+ŠL2º  rø  SABÍ - linë connecteä bù dce‚  (LEVEL2.ASM© - thió statuó 
+messagå indicateó thaô á thå linë haó beeî connecteä bù receptioî 
+oæ á SABÍ framå froí thå dce.
+
+L2º  rø  DISÃ  - linë disconnecteä bù  dce‚   (LEVEL2.ASM©  - thió 
+statuó  messagå indicateó thaô thå linë haó beeî disconnecteä  bù 
+reception of a DISC frame from the dce.
+
+L2º   baä  receiveä  N(r)‚   (LEVEL2.ASM©  - thió  erroò   messagå 
+indicateó thaô á numbereä framå haó beeî receiveä witè aî invaliä 
+receive sequence number.
+
+L2º dcå ready‚ (LEVEL2.ASM© - thió statuó messagå indicateó thaô á 
+RÒ framå haó beeî receiveä iî replù tï á linë query.
+
+L2º dcå busy‚ (LEVEL2.ASM© - thió  statuó messagå indicateó thaô á 
+RNR frame has been received in reply to a link query.
+
+L2º  dcå  iî  REÊ condition‚  (LEVEL2.ASM© - thió  statuó  messagå 
+indicateó  thaô á REÊ framå haó beeî receiveä iî replù tï á  linë 
+query.
+
+L2º  rø  DÍ  - dcå unablå tï connect‚ (LEVEL2.ASM©  - thió  statuó 
+message indicates that a DM frame has been received from the DCE.
+
+L2º  rø  UÁ - linë connected‚ (LEVEL2.ASM© - thió  statuó  messagå 
+indicateó thaô á UÁ framå haó beeî receiveä froí thå DCÅ iî replù 
+to a previously transmitted SABM frame, thus connecting the link.
+
+L2º rø UÁ - linë disconnected‚  (LEVEL2.ASM© - thió statuó messagå 
+indicateó thaô á UÁ framå haó beeî receiveä froí thå DCÅ iî replù 
+tï  á previouslù transmitteä DISÃ frame¬  thuó disconnectinç  thå 
+link.
+
+L2: rx CMDR/FRMR - frame rejected:
+      rejected frame id =
+      rejected frame type = response/command
+      erroò  bitó  zyxw½ ‚                         (LEVEL2.ASM©  - 
+thió  statuó  messagå indicateó thaô á CMDR/FRMÒ framå  haó  beeî 
+received from the DCE.
+
+
+
+Packet Level (L3:) Messages:  
+
+
+
+L3º rø emptù É frame‚  (LEVEL2.ASM© - thió erroò messagå indicateó 
+thaô aî É framå haó beeî receiveä witè correcô formaô buô witè aî 
+emptù É field.
+
+L3º  linë  noô  connecteä - cannoô senä interrupt‚ (LEVEL3.ASM©  - 
+thió erroò messagå indicateó thaô thå requesteä interrupô  cannoô 
+bå  transmitteä becauså thå leveì ² linë connectioî haó noô  beeî 
+established.Š
+L3º   linë  noô  iî  datá  xfeò  statå  - cannoô  senä  interrupt‚  
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô thå  requesteä 
+interrupô  cannoô bå transmitteä becauså thå leveì ³  channeì  ió 
+noô iî thå flo÷ controì readù state.
+
+L3º DTÅ interrupô ió pendinç - cannoô senä interrupt‚ (LEVEL3.ASM© 
+- thió  erroò  messagå  indicateó thaô  thå  requesteä  interrupô 
+cannoô bå transmitteä becauså á previouslù transmitteä  interrupô 
+has not yet been acknowledged.
+
+L3º   linë   noô  connected‚  (LEVEL3.ASM©  - thió  erroò  messagå 
+indicateó  thaô  thå requesteä restarô requesô packeô  cannoô  bå 
+transmitted because the level 2 link is not connected.
+
+L3º   T2°  timeä  ouô  - retransmittinç  restarô  requesô  packet‚ 
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô  á  previouslù 
+transmitteä  restarô  requesô  packeô waó  noô  acknowledgeä  anä 
+anotheò restarô requesô ió beinç transmitted.
+
+L3º  tø retrù counô exhausteä - nï replù froí DCE‚  (LEVEL3.ASM© - 
+thió erroò messagå indicateó thaô nï replù tï thå restarô requesô 
+packeô haó beeî receiveä afteò thå alloweä numbeò oæ retries.
+
+L3º   T2±   timeä   ouô  - transmittinç  cleaò   requesô   packet‚ 
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô nï  replù  haó 
+beeî receiveä tï á previouslù transmitteä calì requesô packeô anä 
+thaô á cleaò requesô packeô ió beinç transmitted.
+
+L3º   T2²   timeä  ouô  - retransmittinç  reseô  requesô   packet‚ 
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô nï  replù  haó 
+beeî  receiveä  tï á previouslù transmitteä reseô requesô  packeô 
+and that another reset request is being retransmitted.
+
+L3º   T2³   timeä  ouô  - retransmittinç  cleaò  requesô   packet‚  
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô nï  replù  haó 
+beeî  receiveä tï á previouslù transmitteä cleaò  requesô  packeô 
+and that another clear request is being retransmitted.
+
+L3º  tø  retrù  counô  exhausteä - logicaì channeì ouô  oæ  order‚  
+(LEVEL3.ASM©  - thió  erroò messagå indicateó thaô nï  replù  haó 
+beeî  receiveä  tï  retransmissionó duå tï T2² oò T2³  timå  outó 
+after the maximum number of retransmissions permitted.
+
+L3º   rø  calì  connected‚  (LEVEL3.ASM©  - thió  statuó   messagå 
+indicateó  thaô  thå channeì haó beeî placeä iî thå flo÷  controì 
+readù  statå bù á calì connecteä packeô receiveä froí thå DCÅ  iî 
+reply to a previously transmitted call request packet.
+
+L3º  baä  addresó  - tø cleaò request‚ (LEVEL3.ASM©  - thió  erroò 
+messagå indicateó thaô á calì connecteä packeô haó beeî  receiveä 
+witè  aî invaliä addresó anä thaô á cleaò requesô packeô ió beinç 
+transmitted.
+
+L3º  calì  refuseä - tø cleaò request‚  (LEVEL3.ASM© - thió  erroò Šmessagå indicateó thaô thå incominç calì packeô ió beinç  refuseä 
+and that a clear request packet is being transmitted in reply.
+
+L3º  rø  cleaò indicatioî packet¬  causå ½ n‚ (LEVEL3.ASM©  - thió 
+statuó  messagå indicateó thaô á cleaò indicatioî packeô haó beeî 
+received¬  thuó terminatinç thå existinç call®  Á diagnostiã codå 
+, if transmitted follows the above message.
+
+L3º  rø  cleaò  confirmatioî packet‚  (LEVEL3.ASM©  - thió  statuó 
+messagå  indicateó  thaô  á cleaò confirmatioî  packeô  haó  beeî 
+receiveä  iî  replù  tï á previouslù  transmitteä  cleaò  requesô 
+packet, thus terminating the existing call.
+
+L3º  rø  INÔ  packeô - useò dataº  ‚  (LEVEL3.ASM©  - thió  statuó 
+messagå  indicateó  thaô aî interrupô packeô haó  beeî  received¬ 
+witè thå useò datá codå aó shown.
+
+L3º  rø  interrupô confirmatioî packet‚ (LEVEL3.ASM© - thió statuó 
+messagå indicateó thaô aî interrupô confirmatioî packeô haó  beeî 
+received in reply to a previously transmitted interrupt packet.
+
+L3º  rø  DIAÇ  packeô - diagnostiã £ n
+  L3º   diagnostiã  explanationº  ‚           (LEVEL3.ASM©  - thió 
+erroò  messagå  indicateó  thaô  á  diagnostiã  packeô  haó  beeî 
+receiveä  witè thå codå aó shown®   Iæ á  diagnostiã  explanatioî 
+fielä  ió includeä iî thå diagnostiã message¬  thå seconä parô oæ 
+thå messagå wilì appear.
+
+L3º  rø restart‚ (LEVEL3.ASM© - thió statuó messagå indicateó thaô 
+á restarô packeô haó beeî receiveä anä thaô thå packeô leveì flo÷ 
+controì variableó havå beeî reseô tï theiò originaì values® 
+
+L3º locaì procedurå erroò - resettinç channel‚ (LEVEL3.ASM© - thió 
+erroò  messagå  indicateó thaô aî erroò haó beeî detecteä iî  thå 
+receiveä  packeô  transmiô  sequencå numbeò  P(s©  anä  thaô  thå 
+channel is being reset by transmission of a reset request packet.
+
+
+User Interface (L4:) Messages
+
+L4º  consolå  inpuô  buffeò  overflow‚  (XUTIL.ASM©  - thió  erroò 
+messagå  indicateó  thaô thå consolå inpuô buffeò  haó  noô  beeî 
+cleared and that typed characters are being lost.
+
+L4º  transmiô  filå  ió  alreadù open‚  (FILES.ASM©  - thió  erroò 
+messagå  indicateó  thaô thå requesteä transmiô  filå  cannoô  bå 
+openeä becauså á transmiô filå ió alreadù open.
+
+L4º  filå  noô found‚  (FILES.ASM© - thió erroò messagå  indicateó 
+thaô  thå transmiô filå cannoô bå openeä becauså nï filå bù  thaô 
+name exists. 
+
+L4º  filå  transmissioî  iî  process‚  (FILES.ASM©  - thió  statuó 
+messagå  indicateó thaô á transmiô filå haó beeî openeä anä  thaô 
+the packet level channel is in flow control ready state.Š
+L4º  readù  tï transmiô file‚  (FILES.ASM© - thió  statuó  messagå 
+indicateó  thaô  á  transmiô filå haó beeî openeä  buô  thaô  thå 
+packet level channel is not in flow control ready state.
+
+L4º  transmiô  filå  closed‚  (FILES,ASM©  - thió  statuó  messagå 
+indicates that the transmit file has been closed.
+
+L4º receivå filå ió alreadù open‚ (FILES.ASM© - thió erroò messagå 
+indicateó  thaô  thå  requesteä  receivå filå  cannoô  bå  openeä 
+becauså a receive file is already open. 
+
+L4º  receivå  filå opeî - awaitinç data‚ (FILES.ASM© - thió statuó 
+messagå  indicateó  thaô  thå requesteä  receivå  filå  haó  beeî 
+successfullù  openeä  anä thaô alì receiveä datá wilì bå  writteî 
+ontï thå file.
+
+L4º   receivå  filå  closed‚  (FILES.ASM©  - thió  statuó  messagå 
+indicateó thaô thå receivå filå haó beeî closed.
+
+L4º  filå  namå error‚ (FILES.ASM©  - thió erroò messagå indicateó 
+that the requested file name is not a valid file name.
+
+L4º  framå  logginç  enabled‚  (FILES.ASM© - thió  statuó  messagå 
+indicateó thaô thå sessioî loç filå haó beeî successfullù  openeä 
+anä  thaô alì subsequenô frameó wilì bå loggeä oî thå sessioî loç 
+file.
+
+L4º  framå  logginç  disabled‚  (FILES.ASM© - thió statuó  messagå 
+indicateó  thaô thå sessioî loç filå haó beeî closeä anä thaô  nï 
+more frames are being logged in the session file.
+ 

@@ -1,0 +1,200 @@
+TITLE:    KPMOVCPM.DOC
+SUBJECT:  Making MOVCPM work on a Kaypro 1
+AUTHOR:   Barry Siegfried
+DATE:     April 21, 1986
+
+I am a big fan of software that works, particularly when it is soft-
+ware that is supplied by the company that manufactures my computer.
+I recently purchased a Kaypro 1 with the 2.2u1 Universal ROM in it.
+This ROM, in addition to having made other enhancements to the basic
+8-bit Kaypro CP/M machine, contains much of the working BIOS object
+code which has served to drastically reduce the amount of disk-based
+BIOS object code in the 2.2u1 CP/M system.
+
+The good news here is that there is much more space up in high memory
+where you can make patches to your system than there was with previous
+Kaypro CP/M BIOSs and ROMs.  This is very valuable to anyone that
+hacks extensively with his operating system, such as I do to get pack-
+ages like full implementations of ZCPR3 running.
+
+The bad news is that much of the code that you would expect to find in
+the disk-based BIOS running up in high memory is simply not there, be-
+cause it has been relocated to the ROM.  Every time the BIOS is called
+to perform I/O, the code up in high memory acts primarily like a traf-
+fic director, which bank-switches in the Universal ROM to perform the
+real low-level BIOS I/O functions.  This can initially be very confus-
+ing to the experienced BIOS hacker, however, after you work with this
+configuration for a while, you can and do get used to it.
+
+Kaypro provided, on the System Disk that came with the Kaypro 1, a
+copy of MOVCPM.COM, which is a utility program by Digital Research
+that serves to relocate your CP/M system to a new address.  This is a
+valuable capability, because it permits you to move your CP/M system
+down, thereby lowering your TPA, but creating free space up above your
+BIOS so that you can load and run programs that won't get crashed by
+activities in the TPA.  This is excellent for I/O redirection programs
+such as BYE, or any other I/O redirection package which might patch
+your BIOS and that you wish to have "memory-resident" all the time.
+
+Another useful aspect of CP/M system relocation is that it permits you
+to install the external support packages of a fully-implemented ZCPR3
+system up in high memory above the BIOS where they will be "memory-
+resident" all the time and not be in danger of getting crashed by ap-
+plication programs.  It was for this reason that I set about to use
+MOVCPM.COM to relocate my CP/M system.
+
+I quickly found out however that after using MOVCPM to relocate my
+CP/M system, and then using SYSGEN to write a new system disk, this
+new disk was not bootable, that is, the cold boot sequence was inter-
+rupted with a message from the Universal ROM that told me I had no op-
+erating system present on my disk.  I thought it a little odd that
+Kaypro would provide a program on its System Disk that did not appear
+to function properly, particularly one as important as MOVCPM.  I de-
+cided then to do a little snooping around on the system tracks of my
+disks with DU.COM to see if I could locate the source of the problem.
+
+It didn't take long for me to spot the problem.  I discovered on Track
+0, Sector 1, two "mystery bytes" in the last two positions of the sec-
+tor.  They represented two 8-bit values (or one 16-bit value) that ap-
+parently were specific only for the 62K system that came with the mac-
+hine.  Those same bytes, when added to the same positions in Track 0,
+Sector 1 of my newly relocated CP/M system disk did not remedy the
+problem.  It was obvious that these two bytes bore some kind of rela-
+tionship to the data in the rest of the sector, but what that rela-
+tionship was was not immediately apparent.  It was also obvious, that
+MOVCPM apparently had not been updated to place the proper byte values
+in these two positions to compensate for the checking that was now be-
+ing done by the Universal ROM.  I decided that it was time to call
+Kaypro's software support people.
+
+Kaypro, unfortunately, was just a little less than being no help at
+all.  In fact, I was a bit surprised to find that the people to whom I
+was talking were having a hard time understanding exactly what I was
+talking about.  They attempted to tell me that in order to do any BIOS
+patching, or revise the BIOS in any way, I needed to purchase their
+"toolkit."  I gently informed them that I had all the tools I could
+ever possibly need, and that revising the BIOS was not what I was
+talking about.  I was talking about a new ROM that was now getting in
+the way of MOVCPM.COM performing its function completely.  I didn't
+want a "toolkit," I wanted the algorithm to solve the problem.  I
+pointed out to them that if they had not wanted the user to have the
+capability of relocating CP/M, then they should not have included
+MOVCPM.COM on the System Disk.  I have a real problem with companies
+who provide commercial software that doesn't work.  Needless to say,
+I did not get very far with them and we parted company.
+
+I told this story to a friend and member of our small users' group,
+who passed it on to our dealer.  Our dealer had been very helpful with
+getting some other hardware-related problems resolved, and my friend
+thought that perhaps he might be able to look into this situation with
+MOVCPM, and get us an answer about it.  The result was that an East
+Coast representative of Kaypro called my friend and discussed the
+problem with him, and while he did not fully understand and had not
+heard of the problem before, he promised to look into it.  This led to
+a telephone call from the programmer who wrote the code for the Uni-
+versal ROM and the 2.2u1 BIOS to my friend.  The programmer told him
+that he was aware of the "mystery bytes" and that yes, they would in-
+deed get in the way of MOVCPM providing a new bootable system, but that
+he would not divulge the algorithm of the bytes' values.  It appeared
+again that Kaypro was not willing support a program which THEY provided
+and should have worked in the first place.
+
+I decided, therefore, to take action on my own because frankly, I was
+a bit disturbed at Kaypro's attitude toward all of this.  My procedure
+was to get the Universal ROM object code into a disk file, and then de-
+bug the routine that outputs the error message to the machine.  I offer
+below, a patch that you can make to the version of MOVCPM.COM that came
+bundled with the Kaypro 1, which will calculate the proper values for
+those two "mystery bytes," and will store them at the proper location
+in your newly relocated CP/M system image:
+
+1. Load MOVCPM.COM into DDT (or ZDT):
+
+   A0>DDT MOVCPM.COM
+   DDT VERS 2.2
+   NEXT  PC
+   2500 0100
+   -
+
+2. Check and patch the exit JMP at the following address:
+
+   -S033D
+   033D C3 C3  (JMP)
+   033E 00 A0  (03A0 address of checksum routine)
+   033F 00 03
+   0340 0D .
+   -
+
+   IMPORTANT:  Make sure you have C3 00 00 in the above 3 bytes
+   beginning at 033D before you go any further.  If you do not,
+   then it would appear that you do not have the same version of
+   MOVCPM.COM that was supplied with the Kaypro 1.
+
+3. Create the routine which calculates the proper value of the
+   checksum bytes:
+
+   -S03A0
+   03A0 00 21   (LXI H)
+   03A1 00 00   (0900 address from which to start summing)
+   03A2 00 09
+   03A3 00 01   (LXI B)
+   03A4 00 7E   (007E bytes to sum)
+   03A5 00 00
+   03A6 00 DD   (LXIX)
+   03A7 00 21
+   03A8 00 00   (0000 to initialize the summing register)
+   03A9 00 00
+   03AA 00 16   (MVI D)
+   03AB 00 00   (00)
+   03AC 00 5E   (MOV E,M)
+   03AD 00 DD   (DADX D)
+   03AE 00 19
+   03AF 00 23   (INX H)
+   03B0 00 0B   (DCX B)
+   03B1 00 78   (MOV A,B)
+   03B2 00 B1   (ORA C)
+   03B3 00 20   (JRNZ)
+   03B4 00 F7   (to 03AC)
+   03B5 00 DD   (PUSH X)
+   03B6 00 E5
+   03B7 00 E1   (POP H)
+   03B8 00 22   (SHLD)
+   03B9 00 7E   (097E address to store checksum)
+   03BA 00 09
+   03BB 00 C3   (JMP)
+   03BC 00 00   (0000 to exit)
+   03BD 00 00
+   03BE 00 .
+   -
+
+   IMPORTANT:  Make sure you have zeros in all the above bytes
+   beginning at 03A0 before you go any further.  If you do not,
+   then it would appear that you do not have the same version of
+   MOVCPM.COM that was supplied with the Kaypro 1.
+
+4. Exit DDT (or ZDT) and save patched MOVCPM.COM:
+
+   -G0  (return to CP/M)
+   A0>SAVE 41 MOVCPM.COM
+
+Your newly SAVEd MOVCPM.COM will now execute properly and cause SYSGEN
+to write bootable disks with the Universal ROM.  It is really a shame
+that Kaypro did not come to the aid of their customers on a program as
+important as this.  This is a capability that you, as a Kaypro 1 owner,
+have the right to have because you, as a Kaypro 1 owner, were supplied
+with MOVCPM.COM by Kaypro.  To my mind, this program should have work-
+ed from the start, and, since it did not, there is absolutely no ex-
+cuse for Kaypro refusing to support it.
+
+For those of you who might be interested in implementing ZCPR3 and its
+support packages in high memory above the BIOS, instead of low memory
+below the CPR where a BIOS warm boot patch is required to fake up the
+BDOS entry address in order to fool application programs into protect-
+ing this space below the CPR, watch for an installation file shortly.
+This author has installed a fully implemented ZCPR3 system on the Kay-
+pro 1 using both methods, and the one involving use of MOVCPM to relo-
+cate the CP/M system is by far the preferred one.
+
+
+End of KPMOVCPM.DOC
+

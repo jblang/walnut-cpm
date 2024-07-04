@@ -1,0 +1,82 @@
+; FKEY for TurboDOS
+; By ESKAY 4/85 No Lefts Reversed
+;
+.z80
+;
+	dseg
+;
+leadin:: db	'A'-40h		; lead-in character
+lastc:	db	0		; previous char
+infk:	db	0		; ff=in sequence
+fkptr:	dw	0		; points to current fkey
+fkeys::	db	0
+	ds	255
+;
+	cseg
+;
+fkey::	ld	hl,leadin
+	cp	(hl)
+	jr	z,isli		; jump if it is leadin
+	inc	hl
+	ld	(hl),a
+	ret
+;
+; come here if we just received a leadin character
+;
+isli:	push	af
+	ld	a,(fkeys)
+	or	a
+	jr	nz,dofk		; fkeys are enabled
+	pop	af		; no fkeys enabled - let's split
+	ret
+;
+dofk:	inc	hl
+	pop	af
+	ld	(hl),a		; set previous char
+	push	de
+	ld	e,1		; get char
+	call	serial##
+;
+; this char is the fkey
+;
+	push	bc
+	ld	hl,fkeys	; hl points to fkeys
+	ld	b,255		; 255 chars to check
+	ld	c,a
+begofk:	cp	(hl)
+	jr	z,fndfk
+	dec	b
+	inc	hl
+nxtfk:	ld	a,(hl)
+	or	a
+	inc	hl
+	ld	a,c
+	jr	z,begofk
+	djnz	nxtfk
+pdex:	pop	bc
+	pop	de
+	ret			; fkey not in table
+;
+fndfk:	inc	hl
+	ld	a,0ffh
+	ld	(infk),a
+	ld	a,(hl)
+	inc	hl
+	ld	(fkptr),hl
+	jr	pdex
+;
+getfk::	ld	a,(infk)
+	or	a
+	ret	z		; no fkey sequence
+	ld	hl,(fkptr)
+	ld	a,(hl)
+	inc	hl
+	ld	(fkptr),hl
+	or	a
+	jr	nz,retfk
+	ld	(infk),a	; reset in-fk flag
+	ret			; return (continue normally)
+;
+retfk:	pop	hl		; kill ret addr
+	ret			; return to previous caller
+	end

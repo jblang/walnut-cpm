@@ -1,0 +1,99 @@
+;****************************************************************************
+;  B3C-QX10.INS    ( QX-10 RTC clock code for BYE335)
+;
+;  v1.2 June 1985   Norm Gregory   Seattle's 'downspout' 206-325-1325
+;
+; This is to be inserted in the BYE3 code right afte IF TIMEON label following
+; the machine insert.
+;
+; NOTE: It is no longer required that the user define the starting address
+;       of the BIOS area. Modifications allowing fuller compatibility
+;       with most versions of CP/M have been incorporated (i.e. removing
+;       the need for indirect access to clock via BIOS jump table.
+;
+;	Since we are accessing the CMOS chip directly this insert should
+;	work under any QX-10 operating system.
+;
+; THANKS TO:  Roger Lanphere (Mt Vernon, WA) for invaluable help whenever
+;	asked.  Mick Gaitor (Brooklyn, NY) for much of the code here.  I
+;	borrowed heavily from his MXC-QX10.ASM.  If you are using MEX on
+;       your QX-10 you should be using his overlays.  Super job Mick!
+;
+;****************************************************************************
+;
+BUSY    EQU     80H             ;Mask to test for clock busy condition
+CLKADR  EQU     3DH             ;QX-10 clock command register port
+CLKDAT  EQU     3CH             ;QX-10 clock data register port
+STBYTE  EQU     0AH             ;Clock memory addr to check for clock busy
+CENTURY EQU    019H		;Hey, it's the 1900's (for a while).
+;
+	 IF	RTC
+TIME:   CALL    CREAD           ; read data from clock chip
+        LDA     TBFR+3
+        STA     RTCBUF+0        ; Hour
+        LDA     TBFR+4
+        STA     RTCBUF+1        ; Minute
+	LDA	TBFR+5
+	STA	RTCBUF+2	; Second
+        MVI     A,CENTURY
+        STA     RTCBUF+3        ; Century
+	LDA	TBFR+0
+	STA	RTCBUF+4	; Year
+	LDA	TBFR+1
+	STA	RTCBUF+5	; Month
+	LDA	TBFR+2
+	STA	RTCBUF+6	; Day
+        LDA     RTCBUF          ; Pick up BCD HH
+        CALL    BCDBIN          ; And convert to binary
+        STA     CCHOUR          ; For BYE3
+        LDA     RTCBUF+1        ; BCD MM
+        CALL    BCDBIN
+        STA     CCMIN           ; To binary for BYE3
+        RET                     ; And return (for now..)
+;
+;=========
+;
+; CREAD: gets date/time directly from the LSI 46818 chip.
+;        (doing it this way rather than through the QX-10 BIOS
+;        call makes this overlay independent of the version
+;        of Epson's CPM (A or B) being used.)
+;
+; Time/Date buffer consists of 6 bytes of packed BCD-encoded information
+; located in buffer TBFR.   Time/Date buffer is of the following format:
+;
+;        TBFR  + 0      = year
+;              + 1      = month
+;              + 2      = day
+;              + 3      = hour
+;              + 4      = minute
+;              + 5      = second
+;
+CREAD:
+        CALL    CLKBSY          ;Wait till clock is idle
+        LXI     H,TBFR          ;Point to time/date buffer
+        LXI     D,ADRTBL        ;Point to clock memory data address table
+        MVI     B,6             ;Number of data items to read
+TDLOOP: LDAX    D               ;Get next clock memory data address
+        OUT     CLKADR          ;and send addr to clock port
+        IN      CLKDAT          ;Read clock data
+        MOV     M,A             ;and store in time/date buffer
+        INX     H               ;Set next time/date buffer position
+        INX     D               ;Set next clock memory data address
+        DCR     B               ;One less data item
+        JNZ     TDLOOP          ; - continue read till done
+        RET
+;
+CLKBSY:                         ;Routine to wait till clock is idle
+        MVI     A,STBYTE        ;Check if clock is updating
+        OUT     CLKADR          ;Send address
+        IN      CLKDAT          ;Read clock
+        ANI     BUSY            ;Test bit 7
+        JNZ     CLKBSY          ;Jump if clock busy
+        RET
+;
+TBFR:   DS      6               ;Real-time clock buffer - see above
+ADRTBL: DB      9,8,7,4,2,0     ;Clock memory addr's for yr,mo,da,hr,min,sec
+	 ENDIF	;RTC
+;
+;***************************************************************************
+

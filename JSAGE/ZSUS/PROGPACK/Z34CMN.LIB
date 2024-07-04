@@ -1,0 +1,155 @@
+.comment ~
+
+ Library:  Z34CMN.LIB
+ Author:   Joe Wright
+ Date:     23 March 1988
+
+ Modern assemblers provide for the use of up to twelve named common
+ blocks.  The actual addresses of these blocks need not be known at
+ the time of assembly, but are supplied later by the linker or loader.
+ NZ-COM will allow the use of seven of these twelve blocks.
+
+ This library is to be included in the assembly of the segments in
+ place of Z3BASE.LIB.  Note that the seven blocks declared here have
+ only equates and no code or data.  Only one common (_ID_) is allowed
+ to contain data.  If it is used, it is declared separately in the
+ source of the particular segment.  The _ID_ common data is read but
+ otherwise ignored by NZCOM.
+
+
+           Assembly Notes for ZCPR3 modules and NZ-COM
+                          by Joe Wright
+                           26 March 88
+
+NZ-COM uses MicroSoft or SLR .REL modules to build the  Z-System.  
+The  modules  are written so as to 'stand alone'.  There  are  no 
+direct  inter-module  references.  Rather the modules  treat  the 
+ZCPR3   environment  and  obtain  required  data  and   addresses 
+indirectly.    The  environment  descriptor  now   includes   the 
+addresses of the CBIOS, CCP, DOS and BIOs. as follows:
+
+Z3ENV+
+0000      DB   0C3H      ; As always..
+0001      DW   CBIOS     ; For NZ-COM, this is CBIOS+6
+
+0008      DB   80H       ; Env Type.  bit 7 means 'Extended'
+
+0034      DW   DRVEC     ; Valid drive vector allows 'holes'
+
+003F      DW   CCP       ; Address of ZCPR3
+0041      DB   CCPS      ; Its size in records (normally 16)
+0042      DW   DOS       ; Address of the disk operating system
+0044      DB   DOSS      ; Its size (normally 28 records)
+0045      DW   BIO       ; Address of NZBIO (no size)
+
+
+                        Notes on Assembly
+
+NZ-COM  uses Named COMMON blocks to provide direct references  to 
+the  'minor'  segments,  Z3ENV,  SHSTK,  Z3MSG,  etc.   The  file 
+Z34CMN.LIB replaces Z3BASE.LIB for all assemblies.  All files are 
+assembled  to .REL (MicroSoft or SLR).  NZCOM.COM  also  requires 
+the modules to be specifically named.  This is accomplished  with 
+the NAME pseudo-op as follows:
+
+     NAME      ('CCP')        ; Declare module name
+     MACLIB    Z34CMN.LIB     ; In place of Z3BASE.LIB
+     MACLIB    Z34HDR.LIB     ; Configuration header
+
+Assembly conditionals are treated a little differently.   Because 
+module  addresses  are no longer assigned at  assembly  time,  we 
+cannot  use the address as an existence test, rather we  use  the 
+module 'size' indicator.  The old IF FCP NE 0 test is changed  to 
+IF  FCPS NE 0.  FCPS is defined in Z34CMN.LIB as an absolute  YES 
+or NO.  Of course, the same holds true for RCP, IOP and Z3NDIR.
+
+Because  they  are defined in Z34CMN.LIB,  direct  references  to 
+Z3ENV,  SHSTK,  Z3MSG,  Z3CL and the like  are  still  permitted.  
+Addresses  and  sizes of the dynamic segments  must  be  obtained 
+indirectly  from Z3ENV.  Instead of LD HL,FCP we use LD  HL,(FCP) 
+which is defined in Z34CMN.LIB as Z3ENV+18.
+
+                        End of NZASM.NOT
+
+
+~
+
+
+; As a replacement for Z3BASE.LIB, some usual equates.
+
+base	equ	0		; Base Page
+
+false	equ	0
+true	equ	not false
+
+no	equ	false
+yes	equ	true
+
+off	equ	false
+on	equ	true
+
+; Named COMMON declarations start here.  For compatibility, these
+; are the same names used by Bridger Mitchell's JetLDR.
+
+	common	/_ENV_/
+z3env:				; Z3 Environment descriptor
+z3envs	equ	yes		; There is one
+
+expath	equ	z3env+9		; Address of External Path
+expaths	equ	10		; Maximum 10 elements for MPATH
+
+rcp	equ	z3env+12	; Address of RCP
+rcps	equ	yes		; Used as existence test, not size
+
+fcp	equ	z3env+18	; Address of FCB
+fcps	equ	yes		; Used as existence test, not size
+
+z3ndir	equ	z3env+21	; Address of NDR
+z3ndirs	equ	yes		; Used as existence test, not size
+
+z3quiet	equ	z3env+28h	; Quiet flag ( 1= quiet )
+
+z3whl	equ	z3env+29h	; Wheel byte address
+z3whls	equ	yes		; There is a wheel
+
+drvec	equ	z3env+52	; Valid drive vector
+
+ccp	equ	z3env+63	; CCP entry
+ccps	equ	z3env+65	; Size
+
+dos	equ	z3env+66	; DOS entry (+6)
+doss	equ	z3env+68	; Size
+
+bio	equ	z3env+69	; BIO entry
+
+	common	/_SSTK_/
+shstk:				; Top of Shell stack
+shstks	equ	yes		; There is a shell stack
+
+	common	/_MSG_/
+z3msg:				; Message buffer
+z3msgs	equ	yes		; There is one
+
+	common	/_FCB_/
+extfcb:				; External file control block
+extfcbs	equ	yes		; There is one
+
+	common	/_MCL_/
+z3cl:				; Multiple command line
+z3cls	equ	yes		; There is one
+
+	common	/_XSTK_/
+extstk:				; External stack
+extstks	equ	yes		; There is one
+
+	common	/_BIOS_/
+bios:
+
+	cseg			; Select Code Segment
+
+; End of Z34CMN.LIB
+
+fcp	equ	z3env+18	; Address of FCB
+fcps	equ	yes		; Used as existence test, not size
+
+z3n

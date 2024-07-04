@@ -1,0 +1,22 @@
+There  is  an error in the code I added to initialisation routine
+of Z8E version  3.  It  only  affects users wanting to patch  the
+breakpoint  vector address to something other than 38h.
+ 
+To  fix it in the source code,  delete the three consecutive RRCA 
+instructions near the beginning of routine ninit:  and change the 
+following OR 0F8h instruction to OR 0C7h.
+ 
+To  fix the object code without reassembling,  use the faulty Z8E 
+to patch itself.
+     z8e z8e.com<
+     *e 15f<
+     015F 0F   0<
+     0160 0F   0<
+     0161 0F   0<
+     0162 F6   <
+     0163 F8   C7<
+     0164 xx   .
+     *w   z8e.com<
+     *g   0<	
+ 
+This patch will be included in the next release of the program.

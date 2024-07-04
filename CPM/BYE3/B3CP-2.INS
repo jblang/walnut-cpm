@@ -1,0 +1,238 @@
+; B3CP-2.INS -	Interfacer 3/4 insert for BYE3 - 07/24/85
+;
+;	   2651 I/O with internal baudrage generator
+;
+;		 For: CompuPro Interfacer 3
+;		      CompuPro Interfacer 4
+;		      CompuPro System Support 1
+;
+; Note:  This is an insert, not an overlay.
+;
+;
+; The Interfacer board uses the 2651 I/O.  This has a peculiarity that
+; prevents its proper use if you hook pin 8 (DCD) of the modem to pin 8
+; (DCD) of the Interfacer board.  You should instead hook pin 8 of the
+; modem (DCD) to (DSR) on the Interfacer board.
+;
+; Note for inteligent modem users:
+; -------------------------------
+;	In the past  people  using the intelligent  modems and the
+;	Interfacer board have complained they had to put SW6 up to
+;	use with BYE3 but then had to put it down to use with MEX,
+;	MDM7 or other autodial modem programs.	With the configur-
+;	ation below, SW6 can be left in whatever position the user
+;	prefers (up, for BYE3) and this will have no effect on the
+;	normal use of MEX or MDM7.
+;
+;	Using factory settings, a cable should be made like this:
+;
+;	TXD	2  -->	3	RXD	received data	
+;	RXD	3  <--	2	TXD	tranmitted data
+;	SG	7  ---	7	SG	signal ground
+;	DCD	8  -->	20  	DSR	data set ready (carrier)
+;	DTR	20 <--	6   	DTR	data terminal ready
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/25/85  Updated for BYE337 - removed ANI 127's	- Paul Traina
+; 10/04/82  Original version				- Paul Traina
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+INTER4	EQU	YES		; Yes for Compupro Interfacer 3 or 4
+				; No  for Compupro System Support 1
+;
+; The following define the port address and usart number to use.
+;
+	 IF	INTER4
+BASEP	EQU	010H		; Base port for Interfacer 3/4 boards
+CHIP	EQU	6		; Chip number to use
+	 ENDIF			; INTER4
+;
+	 IF	NOT INTER4
+BASEP	EQU	05CH		; Base port for System Support 1
+	 ENDIF			; NOT INTER4
+;
+;-----------------------------------------------------------------------
+;
+; Modem port equates
+;
+DPORT	EQU	BASEP		; Modem data port
+SPORT	EQU	BASEP+1		; Modem status port
+MPORT	EQU	BASEP+2		; Modem mode select port
+CPORT	EQU	BASEP+3		; Modem control port
+;
+	 IF	INTER4
+UPORT	EQU	BASEP+7		; Modem chip select port
+	 ENDIF			; INTER4
+;
+;	Status port equates
+;
+TBMT	EQU	00000001B	; Transmit buffer empty
+DAV	EQU	00000010B	; Data available
+DSCHG	EQU	00000100B	; Change in DSR or DCD or shift reg empty
+PE	EQU	00001000B	; Parity error
+OE	EQU	00010000B	; Overrun error
+FE	EQU	00100000B	; Framing error
+DCD	EQU	01000000B	; Data carrier detect line (not used)
+DSR	EQU	10000000B	; Data carrier detect (this is really DSR)
+;
+;	Mode port equates
+;
+B8NO1	EQU	01001110B	; 8 data bits, no parity, 1 stop bit
+BBASE	EQU	00110000B	; Transmit & Receive clocks internal
+BX300	EQU	BBASE+5		; 300 baud
+BX1200	EQU	BBASE+7		; 1200 baud
+BX2400	EQU	BBASE+10	; 2400 baud
+;
+;	Control port equates
+;
+CBASE	EQU	00000101B	; Normal mode, no error reset, xmit&rcv on
+DTR	EQU	00000010B	; Data terminal ready
+RTS	EQU	00100000B	; Request to send line
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK: IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	IN	SPORT		; Get status
+	ANI	DSR		; Check DSR pin for carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	MVI	A,CBASE		; DTR, RTS off to disconnect phone
+	OUT	CPORT
+;
+	PUSH	B
+	MVI	B,20		; Wait 2 seconds
+OFFTI:	CALL	DELAY
+	DCR	B
+	JNZ	OFFTI
+	POP	B
+;
+	MVI	A,CBASE+DTR+RTS	; Turn DTR & RTS back on
+	OUT	CPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize intelligent modem
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF			; INTER4
+;
+	IN	DPORT		; Get character (do not strip 8th bit)
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	IN	SPORT		; Get status
+	ANI	DAV		; Check data available bit
+	RZ
+	ORI	255		; We got something
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	 IF	INTER4
+	PUSH	PSW
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	POP	PSW
+	 ENDIF
+;
+	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST: IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	IN	SPORT		; Get status
+	ANI	TBMT		; Check transmit ready bit
+	RZ
+	ORI	255		; Make sure we know it's ok
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	 IF	IMODEM
+	CALL	IMQUIT		; Tell modem to shut down
+	 ENDIF
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	 IF	INTER4
+	MVI	A,CHIP
+	OUT	UPORT
+	 ENDIF
+;
+	MVI	A,CBASE		; Turn off DTR & RTS, modem will quit
+	OUT	CPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	CALL	BBAUD		; Set word length
+	MVI	A,BX300		; Set baud rate
+	JMP	EBAUD
+;
+SET1200:CALL	BBAUD		; Set word length
+	MVI	A,BX1200	; Set baud rate
+	JMP	EBAUD
+;
+SET2400:CALL	BBAUD		; Set word length
+	MVI	A,BX2400	; Set baud rate
+	JMP	EBAUD
+;
+BBAUD:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	UPORT
+	 ENDIF
+;
+	IN	CPORT		; Make sure we've flip/flopped mode port
+	MVI	A,B8NO1		; 1 stop, no parity 8 bits
+	OUT	MPORT
+	RET
+;
+EBAUD:	OUT	MPORT		; Send baud rate
+	XRA	A
+	RET
+;
+;	end
+;----------------------------------------------------------------
+

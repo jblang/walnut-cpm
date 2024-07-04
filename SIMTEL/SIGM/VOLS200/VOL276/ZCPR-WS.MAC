@@ -1,0 +1,158 @@
+	.Z80
+	ASEG
+
+	.comment	~
+ wsufix version 5.1 - 6/2/85
+ original Versions by:     Ron Mozer
+                    Southwest Computer Center
+                      121 wyatt Dr. Suite 7
+                      Las Cruces, NM 88001
+                      (505) 523-6037 rcp/m
+
+ZCPRWS.MAC
+Revision by Bob Logan, 17/4/85
+This file is an abreviated version of WSUFIX5.ASM
+It has been used for months now with ZCPR3 with no sign of any problems.
+It was converted to M80 format with IZ, and shortened to allow some space 
+in MORPAT for other patches. If you intend to use this file I suggest you
+consult the original WSUFIX5 file (There is a bug in the original file but
+I can't remember where. It was loosing the contents of a register during a
+call which it needed) so if you use the original file, use this one to 
+find the bug.
+
+This patch allows WS 3.0 to find its .OVR files (in user 0) when working
+in other user areas. Much disc space is gained but in this version, the
+R command will no longer function.
+This patch also stops WS from displaying SYS files thus greatly improving
+the directory readability. (Just like 3.3)
+
+To install, use ZSID (or whatever) to load WS.COM, load the patches in above
+it & move them down to their appropriate places. I used a PRN file to get the
+addresses right. Messy I know, but it's the only way I know.
+
+I would greatly appreciate someone applying the .OVR patch to WS 3.3. I tried
+to by adjusting the equates to match the appropriate locations in 3.3 but
+it did not work.
+
+Any revisions or comments should be left on Tesseract RCPM, Sydney.
+	~
+
+DEFUSR	EQU	0	;user area which has the .OVR files
+DEFDRV	EQU	1	;default drive to test for .OVR files (A=1, B=2, etc.)
+
+BDOS	EQU	5	;bdos entry point
+USRCMD	EQU	32	;get/set user command
+OPEN	EQU	15	;open file command
+
+;memory locations within WS 3.0
+DEFDSK	EQU	02DCH	;location of DEFDSK in WS.COM
+MORPAT	EQU	02E0H	;location of MORPAT (free space)
+CURPOS	EQU	0264H	;loc of cursor positioning routine
+INISUB	EQU	02A4H	;location of inisub routine called on startup
+INTERC	EQU	1824H	;location of intercept address.
+OVRNM	EQU	3FBH	;location of "OVR" (part of WSOVLY1.OVR)
+
+;locations for directory listing patch within WS 3.0
+DELENTX	EQU	2C28H	
+DELENTY	EQU	2C2BH	
+DTAB	EQU	2C69H	
+DENTPT	EQU	36D1H	
+DOSNX	EQU	2C8AH	
+NDTST	EQU	2BF6H	
+
+;note*****  This location must be in an unused area of memory.  DO NOT leave
+;it in the morpat area
+CURUSR	EQU	0004AH	;temp save area for startup user area.
+;if this wont do, use a free byte in ZCPR or your BIOS or the reserved area
+;up to 5BH in page 0
+
+YES	EQU	0FFH
+NO	EQU	0
+
+	org	100
+
+	.phase	INISUB
+	JP	SAVUSR  	;save user area from which WS is invoked.
+	.dephase
+
+	.phase	DEFDSK
+	DB	DEFDRV		;set the default disk drive in WS.
+	.dephase
+
+	.phase	INTERC
+	DW	PATCH		;install intercept patch
+	.dephase
+
+	.phase	MORPAT
+PATCH:	LD	A,C		;get command
+	CP	OPEN		;open???
+	JP	NZ,BDOS		;let bdos have it if not
+	PUSH	DE		;save bdos parameters
+	PUSH	BC		;and command
+	LD	HL,9
+	ADD	HL,DE		;point to filetype
+	LD	DE,OVRNM 	;set up to compare filetype with OVR
+	LD	B,3		;check three bytes
+CMPLP:	LD	A,(DE)		;what we're checking against
+	XOR	(HL)		;what we're checking
+	ADD	A,A		;exclude 80h bit
+	JR	NZ,SETDEF	;not the same
+	INC	HL		;point to next byte
+	INC	DE
+	DJNZ	CMPLP		;loop till done
+SETDEF:	POP	BC		;restore bdos command
+	POP	DE		;and parameters
+	JP	NZ,BDOS		;not OVR so do normal BDOS call
+	LD	A,DEFUSR	;select default user
+	CALL	USER
+	CALL	BDOS		;process open command
+	PUSH	AF		;preserve answer from bdos
+	LD	A,(CURUSR)	;get current user back
+	CALL	USER
+	POP	AF		;return with dir code to WS
+	RET
+
+USER:	EXX			;save everything in sight
+	LD	E,A
+	LD	C,USRCMD
+	CALL	BDOS
+	EXX			;restore old registers
+	RET
+
+;the following routine is jumped to from INISUB
+;gets current user no
+SAVUSR:
+
+	LD	A,0FFH		;request user number
+	CALL	USER
+	LD	(CURUSR),A	;save it
+	RET
+
+; patch to display only $DIR files
+
+DIRPAT:	INC	DE	
+	LD	A,(DE)	
+	AND	80H	
+	DEC	DE	
+	JR	NZ,NODISP
+	LD	HL,DTAB  
+	JP	DELENTY 
+
+NODISP:	POP	HL	
+	POP 	BC	
+	LD	DE,(DENTPT)
+	PUSH	HL
+	CALL	DOSNX
+	POP	HL	
+	POP	DE	
+	JP	NDTST	
+
+	.dephase
+	.phase	DELENTX	
+
+	JP	DIRPAT
+
+	.dephase
+
+	END
+

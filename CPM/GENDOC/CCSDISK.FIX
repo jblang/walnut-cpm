@@ -1,0 +1,99 @@
+                                 AA6PZ
+                              Paul Zander
+                              86 Pine Lane
+                          Los Altos, CA 94022
+
+Fellow Computer Hobbiest:
+
+     Several  friends and I have been trying to use the popular  CCS2422 
+Floppy Disk Controller board in our S-100 systems.  We encountered a few 
+problems  which cost us substantial frustration until the solutions  had 
+been worked out.  We had tentatively thought that we had bad EPROM's and 
+bad  disc  controller  IC's before making  the  modifications  described 
+below.   The IC numbers refer to the rev.  B board, the changes apply to 
+the rev A board as well.
+
+     1.  The buffer which drives the data-in bus,  U40,  has to drive  8 
+lines  at the same time.   Depending on the configuration of the rest of 
+the  system,  it  may have a peak current of 1/2 amp or more for  a  few 
+nanoseconds.   Although this IC is close to the S-100 ground pins(50 and 
+100),  this current has to flow through traces which are common to  the 
+rest  of  the board.   I have actually seen this current surge  cause  a 
+voltage  spike  of 2 volts.   Needless to say,  this can and does  cause 
+false inputs to many of the other IC's on the board.  The solution is to 
+cut the trace on the top side of the board to U40, pin 10.  Next, on the 
+back  side,  connect  U40,  pin 10 by a piece of insulated wire  to  the 
+ground trace near pin 100,  and continue the wire around the edge of the 
+board  to the top side near pin 50.   Number 28 or 30 wire-wrap wire  is 
+suitable.  The  inductance  of the wire is primarily a function  of  its 
+length.  There is little to be gained by using an 18 guage wire.
+
+     2.  Although  the  ground  traces  appear at  first  glance  to  be 
+connected together, there are several places where a ground trace starts 
+at  one  side of the board,  goes to several IC's and then stops in  the 
+middle of the board.   Your DC ohmmeter will measure continuity, because 
+the  traces  are connected by long paths around the edge of  the  board.  
+More  reliable operation of the 2422 can be achieved if these  "dangling 
+ends"  are  connected together.   The candidates for connection  are  as 
+follows:
+
+          U7   pin 7  to  U8   pin 20
+          U20  pin 7  to  U21  pin  8
+          U13  pin 10 to  U14  pin  7
+          U35  pin 7  to  U44  pin  8
+          U39  pin 7  to  S-100 pin 50
+
+If your system uses the S-100 pins 20 and 70 as grounds,  the should  be 
+connected in as well.
+
+     3.  This  one  corrects  one  of the  symptoms  of  the  inadequate 
+grounding  mentioned  in 1 and 2.   Historically,  it was  found  first, 
+because the board would often hang up in an "Auto-wait" state when using 
+the monitor EPROM.  Short spikes on SOUT or SINP propogate the the logic 
+to  the clock U42A when the CPU is really accessing a memory address  of 
+F733.   This  change  prevents short spikes from clocking the Auto  wait 
+flip-flop but has no effect on desired operation.
+     Cut  the  +5v trace going to U42 pin 2.   It is on the back of  the 
+board  and you do not have to remove the IC or the socket to get to  it. 
+(Hurray!)  Now connect pin 2 to U35 pin 11.   This is the logical OR  of 
+SOUT and SINP.  In the case of a short spike, this point will be back in 
+the logic low state before the clock signal gets to the flip-flop.
+
+     4. Some of our boards did not work with some of the Western Digital 
+IC's.   The  problem  was  most  pronounced  with  5  1/4  inch  drives.  
+Eventually  we found that the problem is that the board design  requires 
+the  WD1793 to operate outside of its specified range.   In  particular, 
+the data sheet requires that the data inputs be held for 70 ns after the 
+end  of the write pulse.   However,  the 2422 actually switches off  the 
+data  bus  buffer  before  sending the write pulse to the  1793  or  the 
+control latches.   It is only the PC board capacitance which causes  the 
+circuit to work!  The solution is to keep U39 turned on a little longer.  
+There  are several solutions,  but the most reliable is to substitute an 
+unused  section  of open-collector NAND gate U5 for the section  of  U20 
+which drives U39 pin's 1 and 19.   Connect U20 pin's 4 and 5 to U5 pin's 
+13 and 14 respectively.   Cut the trace to U20 pin 6 and connect a  wire 
+form  that trace to U5 pin 12.   Connect a 1K pullup to U5 pin  12,  and 
+somewhere  along that trace connect a 80 to 100 pF capacitor to  ground.  
+This will slow down the rising edge of the signal to U39 pin 1.
+
+     After  these  changes,  the CCS2422 works quite  well.   With  some 
+experimental  changes  to  the  wait-state  circuitry,   one  board  has 
+successfully  done disk operations with a CPU clock speed in excess of 6 
+MHz.   More  work  remains to be done before claiming  that  a  complete 
+speed-up can be reliably achieved.
+
+     The  problems  with inadequately engineered ground connections  and 
+buffers  which are turned off too early are not unique to the CCS  2422.  
+You  might keep them in mind when you have problems with other  circuits 
+which  give  erratic  behavior.   I hope this  letter  helps  make  your 
+computer experience more enjoyable.
+
+     Permission  to  copy this letter or its contents,  in whole  or  in 
+part, is granted provided that credit is given to this writer.
+
+
+                                   Sincerely,
+
+                                   Paul Zander
+
+

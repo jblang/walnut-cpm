@@ -1,0 +1,1346 @@
+; MXO-FX.180
+;
+;	MEX Overlay for the Micromint SB180FX and a Hayes-compatible
+;	smart modem.
+;
+; Because HD64180 opcodes are used in this overlay, it must be assembled
+; using the SLR180, ZMAC, or ZAS assemblers.
+;
+Vers	equ	15		; overlay revision level
+;
+; This overlay is for use with MEX Plus (the commercial version) on the
+; Micromint SB180FX with a Hayes-compatible smart modem.  The overlay
+; will probably not work with the public domain MEX version 1.14 without
+; modification.  I doubt the DTR routine will work on an SB180 that is
+; not an FX.
+;
+; To use:  Make any changes you prefer, to suit your taste.  Then
+; assemble with SLR180 or ZAS.  Use MLOAD to patch the changes into MEX:
+;
+;	SLR180 MXO-FX15/h			; assemble with SLR180
+;	ZMAC MXO-FX15 h				; or with ZMAC
+;	MLOAD NEWMEX.COM=MEX.COM,MXO-FX1x.HEX	; patch MEX with HEX file
+;
+; You have a number of choices to make before assembling this file and
+; overlaying MEX Plus.  The options you will most likely want to change
+; are marked by "***" in the code below.  You can use your editor's
+; search routine to locate the three asterisks.  You may also have to
+; modify the clear-screen strings at ClsMsg and EosMsg.
+;
+; Although this overlay has been completely redesigned, much of the code is
+; based on routines in MXO-SBS4.Z80, an overlay for MEX 1.14, which was
+; developed from 10/85 to 3/87 by Ken Davidson, Rob Milette, Al Hawley,
+; and Steve Mendelson.  Those versions were, in turn, based on a Kaypro
+; version.
+;
+; The dialing routines were taken, with minor modifications, from Ron
+; Fowler's MXM-SM15.ASM smart modem overlay which uses Intel mnemonics.
+; The DTR disconnect routine is from Rory Kestner's DTR.Z80.  The break
+; key routine is from Irv Hoff's SB180 overlay for IMP (I2MM-4.Z80).
+;
+; The last section of code is from Ron Fowler's MEXPAT22.ASM and is
+; copyright 1985 by Nightowl Software, Inc.  Ron Fowler recommends that
+; the patch file be used only on a completely virgin copy of MEX, but I
+; haven't found that necessary when it is included here.  Although it
+; could be separated into a separate file, but the SSET routine must
+; have it's entry address included at label SSETV.
+;
+; Version 1.5 -- June 18, 1991 -- Gene Pizzetta
+;	Now stores MSPEED on exit in page zero and uses that speed, if
+;	it exists, on re-entry.  Now shows current baud rate on entry.
+;	Modem is not initialized until just before dialing, unless the
+;	"SSET MODEM INIT" is issued.  I have been unable to get auto-
+;	stepdown to work, so your modem may answer and MEX will be at
+;	the wrong baud rate.  In previous versions parity was being set
+;	at the port before setting the modem, which didn't work and made
+;	the modem inoperable.
+;
+;	Changes in the SET routine:  Alternate keywords allowed -- MODE
+;	or MODEM; LENGTH, LEN, or WORD; SPEED or BAUD.
+;
+;	Changes in SSET routine:  "MODEM INIT" added because modem is
+;	only initialized before dialing.  To put the modem in auto-
+;	answer mode, the "SSET MODEM ANSWER" command must be issued,
+;	followed by "SSET MODEM INIT".  Alternate keywords allowed --
+;	MODEM or MODE; ANSWER or ANS; ORIGINATE or ORIG; VOLUME or VOL;
+;	MEDIUM or MED.
+;
+; Version 1.4 -- October 19, 1990 -- Gene Pizzetta
+;	Changed some defaults (REPLY=0, SODELAY=ON, TRIGGER='', GLOBALS=T).
+;
+; Version 1.3 -- November 17, 1989 -- Gene Pizzetta
+;	Modified screen display for SET and SSET.  No longer initializes
+;	modem on entry (so MEX can be exited and re-entered while on line).
+;	Since the modem is not initialized, the default configuration
+;	must be stored in the modem's non-volatile memory using the "AT&W"
+;	command, or you can enter any SSET command to send the initialization
+;	string to the modem.
+;
+; Version 1.2 -- May 19, 1989 -- Gene Pizzetta
+;	Modified SSET carrier wait routine.
+;
+; Version 1.1 -- May 17, 1989 -- Gene Pizzetta
+;	Added Break key routine.
+;
+; Version 1.0 -- May 15, 1989 -- Gene Pizzetta
+;	SET and SSET commands added.  SET deals with communication
+;	protocols:  baud rate, parity, stop bits, and word length.
+;	(The parity, stop bit, and word length routines are not tested.)
+;	SSET deals with the modem:  mode (originate/auto-answer), dial
+;	mode (tone/pulse), carrier wait time, speaker mode (off, on after
+;	dialing, on during dialing), and speaker volume (low, medium,
+;	high).  Dial mode can also be set by STAT, but I've included it
+;	in SSET because I think it should logically be there.  SET ? and
+;	SSET ? will give you the syntax.
+;
+; Version 0.9 -- May 10, 1989 -- Gene Pizzetta
+;	It works.
+;
+FALSE	equ	0
+TRUE	equ	not FALSE
+NO	equ	FALSE
+YES	equ	TRUE
+;
+; Set next two equates for your CPU speed.  Set only one TRUE; set the
+; other FALSE ***
+;
+CPU9	equ	TRUE		; 9.216 MHz clock
+CPU6	equ	FALSE		; 6.144 MHz clock
+;
+  IF CPU6 AND CPU9
+	Choose either CPU9 or CPU6 -- Not both!
+  ENDIF
+;
+WBoot	equ	0000h
+TPA	equ	0100h
+Bdos	equ	0005h
+CSpeed	equ	003Ch		; baud rate storage in page 0
+;
+ESC	equ	1Bh		; escape
+CR	equ	0Dh		; carriage return
+LF	equ	0Ah		; linefeed
+TAB	equ	09h		; tab
+BELL	equ	07h		; bell
+;
+; HD64180 port definitions
+;
+EXPORT	equ	00h		; base external port
+EXTCTL	equ	EXPORT		; external modem control port
+EXSTAT	equ	EXPORT+4	; external modem status port
+EXDATO	equ	EXPORT+6	; external modem data out port
+EXDATI	equ	EXPORT+8	; external modem data in port
+BAUDRP	equ	EXPORT+2	; external modem baud rate port
+;
+; HD64180 bit definitions
+;
+MDRCVB	equ	80h		; modem receive bit (DAV)
+MDRCVR	equ	80h		; modem receive ready
+MDSNDB	equ	02h		; modem send bit
+MDSNDR	equ	02h		; modem send ready bit
+;
+; MEX Service Processor functions
+;
+MEXLOC	equ	0D00h		; MEX function entry
+INMDM	equ	255		; get char from port to A, CY=no more in 100 ms
+TIMER	equ	254		; delay 100ms * reg B
+TMDINP	equ	253		; B=# secs to wait for char, cy=no char
+CHEKCC	equ	252		; check for ^C from KBD, Z=present
+SNDRDY	equ	251		; test for modem-send ready
+RCVRDY	equ	250		; test for modem-receive ready
+SNDCHR	equ	249		; send a character to the modem (after sndrdy)
+RCVCHR	equ	248		; recv a char from modem (after rcvrdy)
+LOOKUP	equ	247		; table search: see CMDTBL comments for info
+PARSFN	equ	246		; parse filename from input stream
+BDPARS	equ	245		; parse baud-rate from input stream
+SBLANK	equ	244		; scan input stream to next non-blank
+EVALA	equ	243		; evaluate numeric from input stream
+LKAHED	equ	242		; get nxt char w/o removing from input
+GNC	equ	241		; get char from input, cy=1 if none
+ILP	equ	240		; inline print
+DECOUT	equ	239		; decimal output
+PRBAUD	equ	238		; print baud rate
+;
+KBDIN	equ	1		; keyboard input
+CONOUT	equ	2		; simulated BDOS function 2: console char out
+PRINT	equ	9		; simulated BDOS function 9: print string
+INBUF	equ	10		; input buffer, same structure as BDOS 10
+KSTAT	equ	11		; keyboard status
+;
+DCONIO	equ	6		; BDOS Direct Console IO function #
+DCONIN	equ	0FFh		; BDOS DCONIO Flag for input
+;
+	org	TPA		; we begin
+;
+	db	0C3h		; jump required by load
+	ds	2		; MEX JMP START
+	ds	2		; not used by MEX
+TPULSE:	db	'T'		; T=touch, P=pulse (Used by overlay) ***
+  IF CPU9			; 9.216 MHz
+CLOCK:	db	92		; clock speed x .1, up to 25.5 MHz
+  ENDIF
+  IF CPU6			; 6.144 MHz
+CLOCK:	db	61		; clock speed x .1, up to 25.5 MHz
+  ENDIF
+MSPEED:	db	6		; sets default baud rate and default display
+				; ..time for sending a file ***
+				; .. 0=110, 1=300, 2=450, 3=600, 4=710,
+				; .. 5=1200, 6=2400, 7=4800, 8=9600, 9=19200
+BYTDLY:	db	5		; default time to send character in
+				; ..terminal mode file transfer (0-9)
+				; ..0=0 delay, 1=10 ms, 5=50 ms, 9=90 ms
+CRDLY:	db	5		; end-of-line delay after CRLF in terminal
+				; ..mode file transfer for slow BBS systems
+				; ..0=0 delay, 1=100 ms, 5=500 ms, 9=900 ms
+COLUMS:	db	5		; number of directory columns
+SETFL:	db	YES		; yes=user-defined SET command
+SCRTST:	db	YES		; yes=if home cursor and clear screen	[10C]
+				; ..routine at CLRSCRN ***
+	db	0		; was once ACKNAK, now spare
+BAKFLG:	db	YES		; yes=make .BAK file ***
+CRCDFL:	db	YES		; yes=default to CRC checking ***	[10F]
+				; ..no=default to Checksum checking
+TOGCRC:	db	YES		; yes=allow toggling of Checksum to CRC	[110]
+CVTBS:	db	NO		; yes=convert backspace to rub ***
+TOGLBK:	db	YES		; yes=allow toggling of bksp to rub
+ADDLF:	db	NO		; no=no LF after CR to send file in
+				; ..terminal mode (added by remote echo)
+TOGLF:	db	YES		; yes=allow toggling of LF after CR
+TRNLOG:	db	NO		; yes=allow transmission of LOGON (not used)
+SAVCCP:	db	YES		; yes=do not overwrite CCP
+LOCNXT:	db	NO		; yes=local cmd if EXTCHR precedes
+				; ..no=not local cmd if EXTCHR precedes
+TOGLOC:	db	YES		; yes=allow toggling of LOCNXTCHR
+LSTTST:	db	YES		; yes=allow toggling of printer on/off
+				; ..in terminal mode.  Set to no if using
+				; ..printer port for modem
+XOFTST:	db	NO		; yes=allow testing of XOFF from remote
+				; ..while sending a file in terminal mode
+XONWT:	db	NO		; yes=wait for XON after sending CR while
+				; ..transmitting a file in terminal mode
+TOGXOF:	db	YES		; yes=allow toggling of XOFF testing
+IGNCTL:	db	YES		; yes=do not send control characters
+				; ..above CTL-M to CRT in terminal mode ***
+				; ..no=send any incoming CTL-chars to CRT
+EXTRA1:	db	0		; for future expansion
+EXTRA2:	db	0
+; The following are space fillers and have no effect . . .
+BRKCHR:	db	'@'-40h		; ^@ = send a 300 ms. break tone
+NOCONN:	db	'N'-40h		; ^N = disconnect from phone line
+LOGCHR:	db	'L'-40h		; ^L = send LOGON
+LSTCHR:	db	'P'-40h		; ^P = toggle printer
+UNSVCH:	db	'R'-40h		; ^R = close input text buffer
+TRNCHR:	db	'T'-40h		; ^T = transmit file to remote
+SAVCHR:	db	'Y'-40h		; ^Y = open input text buffer
+EXTCHR:	db	'^'-40h		; ^^ = send next character		[127]
+;
+	ds	2		; to make addresses right
+;
+; Low-level modem I/O routines.
+;
+INC:	in0	a,(EXSTAT)	; in modem control port			[12A]
+	ret
+	db	0,0,0,0,0,0	; spares if needed for non-PMMI
+;
+OUTD:	out0	(EXDATO),a	; in modem data port			[134]
+	ret
+	db	0,0,0,0,0,0	; spares if needed for non=PMMI
+;
+IND:	in0	a,(EXDATI)	; out modem data port			[13E]
+	ret
+	db	0,0,0,0,0,0	; spares if needed for non-PMMI
+;
+; Bit-test routines. 
+;
+MASKR:	and	MDRCVB		; bit to test for receive ready		[148]
+	ret
+TESTR:	cp	MDRCVR		; value of receive bit when ready
+	ret
+MASKS:	and	MDSNDB		; bit to test for send ready
+	ret
+TESTS:	cp	MDSNDR		; value of send bit when ready
+	ret
+;
+DCDTST:	ds	3		; data carrier detect			[154]
+RNGDET:	ds	3		; ring detect				[157]
+	db	0,0,0,0,0
+SSMDISC:
+	jp	DISCON		; smartmodem disconnect			[15F]
+;
+; Special modem function jump table:  if your overlay cannot handle
+; some of these, change the jump to "DS 3", so the code present in
+; MEX will be retained.  Thus, if your modem can't dial, change the
+; JMP PDIAL at DIALV to DS 3, and MEX will print a "not implemented"
+; diagnostic for any commands that require dialing.
+;
+DIALV:	jp	DIAL		; dial digit in A			[162]
+DISCV:	jp	DRDTR		; disconnect modem			[165]
+GOODBV:	jp	GOODBYE		; called before exit to CP/M
+INMODV:	jp	NITMOD		; initialization. Called at cold-start
+NEWBDV:	jp	PBAUD		; set baud rate
+NOPARV:	jp	NOPARITY	; set modem for no-parity
+PARITV:	jp	PARITY		; set modem parity
+SETUPV:	jp	SETCMD		; SET cmd: jump to a RET if you don't write SET
+SPMENV:	ds	3		; not used with MEX
+VERSNV:	jp	SYSVER		; overlay's voice in the sign-on message[17D]
+BREAKV:	jp	SBREAK		; send a break				[180]
+;
+; MDM calls supported in MEX 1.0 but not recommended for use.
+;
+ILPRTV:	ds	3		; replace with MEX function 9
+INBUFV:	ds	3		; replace with MEX function 10
+ILCMPV:	ds	3		; replace with table lookup function 247
+INMDMV:	ds	3		; replace with MEX function 255
+NXSCRV:	ds	3		; not supported by MEX (returns w/no action)
+TIMERV:	ds	3		; replace with MEX function 254
+;
+ClrEos:	ld	de,EosMsg	; clear to end of string routine	[195]
+	ld	c,PRINT
+	call	MEX
+	ret
+;
+Cls:	ld	de,ClsMsg	; clear screen routine			[19E]
+	ld	c,PRINT
+	call	MEX
+	ret
+;-----------------------------------------------------------------------------
+; end of fixed area
+;=============================================================================
+;
+;	org	200h		; area above is reserved
+;
+EosMsg:	db	ESC,'Y','$'	; clear to end of screen string ***
+ClsMsg:	db	ESC,'+','$'	; clear screen string ***
+;
+; Print overlay version
+;
+SYSVER:	ld	de,VerMsg
+	ld	c,PRINT
+	call	MEX
+	jp	BdSho
+;	ret
+;
+VerMsg:	db	'Micromint SB180FX Smart Modem DTR Version '
+	db	Vers/10+'0'
+	db	'.'
+	db	Vers mod 10+'0'
+	db	CR,LF
+	db	'$'
+;
+; Break, disconnect and goodbye routines
+;  (The HD64180 doesn't support break transmit or receive.)
+;
+GOODBYE:
+	ld	a,(MSPEED)
+	ld	(CSPEED),a
+	ret
+;
+NOPARITY:
+	ret
+;
+PARITY:	ret
+;
+SBREAK:	ld	a,(MSPEED)	; get current baud rate
+	push	af		; ..and save it
+	ld	a,9		; set for 19,200 bps
+	call	PBAUD
+	ld	de,575		; take 300 ms
+SBrk1:	ld	c,SNDRDY	; wait for modem ready
+	call	MEX
+	jr	nz,SBrk1
+	xor	a		; ASCII NUL in A
+	ld	b,a		; no, position for sending
+	ld	c,SNDCHR	; nope, send the character
+	call	MEX
+	dec	de		; count down
+	jr	nz,SBrk1	; continue until zero
+	call	NitSio		; clear port
+	pop	af		; get back current baud rate
+	call	PBAUD		; ..and reset it
+	ret
+;
+; Disconnect Routine
+;
+DRDTR:	call	SetDTR		; raise DTR
+	ld	b,1		; delay 100ms
+	ld	c,TIMER
+	call	MEX
+	call	ResetDTR	; then lower it
+	ret
+;
+SetDTR:	call	Status
+	ld	a,01000000b	; mask off desired bit
+	or	b		; ..OR it
+	ld	b,a		; ..put in A for BIOS
+	ld	a,0FFh		; set up for write
+	jr	XBios
+;
+ResetDTR:
+	call	Status
+	ld	a,10111111b
+	and	b		; AND desired bit
+	ld	b,a
+	ld	a,0FFh
+	jr	XBios
+;
+Status:	xor	a		; set up for read function
+;
+XBios:	ld	hl,(1)		; get BIOS address
+	ld	l,3Fh		; offset for latch routine
+	jp	(hl)		; jump to BIOS and return
+;
+; Initialize RS-232 port
+;
+NITMOD:	call	NitSio
+	ld	a,(CSPEED)	; check page zero
+	or	a		; anything there?
+	jr	z,Nitmd2	; (no, do default)
+	cp	10		; within range?
+	jr	nc,Nitmd2	; (no, do default)
+	jr	PBAUD		; yes, set chip but not modem
+
+Nitmd2:	ld	a,(MSPEED)	; get default baud rate
+	jr	PBAUD		; ..and set it
+;
+; Initialize the HD64180 chip (clear errors)
+;
+NitSio:	in0	a,(EXTCTL)
+	and	11101111b
+	or	01101000b
+	out0	(EXTCTL),a
+	ret
+;
+; This routine sets baud rate passed in A.
+; Returns CY=1 if baud rate not supported.
+;
+PBAUD:	push	hl		; don't alter anything
+	push	de
+	push	bc
+	ld	e,a		; MSPEED code to DE
+	ld	d,0
+	ld	hl,BaudTB	; offset into table
+	add	hl,de
+	ld	a,(hl)		; fetch code
+	cp	0FFh		; FFh means unsupported code
+	scf			; prep carry in case unsupported
+	jr	z,PBExit	; exit if bad
+PBAUD2:	ld	b,a		; save code in B
+	ld	a,(SmPar+6)
+	cp	'3'	
+	ld	a,b		; get back code
+	jr	nz,PBAUD1	; (nope)
+	or	00010000b	; set bit 4 to preserve odd parity
+PBAUD1:	out0	(BaudRp),a	; if OK, set it
+	ld	a,e		; get MSPEED code back
+	ld	(MSPEED),a	; set it
+	or	a		; return (no errors)
+PBExit:	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+; Table of baud rate divisors for supported rates.  (nnn) are not
+; supported.
+;
+  IF CPU9			; clock speed 9.216 MHz
+BaudTB:	db      0FFh,26h,0FFh,25h,0FFh	; (110), 300, (450), 600, (710)
+	db	24h,23h,22h,21h,20h	; 1200, 2400, 4800, 9600, 19200
+  ENDIF
+;
+  IF CPU6			; clock speed 6.144 MHz
+BaudTB:	db	0FFh,0Dh,0FFh,06h,0FFh	; (110), 300, (450), 600, (710)
+	db	05h,04h,03h,02h,01h	; 1200, 2400, 4800, 9600, 19200
+  ENDIF
+;
+; SET command implements setting baud rate, parity, stop bits, and word
+; length.
+;
+SETCMD:	ld	c,SBLANK	; any arguments?
+	call	MEX
+	jr	c,SetSho	; if not, display defaults
+	ld	de,SetTbl
+	ld	c,LOOKUP
+	call	MEX		; parse the argument
+	push	hl		; save any parsed arguments
+	ret	nc		; ..and return to it
+	pop	hl		; not found
+SetErr:	ld	de,SetEms
+	ld	c,PRINT
+	call	MEX
+	ret
+;
+SetEms:	db	BELL,'  SET syntax error -- "SET ?" for help',CR,LF,'$'
+;
+SetTbl:	dc	'?'		; help
+	dw	StHelp
+	dc	'SPEED'		; set baud
+	dw	StBaud
+	dc	'BAUD'		; alternate set baud
+	dw	StBaud
+	dc	'PARITY'	; set parity
+	dw	StPrty
+	dc	'STOP'		; set stop bits
+	dw	StStop
+	dc	'LENGTH'	; set word length
+	dw	StWord
+	dc	'LEN'		; alternate set word length
+	dw	StWord
+	dc	'WORD'		; alternate set word length
+	dw	StWord
+	db	0		; end of table
+;
+; SET with no arguments, prints current settings.
+;
+SetSho:	call	SCRLF
+	call	BdSho
+	call	PrSho
+	call	StSho
+	call	WdSho		; fall through to SCRLF
+;
+; Print carriage return and linefeed
+;
+SCRLF:	call	SILP
+	db	' ',CR,LF,0
+	ret
+;
+; SET with "?" print help message
+;
+StHelp:	call	SILP
+	db	'  SET Options:',CR,LF
+	db	'    SPEED     300, 600, 1200, 2400, 4800, 9600, 19200',CR,LF
+	db	'    PARITY    ODD, EVEN, NONE                (parity)',CR,LF
+	db	'    STOP      1, 2              (number of stop bits)',CR,LF
+	db	'    LEN{GTH}  7, 8     (number of bits per character)',CR,LF
+	db	0
+	ret
+;
+; Set baud rate
+;
+StBaud:	ld	c,BDPARS	; Parse baud rate
+	call	MEX
+	jp	c,SetErr	; (no good)
+	call	PBaud		; set it
+	jp	c,SetErr	; (no good)
+	call	SCRLF
+	call	BdSho
+	jp	SCRLF		; send CRLF and return
+;
+BdSho:	call	SILP
+	db	'Modem Speed     : ',0
+	ld	a,(MSpeed)	; get current rate
+	ld	c,PRBAUD	; let MEX print it
+	call	MEX
+	jp	SCRLF		; send CRLF and return
+;
+; Set parity -- parity is controlled by bit 1 of EXTCTL and bit 4 of
+; BAUDRP:
+;		BAUDRP b4	EXTCTL b1
+;	None	    -		    0
+;	Even	    0		    1
+;	Odd	    1		    1
+;
+StPrty:	ld	de,ParTbl	; check syntax
+	jp	ADRTBL
+;
+ParTbl:	dc	'NONE'		; set parity none
+	dw	PrOff
+	dc	'EVEN'		; set parity even
+	dw	PrEven
+	dc	'ODD'		; set parity odd
+	dw	PrOdd
+	db	0
+;
+PrOff:	ld	a,55		; '55'
+	call	BinAsc
+	ld	(SmPar+6),hl
+	ld	hl,SmPar
+	call	SMSEND
+	in0	a,(EXTCTL)
+	and	11111101b	; reset bit 1
+	jr	ParTb1
+;
+PrEven:	ld	a,7		; '07'
+	call	BinAsc
+	ld	(SmPar+6),hl
+	ld	hl,SmPar
+	call	SMSEND
+	in0	a,(EXTCTL)
+	or	00000010b	; set bit 1
+	jr	ParTb1
+;
+PrOdd:	ld	a,39		; '39'
+	call	BinAsc
+	ld	(SmPar+6),hl
+	ld	hl,SmPar
+	call	SMSEND
+	in0	a,(EXTCTL)
+	or	00000010b	; set bit 1
+	push	af		; save mask
+	ld	a,(BAUDRP)
+	or	00010000b	; set bit 4
+	ld	(BAUDRP),a
+	pop	af		; recover mask and fall through
+;
+ParTb1:	out0	(EXTCTL),a	; set parity/no parity
+	ld	a,(MSPEED)
+	call	PBAUD
+	call	SCRLF
+	call	PrSho
+	jp	SCRLF		; send CRLF and return
+;
+PrSho:	call	SILP		; print the result
+	db	'Parity          : ',0
+	in0	a,(EXTCTL)
+	and	00000010b	; test bit 1
+	jr	nz,ParSh1
+	call	SILP
+	db	'None',CR,LF,0
+	ret
+;
+ParSh1:	in0	a,(BAUDRP)
+	and	00010000b	; test bit 4
+	jr	z,ParSh2
+	call	SILP
+	db	'Odd',CR,LF,0
+	ret
+;
+ParSh2:	call	SILP
+	db	'Even',CR,LF,0
+	ret
+;
+; Set stop bits -- number of stop bits is controlled by bit 0 of
+; EXTCTL:
+;		EXTCTL b0
+;	1 bit	    0
+;	2 bits      1
+;
+StStop:	ld	de,StpTbl	; check syntax
+	jp	ADRTBL
+;
+StpTbl:	dc	'1'		; set 1 stop bit
+	dw	Stop1
+	dc	'2'		; set 2 stop bits
+	dw	Stop2
+	db	0
+;
+Stop1:	in0	a,(EXTCTL)	; get control register
+	and	11111110b	; reset bit 0
+	jr	StStp1
+;
+Stop2:	in0	a,(EXTCTL)
+	or	00000001b	; set bit 0
+;
+StStp1:	out0	(EXTCTL),a
+	call	SCRLF
+	call	StSho
+	jp	SCRLF		; send CRLF and return
+;
+StSho:	call	SILP		; print result
+	db	'Stop bits       : ',0
+	in0	a,(EXTCTL)
+	and	00000001b	; test bit 0
+	jr	nz,StSho2	; (if bit 0 = 1 then 2 stop bits)
+	call	SILP
+	db	'1',CR,LF,0
+	ret
+;
+StSho2:	call	SILP
+	db	'2',CR,LF,0
+	ret
+;
+; Set word length -- number of bits per character is controlled by
+; bit 2 of EXTCTL:
+;		EXTCTL b2
+;	7 bits	    0
+;	8 bits	    1
+;
+StWord:	ld	de,WrdTbl	; check syntax
+	jp	ADRTBL
+;
+WrdTbl:	dc	'7'		; set 7-bit word length
+	dw	Word7
+	dc	'8'		; set 8-bit word length
+	dw	Word8
+	db	0
+;
+Word7:	in0	a,(EXTCTL)
+	and	11111011b	; reset bit 2
+	jr	StWrd2
+;
+Word8:	in0	a,(EXTCTL)
+	or	00000100b	; set bit 2
+;
+StWrd2:	out0	(EXTCTL),a
+	call	SCRLF
+	call	WdSho
+	jp	SCRLF		; send CRLF and return
+;
+WdSho:	call	SILP
+	db	'Word Length     : ',0
+	in0	a,(EXTCTL)
+	and	04h		; test bit 2
+	ld	a,'7'
+	jr	z,WdSho7	; (if bit 2 = 0 then 7-bit word)
+	ld	a,'8'
+WdSho7:	ld	(WdMsg),a
+	call	SILP
+WdMsg:	db	'8 bits/char',CR,LF,0
+	ret
+;
+SSTCMD:	ld	c,SBLANK	; any arguments?
+	call	MEX
+	jr	c,SstSho	; if not, display defaults
+	ld	de,SstTbl
+	ld	c,LOOKUP
+	call	MEX		; parse the argument
+	push	hl		; save any parsed arguments
+	ret	nc		; ..and return to it
+	pop	hl		; not found
+SstErr:	ld	de,SstEms
+	ld	c,PRINT
+	call	MEX
+	ret
+;
+SstEms:	db	BELL,'  SSET syntax error -- "SSET ?" for help',CR,LF,'$'
+;
+SstTbl:	dc	'?'		; help
+	dw	SstHlp
+	dc	'MODEM'		; set modem mode
+	dw	SsMode
+	dc	'MODE'		; alternate set modem mode
+	dw	SsMode
+	dc	'DIAL'		; set dial mode
+	dw	SsDial
+	dc	'WAIT'		; set carrier wait
+	dw	SsWait
+	dc	'SPEAKER'	; set speaker mode
+	dw	SsSpkr
+	dc	'VOLUME'	; set speaker volume
+	dw	SsVol
+	dc	'VOL'		; alternate set speaker volume
+	dw	SsVol
+	db	0		; end of table
+;
+; SSET with no arguments, prints current settings.
+;
+SstSho:	call	SCRLF
+	call	MdSho
+	call	DlSho
+	call	Wtsho
+	call	SkSho
+	call	VlSho
+	jp	SCRLF		; send CRLF and return
+;
+; SSET with "?" print help message
+;
+SstHlp:	call	SILP
+	db	'  SSET Options:',CR,LF
+	db	'    MODE{M}   ORIG{INATE}, ANS{WER}, INIT (modem mode)',CR,LF
+	db	'    DIAL      PULSE, TONE                  (dial mode)',CR,LF
+	db	'    WAIT      number of seconds     (wait for carrier)',CR,LF
+	db	'    SPEAKER   ON, DIAL, OFF             (speaker mode)',CR,LF
+	db	'    VOL{UME}  LOW, MED{IUM}, HIGH     (speaker volume)',CR,LF
+	db	0
+	ret
+;
+; Set modem mode
+;
+SsMode:	ld	de,MdTbl
+	jp	ADRTBL
+;
+MdTbl:	dc	'ORIG'		; set originate mode
+	dw	MdOrig
+	dc	'ORIGINATE'	; alternate set originate mode
+	dw	MdOrig
+	dc	'ANS'		; set answer mode
+	dw	MdAns
+	dc	'ANSWER'	; alternate set answer mode
+	dw	MdAns
+	dc	'INIT'		; initialize modem
+	dw	MdInit
+	db	0
+;
+MdOrig:	ld	a,'0'
+	ld	(SmMode+3),a
+	jr	MdSend
+;
+MdAns:	ld	a,'1'
+	ld	(SmMode+3),a
+;
+MdSend:	call	SCRLF
+	call	MdSho
+	jp	SCRLF		; send CRLF and return
+;
+MdSho:	call	SILP
+	db	'Modem Mode      : ',0
+	ld	a,(SmMode+3)
+	cp	'0'
+	jr	z,MdSho2
+	call	SILP
+	db	'Auto-Answer',0
+	jp	SCRLF		; send CRLF and return
+;
+MdSho2:	call	SILP
+	db	'Originate',0
+	jp	SCRLF		; send CRLF and return
+;
+; Initialize modem
+;
+MdInit:	call	SCRLF
+	call	NitSio		; clear port
+	call	JUSTRT		; send initialization string
+	call	SILP
+	db	'Modem Initialized',CR,LF,0
+	jp	SCRLF		; send CRLF and return
+;
+; Set dial mode
+;
+SsDial:	ld	de,DialTb
+	jp	ADRTBL
+;
+DialTb:	dc	'PULSE'		; pulse dialing
+	dw	DialP
+	dc	'TONE'		; tone dialing
+	dw	DialT
+	db	0
+;
+DialP:	ld	a,'P'
+	ld	(TPULSE),a
+	jr	DialT1
+;
+DialT:	ld	a,'T'
+	ld	(TPULSE),a
+;
+DialT1:	call	SCRLF
+	call	DlSho
+	jp	SCRLF		; send CRLF and return
+;
+DlSho:	call	SILP
+	db	'Dial Mode       : ',0
+	ld	a,(TPULSE)
+	cp	'P'
+	jr	z,DlSho2
+	call	SILP
+	db	'Tone',CR,LF,0
+	ret
+;
+DlSho2:	call	SILP
+	db	'Pulse',CR,LF,0
+	ret
+;
+; Set ring and carrier wait
+;
+SsWait:	ld	c,EVALA
+	call	MEX		; get binary numeric
+	ld	a,h		; validate
+	or	a
+	jp	nz,SstErr
+	ld	a,l
+	ld	(WtFlg),a	; set new rate
+	call	BinAsc		; convert to ASCII
+	ld	(SmWait+3),hl	; store in S7 string
+	call	SCRLF
+	call	WtSho
+	jp	SCRLF		; send CRLF and return
+;
+WtSho:	call	SILP
+	db	'Carrier Wait    : ',0
+	ld	a,(WtFlg)	; get rate
+	ld	l,a
+	ld	h,0
+	ld	c,DECOUT
+	call	MEX		; print in decimal
+	call	SILP
+	db	' Seconds',CR,LF,0
+	ret
+;
+; Convert of binary in A (less than 63h) to 2 ASCII digits in hl,
+; MSD in L and LSD in H
+;
+BinAsc:	ld	hl,00FFh	; L = -1
+BinAs2:	inc	l
+	sbc	a,10		; subtract 10
+	jr	nc,BinAs2	; if no borrow, one more time
+	add	a,10		; too much, add 10 back
+	or	030h		; remainder into ASCII
+	ld	h,a		; LSD to H
+	ld	a,l		; get quotient
+	or	030h		; ..into ASCII
+	ld	l,a		; MSD to L
+	ret
+;
+; Set speaker mode
+;
+SsSpkr:	ld	de,SkTbl
+	jp	ADRTBL
+;
+SkTbl:	dc	'ON'		; speaker on after dialing
+	dw	SkOn
+	dc	'DIAL'		; speaker on during dialing
+	dw	SkDl
+	dc	'OFF'		; speaker off
+	dw	SkOf
+	db	0
+;
+SkOn:	ld	a,'3'
+	ld	(SmSpkr+1),a
+	jr	SkSend
+;
+SkDl:	ld	a,'1'
+	ld	(SmSpkr+1),a
+	jr	SkSend
+;
+SkOf:	ld	a,'0'
+	ld	(SmSpkr+1),a
+;
+SkSend:	call	SCRLF
+	call	SkSho
+	jp	SCRLF		; send CRLF and return
+;
+SkSho:	call	SILP
+	db	'Speaker Mode    : ',0
+	ld	a,(SmSpkr+1)
+	cp	'0'
+	jr	z,SkSho2
+	cp	'1'
+	jr	z,SkSho3
+	call	SILP
+	db	'On after dialing',CR,LF,0
+	ret
+;
+SkSho2:	call	SILP
+	db	'Off',CR,LF,0
+	ret
+;
+SkSho3:	call	SILP
+	db	'On during Dialing',CR,LF,0
+	ret
+;
+; Set speaker volume
+;
+SsVol:	ld	de,VlTbl
+	jp	ADRTBL
+;
+VlTbl:	dc	'LOW'		; speaker low volume
+	dw	VlLow
+	dc	'MEDIUM'	; speaker medium volume
+	dw	VlMed
+	dc	'MED'		; alternate medium volume
+	dw	VlMed
+	dc	'HIGH'		; speaker high volume
+	dw	VlHi
+	db	0
+;
+VlLow:	ld	a,'1'
+	ld	(SmVol+1),a
+	jr	VlSend
+;
+VlMed:	ld	a,'2'
+	ld	(SmVol+1),a
+	jr	VlSend
+;
+VlHi:	ld	a,'3'
+	ld	(SmVol+1),a
+;
+VlSend:	call	SCRLF
+	call	VlSho
+	jp	SCRLF		; send CRLF and return
+;
+VlSho:	call	SILP
+	db	'Speaker Volume  : ',0
+	ld	a,(SmVol+1)
+	cp	'1'
+	jr	z,VlSho2
+	cp	'2'
+	jr	z,VlSho3
+	call	SILP
+	db	'High',CR,LF,0
+	ret
+;
+VlSho2:	call	SILP
+	db	'Low',CR,LF,0
+	ret
+;
+VlSho3:	call	SILP
+	db	'Medium',CR,LF,0
+	ret
+;
+; Set up and check command table
+;
+ADRTBL:	push	de
+	ld	c,SBLANK
+	call	MEX
+	pop	de		; get table address
+	jp	c,SetErr	; ..or print error
+	ld	c,LOOKUP
+	call	MEX
+	push	hl		; match found, do it
+	ret	nc
+	pop	hl		; fix stack
+	jp	SetErr		; ..and print error
+;
+; In-line print routine (calls MEX)
+;
+SILP:	ld	c,ILP
+	jp	MEX
+;
+; Smart modem dialing code
+;
+DIAL:	ld	hl,(DIALPT)	; fetch pointer
+	cp	254		; start dial?
+	jp	z,STDIAL	; ..jump if so
+	cp	255		; end dial?
+	jp	z,ENDIAL	; ..jump if so
+;
+; Not start or end sequence, must be a digit to be sent to the modem
+;
+	ld	(hl),a		; put char in buffer
+	inc	hl		; ..advance pointer
+	ld	(DIALPT),hl	; stuff pntr
+	ret			; all done
+;
+; Here on a start-dial sequence
+;
+STDIAL:	ld	hl,DIALBF	; set up buffer pointer
+	ld	(DIALPT),hl
+	ret
+;
+; Here on an end-dial sequence
+;
+ENDIAL:	ld	(hl),CR		; stuff end-of-line into buffer
+	inc	hl		; ..followed by terminator
+	ld	(hl),0
+	ld	a,(TPULSE)	; get overlay's touch-tone flag
+	ld	(SMDIAL+3),a	; put into string
+	call	JUSTRT		; initialize modem
+	ld	b,10		; delay 1 sec
+	ld	c,TIMER
+	call	MEX
+	ld	hl,SMDIAL	; point to dialing string
+	call	SMSEND		; send it
+WAITSM:	ld	c,INMDM
+	call	MEX		; catch any output from the modem
+	jr	nc,WAITSM	; ..loop until no more characters
+;
+; The following loop waits for a result from the modem (up to 60 seconds).
+; You may change this value below, but note that the smart modem
+; has an internal 30 second timeout while waiting for a carrier on the
+; other end.  You can change by playing with the S7 variable (i.e., send
+; the smart modem "AT S7=20" to lower the 30 second wait to 20 seconds).
+;
+RESULT:	ld	c,60		; <= maximum time to wait for result
+SMWLP:	push	bc
+	ld	b,1		; check for a char, up to 1 sec wait
+	ld	c,TMDINP	; do timed input
+	call	MEX
+	pop	bc
+	jr	nc,SMTEST	; ..jump if modem had a char
+	push	bc		; no, test for control-C from console
+	ld	c,KSTAT		; check for keypress
+	call	MEX
+	or	a
+	pop	bc
+	jr	z,SMNEXT	; ..jump if no keypress
+	push	bc		; get keypress
+	ld	c,KBDIN
+	call	MEX
+	pop	bc
+	cp	'C'-40h		; is it ^C?
+	jr	nz,NOCC		; ..jump if not
+	ld	a,3		; prep return code
+	push	af		; ..save it
+ABCOM:	ld	b,CR		; yes, shut down the modem
+	ld	c,SNDCHR
+	call	MEX
+	pop	af		; ..return abort code
+	ret
+;
+NOCC:	cp	' '		; space bar?
+	jr	nz,SMNEXT	; ..ignore all others
+	ld	a,1		; prep return code
+	push	af		; ..
+	jr	ABCOM		; ..finish in common code
+SMNEXT:	dec	c		; no
+	jr	nz,SMWLP	; ..continue
+;
+; One minute with no modem response (or no connection)
+;
+SMTIMO:	ld	a,2		; return timeout code
+	ret
+;
+; Modem gave us a result, check it
+;
+SMTEST:	and	7Fh		; ignore any parity
+	call	SMANAL		; test the result
+	ld	a,b		; A=result (CY significant here too)
+	push	af		; save it
+SMTLP:	ld	c,INMDM		; flush any remaining command line
+	call	MEX
+	jr	c,SMCHEK	; ..jump if no input
+	cp	LF		; got some ... waiting for EOL
+	jr	nz,SMTLP	; ..eat any in-between
+SMCHEK:	pop	af		; A has MEX return-code, CY=1 if unknown
+	jr	c,RESULT	; ..if result unknown, ignore it
+	ret
+;
+SMANAL:	ld	b,0		; prep connect code
+	cp	'C'		; "CONNECT"?
+	ret	z		; \R1\
+	cp	'1'		; numeric version of "CONNECT"
+	ret	z		; \R1\
+	cp	'5'		; numeric version of "CONNECT 1200"
+	ret	z		; \R1\
+SMAN2:	cp	'9'		; numeric version of "CONNECT 600"
+	ret	z		; \R1\
+	inc	b		; prep busy code B=1
+	cp	'B'
+	ret	z		; \R1\
+	cp	'7'		; numeric version of "BUSY"
+	ret	z
+	inc	b		; prep NO CONNECT msg B=2
+	cp	'N'		; N=no connect
+	ret	z		; \R1\
+	cp	'3'		; numeric version of "NO CONNECT"
+	ret	z		; \R1\
+	cp	'6'		; numeric version of "NO DIALTONE"
+	ret	z
+	ld	b,4		; prep modem error
+	cp	'E'		; E=error
+	ret	z		; \R1\
+	cp	'4'		; numeric version of "ERROR"
+	ret	z		; \R1\
+	scf			; unknown...
+R1:	ret
+;
+; Following routine disconnects the modem using smart modem codes.
+; All registers are available for this function.  Nothing returned
+; to caller.
+;
+DISCON:	ld	b,20
+	ld	c,TIMER		; wait 2 seconds
+	call	MEX
+	ld	hl,SMATN	; send '+++'
+	call	SMSEND
+	ld	b,20		; wait 2 more seconds
+	ld	c,TIMER
+	call	MEX
+	ld	hl,SMDISC	; send 'ATH'
+	call	SMSEND
+	ld	b,1		; wait 1 second
+	ld	c,TIMER
+	call	MEX
+	ret
+;
+SMATN:	db	'+++',0
+SMDISC:	db	'ATH',CR,0
+;
+; Smart modem utility routine:  Send string to modem
+;
+SMSEND:	ld	c,SNDRDY	; wait for modem ready
+	call	MEX
+	jr	nz,SMSEND	; ..
+	ld	a,(hl)		; fetch next character
+	inc	hl		; ..
+	or	a		; end?
+	ret	z		; \R1\ done if so
+	ld	b,a		; no, position for sending
+	ld	c,SNDCHR	; nope, send the character
+	call	MEX
+	jr	SMSEND		; ..
+;
+; Data area
+;
+WtFlg:	db	30		; seconds wait while ringing ***
+SMDIAL:	db	'ATDT '
+DIALBF:	ds	52		; 2* 24 CHAR MAX, + CR + NULL + SLOP
+DIALPT:	ds	2		; dial position pointer
+;
+; Initialize modem
+;
+JUSTRT:	ld	hl,SmAtt	; send initial string
+	call	SMSEND
+	ret
+;
+; Modem initialization string ***
+;
+SmAtt:	db	'AT'		; modem initialization
+SmEcho:	db	'E1'		; command echo - 0=off, 1=on
+SmCode:	db	'Q0'		; result codes - 0=enabled, 1=disabled
+SmRslt:	db	'X4'		; type of result - 0, 1, 2, 3, 4
+SmType:	db	'V1'		; code type - 0=numeric, 1=verbal
+SmDTR:	db	'&D2'		; DTR - 0=ignore, 1=command state,
+				; .. 2=disconnect & command state
+SmSpkr:	db	'M1'		; speaker - 0=off, 1=off w/carrier,
+				; .. 3=off w/carrier and dialing
+SmWait:	db	'S7=30'		; wait for carrier (seconds)
+SmMode:	db	'S0=0'		; mode - 0=originate, 1=answer
+SmVol:	db	'L2'		; speaker volume - 1, 2, 3
+	db	CR,0		; must end with CR and NUL
+;
+; Set modem parity mode
+SmPar:	db	'ATS23=55',CR,0	; parity: 7=even, 39=odd, 48=none
+
+;
+JUEND:	ret			; modem deinit
+;
+; MEX PATCH version 2.2
+; Current as of 07/25/85 (rgf).
+; Copyright (c) 1985 by NightOwl Software, Inc.
+; All Rights Reserved
+;
+; (Note that the patch revision number bears no relation to the version
+; of MEX being patched).
+;
+; This is the patch file for MexPlus(tm) (the commercial version).  Code
+; for the public domain versions has been removed for this overlay.  This
+; version supercedes all previous patch files (although previous patch
+; files should still work, if you update the two lines starting at RESTT,
+; below).
+;
+; Be sure to use a completely virgin copy of MEX to make these changes.
+; We no longer recommend placing this code in your overlay file.
+;
+; The order of the patch variables supported here will not change from
+; version to version (i.e., new items will be added on to the end).
+;
+	org	MEXLOC		; location of patch variables
+;
+; The following line defines the MEX service call entry point, and
+; is not meant to be changed by the user
+;
+MEX:	ds	3		; MEX service call processor
+	ds	3		; (reserved)
+	ds	1		; (reserved)
+;
+; The following line contains the initial free-memory pointer for
+; MEX.  Sophisticated modem overlays requiring additional space may change
+; this pointer (ie, move it higher), and thus "protect" an area of RAM.
+;
+MEMRY:	DS	2		; first free memory pointer
+;
+; Following are the lowest-level vectors for console and list I/O used
+; by MEX.  These normally point to routines that save the registers and
+; vector to the appropriate BIOS routines.  Complex applications may
+; need to intercept (or even replace) these routines.  If you do this,
+; be sure to preserve DE, HL and BC.
+;
+STSVEC:	ds	2		; console status vector
+INVEC:	ds	2		; console input vector
+OUTVEC:	ds	2		; console output vector
+LVEC:	ds	2		; list output vector
+LSTVEC:	ds	2		; list status vector
+;
+; The following line defines the location of the default MEX prompt.
+; If you'd like to provide your own initial prompt, add a DW statement
+; pointing to a prompt buffer structured as follows:
+;
+;		DB <max size of buffer>
+;		DB <length of actual prompt>
+;		DB <prompt string>
+;
+; <maxsize> and <length> may be equal (especially if you disable the
+; ID command by setting CHGPMT, below to 0); the ID command will, if
+; left enabled, be limited to the <max size> value.
+;
+PROMPT:	ds	2		; prompt location
+	ds	1		; reserved
+TYPLIN:	db	23		; for TYPE command: # lines/screen ***
+PAUSFL:	db	1		; for TYPE cmd: 1=pause 0=no pause ***
+SEPCHR:	db	'|'		; multiple command-line separator
+				; ..(default is ";") ***
+;
+; Following five for SENDOUT command
+;
+SOWAIT:	db	4		; # seconds waiting for a sendout echo
+SOREPL:	db	0		; # seconds waiting for initial reply
+SOTRIG:	db	0		; SENDOUT trigger char from remote
+CANCHR:	db	'X'-64		; SENDOUT char to cancel line to remote
+				; ..(default 'U'-64) ***
+SORTRY:	db	6		; SENDOUT # retries
+;
+;
+HEXFLG:	db	0		; hex/decimal mode
+ESCCHR:	db	ESC		; terminal mode escape char (default 0Ah:
+				; ..linefeed) ***
+NOBELL:	db	0		; set to 1 to disable bell
+;
+; Buffer variables.  See BUFFERS.DOC for setup information
+;
+PSIZE:	db	1		; printer buffer size
+ASIZE:	db	255		; "big" capture buffer
+XSIZE:	db	16		; 16K transfer buffer
+NSIZE:	db	1		; 1K for 85 batch files
+PRELEN:	db	40		; maximum length of PREFIX string
+SUFLEN:	db	40		; maximum length of SUFFIX string
+;
+; Misc. stuff
+;
+CDOSFL:	db	0		; non-zero for CDOS
+WTECHO:	db	0		; non-zero sets "wait-for-echo"
+KYSIZE:	dw	400		; size of keystring area, in bytes
+; CompuServe A protocol is not very useful nowadays . . .
+CISFLG:	db	0		; non-zero allows CIS file transfers***
+CISOK:	db	0		; non zero allows STAT CIS ON or OFF***
+CHGPMT:	db	0FFh		; non-zero allows ID (prompt chg) command
+ERRID:	db	0FFh		; non-zero prints ID msg in err msgs
+;
+; By setting the following DB to 0, you can disable the HELP
+; command, freeing up space used by the help file index.
+;
+HELPOK:	db	0FFh		; non-zero allows HELP command
+MEXDU:	db	14		; user 0-15 \/  alt area for READ,LOAD,INI.MEX ***
+	db	0		; drive 0=A /\  & HELP.MEX (if SEARCH <>0) ***
+DEBUG:	db	0		; debugging in term-mode if non-zero
+EXCLSY:	db	0FFh		; non-0 excludes $SYS from batchsend, dir
+INIMEX:	db	0		; non-zero runs INI.MEX (if present) at startup ***
+RTIMER:	db	1		; receiver wait: # seconds [Plouff patch]
+PQSIZE:	dw	150		; size of the modem-port queue
+PHSIZE:	db	30		; phone library size (# entries)
+SILENT:	db	0		; 0=silence multi-line & READ cmd echo ***
+ALERT:	db	255		; alert-bell count on CALL complete
+EXTEND:	db	0		; non-zero: unknown commands goto READ processor ***
+SPLIT:	db	0FFh		; non-zero: splits phonelib printout, shows baud
+SEARCH:	db	2		; search mode 0,1,2,3 ***
+;
+; Following is the GLOBAL secondary options table.  To
+; set an option to global, change its ASCII character to a 0. ***
+;
+;		 ABDEKLQRSTVX
+RESTT:	DB	'ABDEKLQRS',0,'VX'
+	DS	7		;room for option expansion
+;
+; Added on release 1.10:
+;
+Queue:	db	1		; 1=allow queueing, 0=no
+TimBas:	dw	567		; MexPlus timing constant
+Mode:	db	0		; mode of modem I/O
+SmInit:	dw	JUSTRT		; smart modem INIT routine adrs
+SSetV:	dw	SSTCMD		; SSET command: defaulted off
+SmExit:	dw	JUEND		; smart modem EXIT routine adrs
+	ds	4		; (internal to MEX)
+SodFlg:	db	1		; 1=tie SENDOUT to time delay if no WTECHO
+AutoSv:	db	1		; 0=initial term mode, save off
+TabFlg:	db	0FFh		; non-zero=expand tabs within MEX
+;
+;------------------------------------------------------------
+;
+; Additional area used by MexPlus (not valid in MEX 1.12 or 1.14)
+;
+SmFlag:	db	0		; 0FFh=default to software disconnect ***
+	ds	1		; (for 8086 only)
+RValue:	dw	0		; RVALUE variable kept here		[0D64]
+RVSave:	dw	0		; stacked RVALUE here			[0D66]
+	ds	12		; (internal stuff)
+ExiMex:	db	0		; 0FFh=run EXI.MEX on exit ***		[0D74]
+	ds	8		; (internal use only)
+;
+M7Val:	db	0		; non-zero, protocol xfer affects VALUE	[0D7D]
+	ds	8		; (internal use only)
+;
+; Additional (unofficial) patch points
+;
+	org	0DEFh
+;
+XFCls:	db	0		; non-zero to clear screen before file Xfer***
+;
+	end
+

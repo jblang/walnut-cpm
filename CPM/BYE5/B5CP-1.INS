@@ -1,0 +1,263 @@
+
+; B5CP-1.INS - Interfacer 3/4 insert for BYE5 - 07/17/85
+;
+;	   2651 I/O with internal baudrage generator
+;
+;		 For: CompuPro Interfacer 3
+;		      CompuPro Interfacer 4
+;		      CompuPro System Support 1
+;
+; Note:  This is an insert, not an overlay.
+;
+;
+; The Interfacer board uses the 2651 I/O.  This has a peculiarity that
+; prevents its proper use if you hook pin 8 (DCD) of the modem to pin 8
+; (DCD) of the Interfacer board.  You should instead hook pin 8 of the
+; modem (DCD) to (DSR) on the Interfacer board.  To further complicate
+; the picture, CompuPro uses an unique wiring they refer to as "master"
+; or "slave setting".  Normally the board is delivered with the serial
+; ports hooked as "slave", which makes (DSR) pin 20 instead of the con-
+; ventional pin 6 as on most RS-232 DB-25 connectors.	It then makes
+; (DTR) pin 6 instead of conventional pin 20.  (See page 14 of the In-
+; terfacer 3 manual or page 20 of the Interfacer 4 manual for additional
+; information on this subject.	The schematic below is shown for both
+; configurations.
+;
+; (For interest, the newer version of the 2561 is called the 2661.  It
+; came out in 1981, but has this same bug the 2651 has.  That chip is
+; used in the Heath/Zenith-100 series computers.  The 2651 has another
+; serious bug, if selecting other than 1 stop pulse, it must receive an
+; incoming signal with the same (or more) stop pulses.	Fortunately few
+; people need 1-1/2 or 2 stop pulses so this bug is rarely a problem.)
+;
+;
+; NOTE FOR HAYES SMARTMODEM USERS:
+; -------------------------------
+;	In the past people using the Hayes Smartmodem 1200 and the
+;	Interfacer board have complained they had to put SW6 up to
+;	use with BYE5 but then had to put it down to use with MEX,
+;	MDM7 or other autodial modem programs.	With the configur-
+;	ation below, SW6 can be left in whatever position the user
+;	prefers (up, for BYE5) and this will have no effect on the
+;	normal use of IMP, MEX or MDM7.
+;
+; If using "slave" mode:
+; ---------------------
+;	MODEM=DCE	INTERFACER	(Slave mode)
+;
+;	TXD	2  -->	3	RXD	received data
+;	RXD	3  <--	2	TXD	tranmitted data
+;	SG	7  ---	7	SG	signal ground
+;	DCD	8  -->	20 *	DSR	data set ready (carrier)
+;	DTR	20 <--	6  *	DTR	data terminal ready
+;
+;
+; If using "master" mode
+; ----------------------
+;	MODEM=DCE	INTERFACER	(as Master)
+;
+;	TXD	2  -->	2	RXD	received data
+;	RXD	3  <--	3	TXD	tranmitted data
+;	SG	7  ---	7	SG	signal ground
+;	DCD	8  -->	6	DSR	data set ready (carrier)
+;	DTR	20 <--	20	DTR	data terminal ready
+;
+;					- Notes by Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written for use with BYE5			- Irv Hoff
+; 10/04/82  Original version				- Paul Traina
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+INTER4	EQU	YES		; Yes for Compupro Interfacer 3 or 4
+				; No  for Compupro System Support 1
+;
+;
+; The following define the port address and usart number to use.
+;
+	 IF	INTER4
+BASEP	EQU	010H		; Base port for Interfacer 3/4 boards
+CHIP	EQU	6		; Chip number to use
+	 ENDIF			; INTER4
+;
+	 IF	NOT INTER4
+BASEP	EQU	05CH		; Base port for System Support 1
+	 ENDIF			; NOT INTER4
+;
+;
+;-----------------------------------------------------------------------
+;
+; Modem port equates
+;
+PORT	EQU	BASEP		; Modem data port
+MDCTL1	EQU	BASEP+1		; Modem status port
+MDCTL2	EQU	BASEP+2		; Modem mode select port
+MDCTL3	EQU	BASEP+3		; Modem control port
+;
+	 IF	INTER4
+USER	EQU	BASEP+7		; Modem chip select port
+	 ENDIF			; INTER4
+;
+;
+; Mode port equates
+;
+BBASE	EQU	30H		; Mode register 2 base
+;
+BD300	EQU	BBASE+5		; 300 baud
+BD1200	EQU	BBASE+7		; 1200 bps
+BD2400	EQU	BBASE+10	; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK: IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF
+;
+	IN	MDCTL1		; Read port
+	ANI	80H		; Check DSR pin for DCD (see above)
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF			; INTER4
+;
+	MVI	A,15H		; DTR, RTS off to disconnect phone
+	OUT	MDCTL3
+	PUSH	B
+	MVI	B,20		; Wait 2 seconds
+;
+MDINIT1:CALL	DELAY
+	DCR	B
+	JNZ	MDINIT1
+	POP	B
+	MVI	A,27H		; Turn DTR, RTS back on
+	OUT	MDCTL3
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize intelligent modem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF			; INTER4
+;
+	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF
+;
+	IN	MDCTL1		; Read port
+	ANI	02H		; Check receive ready bit
+	RZ			; Nope, nothing there
+	ORI	0FFH		; We got something...
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	 IF	INTER4
+	PUSH	PSW
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	POP	PSW
+	 ENDIF
+;
+	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST: IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF
+;
+	IN	MDCTL1		; Read port
+	ANI	01H		; Check transmit ready bit
+	RZ
+	ORI	0FFH
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF
+;
+	 IF	IMODEM
+	CALL	IMQUIT		; Tell modem to shut down
+	 ENDIF
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	MVI	A,15H		; Turn off DTR, modem will quit
+	OUT	MDCTL3
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	B,BD300		; Set baud rate
+	JMP	SETBAUD
+;
+SET1200:MVI	B,BD1200	; Set baud rate
+	JMP	SETBAUD
+;
+SET2400:MVI	B,BD2400	;set baud rate
+;
+SETBAUD: IF	INTER4
+	MVI	A,CHIP		; Select proper chip
+	OUT	USER
+	 ENDIF			; INTER4
+;
+	MVI	A,4EH		; 1 stop, no parity 8 bits
+	OUT	MDCTL2
+	MOV	A,B		; Get the baudrate back
+	OUT	MDCTL2
+	XRA	A
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

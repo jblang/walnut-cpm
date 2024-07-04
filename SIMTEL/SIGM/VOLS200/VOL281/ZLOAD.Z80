@@ -1,0 +1,698 @@
+;
+;
+;			"zload"
+;
+;		  (C) P.F.Ridler 1985
+;
+;  This program takes a .HEX file as input and produces from it a .COM file.
+;  Interblock spaces are zero filled.
+;
+;  The command line for execution is
+;    
+;		  loader [d:]name[.ext]  [offset]
+;
+;  The drive letter is optional, but if absent is taken to be the default 
+;  drive.
+;
+;  The filename extension is also optional and will always be taken to be .HEX
+;
+;  The "offset" parameter is a hexadecimal number and is optional.  If it
+;  is absent it will be taken to be 0000H, but if present will alter the
+;  load address of the code in the .COM file. 
+;  If, for example, the origin of the code when it was compiled was 1000H
+;  the .COM file would start with F00H zeroes and then be followed by
+;  executable code.  However, if the offset parameter were to be F100H,
+;  the code would start at (1000H+F100H)=100H and there would be no filler
+;  zeroes at the start of the .COM file.
+;
+;
+;
+;  Free use is granted for private, non-commercial use only.
+;  Copies may be made for backup purposes, but the program may
+;  not be broadcast by communications networks.
+;
+;  Enquiries should be addressed to:
+;
+;			P.F.Ridler,
+;			4, Lewisam Ave.,
+;			Chisipite,
+;			ZIMBABWE.
+;
+;					enclosing return postage.
+;
+;
+;	latest change
+;
+;	10 Jan 86  offset added
+;	26 Dec 85  original
+;
+;
+wboot	equ	0000H
+bdos	equ	0005H
+dffcb	equ	005CH
+dfdrv	equ	0004H
+;
+;
+bel	equ	 7
+lf	equ	10
+cr	equ	13
+ctrlz	equ	26
+esc	equ	27
+;
+;
+	org	1000H
+;
+;
+	jp	load
+;
+;
+curpos	ld	a,esc		;this should position the cursor at
+	call	dspch		; row (H) and column (L)
+	ld	a,'Y'		;the top left corner of the screen is 0,0
+	call	dspch		;the existing routine is for an H19 terminal
+	ld	a,32		
+	add	a,h
+	call	dspch
+	ld	a,32
+	add	a,l
+	call	dspch
+	ret
+;
+;
+clear	ld	a,esc		;this should clear the screen
+	call	dspch
+	ld	a,'E'
+	call	dspch
+	ret
+;
+;
+load	ld	sp,stack
+	call	inishl
+	ld	de,ipfcb	;open source
+	call	opnfil
+	inc	c
+	call	z,error2	;cannot find source file
+	ld	de,opfcb	;delete output
+	call	delfil
+	call	crtfil		;create output
+	inc	c
+	call	z,error3	;cannot create output file
+	call	rdbyte		;discard ':'
+	call	dehex		;get count
+	ld	(count),a
+load1	ld	a,(count)
+	or	a,a		;while (count>0)
+	jp	z,load4
+	jp	m,load4
+	ld	(chksum),a	;  checksum=count
+	call	dehex		;  get load address
+	ld	h,a
+	call	dehex
+	ld	l,a
+	ld	(ldaddr),hl
+	ld	a,(chksum)	;  checksum=checksum + load address bytes
+	add	a,h
+	add	a,l
+	ld	(chksum),a
+	call	dehex		;  discard mode
+	ld	hl,(ldaddr)	;  if (load address<fas) error
+
+	ld	de,(offset)
+	add	hl,de
+
+	ld	de,(fas)
+	call	cphlde
+	call	c,error4	;    inverted load address
+load2	call	cphlde		;  while (fas<load address)
+	jr	z,load3
+	ld	a,0		;    wrbyte(0)
+	call	wrbyte
+	inc	de		;    fas=fas+1
+	jr	load2
+load3	ld	a,(count)	;  while (count>0)
+	dec	a
+	ld	(count),a
+	or	a,a
+	jp	m,load32
+	call	dehex		;    write(dehex)
+	call	wrbyte
+	ld	b,a
+	ld	a,(chksum)
+	add	a,b
+	ld	(chksum),a
+	inc	de		;    fas=fas+1
+	jr	load3
+load32	ld	(fas),de
+	call	chcksum		;  check sum
+	call	rdbyte		;  discard <crlf>
+	call	rdbyte
+	call	rdbyte		;  discard ':'
+	call	dehex		;  get count
+	ld	(count),a
+	jp	load1
+load4	call	wrlast		;write last record and close output
+	call	dspstat		;display stats
+	jp	wboot		;return to O/S
+;
+;
+gethex	push	af
+	push	hl
+	push	de
+	ld	hl,00
+	ld	de,6DH
+gethex1	ld	a,(de)
+	inc	de
+	cp	a,' '
+	jr	z,gethex3
+	sub	a,'0'
+	cp	a,10
+	jr	c,gethex2
+	sub	a,7
+gethex2	add	hl,hl
+	add	hl,hl
+	add	hl,hl
+	add	hl,hl
+	add	a,l
+	ld	l,a
+	jr	nc,gethex1
+	inc	h
+	jr	gethex1
+gethex3	ld	(offset),hl
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+comext	db	'COM'
+hexext	db	'HEX'
+;
+inishl	call	clear
+	ld	h,4
+	ld	l,25
+	call	curpos
+	call	dspnxt
+	db	'  Zimsoft Hex loader',0
+	ld	h,6
+	call	curpos
+	call	dspnxt
+	db	'(C) P. F. Ridler  1985',0
+	ld	h,12
+	ld	l,0
+	call	curpos
+	;
+	call	gethex
+	;
+	ld	hl,dffcb	;move file name from 5CH to input fcb
+	ld	de,ipfcb
+	ld	bc,12
+	ldir
+	ld	hl,hexext	;make input file type "HEX"
+	ld	de,ipfcb+9
+	ld	bc,3
+	ldir
+	ld	hl,ipfcb+12	;zero current extent
+	ld	(hl),0
+	ld	hl,ipfcb+32	; "      "    record
+	ld	(hl),0
+	;
+	ld	hl,dffcb	;move filename to output fcb
+	ld	de,opfcb
+	ld	bc,12
+	ldir
+	ld	hl,comext	;make file type "COM"
+	ld	de,opfcb+9
+	ld	bc,3
+	ldir
+	ld	hl,opfcb+12	;zero current extent
+	ld	(hl),0
+	ld	hl,opfcb+32	;  "     "    record
+	ld	(hl),0
+	;
+	ld	hl,opbuff	;opbptr=opbuff
+	ld	(opbptr),hl
+	ld	hl,100H		;fas=100H
+	ld	(fas),hl
+	ld	hl,ipbmax	;force read of first record
+	ld	(ipbptr),hl
+	ret
+;
+;
+;  takes two Hex digits in BC and returns their value in A
+;
+;
+dehex	push	bc
+	call	rdbyte		;get first digit
+	sub	a,'0'
+	cp	a,10
+	jr	c,dehex1
+	sub	a,7
+dehex1	ld	b,a
+	and	a,0F0H
+	jp	nz,dehex8	;invalid Hex digit
+	ld	a,b
+	add	a,a
+	add	a,a
+	add	a,a
+	add	a,a
+	ld	b,a
+	call	rdbyte		;get second digit
+	sub	a,'0'
+	cp	a,10
+	jr	c,dehex2
+	sub	a,7
+dehex2	ld	c,a
+	and	a,0F0H
+	jp	nz,dehex8
+	ld	a,c
+	or	a,b
+	jr	dehex9
+dehex8	call	dspnxt
+	db	cr,lf,'Invalid hex digit "',0
+	call	dsp2hex
+	call	dspnxt
+	db	'" after load address ',0
+	ld	hl,(ldaddr)
+	call	dsp4hex
+	call	press
+	jp	wboot
+dehex9	pop	bc
+	ret
+;
+;
+chcksum	push	af		;make sure the calculated checksum
+	push	bc		;  is the same as that from the .HEX file.
+	call	dehex		;check_sum from file
+	ld	b,a
+	ld	a,(chksum)	;if (checksum<>calculated_sum)
+	add	a,b
+	call	nz,error7	;  error('checksum error')
+	pop	bc
+	pop	af
+	ret
+;
+;
+rdbyte	push	hl		;read one byte from the input .HEX file
+	push	de
+	ld	hl,(ipbptr)	;if (ipbptr>=ipbmax)
+	ld	de,ipbmax
+	call	cphlde
+	jp	c,rdbyte1
+	ld	hl,ipbuff	;  taddr=ipbuff
+	ld	(taddr),hl
+	ld	hl,ipfcb	;  fcb=ipfcb
+	ld	(fcb),hl
+	call	rdrcrd		;  read_record
+	or	a,a
+	call	nz,error6	;  if (A<>0)read error
+	ld	hl,ipbuff	;ipbptr=0
+rdbyte1	ld	a,(hl)		;A=ipbuff[ipbptr]
+	inc	hl		;ipbptr=ipbptr+1
+	ld	(ipbptr),hl
+	pop	de
+	pop	hl
+	ret
+;
+;
+wrbyte	push	hl
+	push	de
+	ld	hl,(opbptr)	;if (opbptr>=opbmax)
+	ld	de,opbmax
+	call	cphlde
+	jr	c,wrbyte1
+	push	af		;  save A
+	ld	hl,opbuff	;  taddr=opbuff
+	ld	(taddr),hl
+	ld	hl,opfcb	;  fcb=opfcb
+	ld	(fcb),hl
+	call	wrrcrd		;  write_record
+	or	a,a		;  if (A<>0)
+	call	nz,error5	;    "write error"
+	pop	af		;  restore A
+	ld	hl,opbuff	;  opbptr=0
+wrbyte1	ld	(hl),a		;A=opbuff[opbptr]
+	inc	hl		;opbptr=opbprt+1
+	ld	(opbptr),hl
+	pop	de
+	pop	hl
+	ret
+;
+;
+wrlast	push	af
+	push	hl
+	push	de
+	ld	a,ctrlz
+	ld	de,opbmax-1
+	ld	hl,(opbptr)
+	call	cphlde
+	jr	z,wrlst2
+	inc	de
+wrlst1	call	cphlde
+	jr	z,wrlst2
+	ld	(hl),a
+	inc	hl
+	jr	wrlst1
+wrlst2	ld	hl,opbuff
+	ld	(taddr),hl
+	ld	hl,opfcb
+	ld	(fcb),hl
+	call	wrrcrd
+	ld	de,opfcb
+	call	clsfil
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+opnfil	push	hl
+	push	de
+	push	bc
+	ld	c,15
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+delfil	push	hl
+	push	de
+	push	bc
+	ld	c,19
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+crtfil	push	hl
+	push	de
+	push	bc
+	ld	c,22
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+clsfil	push	hl
+	push	de
+	push	bc
+	ld	c,16
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+uctolc	cp	a,'A'
+	jr	c,uctolc9
+	cp	a,'Z'+1
+	jr	nc,uctolc9
+	add	a,20H
+uctolc9	ret
+;
+;
+dspfnam	ld	a,(hl)		;get drive number
+	inc	hl
+	cp	a,0		;if (drive_no==0)
+	jr	nz,dspfn1
+	ld	a,(dfdrv)	;  get default drive
+	inc	a
+dspfn1	add	a,'a'-1		;turn into letter
+	call	dspch
+	ld	a,':'
+	call	dspch
+	ld	b,8
+dspfn2	ld	a,(hl)
+	inc	hl
+	cp	a,' '
+	jr	z,dspfn21
+	call	uctolc
+	call	dspch
+dspfn21	djnz	dspfn2
+	call	dspnxt
+	db	'.com',0
+	ret
+;
+;
+dspstat	call	dspnxt
+	db	cr,lf,lf,lf,0
+	ld	hl,(fas)
+	ld	de,0FFH
+	or	a,a
+	sbc	hl,de
+	call	dsp4hex
+	call	dspnxt
+	db	'H bytes loaded into "',0
+	ld	hl,opfcb
+	call	dspfnam
+	call	dspnxt
+	db	'".',0
+	ret
+;
+;
+cphlde	push	hl
+	or	a,a
+	sbc	hl,de
+	pop	hl
+	ret
+;
+;
+setaddr	push	de
+	ld	de,(taddr)
+	ld	c,26
+	call	bdos
+	pop	de
+	ret
+;
+;
+rdrcrd	push	hl
+	push	de
+	push	bc
+	call	setaddr
+	ld	de,(fcb)
+	ld	c,20
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+wrrcrd	push	hl
+	push	de
+	push	bc
+	ld	a,(ndots)
+	inc	a
+	ld	(ndots),a
+	and	a,03H
+	jr	nz,wrrcrd1
+	ld	a,'.'
+	call	dspch
+	xor	a,a
+	ld	(ndots),a
+wrrcrd1	call	setaddr
+	ld	de,(fcb)
+	ld	c,21
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+dspmsg	push	af
+	push	de
+dspm1	ld	a,(de)
+	inc	de
+	or	a,a
+	jr	z,dspm2
+	call	dspch
+	jr	dspm1
+dspm2	pop	de
+	pop	af
+	ret
+;
+;
+dspch	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	e,a
+	ld	c,2
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+dspall	push	af
+	cp	a,' '
+	jr	nc,dspall1
+	push	af
+	ld	a,'^'
+	call	dspch
+	pop	af
+	add	a,40H
+dspall1	call	dspch
+	pop	af
+	ret
+;
+;
+getch	push	hl
+	push	de
+	push	bc
+	ld	c,1
+	call	bdos
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+press	call	dspnxt
+	db	cr,lf,bel,'Press <sp> to continue',0
+	call	getch
+	ret
+;
+;
+dspnxt	ex	(sp),hl
+	push	af
+dspnx1	ld	a,(hl)
+	inc	hl
+	or	a,a
+	jr	z,dspnx2
+	call	dspch
+	jr	dspnx1
+dspnx2	pop	af
+	ex	(sp),hl
+	ret
+;
+;
+dspblk	call	dspnxt
+	db	' ',0
+	ret
+;
+;
+;	These are the error messages from DR "load"
+;
+msg1	db	cr,lf,'Invalid Hex character in input file',0
+msg2	db	cr,lf,'Cannot find source file',0
+msg3	db	cr,lf,'Cannot open output file',0
+msg4	db	cr,lf,'Load addresses not in increasing order',0
+msg5	db	cr,lf,'Output file write error',0
+msg6	db	cr,lf,'Input file read error',0
+msg7	db	cr,lf,'Check-sum error',0
+;
+;
+error1	ld	de,msg1
+	jp	error0
+error2	ld	de,msg2
+	jp	error0
+error3	ld	de,msg3
+	jp	error0
+error4	ld	de,msg4
+	jp	error0
+error5	ld	de,msg5
+	jp	error0
+error6	ld	de,msg6
+	jp	error0
+error7	ld	de,msg7
+	jp	error0
+
+error0	call	dspmsg
+	call	press
+	jp	wboot
+;
+;
+crlf	call	dspnxt
+	db	cr,lf,0
+	ret
+;
+;
+dsp1hex	push	af
+	and	a,0FH
+	cp	a,10
+	jr	c,dsp1h1
+	add	a,7
+dsp1h1	add	a,30H
+	call	dspch
+	pop	af
+	ret
+;
+;
+dsp2hex	push	af
+	push	af
+	rrca
+	rrca
+	rrca
+	rrca
+	call	dsp1hex
+	pop	af
+	call	dsp1hex
+	pop	af
+	ret
+;
+;
+dsp4hex	push	af
+	ld	a,h
+	call	dsp2hex
+	ld	a,l
+	call	dsp2hex
+	pop	af
+	ret
+;
+;
+msg01	db	'Error: $'
+msg02	db	', Load address $'
+msg03	db	'Disk read$'
+msg04	db	'Inverted load address$'
+msg05	db	'Disc write$'
+msg06	db	'Load  address $'
+msg07	db	'Error address $'
+msg08	db	'Bytes read:$'
+msg09	db	'Invalid hex digit$'
+msg10	db	'Check sum error $'
+msg11	db	'First address $'
+msg12	db	'Last  address $'
+msg13	db	'Bytes read    $'
+msg14	db	'Records written $'
+msg15	db	'HEX',0
+msg16	db	'Cannot open source$'
+msg17	db	'COM'
+msg18	db	'No more directory space$'
+msg19	db	'Cannot close file$'
+;
+;
+taddr	ds	2	;transfer address
+;
+ipfcb	ds	 36	;input fcb
+ipbptr	ds	  2	;      buffer pointer
+ipbuff	ds	128	;      buffer
+ipbmax	equ	  $	;end of input buffer+1
+;
+opfcb	ds	 36	;output fcb
+opbptr	ds	  2	;output buffer pointer
+opbuff	ds	128	;output buffer
+opbmax	equ	  $	;end of output buffer+1
+;
+fcb	ds	2
+count	ds	2	;byte count for present hex record
+ldaddr	ds	2	;load address for present hex record
+offset	dw	0	;offset to add to load address
+fas	ds	2	;first available space in o/p file
+chksum	ds	2
+ndots	db	0
+;
+stack	equ	$+100
+;
+;
+	end
+

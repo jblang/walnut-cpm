@@ -1,0 +1,599 @@
+;CONNECT.A86 - Connect current Virtual console to another virtual
+;	       console. FOR MCDOS only.
+
+;	       Written only for the sake of learning about MCDOS
+;	       so could be full of bugs.
+;
+;	       Author : Alex Soya     - Nov. 1984
+;
+;	       Type a Control-Z to get out of Connect.
+;
+
+;CCPM function calls
+
+
+P_TERMCPM	equ	  0	; Terminate and release all resources
+C_READ		equ	  1	; Read a character from the Default Console
+C_WRITE		equ	  2	; Write a character to the Default Console
+C_RAWIO		equ	  6	; Direct Console I/O with Default Console
+C_WRITESTR	equ	  9	; Print ASCII string to default console 
+C_STAT		equ	 11	; Obtain Status of Default Console
+DEV_WAITFLAG	equ	132	; Wait for a System Flag
+DEV_SETFLAG	equ	133	; Set a system Flag
+Q_OPEN		equ	135	; Open A system queue
+Q_WRITE		equ	139	; Write a message to a System Queue
+S_SYSDAT	equ	154	; Return address of System Data Segment
+P_PDADR		equ	156	; Return address of the process descriptor
+
+
+
+cr		equ	13
+lf		equ	10
+cntrl_Z		equ	'Z'-40h
+
+OPTION		equ	05dh	; Command line Option can be found here.
+BASEFLAG	equ	40h	; BaseFlag + console # used for qbuffer
+QDEPTH		equ	 40	; # of bytes in output Circular Que buffer
+
+
+; Sysdat Offsets:
+;
+;
+SUPENTR		equ	 0h	; Supervisor entry offset
+XIOSSYS		equ	28h	; Offset to Xios vector
+
+
+	CSEG
+
+connect:
+	pushf ! pop bx			; No interrupts during stack switches
+	cli
+	mov	ax,ds
+	mov	ss,ax
+	mov	sp, offset stack
+	push bx ! popf			; Now we have our own stack.
+
+	mov	cs:Word Ptr DSKEEP,DS	; Keep the Data Segment here
+
+	call	makesys			; make us a system process.
+	call	gtarg			; Get target console number
+	jz	valcon			; If Console NOT valid then
+	mov	dx, offset invmsg	;   Write error message. 
+	mov	cl, C_WRITESTR
+	int	224
+	jmps	qexit			;   and terminate
+
+valcon: mov	Byte Ptr TCON, al	; Save the Target console #
+	mov	Word Ptr VQNAM, dx	; Make proper Queue name
+	mov	dx, offset VINQPB	; open VINQ que for target console
+	mov	cl, Q_OPEN
+	int	224
+	cmp	ax,0h			; If Not Open then
+	jz	qopnd			
+	mov	dx, offset nopmsg	;    Write an error message
+	mov	cl, C_WRITESTR
+	int	224
+	jmps	qexit			;    and terminate
+					; endif
+qopnd:	call	ovlxios			; overlay the xios jump vectors
+
+mainloop:
+	call	tready			;repeat main loop:
+	jz	local			; if (target = ready) then
+	call	tget			;   get target character
+	call	lput			;   put character to local console
+					; endif
+local:	call	lready
+	jz	mainloop		; if (local = ready) then
+	call	lget			;   get local character
+	cmp	al,cntrl_Z		;   check for abort
+	jz	exit			;   if abort then exit
+	call	tput			;   put character to target console
+	jmps	mainloop		;until abort
+
+exit:	call	restxios		; restore xios vectors
+qexit:	call	makeus			; make us a user process again
+	mov	cl,P_TERMCPM		; and terminate us
+	int	224
+
+DSKEEP	dw	2
+
+;-----------------------------------------------------------------------;
+; makesys:	Set the current process as a systems process in PD flag ;
+;		field.							;
+;									;
+;	Entry  -> None							;
+;	Return <- none							;
+;									;
+;	Regs used:  ax, bx, cx, es					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+makesys:
+	mov	cl,P_PDADR		; Obtain process descriptor address
+	int	224
+	mov	bx,ax			; bx := offset(PD); es := segment(PD)
+	or	es:word ptr 6[bx],1	; PD.FLAG := PD.FLAG or SYSTEM
+	ret				;end makesys
+
+
+
+;-----------------------------------------------------------------------;
+; makeus:  Reset the system attribute in PD flag			;
+;									;
+;	Entry  -> None							;
+;	Return <- None							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+makeus: mov	cl,P_PDADR		; Obtain PD address
+	int	224
+	mov	bx,ax			; bx:= offset(PD); es:= segment(PD)
+	and	es:Word Ptr 6[bx],0feh	; mask PD.FLAG.System
+	ret
+
+
+
+
+;-----------------------------------------------------------------------;
+;gtarg		Get console number as option from command tail		;
+;									;
+;	entry  -> none							;
+;									;
+;	Return <- DX = 2 byte ASCII value from buffer ( 0 - 99)		;
+;		  AL = Integer 0 - 99					;
+;		  FLAG = Z if valid Option, NZ if Invalid option	;
+;									;
+;	Regs used : AX,DX,CX						;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+gtarg:	cmp	Byte Ptr .OPTION,' '	; If No Tail then No Option
+	je	nooption		;else
+	mov	dx, word ptr .OPTION	; DX := Option
+	mov	ax,dx			; AX := Option (in Ascii)
+	sub	al,'0'			; Convert AX to binary in AL
+	cmp	ah,'0'
+	jb	no_tens			; If second digit then 
+	cmp	ah,'9'
+	ja	no_tens			;    adjust
+	sub	ah,'0'
+	mov	ch,ah
+	mov	cl,10
+	mul	cl			;    make first digit the tens
+	add	al,ch			;    AL = binary(DX)
+no_tens:				; end if
+	cmp	al,0			; is option in range
+	jb	nooption		;  Nope, so no option found
+	cmp	al,99			
+	jg	nooption
+
+	xor	ah,ah			; set flag
+	ret
+nooption:
+	or	ah,0ffh
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; ovlxios:  Overlays the XIOS jump vectors in SYSDAT with that of	;
+;	    xiosintcpt, Keeps the old XIOS jump vector at XIOS and	;
+;	    fills in the SUPVSR segment.				;
+;									;
+;	Entry  -> None							;
+;	Return <- Fills in: XIOS, SYSDAT, SUPVSR (segment) and		;
+;		  SYSDAT SEGMENT XIOS VECTOR				;
+;									;
+;	Regs used: ax,bx,cx,ex						       
+;
+;-----------------------------------------------------------------------;
+;
+;
+;
+ovlxios:
+	mov	cl,S_SYSDAT		; Get Sysdat Segment to ES
+	int	224
+	pushf				; No interrupts while messing
+	cli				; with Sysdat vectors
+	mov	ax,es:.XIOSSYS		; Get current Xios Offset
+	mov	cs:XIOS,ax		; and keep it here
+	mov	ax,es:.XIOSSYS+2	; get segment of real xios
+	mov	XIOS+2,ax
+	mov	ax, offset xiosintcpt	; overlay xios interceptor offset
+	mov	es:.XIOSSYS,ax		; to Sysdat Xios vector offset
+	mov	ax,cs			; overlay xios interceptor segment
+	mov	es:.XIOSSYS+2,ax	; to Sysdat Xios vector segment
+
+	mov	ax,es:.SUPENTR+2	; Get Segment of Supervisor
+	mov	SUPVSR+2,ax		; and keep it for us
+	popf				; Interrupts OK again.
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; tready:   See if a character from the target console is ready, ie	;
+;	    is a character in the circular queue buffer.		;
+;									;
+;	Entry  -> nothing						;
+;									;
+;	Return <- Flag = NZ if char is ready, Z if not			;
+;		  AL = FFh if char is ready, 0 if not			;
+;									;
+;	Regs used: None							;
+;-----------------------------------------------------------------------;
+;
+;
+;
+tready: mov	si, offset OUTQUE	; Here is our Que
+	call	qempt
+	pushf
+	jnz	treadr			; If Writer waiting then
+	cmp	Byte Ptr BFULL,0ffh
+	jne	treadr
+	mov	Byte Ptr BFULL,0h	;    Set Flag to indicate que empty
+	mov	dl, BASEFLAG		;    Compute Flag for this console
+	add	dl, Byte Ptr TCON	;    and set it.
+	mov	cl, DEV_SETFLAG
+	int	224
+treadr: popf
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; tget: Get the target character, i.e. Take it out of the Queue buffer	;
+;									;
+;	Entry  -> None							;
+;	Return <- AL = Character					;
+;									;
+;	Regs used: AX, SI, BX						;
+;-----------------------------------------------------------------------;
+;
+;
+;
+tget:	mov	si, offset OUTQUE	; This is the Que Buffer
+	call	qdel			; Go get the char
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; lput: Send a character to local console				;
+;									;
+;	Entry  -> AL = Character					;
+;	Return <- none							;
+;									;
+;	Regs used: AX, CX, DX						;
+;-----------------------------------------------------------------------;
+;
+;
+lput:	mov	dl,al			; Character to send to DL
+	mov	cl, C_WRITE		; Use System C_Write function
+	int	224
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; lready:	Obtain status of local console				;
+;									;
+;	Entry  -> none							;
+;	Return <- AL = 01h if Char ready, 00h if not ready		;
+;		  Flag = Z if not ready, NZ if ready			;
+;									;
+;	Regs used: AX, BX, CX						;
+;-----------------------------------------------------------------------;
+;
+;
+;
+lready: mov	cl,C_STAT	; Use System C_stat function
+	int	224
+	or	al,al		; Set Return Flag
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; lget:	 Get a character from the local console				;
+;									;
+;	Entry  -> None							;
+;	Return <- AL = character					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+lget:	mov	cl,C_RAWIO
+	mov	dl,0fdh
+	int	224
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; tput: Send a character to target console. Does this by writing the	;
+;	character to the target consoles VINQn System Queuq.		;
+;									;
+;	Entry  -> AL = Character to send				;
+;	Return <- AX = AX on entry.					;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+tput:	push	ax
+	mov	ah,0			; Null the High Byte
+	mov	Word Ptr Qbuf,AX	; Put the character into Queue buffer
+	mov	dx, offset VINQPB	; DX := Queue Parameter Block offset
+	mov	cl, Q_WRITE
+	int	224			; and send a message
+	pop	ax
+	ret
+
+
+
+;-----------------------------------------------------------------------;
+; restxios:  Restore the original XIOS jump vectors in SYSDAT page	;
+;									;
+;	Entry  -> Assumes original XIOS vectors stored at XIOS in Code	;
+;		  Segment.						;
+;	Return <- None							;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+;
+restxios:
+	mov	cl,S_SYSDAT		; Get Sysdat segment to ES
+	int	224
+	pushf				; No interupts while messing
+	cli				; With SYSDAT values
+	mov	ax,cs:XIOS		; Get Xios offset
+	mov	es:.XIOSSYS,ax		; and restore it in SYSDAT
+	mov	ax,cs:XIOS+2		; Get Segment for Xios
+	mov	es:.XIOSSYS+2,ax	; and restore it too.
+	popf				; Interrupts are ok again
+	ret				; back to caller.
+
+
+
+
+;-----------------------------------------------------------------------;
+; xiosintcpt:	Intercept call to XIOS and handle IO_CONOUT function	;
+;		for target console locally.				;
+;									;
+;	Entry  -> AL = XIOS function number				;
+;		  CL = Character to send				;
+;		  DL = Virtual console to send to			;
+;									;
+;	Return <- Jumps to XIOS with all registers preserved		;
+;		  Except Flag, which is not used by XIOS		;
+;		  functions.						;
+;-----------------------------------------------------------------------;
+;
+;
+xiosintcpt:
+
+	push	ds
+	mov	ds, Word Ptr DSKEEP	; Get this Data Segment
+	cmp	al,2			; if XIOS function = 2 (Console Output)
+	jne	jxios			;    and
+	cmp	dl, Byte Ptr TCON	;    Console = Target Console
+	jne	jxios			;   then
+	call	qinsert			;    Insert char in queue
+jxios:	pop	ds
+	jmpf	cs:Dword Ptr XIOS	; Goto realxios
+
+
+;-----------------------------------------------------------------------;
+; qinsert:  Insert a character into the que. If Que is full, wait until ;
+;	    Some space has been made. Uses System Flags to wait for	;
+;	    empty queue.						;
+;									;
+; Entry	 -> CL = Character						;
+; Return <- none							;
+;									;
+; Regs used: All Registers preserved except flag Reg			;
+;-----------------------------------------------------------------------;
+;
+;
+;
+qinsert:
+	push	ax
+	push	bx			; Save'm
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	mov	si, offset OUTQUE	; Get Circular Que offset
+	call	qfull			; If Que is full then
+	jnz	insrt			;   Wait for empty queue flag
+	push	si
+	push	cx
+	mov	Byte Ptr BFULL,0ffh	;   Tell Reader to set Flag when empty
+	mov	dl,BASEFLAG		;   Compute flag for this console
+	add	dl, Byte Ptr TCON	;   flag := BaseFlag + Console #
+	mov	cl, DEV_WAITFLAG	;   lets wait for the flag
+	call	supif			;   direct supervisor call
+	pop	cx
+	pop	si			; end if
+
+insrt:	mov	al,cl			; Character to send in al
+	call	queins			; insert Character into que
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx			; restore them
+	pop	ax
+	ret
+
+
+
+
+
+;-----------------------------------------------------------------------;
+; qempt:   Check to see if Que is empty					;
+;									;
+;  entry  -> si = que offset						;
+;									;
+;  return -> Que empty:	   al = 0, Z is Set				;
+;	     Char in que:  al = FF, Z not set				;
+;-----------------------------------------------------------------------;
+
+
+qempt:	push	bx		; lets not destroy anything other than al
+	mov	bx,word ptr 2[si]	; get rear of que
+	cmp	word ptr[si],bx ; if front = rear then
+	mov	al, 0
+	je	qstat			;   que := empty
+	mov	al, 0ffh		; else que:= not empty
+qstat:	pop	bx
+	or	al,al
+	ret
+
+;-----------------------------------------------------------------------;
+; qfull:  test if que is full.						;
+;									;
+; entry	 -> si = que offset						;
+;									;
+; return -> NZ = ok, Z = que FULL					;
+;									;
+;-----------------------------------------------------------------------;
+
+qfull: mov	bx,word ptr[si] ; if front + 1 = rear then
+       call	incqptr			;   que=full
+       cmp	bx,word ptr 2[si]
+       ret				; Z = full, NZ = ok
+
+
+;-----------------------------------------------------------------------;
+; incqptr:  Increment the Que pointer. Takes care of wrap arround	;
+;	    if end of que area is reached				;
+; entry	  -> BX = pointer						;
+; return  -> BX = pointer + 1 increment					;
+;-----------------------------------------------------------------------;
+;
+;
+incqptr:inc	bx			; point to next que offset
+	cmp	bx,qdepth		; end of que area reached ?
+	jne	incd			; if not we are done
+	xor	bx,bx			; yeap... lets wrap
+incd:	ret
+
+
+
+;-----------------------------------------------------------------------;
+; queins: insert a character into que. If que is full the character	;
+;	  is just droped.						;
+;									;
+; entry	    -> al = character						;
+;	       si = que offset						;
+;									;
+; return -> none							;
+;-----------------------------------------------------------------------;
+
+queins: push	ax
+	call	qfull			; find out if the que is full
+	pop	ax			; Z -> ok, NZ -> full
+	je	qind			; if que is full then loos data
+	mov	bx, word ptr[si]	; else que[front]=item
+	mov	byte ptr 4[si+bx],al
+	call	incqptr			; front = front + 1
+	mov	word ptr[si],bx
+qind:	ret
+
+
+;-----------------------------------------------------------------------;
+; qdel:	 delete a character from que					;
+;									;
+; entry	   -> si = que offset						;
+;									;
+; return   -> al = character						;
+;-----------------------------------------------------------------------;
+
+
+qdel:	call	qempt			; anything in the que ?
+	je	qdeld			; nope, so nothing we can get out...
+	mov	bx,word ptr 2[si]	; al = que[rear]
+	mov	al,byte ptr 4[si+bx]
+	call	incqptr			; rear = rear+1
+	mov	word ptr 2[si],bx
+qdeld:	ret
+
+
+
+
+;-----------------------------------------------------------------------;      
+
+; supif:    Call CCP/M Supervisor					;
+;									;
+; Entry	 ->  CX = System call number					;
+;	     DX = Parameter						;
+;	     DS = Segment address if DX is an offset into a structure	;
+;	     ES = User Data Area					;
+;									;
+; Return ->  AX = BX = Return						;
+;	     CX = Error Code						;
+;	     ES = UDA Segment (as on Entry)				;
+;									;
+; Regs Used: DX, SI, DI, BP are NOT preserved..				;
+;									;
+;-----------------------------------------------------------------------;
+;
+;
+supif:	mov	ch,0		; Clear High byte of function number
+	push	es
+	push	ds
+	mov	ds, Word Ptr Sysdat
+	mov	si,.68h
+	mov	es,ds:10h[si]	; Get UDA of current process
+	callf	cs:dword ptr SUPVSR
+	pop	ds
+	pop	es
+	ret
+
+
+
+XIOS	dw	0		; Offset address of XIOS
+SYSDAT	dw	0		; Segment of XIOS and System Data Segment
+
+SUPVSR	dw	3		; Entry to supervisor, offset = 3
+	dw	0		; Segment filled in later
+    
+	DSEG
+
+	Org 100h
+
+
+TCON	db	0		; Target Console Number
+BFULL	db	0		; Flag indicating buffer is full
+OUTQUE	dw	0		; front of que
+	dw	0		; rear of que
+	rb	qdepth		; here is the que area.
+
+INVMSG	db	' Invalid Virtual Console Number.',cr,lf
+	db	' usage: CONNECT nn',cr,lf
+	db	' nn - Virtual Console number',cr,lf,'$'
+
+NOPMSG	db	' Unable to open Input Queue.',cr,lf,'$'
+
+VINQPB	dw	0,0,0		; VINQnn Parameter Block
+	dw	offset Qbuf
+	db	'VINQ'		; Primary Queue name
+VQNAM	db	'    '		; Secondary Queue name (Console number)
+
+QBUF	db	40h * 2		; can have 40 messages times 2 bytes each
+
+	rw	31
+stack	dw	0
+

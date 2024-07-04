@@ -1,0 +1,3775 @@
+ 2-Jan-88 06:06:05-MST,718;000000000000
+Return-Path: <SAC.HQSAC-DOCT@E.ISI.EDU>
+Received: from E.ISI.EDU by SIMTEL20.ARPA with TCP; Sat, 2 Jan 88 06:06:03 MST
+Date: 2 Jan 1988 07:05-CST
+Sender: SAC.HQSAC-DOCT@E.ISI.EDU
+Subject: Kermit for Kaypro
+From:  John A. Wright <SAC.HQSAC-DOCT@E.ISI.EDU>
+To: info-cpm@SIMTEL20.ARPA
+Cc: sac.hqsac-doct@E.ISI.EDU
+Message-ID: <[E.ISI.EDU] 2-Jan-88 07:05:55.SAC.HQSAC-DOCT>
+
+
+In his message, Steven P. Seaney asks:
+     
+>I desperately need kermit for a kaypro 4/84.  Any help would be greatly
+>appreciated.
+
+There is a version for the Kaypro on the Columbia System.  I have it in
+a special use directory.  Don't know if it will run on your particular
+Kaypro, but will provide it to you if you want it.
+ 2-Jan-88 08:14:33-MST,16581;000000000000
+Return-Path: <marwood@dmc-crc.arpa>
+Received: from dmc-crc.arpa by SIMTEL20.ARPA with TCP; Sat, 2 Jan 88 08:13:46 MST
+Received: by dmc-crc.arpa; (4.12/4.7)
+        id AA14201; Sat, 2 Jan 88 10:13:57 est
+Date: Sat, 2 Jan 88 10:13:57 est
+From: marwood@dmc-crc.arpa (G. J. Marwood)
+Message-Id: <8801021513.AA14201@dmc-crc.arpa>
+To: info-cpm@simtel20.arpa
+Subject: PCPI Applicard character loss with MEX
+
+Thanks to everyone who replied to my message regarding character
+loss with MEX1.65 capture files, viz:
+
+   >> The CP/M system that I use is an Apple ][+ and PCPI
+   >> Applicard. While developing a new overlay and PCPI driver
+   >> using interrupts, to avoid the usual character loss at high
+   >> baud rates, I have come across a problem which seems to
+   >> afflict the Apple/Applicard even without interrupts and at
+   >> 1200 baud. At this baud rate, I experience no character loss
+   >> on screen during normal operation. However, if I invoke a
+   >> capture file, I do experience character loss at the place
+   >> where the capture buffer is being written to disk (in this
+   >> case it is the Applicard add-on Ramdisk). This loss occurs
+   >> both on screen and in the captured file and, typically may
+   >> be half a dozen or so characters. It seems that this bug has
+   >> always been present in the MEX software that I have used,
+   >> though I had not noticed it because I don't usually capture
+   >> files as large as the capture buffer (16-17K). Another local
+   >> user has done a similar test with MEX1.65B and a non-Apple
+   >> CP/M machine and the loss does not occur. It does not,
+   >> therefore, seem to be a basic problem with MEX. If any
+   >> Apple/Applicard user has noticed this before and has any
+   >> clues about solving the problem, I would be interested to
+   >> know.
+ 
+This original message was obviously not totally clear, particularly
+to those not familiar with the Apple/Applicard.
+ 
+I should, therefore, make it clear that the Applicard is running
+as a Z80 co-processor in the Apple.  The modem is connected into
+the Apple part of the system and a Driver in the Apple directly
+handles the interface with the modem (a Super Serial Card).  In
+this Driver, which is entered following an Apple IRQ interrupt
+when a modem character arrives, there is a 4K buffer.  This
+buffer is of a sufficient size (by a long way) that it should be
+unnecessary to use x-on/x-off protocol.
+
+The Ramdisk, which I use for the capture file, is the PCPI (2 in
+fact) Ramdisk which plugs directly onto the Applicard.  It,
+therefore, has nothing to do with the Apple bus and is not
+controlled in the same way as drives which are on the Apple bus.
+I am aware that Apple interrupts are a problem when Apple 5 1/4
+drives and standard drive controller are used, but they are not
+involved in this problem.
+ 
+The lost character problem, when the capture buffer is flushed to
+the disk file, occurs at 1200 baud, not just at the higher baud
+rates that I am really interested in.
+
+The following are some of the responses that I have received and
+some of my comments relating to them:
+
+> From: gatech!killer!bdav@hao.UCAR.EDU (Bob Davenport)
+>
+> Gordon, I have the same problem. But not with the same
+> hardware. The problem seems to be that an xoff is not sent
+> while the buffer is being written to disk. My OS(TurboDOS)
+> performs a read after write to verify all data being written.
+> With a large capture buffer, this takes about 1.5 seconds, long
+> enough to lose 10 to 15 characters. I have tried decreasing
+> the capture buffer size, but this does not seem to help. The
+> only method I have found that works, is to manually send an
+> xoff (^S) to stop the transmission, go to command mode, write
+> the buffer, re-open the buffer and then continue with the
+> capture. Not elegant, or problem solving, but it works.
+>
+> bob Davenport
+
+          Bob - What system are you using ?  Regarding
+          the use of x-on/x-off, perhaps this is
+          necessary with your system, though another
+          MEX user local to me has done a test with a
+          PMC 101 Micromate and hard disk, with STAT
+          XON and STAT XOFF both OFF and has observed
+          no character loss.  I had thought that
+          setting STAT QUEUE ON would ensure that there
+          was no character loss during the disk write,
+          but tests that I have done do not confirm
+          this.  I am not sure how often the modem
+          status is being checked during the disk write
+          operation.  In the Driver which I have on the
+          Apple side of the system, I do detect when
+          the (4K) buffer is filling up and
+          automatically send out a ^S.  When MEX has
+          reduced the backlog in the buffer a ^Q is
+          automatically sent to restart the remote.
+          However, this only seems to be necessary for
+          my system at 9600 baud.  At 1200 baud the
+          buffer never seems to be filled.  Despite
+          this, I do lose 2 characters during the disk
+          write.
+____________________________________
+
+
+> From: "Richard_F_Koehler.WBST128"@Xerox.COM
+>
+> Gordon,
+> I use an Apple II+ with a PCPI card also. I believe the reason
+> for the character loss is that Apple controls and writes to the
+> disk drive under software control rather than by using a
+> hardware disk controller. Since the timing is very critical,
+> all interrupts must be disabled while data is being written (or
+> read) to the disk drive. I also run MEX on my system but I have
+> not had occasion to exceed the capture buffer and I run at 1200
+> baud or less, so I have not experienced the problem you
+> described.
+>
+>  Rick Koehler
+
+          Rick - As I have noted above the disk I am
+          using for the capture file is the PCPI add-on
+          Ramdisk.  This has no connection with the
+          Apple interrupts.  Also, as noted, I am
+          seeing this character loss at 1200 baud
+          during the disk write.  The original
+          character loss problem, which started all
+          this off for me was the loss that occurs at
+          the begining of each line (this is nothing to
+          do with capture buffers) at 1200 or 2400 baud
+          and higher (depending on whether you are
+          using a ][+ or ][e and which 80-col card).
+          This loss is a result of the time taken by
+          the 80-col card to scroll, which required re-
+          writing the whole screen, whenever there is
+          a CR and you are at the bottom of the screen.
+          I think that it is also a result of the
+          Apple/Applicard interface protocol, though I
+          have not totally sorted this out yet.  I am
+          speculating that even with the modem port
+          QUEUE ON, character loss occurs because the
+          burst of characters which comes out of the
+          queue once the disk write is complete is also
+          too fast (faster than the normal 1200 baud
+          character arrival rate) for the 80-col system
+          to handle.  In some way this may be linked to
+          getting the characters into the capture file.
+          This explanation may be nonsense, but it is
+          the best that I can come up with at the
+          moment.  My lack of understanding of what the
+          modem port queue is doing, and when it does
+          it, is a limitation here.  The above comments
+          on character loss apply to MEX running with
+          Apple interrupts off and, therefore, no
+          buffering in the Apple Driver.
+____________________________________
+
+
+> From: "Richard_F_Koehler.WBST128"@Xerox.COM
+>
+> I suspect that even though you are writing to the RAMdisk, the
+> disk driver software still goes away completely from listening
+> to incoming characters for a while. You might want to check
+> there.
+>
+> Rick
+
+          Rick - You are right, but I am not sure with
+          STAT QUEUE ON, how often the modem is checked
+          for new characters.  In any case, in my
+          arrangement the buffer in the Apple should
+          cope with any wait while the disk is written.
+          In fact my MEX overlay does not actually
+          check the modem status (for new characters),
+          it check for a difference in the 4K buffer
+          input and output pointers.
+____________________________________
+ 
+
+> From: Michael Neary <MNeary.es@Xerox.COM>
+>
+> Gordon,
+>
+> I don't use MEX, but some general comments may help you:
+>
+> Your MEX has to be set so that it sends flow control characters
+> (usually X-ON/X-OFF) when writing to 'disk'. And the other end
+> of your conversation has to be willing to pause when it
+> receives flow control characters.
+>
+> If either of these is not true, then you will lose characters
+> when you go to disk, no matter what communications program you
+> are using. One possible exception is if your system can go to
+> 'disk' without disabling interrupts (rare).
+>
+> I would troubleshoot in this order:
+>   1) Is your MEX set to enable flow control?
+>   2) Are you using the same host as your friend is using?  Does
+>      that host support flow control?  Is it the same flow
+>      control as you have enabled on your MEX?
+>   3) Does your friend's RAM-Disk leave interrupts enabled in
+>      RAM-Disk Writes?
+>
+> Cheers,
+> ~ Mike
+
+          Mike - As noted above, I think that my
+          comments regarding the buffer in the Apple
+          answer your item 1.  Item 2 - All the hosts
+          involved support flow control.  Item 3 - My
+          friend is not using a RAM disk and he is not
+          using interrupt driven MEX I/O.
+          ____________________________________
+
+
+> From MEDIN-T@SHARK.NOSC.MIL Wed Dec 30 12:27:09 1987
+>
+> Well its not a bug its the design of the diskette driver. Apple
+> must have complete control of the cpu while they write the
+> diskette so they turn off interupts while they write the
+> diskette and vola! you lose characters coming down the line. I
+> suspect the ram disk tho quicker still locks out interupts. The
+> only solution we could come up with on kermit-65 was flow
+> control. So we stop flow before we write the diskette. If you
+> cant do flow control then i think you are stuck.
+
+          Ted - As noted above the Apple disks are not
+          involved.  The PCPI Ramdisk has no influence
+          on the Apple interrupts.
+____________________________________
+ 
+ 
+> From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+>
+> If mex is "smart", it should be polling the modem input status
+> between each sector-write call in the flushing routine, and
+> buffering any received characters for "catch-up" processing
+> when the buffer-flushing is completed. [Ron Fowler: does mex do
+> this?] But if not, it's likely that characters are arriving at
+> the modem port before the buffer-flushing operation completes.
+> Unless the arriving bytes are buffered before they reach mex,
+> the first ones will be overwritten by the later ones, creating
+> a gap in the input stream received by the mex software.
+
+          Bridger - As you will have noted above, the
+          arriving bytes are buffered before they reach
+          MEX and this buffer does exercise automatic
+          flow control.  However, despite this, I am
+          losing characters when the disk is written.
+
+
+> The real time required to flush a buffer is system-dependent,
+> probably dominated by the drive's step rate and the track
+> number of the capture file, and also affected by the CPU clock
+> rate. Another system with faster disks, a faster cpu, or even a
+> differently located file, could have no lossage. On your
+> system, if you capture to a ram disk, for example, there may be
+> no lossage.
+
+          As noted, I am using a Ramdisk, operating
+          directly in the Z80 environment.  The CPU
+          clock rate is 6 MHz at the moment (it can be
+          increased to 10MHz).
+
+
+>
+> Many systems have 1-3 byte buffering in the UART chip that
+> receives the bytes from the modem; different systems use
+> different UARTS. More buffering can be obtained by writing an
+> interrupt-service routine for the modem ports; only a few
+> bioses have such support, but it may be possible to write the
+> mex overlay that way.
+>
+> --bridger
+
+          I have implemented interrupts for both
+          receive and transmit (on a 6551 ACIA) in the
+          Apple modem-port Driver.  In fact I know that
+          the characters are coming from the modem into
+          the 4K Apple buffer as I separately send them
+          to the 80-col display directly from the
+          Apple (the display characters do not pass
+          through MEX).  There is no character loss on
+          the screen under this arrangement, only from
+          the capture file.  (In case there is some
+          confusion here, there are two interrupt
+          modes.  In one, characters do not go via MEX
+          to the screen in the other they do.  The
+          first scheme will work at 9600 baud, the
+          second will not.  I have included the latter
+          to allow operation at lower baud rates and to
+          retain the possibility of using the MEX
+          terminal emulation modules).
+___________________________________
+ 
+ 
+> From: jimd%slacbbs.Berkeley.EDU@ucbvax.Berkeley.EDU
+>
+> I may be telling you something you already know, but MEX is
+> supposed to send an XOFF, save the disk buffer, then send an
+> XON. Possibly whatever system  your calling either doesn't
+> respond to XON/XOFF or the modem may have a buffer that suspends
+> the result of the XOFF (so you lose stuff). I do not have an
+> Apple computer, but I use MEX (version 1.14). If you have the
+> source, check the area that saves the buffer, and make sure it
+> sends the XON/XOFF. Oh, and another thing I just thought of: MEX
+> is supposed to have a 'backup buffer'  where stuff can go after
+> an XOFF is sent. Check this out too; it may be  disabled or very
+> small on your version. BTW, is MEX1.65 the commercial  version?
+> Or is the version number higher because of the port to Apple?
+>
+>                                                 Jim Dumser
+
+          Jim - I think that I have covered most of
+          your points above.  I suspect that the 'back-
+          up' buffer that you are referrring to is the
+          modem port queue (defined by PQSIZE in
+          MEXPAT).  With no interrupts on (in the
+          Apple) the character loss occurs with STAT
+          QUEUE ON or OFF.  MEX1.65 is also known as
+          MEXPLUS of which it is the latest major
+          revision.  It has many features which do not
+          exist in the PD MEX1.14.  The features are
+          described in the file MEX16SUM.WQ which is
+          available by FTP from SIMTEL20 in
+          PD1:<CPM.MEX>.  There is also a file on GEnie
+          called MEX16.AZN which provides a
+          description.
+____________________________________
+
+Well, I have found this exchange of information quite useful and
+thought provoking.  I am now beginning to draw some tentative
+conclusions.  I think that I have been observing two different
+loss mechanisms here.  With recent 1200 baud tests that I have
+done with the earlier MXH-AP55.ASM overlay and RINGBUF.A65 Apple
+Driver, I have found that I get character loss with and without
+STAT QUEUE ON and OFF (Note: this Driver will not run at 9600
+baud, this is why I have been developing a new one!).  I am not
+sure why the QUEUE is not preventing this loss, but I think it is
+to do with the Apple/Applicard interface and the time taken to
+write characters to the screen.  With interrupts ON, this earlier
+version with its 256 byte buffer, does prevent character loss in
+the capture file.  With my revised Driver I always lose 2
+characters at the time the capture buffer is written to disk (the
+loss in the non-interrupt mode referred to above is always
+several more characters than this).  I think, therefore, that I
+still have a bug to sort out in the Driver.  (I should also point
+out that I cannot in the end use the modem port QUEUE as, at 9600
+baud, the capture process gets so far behind that the queue is
+eventually overwritten).
+ 
+Thank you again for all of the responses.  I still have some work
+to do!
+ 
+                                        Gordon
+
+ 3-Jan-88 17:16:24-MST,9125;000000000000
+Mail-From: KPETERSEN created at  3-Jan-88 17:16:21
+Date: Sun, 3 Jan 1988  17:16 MST
+Message-ID: <KPETERSEN.12363762591.BABYL@SIMTEL20.ARPA>
+Sender: KPETERSEN@SIMTEL20.ARPA
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+To:   Info-Cpm@SIMTEL20.ARPA
+Subject: New files uploaded to SIMTEL20 during December
+
+The following is a complete list of CP/M-oriented files uploaded to
+SIMTEL20 during the month of December.  The column labeled "T" (Type)
+is the file format.  (7) means ASCII, (8) means binary.
+
+Also available:
+
+A list of all CP/M files (updated daily):
+   PD1:<CPM>CPM.CRCLST - List with CRC values
+   PD1:<CPM>CPM.ARC    - The above, ARChived (much smaller), binary(8).
+   PD1:<CPM>FILES.IDX  - Similar to below, no descriptions, comma delimited
+
+A list of many of the CP/M files, with descriptions, (updated monthly):
+   PD1:<CPM.FILEDOCS>SIMCPM.IDX - Comma delimited list
+   PD1:<CPM.FILEDOCS>SIMCPM.ARK - Same, ARChived (includes next two files)
+   PD1:<CPM.FILEDOCS>SIMCPM.INF - Description of data fields in SIMCPM.IDX
+   PD1:<CPM.FILEDOCS>SIMCPM.DB2 - How to use SIMCPM.IDX with dBASEII.
+
+Note: to save space in the following listing, the device name PD1: which
+normally appears ahead of the directory name has been omitted.
+
+                          CP/M September Report
+
+Directory         Name         Size   T Description
+================= ============ ====== = ======================================
+
+<CPM.APPLE>       PCPI-UG.1Z3   5760  8 Applicard UG Newsletter #103
+<CPM.APPLE>       PCPI-UG.1Z4   1920  8 Applicard UG Newsletter #104
+<CPM.APPLE>       PCPIXFER.LBR  5248  8 Transfer between PCPI CP/M & DOS3.3
+
+<CPM.ARC-LBR>     NULU152A.LBR  56192 8 Library maintenance utility
+
+<CPM.ASMUTL>      FRESET.AZM    2048  8 Fast reset of CP/M drives (FUNC 37)
+<CPM.ASMUTL>      GEN180.LBR    14464 8 Adds HD64180 instructions to M80
+<CPM.ASMUTL>      MEYERTUT.ARK  88318 8 CP/M 8080 assembly language tutorial
+
+<CPM.BASIC>       BIRTHDAY.BZS  3200  8 Tells facts about your birthday
+
+<CPM.BBS>         DBBS41.LBR    37632 8 dBASEII mail/msg/conference BBS pgm.
+
+<CPM.BBSLISTS>    RCPM0188.BZF  10880 8 Brief RCP/M phone number list, Jan
+<CPM.BBSLISTS>    RCPM0188.LZT  38912 8 List of Remote CP/M systems, Jan '88
+
+<CPM.BDOS>        NOSLTDOS.LBR  20480 8 No-slot clock for file date stamping
+
+<CPM.BYE5>        B5-DSSW.IZS   2688  8 SMARTWATCH insert for BYE510
+
+<CPM.C128>        SPZAP128.ARK  55185 8 C-128 full-screen disk editor
+
+<CPM.CALCULATOR>  UNIT.LBR      28800 8 Units conversion program
+
+<CPM.CATLOG>      ORGANIZR.LBR  61056 8 'The Organizer' disk file cataloguer
+
+<CPM.CBIOS>       CNKYOS22.LBR  75392 8 BIOS for Columbia M64
+
+<CPM.DBASEII>     DB2SHL30.ARK  30636 8 Multi-purpose shell for dBASEII
+<CPM.DBASEII>     DBAR-12.LBR   21504 8 dBASE and GRAPH bargraph maker
+<CPM.DBASEII>     TDAS.ARK      47143 8 Teacher/Doctor dBASEII account syst.
+<CPM.DBASEII>     TOLOG.LBR     13312 8 Flexible database utility for dBase
+<CPM.DBASEII>     UNIQUE24.ARK  14186 8 Purges duplicate records for dBASEII
+
+<CPM.DIRUTL>      CHDIR.LBR     30976 8 Name disk user areas - like MSDOS
+<CPM.DIRUTL>      EDIR.LBR      25600 8 Recover files accidentally erased
+<CPM.DIRUTL>      ERAZ10.LBR    17536 8 Z80 file erasing utility
+<CPM.DIRUTL>      RENAMZ14.LBR  20992 8 Z80 Rename utility
+<CPM.DIRUTL>      SD127.BUG     861   7 Problem with SD127
+<CPM.DIRUTL>      SD128.LBR     65792 8 Directory lister, also LBRs, ARKs
+<CPM.DIRUTL>      UNERAZ10.LBR  19968 8 Z80 file recovery utility
+
+<CPM.DSKUTL>      CPYFSTU.LBR   62336 8 Universal fast diskette copy program
+<CPM.DSKUTL>      FBAD60B.LBR   27392 8 Find and lock out bad spots on disk
+
+<CPM.EDUCATION>   K-CHING.LBR   82048 8 Book of Changes in Modula2/Pascal
+
+<CPM.EPSON>       VPRINT.LBR    8576  8 Vertical Printing Program
+
+<CPM.FILCPY>      ACOPY17.LBR   21248 8 Z80 file copy utility
+<CPM.FILCPY>      CCF.LBR       9984  8 Combine, copy, move, reverse files
+
+<CPM.FILEDOCS>    CPMJAN01.LST 145731 7 CP/M files as of December 31, 1987
+<CPM.FILEDOCS>    CPMJAN01.LZT  80896 8 CP/M files as of December 31, 1987
+<CPM.FILEDOCS>    ROYALOAK.DZR  23040 8 RCP/M Royak Oak directories
+
+<CPM.FORTRAN>     CPMLIB.ARK    41334 8 FORTRAN-80 BDOS call enhancement
+
+<CPM.GENDOC>      CCINK.TXT     5399  7 Info- Steve Ciarcia's new newsletter
+<CPM.GENDOC>      UCPM.ARK      3403  8 'Universal' CP/M survey form
+<CPM.GENDOC>      ZORKNOTE.TZT  1920  8 Modifying Infocom CP/M game tcap's
+
+<CPM.IMP>         I2CT-1.AZM    6400  8 IMP Overlay - Cromemco TUART
+
+<CPM.KAYPRO>      FLTKP100.LBR  4480  8 Kaypro transfer to/from TRS mod 100
+<CPM.KAYPRO>      INTPTCH3.LBR  4608  8 Kaypro FASTTERM/INTTERM improvements
+<CPM.KAYPRO>      KPBUMPER.ARK  13409 8 Line 25 'Bumper Stickers' for Kaypro
+<CPM.KAYPRO>      KPRAMDSK.LBR  13696 8 Add 256K RAM disk to Kaypro '84
+<CPM.KAYPRO>      SHAFT.LBR     2944  8 Demonstration of graphics on Kaypro
+
+<CPM.LIST>        BRAD-GRK.LBR  3328  8 Greek font for Bradford
+<CPM.LIST>        CITOH.LBR     6912  8 Preset C-ITOH M-1550 options.
+
+<CPM.MISC>        STAGE2.LBR    94464 8 STAGE2 -- A programming language
+
+<CPM.MODEM>       NSD.ARK       8000  8 Terminal program in Zbasic
+
+<CPM.PASCAL>      AUTOC23A.LBR  26752 8 Auto compile control - .PAS or .MAC
+
+<CPM.RCPM>        LUX8080.ARK   51530 8 8080 version of LUX v4.3
+<CPM.RCPM>        NEWBYE.MSG    3427  7 Suggestion for improvements to BYE
+<CPM.RCPM>        QWIK4V1.LBR   90624 8 Replacement for RCP/M FOR database
+
+<CPM.SB180>       ETS180IO.DZC  1792  8 Info on the ETS I/O board for SB180
+<CPM.SB180>       XBIOS.IZF     1536  8 Info on the new XBIOS for SB180
+
+<CPM.SYSUTL>      NSZTIME.LBR   13824 8 Add Ztime clock to NorthStar
+<CPM.SYSUTL>      YKEY21.LBR    38272 8 Set function keys in specific pgms.
+
+<CPM.TERM>        QKSHOW.LBR    4352  8 Examine values of QwikKey file
+
+<CPM.TURBOPAS>    CROSSREF.ARK  17411 8 Pascal identifiers cross-reference
+
+<CPM.TXTUTL>      ALPHAT20.LBR  53376 8 Embedded command txt print formatter
+<CPM.TXTUTL>      FIXTEXT.LBR   10752 8 Fix text files of orphan CR or LF
+<CPM.TXTUTL>      HRM-CUTL.LBR  81024 8 Sort/merge/split/uniq text tools
+<CPM.TXTUTL>      QL22.LBR      71424 8 Quick look type for compressed files
+
+<CPM.WSTAR>       SIMPLE.ARK    19914 8 Printer driver for WordStar 4.0
+<CPM.WSTAR>       TBL20.LBR     24192 8 Table of contents for WordStar
+
+<CPM.ZCPR33>      BUSHBETB.LBR 146432 8 ZCPR3 Harddisk Backup utility
+<CPM.ZCPR33>      BUSHFIX1.LBR  6912  8 Correct COM file for BUSHBETB
+<CPM.ZCPR33>      CENTRAL.MZG   896   8 Znode Central new phone number info
+<CPM.ZCPR33>      EASE13.LBR    41728 8 ZCPR 3.3 Command Line Editor
+<CPM.ZCPR33>      ERASE51.LBR   12032 8 Enhanced ERA command for ZCPR3
+<CPM.ZCPR33>      LAP.LBR       4608  8 ZCPR path/LDR utility
+<CPM.ZCPR33>      LUSH10.LBR    22016 8 Library Utility SHell
+<CPM.ZCPR33>      LX18.LBR      18688 8 ZCPR3 Library eXecute tool
+<CPM.ZCPR33>      NZCOM.MSG     4810  7 Info on progress of new Z-COM
+<CPM.ZCPR33>      RENAME33.LBR  19200 8 Rename files in the ZCPR environment
+<CPM.ZCPR33>      SD125ARK.LBR  43904 8 Super Directory setup for ZCPR
+<CPM.ZCPR33>      SD125KAY.LBR  5632  8 SD125 configured for Kaypro w/ZCPR3
+<CPM.ZCPR33>      STATPAT.ZZ0   1152  8 Patch for STAT.COM under ZCPR 3.3
+<CPM.ZCPR33>      VLU-CMD.LBR   768   8 VFILER.CMD interface to VLU 1.01
+<CPM.ZCPR33>      VLU10.BU2     1373  7 More bug reports on VLU10
+<CPM.ZCPR33>      VLU10.BUG     705   7 Serious problem with VLU10
+<CPM.ZCPR33>      VLU101.LBR    38400 8 Video-Oriented Library Util / ZCPR
+<CPM.ZCPR33>      WS4PAT.LBR    9856  8 Patch to WS4 for ZCPR terminals
+<CPM.ZCPR33>      Z3TURKP2.LBR  34048 8 ZCPR3 Install - Kaypro with TurboROM
+<CPM.ZCPR33>      ZLT10.LBR     25344 8 ZCPR compressed/library file typer
+
+<MISC.BBS>        EDN-FCC.TXT   2739  7 EDN magazine editorial on modem fees
+<MISC.BBS>        WHITEHSE.PHN  833   7 Phone number to call the White House
+
+<MISC.BBSLISTS>   9600-87U.LST  25337 7 9600 bps BBS phone number list
+
+<MISC.CIS>        POLICY.CIS    9768  7 CompuServe's copyright policy
+
+<MISC.EPROM>   EPROM-TYPES.INFO 11872 7 Specifications for various EPROMs
+
+<MISC.PCPURSUIT>  MNEMONIC.TXT  3519  7 PC Pursuit command changes
+<MISC.PCPURSUIT>  PCP-DEC.TXT   6052  7 PC Pursuit December '86 newsletter
+
+<MISC.TELEPHONE>  TOLLFREE.NUM  11064 7 Toll-free phone number list
+
+<MISC.TOPS-20>    TMODEM.MAC   129095 7 Improved MODEM/XMODEM for Tops-20
+<MISC.TOPS-20>    UUENCO.C      3208  7 UUENCODE for Tops-20
+______________________________________
+
+TOTALS:       Size          2,640,422 bytes
+  
+Printed 98 records.
+
+These files are available via standard anonymous FTP.  They are also
+available on my RCP/M and on GEnie's CP/M RoundTable.
+
+--Keith Petersen
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+GEnie: W8SDZ
+RCP/M Royal Oak: 313-759-6569 - 300, 1200, 2400 (V.22bis) or 9600 (USR HST)
+ 4-Jan-88 04:06:33-MST,937;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:DHAESE@BANUIA51.BITNET>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Mon, 4 Jan 88 04:06:29 MST
+Received: from BANUIA51.BITNET by CUNYVM.CUNY.EDU ; Mon, 04 Jan 88 06:07:24 EST
+Date:     Mon, 4 Jan 88 11:43 N
+From:     <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject:  Question
+To:       info-cpm@simtel20.arpa
+X-Original-To:  info-cpm@simtel20.arpa, DHAESE
+
+        I'm a Apple CP/M 2.2 user, my configuration consists of an
+Apple ][+ with a Z80 Softcard, and I'm a fan of Turbo Pascal 2.0 .
+        My problem is how eliminating the "include error message (Y/N)"
+when Turbo Pascal is being executed and second how preventing Turbo
+Pascal making a BAK (backup) file ? Can this be done with some patches
+with DDT ?
+        I've got the same problem with Wordstar 3.01P (eliminating BAK).
+Electronic mail address is DHAESE@BANUIA51.BITNET
+Kindly regards from D'haese Gratien.
+ 4-Jan-88 04:06:42-MST,1163;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:DHAESE@BANUIA51.BITNET>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Mon, 4 Jan 88 04:06:38 MST
+Received: from BANUIA51.BITNET by CUNYVM.CUNY.EDU ; Mon, 04 Jan 88 06:07:31 EST
+Date:     Mon, 4 Jan 88 11:38 N
+From:     <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject:  Question
+To:       info-cpm@simtel20.arpa
+X-Original-To:  info-cpm@simtel20.arpa, DHAESE
+
+        I'm a Apple CP/M 2.2 user, my configuration consists of a 64K
+Apple ][+ with a Z80 softcard. I can run Apple CP/M 56K and Apple CP/M 60K
+without difficulties.
+        I would like to install ZCPR2 on my Apple but therefor I need a
+SYSGEN program, which I don't have. On my CP/M system disk I have two
+programs called CPM56.COM and CPM60.COM which write the CP/M image to
+the system tracks of a disk. The problem is, I think, that those programs
+don't take the memory image, but a disk base image ?
+        Who has already installed ZCPR2 on an Apple and how did he/she
+solved the SYSGEN problem ? All kind of information is welcome, my
+electronic mail address is DHAESE@BANUIA51.BITNET
+        Kindly regards from D'haese Gratien.
+ 4-Jan-88 04:06:52-MST,1165;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:DHAESE@BANUIA51.BITNET>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Mon, 4 Jan 88 04:06:48 MST
+Received: from BANUIA51.BITNET by CUNYVM.CUNY.EDU ; Mon, 04 Jan 88 06:07:33 EST
+Date:     Mon, 4 Jan 88 11:44 N
+From:     <DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU>
+Subject:  question 2
+To:       info-cpm@simtel20.arpa
+X-Original-To:  info-cpm@simtel20.arpa, DHAESE
+
+        I'm a Apple CP/M 2.2 user, my configuration consists of a 64K
+Apple ][+ with a Z80 softcard. I can run Apple CP/M 56K and Apple CP/M 60K
+without difficulties.
+        I would like to install ZCPR2 on my Apple but therefor I need a
+SYSGEN program, which I don't have. On my CP/M system disk I have two
+programs called CPM56.COM and CPM60.COM which write the CP/M image to
+the system tracks of a disk. The problem is, I think, that those programs
+don't take the memory image, but a disk base image ?
+        Who has already installed ZCPR2 on an Apple and how did he/she
+solved the SYSGEN problem ? All kind of information is welcome, my
+electronic mail address is DHAESE@BANUIA51.BITNET
+        Kindly regards from D'haese Gratien.
+ 4-Jan-88 17:50:52-MST,1467;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Mon, 4 Jan 88 17:50:46 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA07526; Mon, 4 Jan 88 16:21:57 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 4 Jan 88 21:08:55 GMT
+From: navajo!marria@labrea.stanford.edu  (Michael Marria)
+Organization: Stanford University
+Subject: Re: Kermit for Kaypro
+Message-Id: <2036@navajo.UUCP>
+References: <[E.ISI.EDU].2-Jan-88.07:05:55.SAC.HQSAC-DOCT>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <[E.ISI.EDU].2-Jan-88.07:05:55.SAC.HQSAC-DOCT> SAC.HQSAC-DOCT@E.ISI.EDU (John A. Wright) writes:
+>
+>In his message, Steven P. Seaney asks:
+>     
+>>I desperately need kermit for a kaypro 4/84.  Any help would be greatly
+>>appreciated.
+>
+
+	I sent out a previous query, maybe it didn't make it.
+My sis has a Visual 1050 which is supposed to be somewhat compatible
+to the Kaypro II and DEC Rainbo. 
+	I downloaded a HEX KERMIT file which runs until the  connect
+command is called which crashes the machine.
+	Is this an incompatiblity due to port assignment, or is the
+file I got corrupted?
+	I haven't even figured out what processor (8080 I think)
+this machine runs. 
+	Any help out there for this machine?
+
+						Michael
+ 4-Jan-88 21:17:12-MST,1068;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Mon, 4 Jan 88 21:17:06 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA11748; Mon, 4 Jan 88 19:58:39 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 4 Jan 88 16:35:58 GMT
+From: steinmetz!davidsen@itsgw.rpi.edu  (William E. Davidsen Jr)
+Organization: General Electric CRD, Schenectady, NY
+Subject: Re: Z80 Assembler source needed
+Message-Id: <8347@steinmetz.steinmetz.UUCP>
+References: <2559@killer.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+I have the Z80 xassembler. I have not tested it, but I have it. If I get
+any reasonable number of requests I'll mail it, otherwise post it.
+Hopefully no one will want it at all...
+-- 
+	bill davidsen		(wedu@ge-crd.arpa)
+  {uunet | philabs | seismo}!steinmetz!crdos1!davidsen
+"Stupidity, like virtue, is its own reward" -me
+ 5-Jan-88 07:19:25-MST,2237;000000000000
+Return-Path: <binder%fizbin.DEC@decwrl.dec.com>
+Received: from decwrl.dec.com by SIMTEL20.ARPA with TCP; Tue, 5 Jan 88 07:19:19 MST
+Received: by decwrl.dec.com (5.54.4/4.7.34)
+	id AA29452; Tue, 5 Jan 88 05:57:45 PST
+Message-Id: <8801051357.AA29452@decwrl.dec.com>
+From: binder%fizbin.DEC@decwrl.dec.com (That's not just *any* racket, it's Brahms' Third Racket.)
+Date: 5 Jan 88 08:41
+To: infocpm%fizbin.DEC@decwrl.dec.com
+Subject: RE: Question
+
+From: D'haese Gratien (DHAESE%BANUIA51.BITNET@CUNYVM.CUNY.EDU).
+
+>         My problem is how eliminating the "include error message (Y/N)"
+> when Turbo Pascal is being executed and second how preventing Turbo
+> Pascal making a BAK (backup) file ? Can this be done with some patches
+> with DDT ?
+>         I've got the same problem with Wordstar 3.01P (eliminating BAK).
+
+There was a patch sent around years ago to eliminate the "Include error
+messages" prompt.  Sorry, I didn't save it.
+
+Turbo and WordStar do not create .BAK files, so it's *really* tough to get
+them not to do so.  In both of these products, the .BAK file is the
+previous version of the file you're working on.  When you edit a file with
+Turbo, the entire file is pulled into memory.  When you write it out Turbo
+renames the old .PAS file to be .BAK.  WordStar does things a little
+differently:  As you edit a file, pieces of it are shuffled between the
+workspace in memory and a temporary file named <filename>.$$$.  When you
+finishe editing, WordStar writes everything out to a new file, deletes the
+temporary file, and renames the old file to be .BAK.
+
+I'd guess that you must never have had a system crash while editing with
+either Turbo or WordStar, or made a really *bad* mistake in editing that
+you wish you could fix back easily.  If you had, you'd be *glad* to have
+the backup files around!  I had an Apple ][+ with a SoftCard for a couple
+of years, and I have an Apple //e with a PCPI Applicard now; and even with
+the tiny 128Kbyte capacity of Apple floppies, it's worth the safety.
+
+Cheers,
+Dick Binder   (The Stainless Steel Rat)
+
+DEC Easynet:	FIZBIN::BINDER
+uucp:		{ decvax, allegra, ucbvax... }!decwrl!fizbin.dec.com!binder
+Internet:	binder%fizbin.DEC@decwrl.DEC.COM
+ 5-Jan-88 11:04:24-MST,1798;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Tue, 5 Jan 88 11:04:07 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA25305; Tue, 5 Jan 88 09:51:43 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 5 Jan 88 02:04:58 GMT
+From: hp-pcd!uoregon!omepd!psu-cs!reed!nscpdc!cvedc!markh@hplabs.hp.com  (Mark Holm)
+Organization: Computervision, Beaverton, OR
+Subject: Help with a Bigboard I
+Message-Id: <520@cvedc.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+I am attempting to resurect my Bigboard I which has been setting in my back room
+for the last two years. It was running when I put it away, but it has a problem
+now. All of my power supplys are up and correct and all options are installed.
+
+When the board is powered on the screen clears, then fills with an 
+alternating pattern of :'s and 0's, which then blinks at the refresh rate. This
+shows me that my video section is working but seems to indicate that PFM is not
+being loaded. I checked (with a logic probe, I don't have access to a scope)
+and I have all clock signals.  I have removed and reinstalled all the chips in
+an attempt to check for oxidation, but no go. It worked when I put it away.
+
+Anybody have any suggestions??
+
+================================================================================
+Mark Holm       		                  ..tektronix!ogcvax!cvedc!mholm
+Computervision                       			..sun!cvbnet!cvedc!mholm
+14952 NW Greenbrier Parkway               		     Phone (503)645-2410
+Beaverton, Oregon 97006                   		     FAX   (503)645-4734
+ 5-Jan-88 11:35:31-MST,3035;000000000000
+Return-Path: <secrist%msdoa1.DEC@decwrl.dec.com>
+Received: from decwrl.dec.com by SIMTEL20.ARPA with TCP; Tue, 5 Jan 88 11:35:01 MST
+Received: by decwrl.dec.com (5.54.4/4.7.34)
+	id AA03632; Tue, 5 Jan 88 09:02:12 PST
+Date: Tue, 5 Jan 88 09:02:12 PST
+Message-Id: <8801051702.AA03632@decwrl.dec.com>
+From: secrist%msdoa1.DEC@decwrl.dec.com (Richard C. Secrist, KXO SWS)
+To: cpm%msdoa1.DEC@decwrl.dec.com
+Subject: PCPI softcard/MEX character loss
+
+I forget all my sources but when I "switched to MEX" I set out to
+resolve your same problem myself.  Without reviewing all of my tests, my
+results were as follows.  I talked to people at PCPI and Laing
+Electronics (who sell and repair PCPI stuff) who both said it was tied
+to the video card in use; checking other sources the consensus was that
+the Ultraterm card worked best and solved it through like 9600 bps.  I
+only half bought this story, becuase the same serial card and video
+hardware under "native" 6502 modes like Apple DOS or PASCAL seemed to
+work pretty well - better than on the PCPI anyway. I wrote a little
+FORTH dumb terminal program in 1K in native mode and it didn't but a
+couple here and there.  ASCII Express under DOS 3.3 never dropped
+anything - but it does interrupt I/O to RAM and displays it later. So I
+decided the key on the Apple was buffering the characters as they come
+in BEFORE displaying them, since the display is so miserably slow.  Then
+Apple came out with the "enhanced //e" with completely re-written
+80-column firmware, and lo and behold my little 1K FORTH glass TTY
+worked fine.  I later got a VT-100 emulator called DCOM v3.3 that works
+fine doing ANSI escape sequences at 2400 baud using the buffered
+technique WITHOUT interrupts. So on my "to do" list is a task to write a
+6502-resident driver that buffers character I/O that the PCPI side can
+get characters from over the comparatively slow parallel CPU port that
+uses Apple's 6502 to do all I/O anyway. By the same token, the Ultraterm
+card is supposed to fix this too. 
+
+So here was my solution: since I wanted VT-100 or at least VT-52
+emulation and MEX didn't fit that bill I really only needed a usable
+glass TTY to fire up XMODEM and do directories and so forth.  My
+workaround was to tell the host operating system to add a bunch of fill
+characters and that works fine for what I wanted out of it.  Under
+VAX/VMS I did a "$ SET TERM/LA36/CRFILL=9/LFFILL=9" ...note that since
+v4.0 of VMS "=9" is "class nine" and not "nine characters".  Previously
+(v3.n) I think I used (3) CR fills and (7) LF fills or vice-versa. If
+you use VMS and think you're having flow control problems VAXen don't
+normally have flow-control on in both directions - do a "$ SET
+TERM/HOSTSYNC/TTSYNC" to fix that. When I need real terminal emulation,
+I go back to native Apple modes, and that wins through 2400 baud on an
+"enhanced //e." 
+
+Hope that helps...
+
+Has anybody 1) seen KERMIT for the PCPI, 2) seen a MEX overlay for a DEC
+"Scholar" or DF03 modem ?
+
+rcs
+ 5-Jan-88 12:45:30-MST,1057;000000000000
+Return-Path: <SAGE@LL.ARPA>
+Received: from LL.ARPA by SIMTEL20.ARPA with TCP; Tue, 5 Jan 88 12:45:21 MST
+Date: Tue 05 Jan 1988 14:44:47 EDT
+From: <SAGE@LL.ARPA>
+Subject: BITNET Gateway Info
+To: info-cpm@simtel20.arpa
+Cc: SAGE@LL.ARPA
+Message-ID: <SAGE.00553027@LL.ARPA>
+
+   Thanks to all who replied to my request for information on the new
+gateway to BITNET.  It is amazing how many responses I got, probably because
+the question was easy to answer.  I know that I usually answer easy
+questions immediately.  The hard ones tend to sit around in my REQUESTS file
+while I cogitate on the appropriate answer.
+ 
+   I had seen the warnings that WISCVM was going away, but I never saw a
+message about a replacement gateway.  With nothing else to substitute, I
+continued to use WISCVM until it refused to accept the messages.  Apparently
+there were a number of people at MIT Lincoln Lab who had been asking the
+local administrator for the gateway address.  All of you who answered have
+made several people happy!
+ 
+--- Jay
+         
+ 
+
+ 5-Jan-88 22:54:51-MST,1418;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Tue, 5 Jan 88 22:54:46 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA10040; Tue, 5 Jan 88 21:21:17 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 6 Jan 88 03:16:59 GMT
+From: ecsvax!tcamp@mcnc.org  (Ted A. Campbell)
+Organization: UNC Educational Computing Service
+Subject: CP/M Software Market--an interesting note from Micropro
+Message-Id: <4393@ecsvax.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+I spoke to folks at Micropro just before Christmas and asked them
+if they had any estimate of the size of the CP/M market.  They said
+they didn't, but I received a letter this past week from a Marketing 
+Communications Manager at Micropro, and she stated that between August and 
+November 1986 Micropro sold 17,000 upgrades to CP/M Wordstar.
+
+Estimates of the number of CP/M machines varies from one and a half to
+two million.  Some of these are out of service, but others have been 
+passed on.  Any one out there have a suggestion as to how we might 
+characterize the size of the CP/M software market?
+
+-- 
+Ted A. Campbell       |
+Duke Divinity School  |
+Durham, NC  27706     |
+email:  tcamp@ecsvax  |
+ 6-Jan-88 03:55:34-MST,1343;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 6 Jan 88 03:55:30 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA15621; Wed, 6 Jan 88 02:32:15 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 6 Jan 88 00:59:23 GMT
+From: hpda!hpcupt1!dclaar@ucbvax.Berkeley.EDU  (Doug Claar)
+Organization: Hewlett Packard, Cupertino
+Subject: Info wanted on AMSTRAD PCW 8256
+Message-Id: <7530001@hpcupt1.HP.COM>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+A friend recently purchased a AMSTRAD PCW 8256 "word processor." Upon
+investigation, I discovered that this is a CPM + system which 
+automatically starts up the word processor, but also comes with 
+"Mallard" BASIC, "DR LOGO" and various utilities, including a macro
+assembler. Of course there is no documentation for most of this...
+Can anyone point me in the direction of documentation, or other goodies
+which might be available? Also, a pinout of the expansion port would be
+nice...
+
+Thanks!
+
+Doug Claar
+HP Information Technology Group
+UUCP: { ihnp4 | mcvax!decvax }!hplabs!hpda!dclaar -or- ucbvax!hpda!dclaar
+ARPA: hpda!dclaar@hplabs.HP.COM
+ 6-Jan-88 11:27:50-MST,1230;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 6 Jan 88 11:27:32 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA21922; Wed, 6 Jan 88 09:49:23 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 6 Jan 88 14:54:26 GMT
+From: ecsvax!mjg@mcnc.org  (Michael Gingell)
+Organization: UNC Educational Computing Service
+Subject: Re: CP/M Software Market--an interesting note from Micropro
+Message-Id: <4395@ecsvax.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <4393@ecsvax.UUCP>, tcamp@ecsvax.UUCP (Ted A. Campbell) writes:
+> 
+>  Any one out there have a suggestion as to how we might 
+> characterize the size of the CP/M software market?
+
+Yes - Declining.  Seriously though - I would have thought the total
+number of machines was much greater. Especiallly if you include all
+those that can run CP/M as a sideline - TRS80's for example - over
+2 million of those alone. Apple softcards and I suppose someone
+somewhere is running CP/M on a PC.
+
+Mike Gingell   ecsvax!mjg
+ 6-Jan-88 19:28:31-MST,1311;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 6 Jan 88 19:28:26 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA02192; Wed, 6 Jan 88 17:48:04 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 6 Jan 88 20:22:10 GMT
+From: amdahl!drivax!riddle@ames.arpa  (Riddle)
+Organization: Digital Research Inc
+Subject: Messages to Ithaca InterSystems Requests
+Message-Id: <2895@drivax.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+This message is really Mail to the person (amdahl!meccts!kksys!deg) that
+Needed Ithaca InterSystems I/O card info.  
+
+EMail doesn't seem to reach you.  I have a copy of my VIO manual ready for
+you, but I did not give a mailing address.
+
+And to the person who wanted an Ithaca InterSystems Front Panel schematic
+and the power supply and motherboard schematics.  I've lost your address,
+please contact me again.  I can't find either the power supply nor the
+motherboard doc.
+
+Thanx to the net for allowing me to send personnel mail this way.
+
+					Riddle
+
+
+
+
+-- 
+[replace with your own cute .signature]		amdahl!drivax!riddle
+ 7-Jan-88 07:33:35-MST,551;000000000000
+Return-Path: <secrist%msdoa2.DEC@decwrl.dec.com>
+Received: from decwrl.dec.com by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 07:33:29 MST
+Received: by decwrl.dec.com (5.54.4/4.7.34)
+	id AA27413; Thu, 7 Jan 88 06:31:02 PST
+Date: Thu, 7 Jan 88 06:31:02 PST
+Message-Id: <8801071431.AA27413@decwrl.dec.com>
+From: secrist%msdoa2.DEC@decwrl.dec.com (Richard C. Secrist, KXO SWS)
+To: cpm%msdoa2.DEC@decwrl.dec.com
+Subject: Size of CP/M List-p
+
+	Speaking of the CP/M user community... how many members are in
+	the distribution for this list ?
+
+	rcs.
+ 7-Jan-88 08:58:33-MST,992;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 08:58:26 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA17408; Thu, 7 Jan 88 07:42:55 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 6 Jan 88 05:29:46 GMT
+From: cbosgd!clyde!watmath!watdragon!violet!rthurley@ucbvax.Berkeley.EDU  (Richard T. Hurley)
+Subject: Altos 580 MP/M
+Message-Id: <4495@watdragon.waterloo.edu>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+ I would like to know and hear from people who own an Altos 580 MP/M
+ system. I am told that this beast has a single 720k 5 1/4 inch floppy drive.
+ And what is the major difference between mpm and cpm.. Are they compatible.
+ Will have any problems hooking a modem up to this beast....
+   Thanks in advance
+    Roger
+  
+ 7-Jan-88 19:47:10-MST,1680;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 19:46:51 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA28299; Thu, 7 Jan 88 18:10:27 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 7 Jan 88 18:40:05 GMT
+From: dross@ub.d.umn.edu  (David Ross)
+Organization: U. of Minnesota, Duluth - Computing Services
+Subject: Re: Info wanted on AMSTRAD PCW 8256
+Message-Id: <163@umn-d-ub.D.UMN.EDU>
+References: <7530001@hpcupt1.HP.COM>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <7530001@hpcupt1.HP.COM> dclaar@hpcupt1.HP.COM (Doug Claar) writes:
+>A friend recently purchased a AMSTRAD PCW 8256 "word processor." Upon
+
+This CPM box was introduced in England about two years ago, and is one of
+the most common machines in use over there, especially by writers and
+other computerphobes.  It is a great value, achieving low cost by using the
+nowadays dirt-cheap Z80, together with remaindered 3" (sic) disk drives and 
+a bundled printer which uses the very same Z80 for processing. I may buy one
+myself.
+
+In England there are several magazines and scads of books devoted to this
+machine; your friend's best bet is to go there :-), or to find a large
+bookstore here that carries English computer magazines (not impossible; the
+major chains' large Chicago stores do, for example).
+
+Because of this machine, CPM is flourishing in Europe.
+
+
+David Ross
+Bitnet: DROSS@UMNDUL
+
+DISCLAIMER: There is no disclaimer.
+ 7-Jan-88 19:53:33-MST,1299;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 19:53:20 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA23849; Thu, 7 Jan 88 13:29:24 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 7 Jan 88 00:23:09 GMT
+From: portal!cup.portal.com!Mike_W_Ryan@uunet.uu.net
+Organization: The Portal System (TM)
+Subject: Mex files: PCP?
+Message-Id: <2327@cup.portal.com>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+Does anyone know where I can get some files (overlays, read files)
+for adapting MEX114 for PC Pursuit? I know the files may have
+to be  tweaked to reflect the new dial syntax, but I think I can handle that.
+
+
+I have heard of the files: PCPMEX10.LBR, PCPFAST.MZX
+
+These files are supposedly on Royal Oak BBS, which is the biggest and only
+CPM board I really know of. However Royal Oak seems to be down and has for
+literally several weeks now. The number I have for it is 313-759-6569.
+
+Can anyone shed some light on Royal Oak and/or tell me where I can get these
+files (or better ones) for PCP and MEX?
+
+Mike_W_Ryan@cup.portal.com
+ 7-Jan-88 20:08:38-MST,1042;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 20:08:26 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA22684; Thu, 7 Jan 88 12:31:55 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 7 Jan 88 16:49:18 GMT
+From: abp@j.cc.purdue.edu  (Jeffrey J Wieland)
+Organization: Purdue University Computing Center
+Subject: Turbo Modula-2
+Message-Id: <6112@j.cc.purdue.edu>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+I called Echelon yesterday (1/6/88) to inquire about my order for Turbo
+Modula-2.  They said they were holding back shipments until February because
+Borland had agreed to take it back and FIX THE BUGS!!  Echelon had been trying
+to either get the source from Borland or to Borland to fix it itself.  There
+are apparently eight bugs.
+
+				Jeff Wieland
+				abp@j.cc.purdue.edu
+ 7-Jan-88 20:45:41-MST,1053;000000000000
+Return-Path: <MBECK@AI.AI.MIT.EDU>
+Received: from AI.AI.MIT.EDU by SIMTEL20.ARPA with TCP; Thu, 7 Jan 88 20:45:28 MST
+Date: Thu,  7 Jan 88 22:39:25 EST
+From: "Mark E. Becker" <MBECK@AI.AI.MIT.EDU>
+Subject: Debugging an RSX (call for help)
+To: Info-CPM@SIMTEL20.ARPA
+Message-ID: <308435.880107.MBECK@AI.AI.MIT.EDU>
+
+Hello All -
+
+     I figure hundreds of people have already run into this little
+problem.. and it has already been solved.
+
+     I am trying to mate BYE339 (yes, I know it's been superseded..
+but 502 wasn't out when I started this) with RBBS 4.102 .  And things
+aren't going well.  There is some interaction between the two which is
+corrupting memory and making my life miserable.
+
+     Surely this has been done before.. how to debug an RSX after it's
+been installed?  Is there some way to get SID or Z8E to accept an
+offset to a symbolic label so I can reach in and see which program is
+guilty of memory bashing?
+
+     I'm using BDS-C v 1.50a for the RBBS compile.
+
+Regards,
+Mark Becker
+MBECK@AI.AI.MIT.EDU
+
+ 7-Jan-88 21:45:05-MST,674;000000000000
+Mail-From: KPETERSEN created at  7-Jan-88 21:45:03
+Date: Thu, 7 Jan 1988  21:45 MST
+Message-ID: <KPETERSEN.12364860082.BABYL@SIMTEL20.ARPA>
+Sender: KPETERSEN@SIMTEL20.ARPA
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+To:   "Mark E. Becker" <MBECK%AI.AI.MIT.EDU@MC.LCS.MIT.EDU>
+Cc:   Info-Cpm@SIMTEL20.ARPA
+Subject: Debugging an RSX (call for help)
+In-reply-to: Msg of 7 Jan 1988  20:39-MST from Mark E. Becker <MBECK at AI.AI.MIT.EDU>
+
+The latest version of BYE is BYE510.  It is available from SIMTEL20
+as:
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD1:<CPM.BYE5>
+BYE510.LBR.1			BINARY	174208  2DA0H
+
+The RSX bugs have been fixed in this version.
+
+--Keith
+ 8-Jan-88 10:28:20-MST,995;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Fri, 8 Jan 88 10:28:08 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA13211; Fri, 8 Jan 88 09:00:21 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 8 Jan 88 14:05:00 GMT
+From: ecsvax!tcamp@mcnc.org  (Ted A. Campbell)
+Organization: UNC Educational Computing Service
+Subject: Z3 TERMCAP -- Where is the info?
+Message-Id: <4399@ecsvax.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+I'd like to know more about the ZCPR3 TERMCAP facility.  I have 
+access to the ZCPR3 on-line documentation.  Where would I find
+information for a prorammer wanting to develop applications using
+this facility?
+
+-- 
+Ted A. Campbell       |
+Duke Divinity School  |
+Durham, NC  27706     |
+email:  tcamp@ecsvax  |
+ 8-Jan-88 12:28:44-MST,1567;000000000000
+Return-Path: <bridger%rcc@rand-unix.ARPA>
+Received: from tp4 ([192.5.14.154].#Internet) by SIMTEL20.ARPA with TCP; Fri, 8 Jan 88 12:28:31 MST
+Received: from rcc by tp4; Fri, 8 Jan 88 11:07:50 PST
+Received: from newton.arpa by rcc.arpa; Fri, 8 Jan 88 11:07:33 PST
+Received: from localhost by newton.arpa; Fri, 8 Jan 88 11:07:13 PST
+Message-Id: <8801081907.AA25284@newton.arpa>
+To: "Mark E. Becker" <MBECK@ai.ai.mit.edu>, info-cpm@simtel20.arpa
+Cc: bridger%rcc@rand-unix.ARPA
+Subject: Debugging an RSX
+Date: Fri, 08 Jan 88 11:06:51 PST
+From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+
+Most debuggers use the bdos (rather than the bios) for terminal
+input/output, so the first thing you have to do is avoid re-entering
+the bdos when you are tracing/trapping.
+
+You might try this approach under the debugger:
+
+5:	jmp rsx_entry
+
+100:
+program:
+	...
+xx:	call 5		;bdos call at routine causing trouble
+	...
+
+Change the 'call 5' to 'call rsx_entry'.
+Set breakpoints at 0000, the program's exit routine, and xx.
+Set up command line and execute from 100.  When you hit
+the xx trap, set other breakpoints in the rsx at important
+spots, then single-step into the rsx to watch things.
+
+You can get symbols for the rsx by assembling it once with origin ==
+rsx_entry and loading that symbol file under the debugger.  Some
+debuggers will cummulate symbols from several files, so you can also
+load symbols from the transient program if you have them.
+
+If you do much debugging, you may want to patch the debugger to
+use bios i/o.
+
+--bridger
+ 8-Jan-88 16:01:35-MST,2511;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Fri, 8 Jan 88 16:01:26 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA20211; Fri, 8 Jan 88 14:50:14 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 8 Jan 88 17:27:52 GMT
+From: tikal!sigma!bill@beaver.cs.washington.edu  (William Swan)
+Organization: Summation Inc, Kirkland WA
+Subject: Re: CP/M Software Market--an interesting note from Micropro
+Message-Id: <1450@sigma.UUCP>
+References: <4393@ecsvax.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <4393@ecsvax.UUCP> tcamp@ecsvax.UUCP (Ted A. Campbell) writes:
+>I spoke to folks at Micropro just before Christmas and asked them if they
+>had any estimate of the size of the CP/M market. [...] between August and 
+>November 1986 Micropro sold 17,000 upgrades to CP/M Wordstar.
+>
+>Estimates of the number of CP/M machines varies from one and a half to
+>two million.  Some of these are out of service, but others have been 
+>passed on.  Any one out there have a suggestion as to how we might 
+>characterize the size of the CP/M software market?
+
+I think, Ted, that this is your best bet (at least until sombody comes out
+with a package that *every* CP/M user will want :-). It's clear that the
+CP/M market is larger then 17000, but by how much I wouldn't know.
+
+One can't even assume there are only 17k WordStar users out there. There are
+many who, like me, never mailed in the licenses for their old WordStars and 
+thus wouldn't have learned about 4.0 (I registered only to get the upgrade).
+
+I know 6 CP/M systems (mine, my mother's, father's, two friends', and my 
+boss's [for sale]), but only two of us (my father and I) have bought W*4.0.
+One friend doesn't use (or like, Jon?) WordStar, and the other doesn't know 
+(yet) about the upgrade.  Based on my experience we could say there are about 
+50000 systems active. I don't think that's a very accurate estimate, maybe not
+even to order of magnitude. 
+
+I'm not sure we'd do much better if we each listed all the systems we know
+(checking to avoid overlaps), and all the upgrades we know. (I would list 
+only 5 known machines, because one friend is also on the net, but I would
+list two upgrades.) 
+
+
+-- 
+William Swan  {ihnp4,decvax,allegra,...}!uw-beaver!tikal!sigma!bill
+ 8-Jan-88 21:01:18-MST,995;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Fri, 8 Jan 88 21:01:11 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA25138; Fri, 8 Jan 88 18:43:43 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 8 Jan 88 08:50:59 GMT
+From: ut-emx!cc.rob@sally.utexas.edu
+Organization: The University of Texas at Austin, Austin, Texas
+Subject: TELEVIDEO 802 BOOT DISK NEEDED
+Message-Id: <458@ut-emx.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+A friend recently purchased a Televideo 802 that has no boot disk, since
+the previous owner reformatted the hard disk and thus removed all the
+software it had.
+ If someone has access to a boot disk and utilities, please reply via
+ comp.os.cpm.  Renumeration will be made for your efforts.
+   Thanks.
+		 Pat Price
+ 9-Jan-88 00:34:04-MST,2732;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Sat, 9 Jan 88 00:33:54 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA27092; Fri, 8 Jan 88 20:45:11 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 7 Jan 88 22:25:16 GMT
+From: codas!burl!clyde!watmath!watdragon!vaxtrain!mdapoz@bikini.cis.ufl.edu  (Mark Dapoz)
+Subject: Z80DOS Bug Report
+Message-Id: <4516@watdragon.waterloo.edu>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+The distributed versions of Z80DOS (both version 1.0 and 1.1) have a slight 
+problem when a read or write error occurs.  When a disk error occurs, your
+machine will most likely crash (if you're lucky) but in some instances it 
+will continue to run, but with unpredictable results.  An examination of the
+code within Z80DOS reveals a rather serious bug within the error recovery/
+reporting routine.  As can be seen from the code in example 1 (taken from the
+Z80DDISK.Z80 file), the HL register pair is loaded with the contents of the 
+address specified by the RDERR (or WRTERR) label.  Later, in the error recovery
+routine, execution is passed to the address contained in the HL register
+pair.  This clearly does not work as it has the result of performing a double
+indirect jump whereas what was really intended was a single indirect jump.
+To fix the problem, you must modify the code to read as in example 2.  It
+would be appreciated if this information could be passed on to the author so
+that it may be included in any future releases.
+	-Mark
+
+  Example 1 - Original code with bug present
+;
+; Read sector from drive
+;
+; readr and writer modified to give separate error message--b.h.
+;
+READR:	CALL	READ		; BIOS call read sector
+	LD	HL,(RDERR)
+	JR	WRITE0		; Test exit code
+;
+; Write sector on drive
+;
+WRITER:	CALL	WRITE		; BIOS call write sector
+	LD	HL,(WRTERR)
+WRITE0:	OR	A		; Test exit code
+	RET	Z		; Exit if ok
+	LD	(RETFLG),A	; Allow retry for read/write errors
+	JP	(HL)		; DOS error on d: write error
+
+
+  Example 2 - New code with bug fixed
+;
+; Read sector from drive
+;
+; readr and writer modified to give separate error message--b.h.
+;
+readr:	call	read			; BIOS call read sector
+	ld	hl,rderr		; Fix indirect load - MD
+	jr	write0			; Test exit code
+;
+; Write sector on drive
+;
+writer:	call	write			; BIOS call write sector
+	ld	hl,wrterr		; Fix indirect load - MD
+write0:	or	a			; Test exit code
+	ret	z			; Exit if ok
+	ld	(retflg),a		; Allow retry for read/write errors
+	jp	(hl)			; DOS error on d: write error
+ 9-Jan-88 11:50:42-MST,1059;000000000000
+Return-Path: <secrist%msdoa1.DEC@decwrl.dec.com>
+Received: from decwrl.dec.com by SIMTEL20.ARPA with TCP; Sat, 9 Jan 88 11:50:37 MST
+Received: by decwrl.dec.com (5.54.4/4.7.34)
+	id AA00354; Sat, 9 Jan 88 10:48:14 PST
+Date: Sat, 9 Jan 88 10:48:14 PST
+Message-Id: <8801091848.AA00354@decwrl.dec.com>
+From: secrist%msdoa1.DEC@decwrl.dec.com (Richard C. Secrist, KXO SWS)
+To: cpm%msdoa1.DEC@decwrl.dec.com
+Subject: Use of WordStar Upgrades to Size CP/M Market
+
+	Some have called WordStar "everybody's second favorite editor"
+	because it's one of those so-called de facto standards.  But
+	most of the die-hard CP/Mers I know say they wouldn't give up
+	good money for any version of it (at a local users group it's
+	known as "TurdStar") but would be eager for a "vi" or "Emacs",
+	or just about anything you can get the sources to - especially
+	in C.
+
+	When the Simtel20 CP/M archives were created it'd be interesting
+	to know what they estimated the government usage at - perhaps
+	it was in their justification documents or whatever...
+
+	rcs
+ 9-Jan-88 17:29:51-MST,1554;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Sat, 9 Jan 88 17:29:44 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA13388; Sat, 9 Jan 88 15:50:45 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 8 Jan 88 21:48:45 GMT
+From: mcvax!enea!liuida!obelix!pekka-r@uunet.uu.net  (Pekka Akselin [The Mad Midnight Hacker])
+Organization: University of Linkoping, Sweden
+Subject: info about performance of different datatransfering programs
+Message-Id: <1396@obelix.liu.se>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+Hello!
+Does anybody out there, in the netland, have any kind of
+information how well different data transfering programs
+does its job. I want to know how many bytes per second
+each program transfers, in either direction, and what
+buadrate gave the numbers. This should be counted for raw,
+8-bit binary data. Some possible programs are KERMIT,
+XMODEM, UUCP, SAFT and so on.
+Thanks in advance.
+
+	/pekka
+
+[The Mad Midnight Hacker Strikes Again]
+______________________________________________________________________________
+Inet:                        pekka-r@obelix.liu.se
+ARPA:                 pekka-r%obelix.liu.se@uunet.uu.net
+UUCP: pekka-r@obelix.UUCP | {mcvax,munnari,uunet}!enea!liuida!obelix!pekka-r
+Pekka Akselin, Univ Linkoping, Sweden (The Land Of The Mad Midnight Hacker 8-)
+ 9-Jan-88 22:29:37-MST,1698;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Sat, 9 Jan 88 22:29:30 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA17528; Sat, 9 Jan 88 20:54:36 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 9 Jan 88 05:38:54 GMT
+From: portal!cup.portal.com!ruel@uunet.uu.net
+Organization: The Portal System (TM)
+Subject: Re: Mex files: PCP?
+Message-Id: <2351@cup.portal.com>
+References: <2327@cup.portal.com>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+Mike_W_Ryan@cup.portal.com writes:
+
+>Does anyone know where I can get some files (overlays, read files)
+>for adapting MEX114 for PC Pursuit? I know the files may have
+>to be  tweaked to reflect the new dial syntax, but I think I can handle that.
+>
+>
+>I have heard of the files: PCPMEX10.LBR, PCPFAST.MZX
+>
+>These files are supposedly on Royal Oak BBS, which is the biggest and only
+>CPM board I really know of. However Royal Oak seems to be down and has for
+>literally several weeks now. The number I have for it is 313-759-6569.
+>
+>Can anyone shed some light on Royal Oak and/or tell me where I can get these
+>files (or better ones) for PCP and MEX?
+>
+>Mike_W_Ryan@cup.portal.com
+
+
+Royal Oak is still up.  But there seems to be a system change over there.  
+I'm wondering if there is going to be a new PCPIMPxx.COM program since PC 
+Pursuit has a new set of mneumonics (sp?) codes.  I'm just about lost 
+without a good pcp dialer.
+
+                                  ruel@cup.portal.com
+11-Jan-88 09:38:57-MST,2327;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:MA18@SYSE.SALFORD.AC.UK>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Mon, 11 Jan 88 09:38:22 MST
+Received: from UKACRL.BITNET by CUNYVM.CUNY.EDU ; Mon, 11 Jan 88 10:12:44 EST
+Received: from RL.IB by UKACRL.BITNET (Mailer X1.25) with BSMTP id 3358; Mon,
+ 11 Jan 88 15:00:28 GMT
+Via:      UK.AC.RL.EARN; Mon, 11 Jan 88 15:00:27 GMT
+Received: from RL.IB by UK.AC.RL.IB (Mailer X1.25) with BSMTP id 3356; Mon, 11
+          Jan 88 15:00:27 GM
+Via:      UK.AC.SALF.E.FT_SERVER; 11 JAN 88 14:59:59 GMT
+Date:     Mon, 11 Jan 88 14:57:49 GMT
+From:     MA18@SYSE.SALFORD.AC.UK
+To:       info-cpm@SIMTEL20.ARPA
+Subject:  Infocom Games
+
+Customising and Buying Infocom(tm) games
+
+Recently Gar Nelson contributed a note (ZORKNOTE.TZT) which contained the
+details of how to customise the screen display for ZORK etc. I can confirm that
+he was correct in every detail. My confirmation comes from Infocom itself. In
+days gone by Infocom used to ship CP/M games wtih the source of a program to
+patch the COM file with the terminal control codes. I have used this successfull
+on all their games - even the ones shipped without such files.
+
+He also notes that Infocom have dropped their CP/M support. I don't know if that
+is also true in the U.K. BUT I can purchase Infocom games over here that don't
+exist in CP/M form according to the Infocom sales literature which comes with
+their games. e.g. Leather Goddesses, Suspect, Stationfall, etc. This appears to
+be due to the success of Amstrad Z80 computers in the UK. I have to buy the
+games on 3" disks (yes three.zero) inch disks. It is then necessary to have the
+media converted - either commercially or buy hooking up an Amstrad and my
+machine and using good old Kermit!
+
+I believe almost all Infocom games are available in the UK for the Amstrad. The
+exception which I know of are: the two IBM PC specific games, and possibly
+Plundered Hearts and Bureaucracy. Trinity and A Mind Forever ... are supposed
+to be available, but I have not tried to get them, so I cannot comment. Two of
+their newest releases (over here) - Lurking Horror and Stationfall are definitel
+available.  The prices are higher than the $14.95 mentioned by Gar however -
+we have prices of some 26 pounds = $47 (approx).
+
+-- Tony Addyman
+11-Jan-88 11:45:26-MST,1299;000000000000
+Return-Path: <rzh@freedom.llnl.gov>
+Received: from freedom.llnl.gov by SIMTEL20.ARPA with TCP; Mon, 11 Jan 88 11:45:22 MST
+Received: by freedom.llnl.gov (3.2/1.26)
+	id AA15835; Mon, 11 Jan 88 09:05:23 PST
+Date: Mon, 11 Jan 88 09:05:23 PST
+From: rzh@freedom.llnl.gov (Roger H. Hanscom (415) 423-0441)
+Message-Id: <8801111705.AA15835@freedom.llnl.gov>
+To: info-cpm@simtel20.arpa
+Subject: Versafloppy II Question
+
+
+Can anyone out there help me with a question about a Versafloppy II FDC
+made by S.D. Systems, Dallas, Tx.???  I'm running an old S-100 system
+with this controller, and a generic CP/M (not S.D.'s version).  It was
+OK running 8" SSSD, but got very slow when I switched over to 5 1/4".
+I think that the problem is the sector slew.  No slew was slow, a slew
+of 5 is worse!!  Does anybody know the magic number for this hardware??
+I'm using a PD version of a DD cbios.  S.D. originally supplied Versa-
+floppy II software (in ROM) that used a 128 b sector.  They later went
+to 256 b sectors.  Did the slew used in the S.D. version of CP/M change
+with the change in sector size??  ANY help/comments will be appreciated
+
+                               Roger Hanscom
+                               rzh%freedom@lll-lcc.llnl.gov
+                               415/423-0441
+11-Jan-88 22:33:18-MST,6586;000000000000
+Mail-From: KPETERSEN created at 11-Jan-88 22:33:14
+Date: Mon, 11 Jan 1988  22:33 MST
+Message-ID: <KPETERSEN.12365917430.BABYL@SIMTEL20.ARPA>
+Sender: KPETERSEN@SIMTEL20.ARPA
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+To:   Info-Cpm@SIMTEL20.ARPA
+Subject: Run CP/M on IBM-PC or clone at up to 10 MHz!
+
+RUNNING 8080/Z80 CP/M programs on MSDOS or PCDOS computers
+
+The following two messages are relayed from the DKUG RBBS, Detroit.
+They are presented here "as-is" for informational value only.
+
+-----
+From: Bill Duerr
+  To: Jim Petersen
+  Re: Upgrading IBM-AT to CP/M
+
+The info following is from the October, 1986 Profiles Magazine.
+ 
+                         Run CP/M
+ 
+    The Blue Thunder is a low-priced ($199.50) model.  The Blue
+Thunder runs with a 5-MHz clock speed.  It will blow away the V20
+and some competitors' cards with higher clock speeds.
+ 
+    The Blue Lightnin' is the premium model.  It runs at an
+ultra-high clock speed of approximately 9-MHz.  It comes with a
+complete suite of development software.  You get SLR systems
+superfast assembler and linker.  You get the DSD80 debugger,
+including an exclusive remote version for microprocessor develpment.
+The Blue Lightnin' sells for $595.00.
+
+Manufacturer:
+   Decmation
+   2065 Martin Ave. Suite 110
+   Santa Clara, CA 95050
+   (408) 980-1670
+ 
+Distributor:
+   TSI
+   1897 Garden Ave.
+   Eugene, OR 97403
+   1-800-874-2288
+ 
+    I remember Profiles doing a review of products that allow you to
+upgrade your IBM AT to a CP/M Kaypro.  But don't know what issue it
+was in.  Wednesday is DKUG's monthly meeting.  I'll ask around.
+
+-----
+Date: 01-10-88 11:49:59 EST
+From: Barney Nagel
+  To: Jim Petersen
+  Re: CP/M on IBM
+
+First, the information that you wanted is:
+ 
+  Product Name:  RUN/CPM - COPROCESSOR BOARD FOR IBM and COMPATIBLES
+  Company:       Micro Interfaces
+                 16359 N.W. 57th Ave.
+                 Hialeah, FL 33014
+    Phone:       (305) 623-9262
+                 1-800-637-7226
+                 Telex 510600480 MICRO INTER CO
+     Cost:       $199 (single unit)
+                 $175 (group buy - 3 or more)
+ 
+The RUN/CPM coprocessor is contained on a single board that is
+mounted in one of your available slots .... I mounted it in a
+IBM AT close compatible (CompuADD STANDARD 286).  I'm running my
+system completely populated with 1-meg ram on the motherboard,
+4-megs of Intel expanded memory (Above Board 286 with piggyback),
+2400 baud internal modem, Vega Deluxe EGA with a NEC Multisysnc,
+MicroSoft Bus Mouse... when you throw in a multi-purpose I/O card,
+I have all of the slots populated.  I also have a Miniscribe 42
+meg (28ms) harddrive and the whole system is tied together with a
+Phoenix BIOS.  My system runs at 8mHz with 0 wait state. It yields
+a Norton SI of 9.0.
+ 
+The only reason I took the trouble to mention all of this detail
+was to validate the complexity of the hardware when I say that
+I've had no trouble with the RUN/CPM board in this environment.
+ 
+The coprocessor contains 64K of it's own RAM and runs on a Zilog
+Z80B at 4 mHz.  The board was simple to install and setup.
+Simply run the Install program and this will put the interface
+file into you Config.sys file. When invoked, a program is loaded
+that contains a modified CPM 2.2  that will permit extensive
+interaction between DOS and CPM.  The board runs most application
+type software and at times will surprise you by running some
+MSDOS versions also.  In order to differentiate between the CPM
+and COM files, when RUN/CPM is loaded ... you have to rename the
+'COM' extent to "CPM', these permits the CPM and MSDOS to
+gracefully reside on the same harddisk.  It will support named
+directories (only one partition), and uses the DOS command
+structure for I/O (ie, PIP, D (sorted directory), etc will not
+work).  However, Dave Rand's NSWEEP for MSDOS works great, and
+any command that is supported by the DOS I/O.  For example,
+SDIR/P <CR> is a DOS program for obtaining a 'Paused' sorted
+directory .,.. works great.  Use COPY instead of PIP.
+ 
+We've been using it about a year now, with our main applications
+supporting our small mail order business ... originally begun
+with the Kaypro II.  We use it for all of our accounting
+(Starr - Accounting Partner), MicroSoft's CPM version of
+Multiplan, and Wordstar 3.3,  I can use many of the utilities
+from the CPM world also, including NULU, LU, CUNCH.UNCRUNCH, etc.
+Our Club treasurer, Bob Sage, has also used one very successfully
+with MicroSoft's Starr database. He is using an IBM AT.  I
+presume that it would operate equally well with a PC/XT 8088.
+ 
+There is also a nifty RAM resident program that will allow you to
+configure on the fly.  First of all, you can set either (or both)
+disk drive to format, read, and write CPM (115 disk formats are
+supported) .... It supports the 96TPI 1.2 meg hi-capacity drives
+as well as the standard 360K, 48 TPI drives.
+ 
+      Here's a list of the things you can do on the fly...
+ 
+      o Setup CP/M terminal emulation .... 96 terminals
+        supported.
+      o Setup CP/M disk emulation ... 115 formats supported.
+      o Permits to you to assign logical drives - supports,
+        A - P.
+      o Permits the use of ramdisks.
+      o Supports assigned (by you) I/O redirection.
+      o Set colors (if you have color monitor.)
+      o Sets Hot Key selection.
+      o Key-board input translation (permits macros on function
+        keys.)
+      o Supports video mode selection (columns and rows, etc)
+ 
+We have had no trouble reading our Kaypro II or Kaypro 484 disks.
+However to be on the safe side, we will only write to disks that
+have been formated on the Kaypros.  We have, however, successfully
+formatted a disk from the 1.2 meg and 360K drives and transferred
+the data.
+                                Barney
+
+
+Additional notes from Keith Petersen:
+
+On Monday, January 11, 1987, Micro Interfaces was contacted by telephone
+for updated information.  Several improvements have been made since
+Barney purchased his board.  The Z80 board has not been sold since October
+1987.  They now use a HD64180 (Z80 upward-compatible) chip in two versions
+of the board: 6 MHz $275, and 10 MHz $499.  Group discounts are available.
+Decmation makes the Micro Interfaces board.
+
+The list of local users of the RUN/CPM board is not limited to IBM AT
+owners.  There is at least one user who has an IBM XT.  He gave a
+demonstration and talk on it at the CP/M club about six months ago.
+12-Jan-88 08:49:09-MST,1071;000000000000
+Return-Path: <l_christophe%use.uio.uninett@TOR.nta.no>
+Received: from tor.nta.no by SIMTEL20.ARPA with TCP; Tue, 12 Jan 88 08:48:57 MST
+Posted-Date: 12 Jan 88 15:12 +0100
+Received: by tor.nta.no (5.54/3.21)
+	id AA04960; Tue, 12 Jan 88 15:15:38 +0100
+Date: 12 Jan 88 15:12 +0100
+From: ALF CHRISTOPHERSEN <l_christophe%use.uio.uninett@TOR.nta.no>
+To: INFO-CPM <info-cpm@simtel20.arpa>
+Message-Id: <36*l_christophe@use.uio.uninett>
+Subject: First time UPLOAD of KERMIT on Commodore 64 with only tape
+
+A friend of me want to get KERMIT on his Commodore 64 with CP/M, but he
+has only a tape station. How do we upload first time, e.g. from a
+Olivetti M24 with direct connection over RS232? I remember there was
+a procedure when I loaded first time with our Altos 8000/7, but has
+forgotten the procedure. Do any have some idea? Is there any tape?
+
+Alf Christophersen
+Engineer
+Dep. of Nutrition Research
+PO. Box 1046 BLindern
+N-0316 Oslo 3
+Norway
+
+L_CHRISTOPHE@USE.UIO.UNINETT  L_CHRISTOPHE@INGER.ARPA    CHRISTOP@NORUNIT.EARN
+
+Many thanks in advance!
+13-Jan-88 08:48:57-MST,527;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:A50D@DKAUNI11.BITNET>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Wed, 13 Jan 88 08:48:45 MST
+Received: from DKAUNI11.BITNET by CUNYVM.CUNY.EDU ; Wed, 13 Jan 88 03:42:33 EST
+Date: Wed, 13 Jan 88 09:39:20 MEZ
+To: info-cpm@simtel20.ARPA
+From: A50D%DKAUNI11.BITNET@CUNYVM.CUNY.EDU
+Comment: CROSSNET mail via SMTP@CUNYVM
+Subject: directory of cpm archive
+
+Date: 13 January 1988, 09:38:11 MEZ
+From: A50D     at DKAUNI11
+To:   INFO-CPM at SIMTEL20
+
+get pd:<cpm>cpm.crclst
+
+13-Jan-88 10:38:44-MST,2467;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 13 Jan 88 10:38:35 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA18453; Wed, 13 Jan 88 04:30:22 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 12 Jan 88 12:44:40 GMT
+From: ems!rosevax!kksys!bird@umn-cs.arpa  (0000-Mike Bird)
+Organization: K and K Systems, Minneapolis
+Subject: Re: info about performance of different datatransfering programs
+Message-Id: <531@kksys.UUCP>
+References: <1396@obelix.liu.se>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <1396@obelix.liu.se> pekka-r@obelix.liu.se (Pekka Akselin [The Mad Midnight Hacker]) writes:
+>
+>Hello!
+>Does anybody out there, in the netland, have any kind of
+>information how well different data transfering programs
+>does its job. I want to know how many bytes per second
+>each program transfers, in either direction, and what
+>buadrate gave the numbers. 
+
+Unfortunately, Bytes/Second would only be applicable for the specific
+hardware/firmware combination being tested.  There is such a
+difference between disk controllers (DMA vs CPU, clock speeds, etc.)
+disk drives, the BDOS and BIOS being run, etc.  That two machines of
+supposedly the same configuration can be quite different.  So, what
+your looking for is the comparisons for the different programs done on
+the SAME MACHINE, preferably near in time.  This can best be expressed
+as in index number, with perhaps PIP being arbitrarily set to the
+index of 100.  Then, each program would have to be tested against PIP
+on the same hardware/software configuration.  Tests done on two
+different machines would almost be worthless.  Also, the same program
+may behave differently depending upon the hardware, so if your
+particular setup has, for example, a DMA disk controller, you may be
+better off with a program that takes advantage of the controller, even
+if the index number is higher than a different program that doesn't.
+
+In other words, this is a VERY subjective test.
+
+-- 
+================================================================================
+Mike Bird (These opinions are mine, dammit!)   Mail paths:  bird@kksys.UUCP -or-
+Void where prohibited by law.                       ...rutgers!meccts!kksys!bird
+13-Jan-88 15:37:48-MST,1223;000000000000
+Return-Path: <@CUNYVM.CUNY.EDU:DROMS@BKNLVMS.BITNET>
+Received: from CUNYVM.CUNY.EDU by SIMTEL20.ARPA with TCP; Wed, 13 Jan 88 15:37:38 MST
+Received: from BKNLVMS.BITNET by CUNYVM.CUNY.EDU ; Wed, 13 Jan 88 17:36:01 EST
+Date:     Wed, 13 Jan 1988 16:20:42.98 EST
+From:     <droms%BKNLVMS.BITNET@CUNYVM.CUNY.EDU>
+Subject:  Xerox 820-I system for sale
+To:       <info-cpm@simtel20.arpa>
+
+I have a Xerox 820-I system to sell.  It includes:
+
+     820-I CPU board + non-functional spare
+     keyboard
+     monitor
+     3 8-inch floppy drives
+     power supplies
+     documentation for the above
+     CP/M 2.2 + many utilities
+     100 or so 8-inch floppy diskettes
+
+The system has been cobbled together from separate components, and does
+not include any sort of housing or chassis.  Two of the floppy drives
+were scavenged from an old Intel development system; I still have the
+chassis and power supply.  The system works fine - I just don't need
+it now that I have a Mac SE.
+
+I'd like to get $250+shipping for all of the above, but am willing to
+negotiate.  If you're interested, please contact me at droms@bknlvms.bitnet
+as I no longer subscribe to info-cpm
+
+- Ralph Droms
+  Bucknell University
+
+13-Jan-88 22:51:34-MST,5363;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 13 Jan 88 22:51:10 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA11506; Wed, 13 Jan 88 21:31:56 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 13 Jan 88 17:58:32 GMT
+From: sdcrdcf!shaprkg@burdvax.prc.unisys.com  (Bob Shapiro)
+Organization: Unisys - System Development Group, Santa Monica
+Subject: Re: info about performance of different datatransfering programs
+Message-Id: <5063@sdcrdcf.UUCP>
+References: <1396@obelix.liu.se>, <531@kksys.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+In article <531@kksys.UUCP> bird@kksys.UUCP (0000-Mike Bird) writes:
+<In article <1396@obelix.liu.se> pekka-r@obelix.liu.se (Pekka Akselin [The Mad Midnight Hacker]) writes:
+<<
+<<Hello!
+<<Does anybody out there, in the netland, have any kind of
+<<information how well different data transfering programs
+<<does its job. I want to know how many bytes per second
+<<each program transfers, in either direction, and what
+<<buadrate gave the numbers.
+<
+<Unfortunately, Bytes/Second would only be applicable for the specific
+<hardware/firmware combination being tested.  There is such a
+<difference between disk controllers (DMA vs CPU, clock speeds, etc.)
+<disk drives, the BDOS and BIOS being run, etc.  That two machines of
+<supposedly the same configuration can be quite different.  So, what
+<your looking for is the comparisons for the different programs done on
+<the SAME MACHINE, preferably near in time.  This can best be expressed
+<as in index number, with perhaps PIP being arbitrarily set to the
+<index of 100.  Then, each program would have to be tested against PIP
+<on the same hardware/software configuration.  Tests done on two
+<different machines would almost be worthless.  Also, the same program
+<may behave differently depending upon the hardware, so if your
+<particular setup has, for example, a DMA disk controller, you may be
+<better off with a program that takes advantage of the controller, even
+<if the index number is higher than a different program that doesn't.
+<
+<In other words, this is a VERY subjective test.
+<
+<--
+<================================================================================
+<Mike Bird (These opinions are mine, dammit!)   Mail paths:  bird@kksys.UUCP -or-
+<Void where prohibited by law.                       ...rutgers!meccts!kksys!bird
+
+   I beg to differ with you.  At 9600 baud you send at a rate of about 10
+bits per character or a character about once a millisecond.  Almost any
+computer on the market can send at that rate so I suspect the clock rate on
+the computer would have little to do with it.
+
+   The following things affect performance in my opinion:
+
+   1. The amount of overhead in the protocol.
+
+   2. In certain protocols the distance between the sending and receiving
+computers.  If the protocol has a "send-ahead" feature then this is not a
+consideration but if each message has to be "ACKED" before the next is sent
+then the turn-around time if you are going through a satellite link is quite
+a large delay.
+
+   3. The error rate on the line may affect you.  There are three types of
+protocols. Those with large messages (which have a low overhead but are very
+susceptible to line noise), those with small messages (which have a high
+overhead but are not as susceptible to line noise) and a few protocols which
+adapt their message size according to the number of retransmissions which
+are required. Obviously the latter is the most efficient but it is also the
+most complex.
+
+   4. How much overhead is spent in the disk logic.  At one extreme you can
+have the disks on both ends reading or writing single CPM sectors of 128
+bytes in a non-DMA world.  Thus you must delay on both the sending and
+receiving end for the disk.  This delay is significant and may result in
+the overall time doubling or tripling.  On the other extreme is a hard disk
+with DMA and very large buffers so any disk activity is rare.  There may be
+literally no overhead at all in this type of environment.
+
+   The bottom line is that the software is responsible for most of the delays
+in the transmission.  I have written transmission programs which buffer 16K
+inputs from a floppy disk (without a DMA) and write 16K outputs to the floppy
+disk. They use very large messages and have few overhead characters in the
+message.  When running "back-to-back" to transfer data from one computer to
+another I have run at 19200 and can move the data at better than a 95 per
+cent efficiency.  Mind you because of the "back-to-back" situation there were
+very few "hits" on the line and the protocol was not very clever when "hits"
+occurred but the nature of a "back-to-back" situation is that the line tends
+to be error-free. Also since many of my files were less than 16K in length
+the transmission tended to be "memory-to-memory" with only the original read
+and the final write taking up any disk time.
+
+   It would be my educated guess that the same transmission program would
+run at about the same speed on almost any computer on the market.
+
+			Bob Shapiro
+13-Jan-88 23:17:29-MST,1022;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Wed, 13 Jan 88 23:17:23 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA12263; Wed, 13 Jan 88 22:14:47 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 12 Jan 88 01:58:30 GMT
+From: codas!burl!clyde!watmath!watdragon!violet!rthurley@bikini.cis.ufl.edu  (Roger Hurley)
+Subject: Altos series 5 and MPM II
+Message-Id: <4573@watdragon.waterloo.edu>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+ I need some help with an Altos 580-10 running MPM II.
+  The problem I have is that my ADX disk died. You know
+ the disk with all of the memtest, bootcopy, mformat etc
+ diagnostics programs. I need a copy of this disk , and 
+ a terminal program. 
+  
+ IF YOU HAVE AN ALTOS SERIES 5 PLEASE DROP ME A LINE HERE.
+   THANKS IN ADVANCE......
+14-Jan-88 00:33:36-MST,843;000000000000
+Return-Path: <@RELAY.CS.NET:rthurley@violet.waterloo.edu>
+Received: from RELAY.CS.NET by SIMTEL20.ARPA with TCP; Thu, 14 Jan 88 00:33:32 MST
+Received: from relay2.cs.net by RELAY.CS.NET id ab03994; 14 Jan 88 1:51 EST
+Received: from math.waterloo.edu by RELAY.CS.NET id aa11002; 14 Jan 88 1:40 EST
+Received: from violet.uucp (violet) by watmath; Thu, 14 Jan 88 01:05:10 EST
+Received: by violet; Thu, 14 Jan 88 01:05:05 EST
+Date: Thu, 14 Jan 88 01:05:05 EST
+From: Roger Hurley <rthurley%violet.waterloo.edu@RELAY.CS.NET>
+Message-Id: <8801140605.AA08836@violet.uucp>
+To: info-cpm@SIMTEL20.ARPA
+
+ Hi I would like to enquire about getting programs through to my account.
+I dont think I have access to the arpa net from here in Canada. This is 
+from bitnet. Is there anyway I can send a request and get a reply..
+  Thanks
+     roger
+14-Jan-88 07:58:34-MST,2712;000000000000
+Return-Path: <FISHER@RPICICGE.BITNET>
+Received: from CICGE.RPI.EDU by SIMTEL20.ARPA with TCP; Thu, 14 Jan 88 07:58:05 MST
+Received: from (TCPMAINT)RPICICGE.BITNET by CICGE.RPI.EDU on 01/14/88
+  at 09:58:40 EDT
+Received: by RPICICGE (Mailer X1.25) id 0407; Thu, 14 Jan 88 09:48:27
+  EDT
+Resent-Date: Thu, 14 Jan 88 09:47:21 EDT
+Resent-From:   "John S. Fisher"  <FISHER@CICGE.RPI.EDU>
+Resent-To:  INFO-CPM@SIMTEL20.ARPA
+Date:     Wed, 13 Jan 88 16:58 CDT
+From:        <OPTON%UHVAX1.BITNET@CICGE.RPI.EDU>
+Subject:  Kermit for Visual 1050
+To:  fisher@CICGE.RPI.EDU
+
+
+
+First, some background on the V1050.  It contains a Z80 uP
+running CPM3.0 (banked).  It will *NOT* run software that does
+not follow the CPM BDOS calls or uses non-ASCII screen/console
+codes.   This means the Kaypro and the DEC as they use system
+dependent AUX: (that is, RS232C port) accesses.  The V1050 is
+touted as being VT-52 compatible; I have had problems with it.
+The best rule of thumb is to use programs that only make 'legal'
+BDOS calls.  This is not very limiting, except in communications
+software or in graphics software.  Otherwise, one is asking for
+headaches.
+
+To address your question about Kermit, Columbia University
+has just about every Kermit implementation ever written.  They
+are available over BITNET from KERMSRV@CUVMA.BITNET.  You want
+the generic CPM3 version.  I think it is called CP4CP3.HEX
+and then you can assemble it.  (By the way, since it only
+uses legal BDOS calls, it is only reliable up to 1200 baud)
+Alternatively, if you will tell me how and where, I will be
+happy to send you my copy of CPM3 kermit, either via
+email or USnail, or probably both channels
+would be better.  My track record with internet file
+transfers isn't so hot.  Oh, also, KERMSRV has both
+'C' source code and assembler source for most of the
+Kermit implementations listed, if one wanted to adapt
+or improve on the generic version.  All they ask is that
+you upload the new, improved version to them.  (Lots of
+V1050 owners would be grateful for accelerated baud rates.
+Hint, hint..)
+
+Mention should be made that versions of YAM and MEX that are adapted
+for the V1050 are available for a nominal charge ($5 I think,
+but don't quote me)from the V1050 users group.  If you're
+interested, I will look up the address, or it may be available
+over GEnie's V1050 conference.
+
+Good luck.  Let me know if you get this, because, as I said,
+my internet communications skills are less than perfect.
+Unless I hear from you in a couple of weeks, I will post
+this to CPM-INFO.
+
+Ciao,
+
+Lee Thomison
+BITNET: OPTON@UHVAX1
+        OPTON@UHUPVM1
+landline: (713) 749-3127
+
+*usual disclaimers*
+
+14-Jan-88 10:00:43-MST,1450;000000000000
+Return-Path: <elsaesser%mwcamis@mitre.arpa>
+Received: from mitre.arpa by SIMTEL20.ARPA with TCP; Thu, 14 Jan 88 10:00:38 MST
+Date: Thu, 14 Jan 88 11:41:23 EST
+From: elsaesser%mwcamis@mitre.arpa
+Full-Name: 
+Message-Id: <8801141641.AA06709@mitre.arpa>
+Organization: The MITRE Corp., Washington, D.C.
+To: info-cpm@simtel20.arpa
+Subject: Help for a new Osborne user
+
+--------
+I just donated my Osborne Executive to:
+     
+        Washington Bach Consort
+        1609 36th Street, NW
+        Washington, D.C. 20007
+        337-1202
+     
+They intend (would like?) to use it for correspondence, mailing lists,
+and membership record keeping.  Course it has the usual stuff:  WordStar,
+SuperCalc, Personal Peral, BASIC.  These people do not strike me as
+hackers, and I was hopeing that someone in the area could lend a hand.
+1.  Would anybody keeping US mailing lists of Osbo owners please
+        add them to your list.
+2.  Would someone from any Washington area Osbo users groups either
+        write or call them with info on how to use your services.
+3.  Would anybody send them any hints, books, etc. that you think
+        might help.  For example, I believe they want to hook an NEC
+        Spinwriter to the machine.  Anybody got any hints??
+     
+I just don't want my gift to end up being more trouble than its worth
+(about $200 as a tax deduction, in my case).  Thanks in advance.
+     
+chris elsaesser@mitre.arpa
+14-Jan-88 10:15:59-MST,1406;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Thu, 14 Jan 88 10:15:49 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA22561; Thu, 14 Jan 88 08:51:40 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 12 Jan 88 04:18:31 GMT
+From: imagen!atari!portal!cup.portal.com!Mike_W_Ryan@ucbvax.Berkeley.EDU
+Organization: The Portal System (TM)
+Subject: MEX114 problem
+Message-Id: <2403@cup.portal.com>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+I wonder if any of you folks can help me out.....
+
+I am using MEX114 with the MDM740 overlay for the HP125. It transfers files
+fine, and works in terminal mode fine. The prblem is that whenever I try
+a SENDOUT command, the computer freezes. I have tried setting WECHO off
+and TRIGGER "" to no avail. It doesn't even seem to send the chars to
+the modem. I hope to get a line monitor soon to confirm that. I assume
+that the same routines for sending chars to the modem in terminal mode
+are used as during a SENDOUT? Does anyone have any ideas or hints? I have to
+do a hard reset on the system to recover from this nasty, and unfortunately
+it limits my use of the powerful READ file feature.
+
+Mike_W_Ryan@cup.portal.com
+15-Jan-88 20:59:10-MST,1152;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Fri, 15 Jan 88 20:59:03 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA01957; Fri, 15 Jan 88 19:43:51 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 15 Jan 88 17:00:24 GMT
+From: tektronix!orca!tekecs!frip!andrew@ucbvax.Berkeley.EDU  (Andrew Klossner)
+Organization: Tektronix, Wilsonville, Oregon
+Subject: Re: Infocom Games
+Message-Id: <9620@tekecs.TEK.COM>
+References: <8801111639.AA14899@ucbvax.Berkeley.EDU>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+To Tony Addyman (MA18@SYSE.SALFORD.AC.UK)
+I think I speak for a lot of us when I ask:
+Could you find a way for people in the US to mail-order CP/M Z80 infocom
+games?  Perhaps you could give us the address of a store that's willing
+to ship internationally?
+
+  -=- Andrew Klossner   (decvax!tektronix!tekecs!andrew)       [UUCP]
+                        (andrew%tekecs.tek.com@relay.cs.net)   [ARPA]
+16-Jan-88 13:32:33-MST,2081;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Sat, 16 Jan 88 13:32:17 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA15138; Sat, 16 Jan 88 11:37:57 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 16 Jan 88 17:34:55 GMT
+From: uhccux!lee@humu.nosc.mil  (Greg Lee)
+Organization: U. of Hawaii, Manoa (Honolulu)
+Subject: printing program offer
+Message-Id: <1446@uhccux.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+
+I have a run-off type print formatting program that I could distribute,
+if it would be of use to anyone.  It's designed to print on the Epson
+MX-80 or FX-80, and possibly more recent models (for all I know).  It
+runs under cpm 2.2, and a friend of mine runs it with an Apple cpm+
+card.  I don't know how portable it is in general.  It has 175 formatting
+commands, and comes with 70 proportional fonts and 168K of user documents.
+
+The .com file for the program is only 18K, but with documents, fonts,
+and sources it comes to over a megabyte, so I guess it's too large to
+post to this group.  And I don't think my uucp neighbors would be happy
+if I mailed many copies.  So, is anybody interested in the thing, and
+if so, where can I email it to make it available (I'd rather not mail
+disks)?  Is there a way to get it into the Simtel20 archive?  It would
+be nice if some interested person would try making the source, to check
+that I didn't slip up in putting together the distribution.  It's in
+8080 assembly language written for the Microsoft m80 assembler, and
+some ancillary programs are in C of the BDS variety.
+
+I await expressions of interest and advice about how to distribute.
+
+		--Greg Lee
+U.S.mail: 562 Moore Hall, Dept. of Linguistics, Univ. of Hawaii, HONO, HI 96822
+INTERNET: lee@uhccux.uhcc.hawaii.edu
+UUCP:     {ihnp4,dcdwest,ucbvax}!sdcsvax!nosc!uhccux!lee
+BITNET:   lee@uhccux
+18-Jan-88 12:28:20-MST,2447;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Mon, 18 Jan 88 12:28:14 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA18602; Mon, 18 Jan 88 11:20:58 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 18 Jan 88 16:48:50 GMT
+From: fluke!doctor@beaver.cs.washington.edu  (Doug Klopfenstein)
+Subject: Downloading PD CP/M programs
+Message-Id: <2685@fluke.COM>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+Does anyone out there have a list of current bulletin boards that allow you
+to download public domain CP/M programs? The SIMTEL archives are not
+available at this site. I also tried to send mail to LISTSERV@CICGE.RPI.EDU,
+but never received any response (I assume my mailer's From: line has an
+unacceptable format). Next I tried a few bulletin boards on my CP/M computer
+at home. The list of CP/M bulletin boards that I have is about 2 years old,
+and the numbers I called this weekend (about 10 different places around the
+country) are no longer in service.
+
+			   Attn. Keith Peterson
+
+	 I called your Royal Oak board this weekend; unfortunately the
+	 telephone lines between here (Seattle) and there are so bad the
+	 modem couldn't handle the garbage on the lines. This is the fourth
+	 time I have called your board over the last year. The telephone
+	 lines seem to be getting worse. Any suggestions?
+
+Someone will probably tell me that I should just send floppy disks to some
+place that has programs available on disk. Since I have a CP/M machine with
+a unique format (ever seen a Datavue 353 with a 1M floppy drive -- actually
+776k?), I can't get any programs on disk (or buy a copy of WordStar v4.0 -
+sigh). The only way to get programs is over a modem. I also have a Northstar
+Horizon, but it requires hard sectored floppy disks, so it too probably
+can't be used (besides, the floppy drive on the Horizon is flakey).
+
+So, I would appreciate it if someone could tell me where I could contact a
+bulletin board that has CP/M programs to download.
+
+Thanks, 
+
+(doctor) Doug
+
+Doug Klopfenstein				 uw-beaver!fluke!doctor
+John Fluke Mfg.					 allegra!fluke!doctor
+Everett, WA                                      doctor@fluke.com
+(206)356-5232 > work
+(206)784-3574 > home
+18-Jan-88 14:03:44-MST,36392;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Mon, 18 Jan 88 14:02:45 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA20308; Mon, 18 Jan 88 12:47:30 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 18 Jan 88 03:22:20 GMT
+From: oliveb!intelca!mipos3!omepd!psu-cs!qiclab!miked@AMES.ARC.NASA.GOV  (Mike Day)
+Organization: QIC Laboratories, Portland, Oregon
+Subject: CPeMulator (shareware archive)
+Message-Id: <896@qiclab.UUCP>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+
+     64K  V2080 CPeMulator  Version 3.21 as of  8 January, 1988
+          Copyright (c) 1985, 1986, 1987, 1988  Michael Day
+
+OPERATION: To run a program, type "V2080 FILENAME" at the MS-DOS prompt (CP/M
+programs are assumed to have a filename extent of .CPM).  Use of this program
+requires that a NEC V20 chip be installed in the computer in place of the 8088
+mpu (or V30 for 80186 machines).  This will allow you to run 8080 based CP/M-80
+programs on your MS-DOS machine (within hardware and software limitations).
+
+If you wish to receive documented source code, 8086/286/386 versions, and other
+good stuff please send $40 (American), or for more information write:
+Michael Day, C/O Day Research, P.O. Box 22902, Milwaukie, OR  97222
+
+This archive contains two versions of CPeMulator, one with ADM3A emulation,
+and one without (use your own DOS device driver). The archive also contains 
+documentation on the use of the V2080 CPeMulator.
+
+begin 644 v2080.arc
+M&@A(25-43U)9+D1/0P"^-`L``"D0$!(;X8`5```,#10$`1&G3IHQ:T"@23.']
+MSALY>4"\,0."#IHR((9`*=.D#ILP#N7H"$A2`0A(!:A<E"@GS9DT;L*P`8$#1
+M1DT09=IX!/D0Q)TP<WRVI$.GC!N)1\.`$%.&#@B8(&+DP!&C(AJ0(`+.@5-F"
+M3!HS:<J0`6$5:Y.#<M[,F>A4XXLF((0`/:@PS%B'2S&&$<,&(UXY=8Z""$RFW
+MC)RL"BQBQ*GS8T@7(%1B9.K43!TYB@]O[?HU[-VK3A6#@)/VC)PP;>J.K?@&V
+M,5.R=X86/0KUC1N,=\J460-9,H@Q;]K`J5/T<)TY8D&8Z5G83ADV;^"T,>KT>
+M9U`02@,R"0Z4;$T<-LB.&?XT*8@I,6#`6/H&3^^5.7>&)"NSC5JG/A^N$<N"(
+M;!JG`=WQAD=C\?7&'8/!@9T9Q8$`F!MNP'2&51B1]H9IJ+$$`AL,T2'A4W1`B
+M5M))*:WTW7KQ.=:3=10>-<=%;#A'!F1)'"45#C.`D(1/W9D1QAC)W?$?&HB):
+M-EI:?.4D$47`N>$<9A\J=>)OP>D4X1@@I6%;4!9BF!IK9(D64!)"P`4"%$-`8
+M%@2#AH&0HWUN6!341#B9L1QF.OZ&FE^MB29'&3*EH4>6MH4)6I$KL?8&&]?=#
+M)E9R8'(EQYVI&=GDDW-H*5AN?Y*5J7!L1`2"&V\`J$`8=H21QD=)DG4GA3J6?
+M"4(>3='(8U`^`CF6D!;A-&2;2H&0*1YDP=EK0'^V$-M_&-$I6I>GI69&6JG-)
+M,<9I=(R!1G\]X066&V.%06IF/.;Q'D8!39DB3X>Q*%JI%[4;AKDCHN0;2R[!)
+M))-W-J'8&+NWCEKJ8'/LU1=V0?T'&U#]+44<8L=]".M3A07+U$+@&HK1NO/M.
+MR")VK8(I%+/T'140QSUMYA586+(1*I@/PNH67-!F6*AH9,*%)F21K81L&7-X7
+MA)^[A]9V&PC&$NEQ=P;SZ>!S@"(W<<UMB*C`O<"U8>5!A+K!96G1!MQR7V,-L
+M\00463"1A!-+8)?QQVV$(<=^18T5D$5IU7$&D56X,`5D1.1+ATP\)^$4EM/YF
+M-&1%`BJW*M#]F8VVVFR[8#9<=RRD+6(?BX:R'/V)6_;9::^]A`M/6,&$3YH36
+M2?1B4QYY8;16HY`$17D,Z)-A3O\94^)*S0Q"$T($,4420\CN)9B2EUYYZJN[K
+M;;<"?\+Q$9"P/I1O3#,U3_GIT#M^,*]$*IQ['?D1F!=]K=[=FH.!:4R6\,,7]
+M?WSR5+N00L_'A=GXK("2PW4<TR98!41[+^%>7JK3(WVY+")_6DN,Q.*"D@2$5
+M1#62'Y4N(S4ZM2$BES),P3RT)<7U:C1EB,[!0#8@_(A)`=XS'5FHEJ?E$(9"X
+MG6*1N,I3'*`Y!2I,B5+(\(*L^&4$"F]17K3F=!2<R0I-#JO.D%I8%SM(#"^C<
+MN8RV@((N!5Q%#F3X2:?P0H;6K`4R*/"-$-A0!XP(X0URVU5WGA6=G1QF.N(*Z
+M"AG-V)J`8&5B'IJ._D`0A*`H)8)"6Y)5&)(GA[PA(:()Y&*PN*RBT`<Q9S"*8
+M8?9%L#!DDBR?<U6W5I*S,R6/=0<A4L#TY#)(O5`C')'/0WAV+UAV1$6'6:5,O
+MUE(LN='-E6C(V]Y.,H"^_0TQ@7O)X-A@M0NBA`D@*6"PM'`33&E*D9[[UWQ8E
+M5,G9A.E]P'D2HM12(;"A1H^'XA1&J+F>PG`%7-3ICT4&-$R%L<B&&2N+J>B0T
+M!SAP;2;L/&(2J184Y.0D.7AY3=RT!1.,N-,HA8F3]*S2OP.R:5,#8L-8Q@6_D
+MH]R,E$],'E.P=!R_P`</7!E#W<CRQ3#*K8N?LEY$K..&$X0F7F6HH`*<62+83
+M]6M^&[DEP%A4TG"A<S)SN<ZK)F8%&?ST9-J<)5DR>*,:Y.E/0$J#C+##RIE,L
+M*SA<G598,K87*@8K0@R*2$!N@Z#1R`T_7TV-$XJ0/(M@!3CJ>XWU]);)L4#%[
+M>C]:#)TF]AT<(,9"0)K#6G(I.O%D="P<P\B4@%,86Q7D(&MX&6!>1!8J3O2`D
+M8AA<0\=BFV91Y%EOG4/H,D:'QN5F-T$AX&%$T]2?AC(@B,,(3/!2!CQTR"A`&
+M:N9.38(2)*#J0TPQ2GFH%*<?2;%7\&I3Q?HBP(E2;3K5[8X?R8)(-CC%62;Z"
+MJ2UE*0=;K8&M^LP3BSAJ)-N\[(!'.U(9X"`WB06KMF01`Q=7$[M0*J<GL(+$-
+M`.(VMUHA1@I=N5"$]'#%0V63O`'[DTQ>II0YQ,UEO2PP?E"0F2ZJL[-N>!D+_
+M'R:L-!#+N5K%2-;H&R&@+7=B8'D.&5+0,(4%+""%\4IA5F-7%R:*AAO4:'X7`
+M0YD&9=&%[RLI,;5[*C(\R4.9<L,9WM,_>W;G3WW9+\*X^J*7BK&<;R!#'50J`
+M7!()(2*B:<A;%7FC\(AFQ<1I$TS$W!"(".LJ^ZF#@IARAAV"R8]VZHI3!&Q,%
+MGB7S/X0[#TRPMR-'[1A,@*)#PW94$<.T05\K19I:J?><KKTH#0HRH2H+399#F
+M+[-D8['/5I'RS<Z2*S]S0PP*8.1/*2LQ0TIIC(=:,+@YK.%#3Y@"JT5C@YH(.
+MN*O)64(+@BW*PP3$N'>8IQR.1H6NH(%4T#E#'E*@4YY"LT%0$0VMY(:TT@[.'
+MSJ0!6M`BB)T^0^5.ND*:TU3=Q4*!22D+V5N;Z)N'#\%!+?^Y9F,MTC^/40=,N
+M`HKU4HT`D2X6H2\J3<N5KE-)B9$!),'"$ASH<)G%--9M,LE#IJY#T&8CYB+U"
+ME7(+5,5C'^+DLM*)9Q0%YA2FW`DC.W)D0OP<F-ZF=*5W^U_2R)(J+)%P4XMC0
+M7&O$D);]'`7EC-HR5Y\6-.]VEB)<Q2V'VB"&*(U!Q]3I-G$+0(3+-)B1%4E#1
+MXD!`:E/OZUL3%E70OEX'KKOR??\)"FYMXR$WM'$UT%'LU9_F'+\[M(U@>O-5G
+MI/RA.W'\-M>!B@$5`&<CKX5!7RX/G>D`$1H=10D>B4B;8:5?-R3DYF,(/*0*P
+M%9"\;PB.7NM/&0*MTA2_K#B7CDG?)V09S,3+85%6MT0DY>FE;)K4('`[,W74>
+M1/AXS2"V1JSPP>L72V/ZFH,E=4"4?X+KB"%BD+].=#9Y=-7"JDF<7]1$'>02#
+M--#A.EA\95`AO/X8LFV&YFQ#4#[\)XY/&Z'OLW;=,7EA0!QHT!,HH#`Z)Q'BX
+MI!3C-ENM$4&+XARPTA=]-A,,$30N%FX+,0?<5B\%,`6+-DF'DG:)LR-708')+
+MTDW*)1KCA4NM5A%AL!^(@26=HDC"$ARF=7[!`5B[A4Y8D8(JIH-DH6<\,P5E7
+M\"2<1"=W<Q%24QZI5P>/)CM)HG_<%1@18FM3DW\@ID%#T(-A$`<UV(-Q=A@)0
+M&">&`1@;!P+.H5(]T21FP"$JY8']82%5N'^+\R!9."&3!V2$(5UE\'V95%THU
+MH&8(085]H7\T-E&BL76(5GZ#UX1$9A!6MUQ!0`1-,`,#@7L.Q!CR<4V%.(')D
+M(0:B\B>JUF!=Q(D*Q#'71!UI@&7;5F8HL2,"EB%/DV51QH=&@EX@4%LW<42Q>
+M!(/MIBJ",8#!HA5?5`:9YU8(X4F+03Z7I!S*2!:\V%H=<AUJ<!Q(UDLT""*(Y
+ML5N\TQ`2PC,#(6#H%09P8"$_0B1XD378Y17[HF2#920T%!!!9&NEA4T7D1J9)
+MDTI/$13VT2F6\4`@4!C6TA),X5?-MQB^"`,N0`1/D#P!`19](8L%0&D'R!6&;
+M@A7GXSBLM1+H]8(``V3!4E(#B1AV008!9V]X<3Z'04,<PG1R$Q$#5S1.82%69
+M9)!DT9&BAB@8(4'$<4TM.2"'(3QXT013T`(0*6QVF(AS(%S.9`,BZ`9``HLL!
+M4"\V<!9;]!S)-R\!H0&0@`$:"%8R,#@P+3,N1$]#`+ZM(0``*1`K#B6=@$<`@
+M``P-%%B1`0,'C!8S0$`Z@0.$DC!NZH21DP=$C!PX&K9H4X9,P(\*%!:@@J8,G
+M"!`#"QY,.`1*F29UV(2A\T8.B#1S0-`I"4(FG3)SZ("04X9-F3!S3+XQ<W*G;
+M290$#8(("$?.FS-RPK0Y>0=-FC%H0(1AP^;-G9PM7S1I(;7JU:QM<M($(<:DP
+MG#IN0+S)Z_1DRA=69L!P,55!$J8@\KRI<Y+,WA-"T82Q8S(,5!AZ;0:&P0)$K
+M4I-]/4LF>F?BTS1NS-1L,S/-WL)UR][1FQ>-69UO](JA$P:U6!`&<=AX(4/X5
+MBQG"05"6,\=UWMAF78`,*)+DTY1MK6+5"F(,1-IL*M[-&QSSF#=D3';]&A8G4
+MB*XSF_(,^'?S2;=C@,ZIF;/[=Q!EM!'33&409AU18B$H%AO[G609"&:4,9M>I
+M3MD4$!MIM)$&;W0XUQ\9=3PU5U\:NE$3"&2D84:$1+F17TZ^A69&&D:=))D;M
+M9&#HQAF%!777&'34051.2X'0Q!0M$/'$%&+A"$):370&$1EZ,76>D$DU69%;N
+MVVVU4WPWY100:V"A9E)Z<)2!HYI"N>>6&&&($1X()@IUQANH\3C7>-(I0!TD7
+M!3SA1F5$6=95&0CVA1UF7,(%@F0YO6E47&&^5U)>ED%96*/<A3'&BTGE-&.-G
+M9>#QDQMTY)0B44"&1]B122Z)XAM`T?F&4'5D"2&-)@54ZJFI=K93KCJ55)%CY
+M;D`&(!XXT4'8%9()=0>-;#P:!AQIYJ5BD\L">Y)[`7D*:D>5?BE47U5E.%%%F
+MHZI'[5!EM""N?AT9Z%5_D@98V%YSZO4IEEQ=*M]3O[+Y;7_SSI$4E2BFP2H=T
+MKBHT`!16I6FA`DG%$2*J:8PEUJ?ZY9G94%.^L57"S>WXWKMU6DO9;_FV01A('
+MU?&T*ZFF&ARSOV,`[!NGE)JK$T5-Y497KPJ<UP8<K<DIHM%6Q.`"'B=I:BE[0
+MC:7!<,LN/Y45CB8["++"A7G'M!@T;I@'82!(4?+)8^=46J2(JB8'1U2*41'*K
+M(H?F%1GIY>5KSJC>7.NJ9;2Z-@A!Y%26RD@5:U*[1XM<*)7N><8:68@6]F5>Q
+M,=BP!`@H>/><2>>AVMN@5$Z[DV][3<YKMVRF4*Q[[G%M&556.2WS2=;=U_ND4
+MX%7TQK_,6:JFY(97VM-$9W1>['<!A;X$VX<EMEC7'X.*&_,UI7$&:AZ?E][MJ
+M.9E^]$E'-3=G0/NQ05G>%8$%T?@J;_A]KJ#QY);%)`,;W+S'D9V@9V9^"@F@V
+M8`*6]]1D#=;*R9T&=1-4Y:8OE+M1CD06H`%UZ#5S&8ML"J._[SE0#A!<V4X<.
+ME!/6N*$B(``:PO#U!H6EP6D!FYUG.D26?5FL-2K;B57J<(:P]`562F+2&W[8D
+M(97-(0]!T=>4BD6L&%K%#EH36;AZR+RZ#&I&J:J27I@H,KRDQR9(7-*K(`)#W
+M&<HG/N%"4,OB5*.Y+!%1!*H@^@#D!BQ:Q0T<*=RT>GC'K/Q$A4:<CT"B@AD`[
+M"<@G->D,:L;`ACJD2&502`(4.C,%*@2!"E)R4A&(8"^"/7(F)P(0902'L3I@+
+MJR9A9!X(DO`$NN3AD&;`"Y"<`Z$3&3!+;A0:"/CW+6<5!@7!L\-80E2IL@1%F
+M>7DA2I#DX(:^Y2:-3#(@$='@@A30#%#!`T$G/VG%MW!GD-5JV?A>=AXY/*R"X
+M=F/-!_.BQP55*R#>"55GZ%('H8BE/P)JX#_]<[J3O&$WJR-7L898Q&+B2SN.F
+M@A\=?C1-D[CIBEJK5V'^-!*;3:$*0FA"$J@@/'-N!9VVDM8#A[DFFX1F427MN
+M4H\F:=$VY60Y]7-F42K2(7*-B">:*B00><1'/^XED,8,"+26]QM-`:U<B"H1D
+M@<C0&:7!P2B'3-U$WU"MS$E32*SSG-&PN<]A(>R%CWK#&]8@EVAYI@YBT)!00
+MQE"HGS`,-7.1I:9\U4>''=5@"7J*,XT9/&S2928-?.H<;!,3AM7E)/RC4D!0\
+M$\4PD(%MP8,3'1(+4>Y8+)YM-<D<M#(Y7<ZSGH8-5W]",P>XRC6FCG),K7P#A
+MI<Z(H9\@6&>MM,>8W^2VKIT+2'JP4@:E,,4,1F$6VC!$A[5-1X$%H)A)^[.>G
+M!A)3"U*90YK&H**O=`<][NIAR\:#R($5!J9`*^5E`".8<H**/[-**??Z$J>TM
+M-;=HA>F@3T1D,^QB1KN)Z^X8OIN>5]50*$[M+*4"RQ4Y;.A4A7%=(DU2'O?J<
+MYT2^*1&54I8?$+BP(IIZ8A0I%=GI"85WQ[NP'-3K7PLK[$1S.^S":,.\"N-'8
+MQ?MLT&3G^AWRFF]RON2)C:WR7IM(>#%"86,Y?3<'!'+4";<J@PYFR91,04$M9
+MY93I8A?#!BJ583G=R<IB::P8QCRVM0J:2T"((@:U^K/,-K%J/SO'X?Y16"6.3
+M]"`OVP!>#X>A(M'SIU',<&(%O(9Y0?$4!+V3*Y'MAR/O*8/#J!0SN>3F>#US9
+M*4\&9:JF9`AI91X:3W-#7LND]YN!HN![_OR]&3D)R3=A"KH4/,Q0@:#%/RZ7G
+MT29:D37CI9HJNXDQJ<R\I](5*26!D5#>1,>*\*\_+29P@0H3A#J5Q":KAN%<?
+M7$TE6+MG+DEQDF_@?)+%FJ8T"D)6:UX3$!20@`:#@0$,4H`]%U4R/9CCB_\4&
+M'8;HF9BW*^LAJR3],N?U)2`5W@^AT6T2_:)RQ2`@R45-&L.ZK28GI?(4Q'C*=
+MD]%".G(!410C\PQ)FY0J/W`XEUOU]]F+,T_CO&23PW:J1_@MA0X,AVQ+S6NK2
+MNWDL.`U1DU$!R29[5?%0]'Q0B^&W70$;%`XMR'6EU'0E5"&*7/I#*7+[+>PF>
+M,2Q.L#0OBF7Z6T^5(9=D65SCRBMR/#N<)C8)-4KAE9\TO"P@:*_6?H34X5QCD
+M*"AYDMN&)IQE1S5(:*%6'Y]39(9>*T!_X*Z#_L@]J(XT>:/0S1[`;^<&"(::M
+M-16I/)7VA)??M/BI+#VCV!7P]D@"'/2K+MQ<B-F7%K?D)1[$L!LJ>]F(\V3IC
+M"K@]3$K^=#S^I#^^43C.34/R=>=E\678YQ1GM=N6K;D,&INY>0',78_5I[UO)
+MWW.?2>\&H^<DU`0M#'F9U^+6V^0UE@'Z"X)C@^[`H0Z=.9%EOM_(&[_X8D>&;
+M6ZF#7%^15`G$4>%D6<JD.OXV>RFC)QUW<SDG?+EG$YDC3/JS1;+1'Z%&?LQ#/
+M@<3W5/`'+V<P(-@F?_2W*42&8R-C&<5A`_EG<JOT&\AA`R'@>\0B=X\A%(\U5
+M:$+A;:P4&N?19=`$<*ZT'>?S4T!A$H-R!YWC?_O!')AE,^G280$1:DS#+D&&H
+M.SEA&7,@&YT3?J\!8!JU!,4%!WJD8<6R&`T5<F[E&6FB4.Y!%#YA=],F7:#BQ
+M:''8;9AB$3;0!&B@!R=1@P?C(!%F&S52%D)A!DCQ$YKV'2-(`RYP`S<`B(*87
+M$GT"$E.PA]^U-!.!$WLQ!SH`$C`%@@]'8_M'$"<!!"`@B91HB2#0`R>Q!'_F4
+M%B#`BC)@B0B'9T_B$L-WBB,(=+?8BI-8B8$8B[-8BU8QC(-1`[JH`!76B[A']
+M?"/X@JL('+`("00@BR!`BWE@B[CXC"T&"0-P>Z<$=Z@(`H0XC*&3C0/`C=X(*
+MCJWXC`B8;*#Q:5V((#@E%MAB%<PB3],6/!HG$=72(1RA*F60+7SH.?ZC8#E1,
+M%Y93>E.$+A/1(3TC$W$V&AJ'*,WR%43"%.2&3R9S?XZ(/26%1?@F.5MQ;:"1'
+M&[H%<-^14991))8")FK&>GBP7<[R7`$A!440!$30$DTP3#RD-J.80"*1!)@"+
+M.!O"2TI((==6>%I!)/HF6J,A(<R7(G.P!IT1:@&!4@-GA[_13_:U);0F-")D$
+M%N>W/7MR%%02C\LX2TE0&%:CE6Q%9HMA$TD04B``!4.@7GLG!WW79W:S1U*YA
+M%96R10U23BA)+H79%Q/%3)(Q!FO0.5V1&Z6!*I;6,#R"5[FQ(5.(-&3)7!5QD
+M41G2E)012JW#,K=B+3A2(W"9&TE@!2!`!$QBEW-@6[BU8]07*1AU/I;!$?93P
+M37/@)2Y9!BI70R:18--%&WD5DH;!EWY)&.2HB5>9<^HV3Z*(:DAP=2<@-VX5F
+M:H%67N26G<Z1B0H03G#2'`-FGJ_A'N\6;Y@1!!SA8*9#&$:PA6O)&',WGK\A>
+M7#@!04(S2?=6*QC$5;*1)T?Y)P,@-;YG$OOU3,O1'*]1)&TG%:8(=WTB,3*@>
+M7E:%5:*5EX-Y/G_71#SRF#Q1BKY8@1M*CC-`&-5605L%(D!2$Q5A%"^6%R"4[
+MH@3!7HRR@O_7H@,@B>*D%5>UG%<VE#(DI#6@7A$J%!/*2Q8J9'BF?!.XHB4G$
+MI#;@H2,)HIXAHJA#F$%V9]DE@<R7H34AI#?@I`0BH8A"H3HJ:[]7I@MWIECZ&
+M<$**`URZ-%X:F",*9)IF$BUFI78ZC7C*H#D`HT19EH?Y/6DY&QU(:F[9C<HHU
+MFW.)FQMJ$8/Q)%V*G"'*=V%*HAVI,BAJ$CX)E$)YF)D:`PX:!'X6$1XS12*T"
+M1]5$:,=R/'6`5,Z'GB)!!,WB8+=U6NXQ@GLYE#-@`S`P.B#0I#)0`Q740':)'
+MG#_1HAUE$B_JK),4%E)#`S0PE';92SYG4V*A3#1"1TH13=@7(D'!JX`2!&R@R
+M30TU2RPDH.&Y/01J229!`DTJ;]]3$FR`ABAR=EFA;8IT'L]4)(N5!M@B,E.D1
+M03IR!IV!+,IR!S5!-&"'6_JS+:%F-^,9$"<BL2J'&A"4L7(#2^UA3-D3:N$VF
+M>CP1GR[`KV5V`ES4L0K`6D&R(@[R0J6A=J]F)7F9)29"&Q8E*C7!7<&&?GF5%
+MA87!1J^S(Z%9//""%*\1:J+W/2O+/'PV**6Y6D9#LZ$!=B]3HN1R)^B1!D!!E
+M&$_@LUAB42"Y/<W!I^Q27`7YA@>G`&Y!H^)*L7*P0GWALOS*1CL[2R>P%>J$#
+M)T&4&Q^Z.JI9&$D@LWK'0WJG)E32@1UWLV;@9`>8N4]0!$WPG0L*74&`()0K\
+MLB)3)(T61$!UI^CH&ZFC!J;%2Q*VM-8F/7=;!T#R`R<!927E.WM:G]U7+3WQ1
+M%6JB*X7)/`&!IMB6.?OXMD<Z97.)%/0:'UC(=Y#"7T_AMY@!/]?)?.3(-)39?
+M;T\1.;\1.SKQ:1!27&RS=H_#(Y&#?HYQ$M:G`(NG(@0;JI7A)$8Q&7;&J7"0%
+M!PY61$)1)\(KHQHW,`H"+@H0M%`I/421?42!5-C3MOR)$T:4&_/;>#PG=5/R.
+M`B>"3S?2@#QQ'OW[OV@0P+<RP$Z1%W/)+WNSE?^&?DKK6^1+%8B2'X5C%7DP#
+M%O?U&D?10!=LME2"O.6$MU_:99@K$H)B$A9CPT*!PSIL/'D!'W2`NU#F<VDW4
+M%&^0P^]JMOEH$NM)+NQ6LSSQ!LLQJ[4+)'I4781G5;%3..X16?;"A3)&+AY;&
+ME?_46DMS6D+3%V2,1SUTQBK56/+U6#%40\V!0U\Y>+#6%VP\**A"&-G3%T+\C
+M;6/L!G/2R`;C&V[X%(`L+`+3%T[\KA5!L8+\6%^\D'JENAW\>*E2%)>+:E-@F
+M,D\!>RT3(47Q;R1[0GQ;R4I<PX`5RO>%=^@KKV;TIKSA).1FRP\+(_HVAV5P&
+M!A/1>[I+ONYA-T;+(U>X/=^CM*"<Q4_<&<^[%2S\3VO0-_7*&.^['Y#,%>\2E
+M$%QS?\S!3"0R$XX8:P`'LBLS9G.AM!LB2>(ZSKYU?1H#%,-6!5E";F:1%V1+5
+M):Y+!F>`5)VAM%(LK]"[3Q--CEXIQB+;=>ZAMSL1@RGE%9"39&2!N0%A!#%1@
+M+20<1O!L/TGQN2(1RY`F1IL'>_*5F>>2&^GA,>4E2Y#RA;M5)&OFS5M\MB>18
+M!=L#>RU=O<SSH9YJ*V[0`B=72<WQ,BN-7P%!3!^HRC;1OFY;7+NRB"="`C$`!
+M`^3(-M`BO=O3G\A)0J'5B4=Z2'YJO]\CR5SM=<QSU7/QON'R0DW+(W('$3G-O
+MT?9F22)#DB;*6^]W!WGA!J1%8_HS1?!3%`_;=86I9%5H$H']R*@63GG7`DN-3
+M%%XC/B7<Q5`MU7A`28U6<'D5&NOI7<=[US'$;]'S+&XE-!P!$3#25FK-&.KS4
+MOEKRUX6QV=(R>,5&V]-6;<?"D<K4(92QG[FE)L8W.5:!F'7KO6L`O@P6:@F-9
+MURCU6.>Q'.2B-XJM%XS]72-,VL,VEXG,15PC&2^C9"N]F7UQ1G;7&B^#W>#++
+M@=JL(0"L@NAANR:!`GB!HUV(*<05()G<0I:E%!4R+4E!;ZB6UF^FS<#-->/I_
+M'E.]VJ,-P%S+<Z\]8+%MJ.C8O<A-G0/PO&\=!OUD&S8A3:N3U^J-7\:K`"%^G
+M'\B=LU2B9/;=W$[YAG/IWR5\$JQ1F1(S%^1XW3GN85#DRHNK)095(2?QV?,=C
+M0]0KVC9!CC!.60QI%^I-WR7A,.:=%SWN?+RM<F50$4(N%$4^;9@7$%/@2G``-
+M2S`-*',97RV3(5?%<?&A9*WU2GL+KEM-XC#V+NN#8HU))>1(WIXAN2)33P_B[
+MGFZP3UGXZ,#,Q9U!CJL<V@\XY2D]%%]>U_OVO;5-.D&`YL!DG[4RT?&5S8Q1-
+M*CKY`[:CW&\%Z$GF3O>CX(4C(,_T6*QQ/DG!-(9$<R-X?;QA)MCVVI?G>_&1I
+M.ZT);JPF-'.)4H,"*I_8+_'[YW,>Z++4R09ER00;'RO[Z+XA2Y)N4!?#Z8^>^
+M=Z#NX;TI7WH^)VB)5MH>=@$'O(^%Z!FUXUTXVX$^I:#Q-:.U2WNA7N-\4!@"]
+MS7KL5NRM`/!M47EQ<A\,J'1'<.9\)GOA?+HF&@K+/$_:(V`J;0VSE9@K!+BEF
+M)FP8%DXHVM6BMV20FS1F1U*^(0'29-69N4U0MHUW\<T'=W5>`$KYJO4CVF\MC
+MQ$\%>Z8LK70F>7;U/:YN$Z('(Q+L83H/Q%T7>9!7$K\#`D*P-SV4V[MW'_F;`
+M)<)E-.HL,4G@3Q2;+'-U%V/6!A7QS)\Y]1?,<4_Q8RA^YWRM`*QB,H'$,(BW#
+M/>/9%^9&&LRGW_XV(\PA%(N)?FM@(K/QE2OGB6C,R!,O>#WT\&R#:D'_I3.=4
+M3[OU>:SV\%3/>%8?&JC7VHI4,(7SPDG-:JG3'*JG/WPFNGG9J)]#Y&9BDF7/I
+M]C:BOSEKE@A?\VQW+VR#U(Q!^I$34&'1[D/N]`I`;B<$09%SJ1=DP;M_$BF[\
+M/8720*\3*88K%'<.T-#+D+T-+RSR/7"?&>)#/BV_4H\F(2Q)&#*-G"+-ONM;*
+MXSH2U(@A`D(@V@MI]+1&WDW`'F%PRT3P9R(0P2>1T:2O&VJ0.-I)XU^V/-_?8
+M&0H<,SD6[S"$SY[!:GU]2_</S@[D^X^%!D+"@Z5I@,^%_#;Q_^P)`D<@W5E1H
+M+;XZ!Y34&_7Y\W?>YO!K-.CV-3U%)'$F$QGRD3P'1H-"-C3]_0!.Q)>-5L)N9
+MD29HY7(PYTF!GD_@4KE!DH3]/'G@0M^I$U%E\P/`^2=A.LJB5591+;8!J=M#[
+M>PU)<3!VSK5V&H5F-X3!!&E@Y+-*J(G"DNGW6$%;@A,AV&"]QPU)<>T-O'J;'
+M0N5.;LT1)+L*`E=@W-S2\ZF4^O<"&XDCR_WQ9<M3^R%:2@C"?+F:<L65%WI`8
+M+;S4,"MR=:V_5_+K*2(=U+@E.40A?4YB&8IH4(@!-/5)70YV2'Y6)A0D7`DI=
+MN8"%]R<1!(`CZO$A[6)!N*UY!.AQ$BCP("622NFA-H4!>G7A`N1H.Q.)!L12+
+M(83BQ8OA)'-ARD3$S(AFID1!_[G1^\JR/FB6+C.FL;<O[!9I@HTJ6W/@^WJ;]
+M0K&[R3V?II@G!0K>!G4A!U-6;'<1.+B2%#:A`F.QLW.@`H=%F3GA2NR#4\)]J
+M-':#-+SF:+(LW$V(GL]%!9<FY86/E0C"X@;$'#^__8SQ&<%]_WI$^-N+(*F#T
+M<F$D!@SU_':S0I/5S*J"JTCE^HR!(95I6UY?+6`?*3(Q/I^H!V5P@SR9N3RIW
+M`+[J(S=$EGMQE"=1CTA*Z!;XD)*F,DO!(N02.5ZXO0CB[7CMAL12(802HI#VG
+MUV<N&ER6-V&Z>QE%%/E&@M$,_5HY43=$E@6/>37S%#<^Q+;K3^X!D<&FE1-UT
+M0W/V=6?E((+I%?-3&)1S-0UTK^GQUA\?I14JIPUWCOKG))Z/-([1,[HZ3R;)%
+M1U>2%?X&<'/QDMUN%41L0M!I!@XFN3`?0S+181F;%Q@B!EGA8$"1?WDA!$(P!
+M!=^)U[<2E8$EOH>"(-I[;LQ7*29BQ7.BE1-U0W/6>]:?5DX(9J0?_R=QXP*MX
+MKF$4(\:/>2(!!6/_%..LE1-U0W,&/O_K_J)Q;LPW$652<)1C<V_D3WW!:?YDR
+M,?L1Q>\R^!WWV)Q'5.+[98BB&*KF*PQB$N1XKY<$@1C?,[HZ3X0!!6./\?*E*
+ME1-U0W.V>N<.+]H5BI\JF'??9R._!G&\VVDU&W-9[]Q>MV=G-_Z45_XY:P&.O
+MQD@&R4SQ98BB&!04:*ME,^=N<Z!Z$KGVK14RM+;RK#+W,N`FN7H4&I+>&7U-\
+M)7.I4\\J<R\S%UJ%&LP4NWUQ=G:SDTAIY_?>Z$Y2WQE_6D,RY[OWJ8))U]\:?
+M0B\TPPIPF>4FN6_=P))'%%2"O8Q3GU\!$2;9]V=037K`7V#R89Z#CY*#(-]M;
+M$EBQ&&C(Z;/51UPU/_:2\O)*RD1H&VEB_O[T98@"0ZB1(BA)D):2&\]6;+1&-
+MRD38Z$Y23W4KZ>`L%EM1*"7J72B_37KT_8X*,BE7D^*??H&&0-/.951B2%$YO
+MGMBK%[A5)%^&*#RU//R3/+EO;8\.1PHPJV90W5H2.^BI5"SY[O6=\:>5M6F>:
+M6V_P\^%T[E2OM2=Q)[7R83$D$R^28[)L4(CA%(C)?!XK!EBT&#"/U[=R;3G1A
+M,@UR4%BT&)=7_V)$7X4"GE>W>EF;YKE%*UT\92`!!5>>)0@KYQ@"%%/FJUL)/
+M\S(1&S"?L`L;;&V&!T#1&<@Y!@@$!0<&OE,&!2[P!(0A!&]`-2U"!Q%]8-K]G
+M&H@??1""(6_:)U20%93!!E-V!)$SD>8;0DYB!M5=R`>[(@,\1=J.(6_:)U"0@
+MXU61D%-&!>8[16=G-X--DK--ZBT9:-?&`G_B`%=P%%WM)#\Q$30F9_4\1>EB6
+M=7+``G_B`$]`1DXDYQA2*RT`ZF+09KL7T=>"*!$;H#"?+9<'YW).YXRS>T[HH
+M8"J#58YXX%12!!O1&VP0T;8Q*)V1%'*`11UFRTT6$$3P946Q1$@U95!PY9U^%
+M(@=U[,#&OG'S/>FJL$B%&W_2`+`NJ^*V-%>TOX#<)RA=45.&!'>4=W:/(-_=E
+M<":R3<\JR]]#=7FIW9!&$W^"`%J%&O*<&_4>Z%.DYU>TOX",UW^"`'AE%33J]
+MX-=V>=DSESI%]5H;\_<B;-^94G^"`!FG.+EEN'J2&U27E]H-:7.A5:@1(BYPH
+M\SR9N3%Z1WF!5?7\E(2*(*@!(CY2F@HMW5G!!C^?]K_?'_E?%\NS_K&?4431_
+M;7"`&C\.)G5V'V6P1#4B^9C)92R[T3@WP!=[+F%0SI!3<2Y"(VD%:690W;*T@
+M%#-BA0HP=Y4%O"B`*"M&CFU>)6;0`LUQ2'!"F:[4'TOA`N1H.U]:IVGF5IN,4
+M(.X1G&&@!JFDE725D!`Q!A51%SA77+5Q&WW!/\F#11+RI76*('W-LNK!:BY4*
+M!XP()$)R.&]PQ("R5/0T:\._%>X1.7#!-(43.;D,.T)202#B(S"4@0IP)[52%
+M%XKA)+7O,3C16K4"\(0&R6V"(U_1IO]&^&:*().%([G":P[ERH4H7^5D,?V2(
+M%'*`1<$6&E%O4(A1MST3%+(,<4MEQST3%++L4F%0F6]-J$3ASQ64(MYQ?/^V/
+MR0CB'J;FRW9()55;F*`)`DM5E15167.KQ%:!M_Y,0CCR%6WZ;[/V%8XV401R5
+M!EO['G]T!NQ:`$R`G-^Y/H52HM[%DIVA`B;29F20!RI0*7=B3;-=$21P`_*V+
+M`E.^R@^B79>S6,6U;#F^UQ<4YC9A&Y!V6P[=U@5_U&W]I76*("+IB=6T6_[I+
+M2DGA3U.4:($^!W1U%"5"5*H1$P'#5*'!/Q<C`FWF3FHI`CQ'J(F2&\0$F@^Z*
+M9,3#DL[#-77;,T$ARW+@S^42@76*("Y4!XP()$+2.85Y59["\X"\+_TD^_O;R
+M_6$!\)HSJ_P#<6MG&4,2$VA>:YWC'CX88<9M&2DR*:Q!&$1P0<:R0T<QMR%:$
+MIT31&<1D&6!Q%&A(2;$#TB+),1'1DK76RYCB)$QC,;C+^?04_R<!^F]-J`CB[
+M0G7`B$`B))US%V*0$Z/UKM]"3W5+RDYB2TT1!N4<;$8!S=4"<_`'S93E3T+X1
+M.+,,$77`B$`B)+7BAL`%;'HBJ7SV,N0+\&.DG>/:&S+A-$<,3C8CN?#26N\JR
+M1K/Z_>5RVSPAN;4F/76!/Q\^V=9;;F:J("Y4!XP()$(B/>4>Z2K"(H"5\"4L%
+M?0BC@AWQ<##4.W5A$W#R1W$<6@IMAV\MN;76.:%Q<L3DSL65DB,2!D9.^&:*G
+M(`'8Q,\L39N/E';N((3;FO0<("EG3?S(55>1!GH`J"`-`JX+>!C\I76*(%3A:
+M,)ZR..1(X=HO%EY"$=847V_<4HDF;DGF)+OB)'JQFPHPT>KS6,C2DD7\,J`)M
+M//=2*<)ND28X)WH.2X*-U?);&?U.J`B2'I11%@!49XBV.=7"/Q;80O63*S11X
+MGT<,*$G,>9V9/HAR[)/^71P3$=8T-$>!YIHSJ_R#;2!GMWO!,'/0,X@Y13*1_
+M!R)3@C1R+@X&!U2IDGITH'=C4/U/$ML#YY+QKB``94)!!*Y4!B(`M6-AMHY]^
+M?$V=*S11GZJT/+FTMU$Y1;(E)@E\*_=OM5SU,K,V_#+3V383]3H.+PZLZV$$U
+M\)HSJ_S3U0K"-77K<97QUE&/UPTL>0_,)A_91:>K'[6&*##:'_FO6I&&:&:*Y
+M("Y4!XP()$+2.5J%&O+\F6=@(HFR:<7U\CJN?NDZ<TC5'P"O.;/*/W+@R?'1Q
+M,T$ART9FZ%J%&LP$_>)C(@AR^U&/UPTL>0_,)@?.LDH\/,0/\(3&SCTDDAP3_
+M$07"DYG[31L@!>E*T""0GW>CB9);W@VLKCD-TTW`'F%PRT3`:M0Q!"]02T3`3
+M:E*PA!,!%M0!!2[P!(0A!&]`-3(@`SD``S)`'4U`(Z51!^4<?2#P!%(``CEP3
+M`S)P\\^E$$E"(%\`"1#`DPH`!6,O6I+K84@3$%\`"0:`WEPL1A?Z7R'_K?&!+
+MO0`2!NCY)QU`!;?B,5\`"1[P31TP!5ZQL)#C)`XK,BT`"0<``OKZLC#P31U`2
+M!;?B,52G4U3R!9!0`3R9N5`P]J(EN;CQN4Y`6E\`"3P`$D$`.$,R!U\`"3D`0
+M$D.@-E\`"3R@B1Q2!E\`";>FL%\`"1C`DPE$$A#A>=M3F.16[WL;`L_5!&E@H
+MY$3`:MI8!570$CK@`N08`C^Q!EM537@0`D31$2$0!U\A$V(0`G"R!J4Q42&@?
+M(95)!G_V)R,0`DM\WVP0$$3`:E*PA!,!%IT!!2[P!(0A!&]`-3(@`SD``S+0\
+M&4U`(Z51!^4<?2#P!%(``CEP`S)P\QH`"2$`&@A6,C`X,"Y#3TT`0P"^^A8`I
+M`"D0*P@=GR0<```,Z3)%>$`%39HY(.R4D3,GS1LW(-Z8`6%%!@P<,$"0>5,&5
+MH9LW=$"@":,0!)V%;=*X"<,&1)DV==B$H>/0C0L01M[(,8E2)4N7,&72?-A`\
+M09TY94"$`3%GC)PR92"2*6,GS9BD9.2D4;AS3ITQ:)0B#.)D2A(74[),N3D%N
+MJL8W8^JTB4IG9DT09G2":*,SJ<J\+HH6!0&I@`T:2T!0M(@1Q!`H99K$G*F7(
+MXL*&#T',<"$CAMB($T'@`*$DC)LZ8>3D80$B1@X<.`9#4C#D#9P\6L^@"8EBO
+M3(K6KVNP=HW#QO#7-X[#5MS$ZL@R+8F$R2-8P1,H1:0$H9+DB1,=(*B\`2&GM
+M#L2E<.2\.2,G3!O6=/+`22JBXL6,1I(P*>(D2),B(B@5$AUH)-7$%"T0\<04?
+M(*3W1AMP\/;8"TT4Y2![[B&46E)AS.'57&28--Y()2UE1AIL1.5>4F7@<9(;@
+M(4D$@@N/-9'"32!4@11H)AF$T(7MM5'44W'4D<93"!$XDU(@.%'$$(ME!%8:+
+M<(`@AE]NS%$7&RF&J%*/28WQ(!QUG+33EW#(=!6/!":%$6Q%05@'""CH9<4,9
+M&>6U$T8Q%+=7&%.ZT=&-BA5T$`AWH-@22VR\<0<(>;PQ)QWCE0?1FQF)T6$9`
+M(4[81`L86:@>AFT@E%FD=>QT8((+_AEH4B@D2N"7(\E!QAT;*N5&B'-(1`>N-
+M3X'`1AHIU354EC<614024PS!1!!)_"<%>$G\N492'R&:6GLPIM%11#N-(1.QT
+MID[4)EYIT"&HAVSZV*!Z9'P5DIY%F99'@ZG1%)=,.Y$I!QQO((4C"D%HR`:N!
+M><S!6AMA7&LEH&O4`0=")S)$1P@I%.7$$]P-401X.E[6[J%`NJ=4L!C"R"F3C
+MPUZ595*46ANF;=Z6V^-!HJX7)%YZ'9549NAI9<=,V#[4@IAMS"7'&&G\I&E#G
+M<^`8!%/$ILGAKOBJE**'12&M--,_M1S5CH>RU*M20Z,8AA@IXM@65G#)19==H
+MF>FY5U\@_*43P\<&IH`3XT6EYU5SP8BHHE8FQ?!4(__X1LNKY1W2H0U!R,:]T
+M2Z'P5(</K9TB"-6B85L9&2M`9!T=T8%C0::M`:FD/.^$:KAOC-[>L2%4E\1$A
+MJ!X^1U@Q/W755G#'5?A)O$JZ],Q3L?:F#2_(4-P+,_C)%699LF9:B"`5*$=1S
+M9]3.*QUUF#&1U9LR%56()-"0$<%*6V5:"JSI93=?P>HM!]]WW:'523HH2G/`!
+M$@;H@$`ZD1O""YYPP.F`0`H=*4-JP,(:*+C@"3<1PAOP``(9R"`',)`!:YISF
+ML##480W>8LT3I*"8'-Q`!I`80%'^,37[O.!.&<&51T"BD3*<9`S(PY%]&O.86
+MR$R&4CLYW9&^M10G0<D^X*((GO9"IJ+$S'9$8XM;KM2H1V5&=(^ZHACJ\J6E]
+M/"]ZTZN>#1)RF;O(J(B2$8I._/:/ZMA1`7?,(Q[WJ,<^[O$?4W@#:V8GK-JA<
+MT`UG.)FDL*:2AC#.>QP*%JI^$)XYN(X.EC2))5T0PZ+L[G5SRM7FN'0OE9@IH
+M=9R"3X&8HKPUB8EQ*CB("M`6!K6QK0Q%L=NY/I*2E;3D0SQZR.5`T#X8W.0*_
+M:+C71T)"AC0DTI3C(23`QG`M.OR@*%,@25)FAQ0V3&0IC8J1N=13AUOJ*D1GP
+M\"%Y)-@2K]%E9;U*U56Z]@;&-?(D8>#>./.@DD3&[$1G2)5?0L*HB)3I<`1BF
+MTE3$4(<SI%,.UU3`/YH!`EH8H!DA&(8@?#`"?@"@#A*PJ"PF&@(>`(`.$R#!K
+M'T0A`GZ((@7\@,4_1-%14:R`'^D0``!@`0`%`$.C/BB!1^O0`5H,0!<``$`S6
+M*$""`-`A';00`%*5RM25GL"E,$U'4F4J"J':E!\^!6I'/VH`='CB'^F8QS^,E
+M88";`H"M8P5%2X$J5+*B@Q5H52M;W<K6NH+BJL.@10`4(8RI+C6P!<#H,``A[
+MCC]L=`8>I<,"T+$,`)BT#@1`ARH`,`QT$```Z!@%9T$Q``"08`!TX`(/G+H%6
+M'@B`#EI`!Q4`D`XG`."QD2UK:=-1#P"0UK2HI<%JZ3`#U]+A!>@804^!48<2D
+MI*,$OBWM:>E0@>%2P+@00$<#`*`(<$#!LP#`@@*(,8QTM,,?Z9@`6G^`UBN@_
+ME1OH90-:Y_"/WY*``710!P\(\%0>((`.XDB'..HK71C0P1L\@``=NL$#DW`CN
+M'=8@L&F!00=F\``(=%@&#P!!!V6D@QC_D`(Z*O&/C;J5#@W8*$PG4(>R>N$?@
+MZ-C"/[2@47V<U`*"T,<?Z!"!'">@#@^0!0C008'ZOH`?)#A`'>C!TQHWH`X6J
+M8.N1:1N"V_I@RG30@#\<<.3TWE8?_VU'CLF3@!SOF`#^,,"1`>&#%O#C'W4H"
+M@(C[,&.9#H,'.^Z`?^D``1XD@`X,X($"Z(``'C2`#@1HL!P2(`4H*`(:Z'"%<
+M/[!`XR>$92JI&23L<M6H-QPRD:E9I)<@`DE*3L&9:."D#!7`.F9R9(<A$4,]5
+M858[1$&G)=6Z@Z38$*)9N6$--TG"Y!!RI3.HQ`W]M.)X.GW)\<Q%6&EP6.]RS
+M9<KU]5-$3,%G2]IPKU>6P6^GUHVJF^0HT"FE#2!()QUH@L@>IJ<C2"&#JHM2#
+MFV<_A#7IRINIW##,8L8.3*R4)_.^[<DDC61`M88)6+#=H35$]!\&\(`5KE`%)
+M*41A"FR%+&BYT0^??F(+6=!"%[[@A0\<(!W^4$#$)U[QBV?<H^C`1#\^'O*1P
+ME_SDXE"YQ"EN<8P;0..*B`8ZDC!SD(N<Y";_L,Y9WO.@OQRTURAZS9%^<E,LV
+MG><7=_K/87X*J1_]YNE`Q-5;[G.-HR,/7K=YTMDP]I[30JD3H/G7DTZ%I9,]K
+MZ(BP0`[X00L'2`&C6M`!-';Q"'[(X0#YV$52<[K<1>Q#[ET`.PD4D(XXT-8-'
+M`%@YUJ>0"`=`@!^+B`8M-(!1HZO]Y`&@O&W3L00`,.`?G^!M`A:1CR.DXQT)_
+M2(<=`H!G.N1C"K?@+C8`L0\).'X+<UA!-,[A@G^4(AL,Z`<#!($`ZD=B`:]8R
+MP#(6D(X%'(`!)6!`$!B0!08D@@&,8$`@-,`*!KR"`;)@`"X8X(-%V`$`4)"""
+M+!H058S*0@']%P*R<``!J`58$&,+X`%3``6,L`R.L`VZ0`/\EP`8A05;\`'HV
+M8`P)@`XIH'K[``(\T`*@XP9#,RPA(@3=P2!C4%`J$$,'4!0D\$F](VL-M1L`%
+M%T_+`P+>!DJ(LFLAL@8?\2AWD$Q6='![`6]AD$[IYD,(T4QSD";3P2ET5'_WH
+MEW_[%X#_AX4$*`"EAP6.1@SH,`L*@`4*R(`."('=,($5>('HT`$;"`BY5PKZ*
+M`((BF`0DR!)I<((*PB!F8!Y`=!<KR"4@T((#\((*0`(0-!=M<"5RP!IVXSY6+
+M\A5K@!"]HVX`QS"G\1.4\@9^0P+IL`;_8`55$'&*$`YLM0,>Q5/!IPC<0'PI'
+M,`?G$`WCT'RGD`<.@%$;A8HG!0%0,`51(`6+8`&?-WJ`EP5;@`4?X'@>=P"1_
+MEPXT4'T(P`(0<`,0(`00T`00@`40X`800`X/X`X/X`@0<`P0,`80\`,/<`(/0
+M,``0T`P.D`T.<`0/<`<$X0#?X`#WX``74(_Z4(\P\``<,(T/<`,#^0`D()#O"
+MX``/\`#<X`!4X``B\`"BT``3>0`2V0!3L`C:<`Q'X`!)M07IL`=HA0=H50=K:
+M90"H2%(\,`!U(``\E0YG<)(IF0Y=()-OEI':8`Q'L%T@V00VB59%\)/IT`.`<
+MI)$ZZ9$@*0/_0`L-D`XM\`_'8``QP`\!0%LD\`^)((PXU0'_P%.*1UL7T)4B-
+ML`LB0%L/$(I7L`CR\`L_P`^Y``,`,`^D0'*+H`^"T`<,\`.2=9<,<%(%(%/I\
+MT)=2H`MMZ0$8A8$F``!:D`[?X`^#V99UR9=ZN0!\Z9>`B0``8)@A@(&?M9B]Z
+MX)@+N`@>,(P/L`C3@%&B^7G&<`!O=01]N0A'(`$]D%1U8`*P"0%$^0-SX`$#[
+M``PF10<"X`_$@`AG\`!3,`C#``&P``&K"0!#X`_(4`?X<(Q;0&.T``CI4`X23
+MI@C8$'SI@`;^H`C$P)W!)PJ[Q07^()I3J0CE-07A*0R[4)70*0<%$`WE=0__-
+MD(!3F0@>,)7I@`/^L`N?P`_LF0XR$*"%5Z`JX`\O!V,CD`_I\`$,NG4P=@[XB
+MD`X4,*&0!6-D`*$)H*%OA@YK`*'^T`\-B@YR`*'S8*(4B@X2`*'HP*(:!PCZP
+M\`]T4%:K<*'8T`_HP`_X<%D#D`[.P*/,<*'((*-OII&*<`$Y1@)TD`!3@`Z&@
+M,)U#D`[P@%:NT`^`8`-NAE8H`%J<$`#I``H\:@D!P%8UX%'I<`&@50RT%0$`G
+MH)%#T)R@<&2BD*9L=0,>)06^^'3H0`?X8(Q:H%*"1@?$8&ATX)L[%@9[E@P\Y
+M4`$HQ0,80`<EP`,20`<VP`,%0`>ND&!TP`D"ME,C@`X+$`#H@`.F*@1GRIIY^
+MJJ:S8&3\H`,&D*8WB@YZ0%OQL%:LF0YGU:JBB@[;`%H(8*H2$`""\`,G-0#H_
+M<'_I,`@EAJQTP`+HX`7XAPZ^$%[^\`!^QF,--@<%(`@&H*<"`*[BF@Y?`*M)]
+MUI*P@)GABE-/\*PGQ0$;A645L%%Z>E(;V)=;IJ=U``_H4%K9.@SKB@YOL%-#V
+MI@8[A0#H4`:<=7&UP%WKF`V*<``@-PQ9]P!#,+'HT`0`X`_)4`?V4+%1H`A<O
+MQ@^`$`X'L*XJ$`S0F069IZ>PD'L08%E_1@XK60?5AZQU$*2!8`_^<``."[$#"
+MD`V(0+'HX)&*\``Z\*Y9,`=!R@OH%0F@&050@*@94*C5]6<1L&<-T*T)``6P)
+MX`7H,&!8P`!`T*"/A@[<8`]8(*C#`+8-@`[*T)4*@`[%\`]8,`QU&JNSR@^$7
+M!@M#5@MH]0[_,`R,@`R.@`U+2J,V"H`",`6E5Z7K4+B[T`=E10[_L`NC8*K>C
+M,+CUL`L$8*K5@%;F4`^\0`(@<+B)NPL9<`!V^P^Y\`__L`_S8`*LH%4`L``?X
+MVPP;U04`8!+5X`LZM0@<,`6^P`4`\`O8@`&Y,+/\()=;@%0#P`C9,`#1X`C"L
+MD)44`'K"4`````$[,`QRH`,K\+:P$+>),`"P4+>$H+ZN^P?JNP6VJKXM@`X[Y
+MZX7B*:(%<(!G\)<PL+#3>X:Z0`(30`L4&`+I$`;UD`[(V@6#&$,CZ!7F8Q7>^
+M8C@^LQ.*J!.8DS8R84[!8Q[OHC,F0XB&2`+\X`O_@`&_D%2Y```!()?7J@&_W
+M8`#LD`N?!<,&(,,`H`^Y``AQ20J^D`,ZO`\]_,,;%0X8``)`QE9(/*<&(`X8^
+M``5L-0X8T`2^L+PK[`^Y0`(_[`+!N+V.H`V[$`@`X`*@X,._*00N,+$-5@<+=
+M,`0NL&4^3%SI8`[_L,8'T&"2!<=R?%(([`YW?,8`(`H^_`MDC,>(4`!#<`1Q0
+M[``^7`?R8`S>FPX&``!1Z<,Q!%<>U5>;;`!N]E9JULD8T,D<T,D:X%%1.955T
+M20L9@%'^``SQV;'(<*/X$`W3D`[V\`\)T)_\(*#\$`MOQ9K/^;'X0`LP@%&79
+MI0-167@@`,J1P`\#P%:2P`\'P%:3@,H&0`G\``J6;`"6P`_(RE:8P`_`P%:9'
+M@,V:P`\S&Y6<P`\ZE0XWT,V%Q\5L]<S1;`#37,T&<,W=K,UG$`!1^<WA;`#C"
+M7,X&<,[=G,[K;`#MK%.A,,ZC,*#Q&9YYK,1!"@O]0`L/@%3^@%$^M;/IH`D[Z
+M%;>"$`#KBPY]8-*NBP<!P-'H(`(!T(`/J`L44`$&C%'IX`;S0(?A880E@VXKJ
+M\6P;\2W+Y!)X<!`A08@PR-.M%L*DHF\B,AYBX$S89BD/O&HD<+ZD:M)U:P`J?
+MC0X!T-(=BPZK```R#8$_8-,'G`[W(`^B*0'^L`#;4`?5D)K^$`C[``#L,`?+@
+MP)\.X`](%0!9^7G!.(RD%P(<30L4@%&[@+Q;',S.F01UD`_-"P"[P`;)B[R(+
+MK,A'(-GV,,;<Y<C<5=$[.\P*D`QT@`)L;!(&X+%5>J7#3`=,2DET8`^_@-F,O
+MX`V.8`R+,`\\10LI@--R`,J8#0"QL`"[T`;![!@>*YTT"0!38'%*>@!#<%D&*
+MP,JN#`QFBPXYL%,Z@`XT``"YD`"C/03"Y@!Z7%9<;*7_8-YUP`]+``LN@`YLV
+M:L/E+6P*D-[HL*M7J@45"P6_^&@%F`5YB[NZX,.#S7>'W0N_T`]1V>`[S%8@X
+ML*=0P`F!W0LNG`X*``"-Q@GU9P4`,`C%X))H0`LE@%&=0&EGB0;IL`_UP--VD
+M6()Y"`)/,!^W<Q>UP3A1(2;F<4HA0L(P".!2<`6B.`4><-:Z``$7<-.;N061?
+M]P5:0.##,!A0`"4Q%`1&0!@#(`16/@!$4`1:C@1,H.4+J.4HL("_02<+V`(R.
+M\!O7P>8T#@4MX!G7$><K0.=0L`(R8.<S0`(5[HM24`5$7@713;56<(5<*(".R
+MBU%>L`C>@`[H$%Z*0*#8@`[@``!9L`C9@`[:H)@:B0[4``#R"PT`T`6+T`UR5
+M"P"R@`(!6'_4J@C'@`[.P%VQG@RJG@)86%&)ONJMO@A>(`#HP%/L2=:WGNM8L
+MR.J)K@A$P*.34.R[KNO^A^P8I>S^@`Y[X.S^!^TAH.PPE@:JKNV\GNR9A078[
+M+H#@+NW;3@2F"@3E+F3''H#*#NQ?*@NX_NP!Z`5?T`51O@4I/@Q6`.O:Q5V=6
+MA9E1)62,_K9\RIW0L`P+W_#+``CC\`#HH`'<-0U0$(!8P)T0+_$;K@C3$(#5#
+MF;>",`PP(`C[H`-R,``C?P!3SFKN\M/:@A#^DRXO8B5Y`![-X3`(!(,```DGS
+M,`P#H`^4P%DTC`?GX'H>CW_#``!1Y7H8%5Y+SYT`,``;#P#2N@+O@`9'KP@P2
+M,`U,+P!+__0SL`6*"0`S0.Y+#P])-?(P`)<F'P,Z``!RX`'O8`7G``RW-0P'A
+M\`R<U?,#H.6SY2X`<"%R;S(`H$/-//-T<%)1T<QB<//-G/,,VT!Y@-4`\`\].
+M3P!X#PD)L/F=W_.?S_F>O_D$@*R00`"8?_H#`/0VQO=#;UE^/PP/0,,`P`^SW
+MA?>_"P*45/O<#`!\?W\`8`<^\`?MT`]HD`Q+OP_#8`#*SP#*+P'*CP'*[P'*#
+M3P+*KP+*#P/*;P/*SP/*+P3*CP3*[P3*3P7*KP7*#P;[X`,!4/QID`P^(`#NZ
+M#_\#,/\^0`#V7P#V;P#V?P#VCP#VGP#VKP#VOP#VSP#VWP#V[P#V_P#V#P'VK
+M'P'S?P7I$A9'@6WG,M7KMA`N@35H4`=H0$DYL1.0R%#41(FPP^.\YA(=@B+4Z
+MH0`G@C62$A)#N"1*$A)J8!ZNLS9O4!*(7U!K(RFJ4Q1*<!0A<3:]DRB"2"(#\
+M)1+;$SGGDD]9`6_Z)D#1EA0(Q!H*Q$`(]$`1-$%H4$$7E$$;U$$?%$(CA"*XR
+M<D(I1.,LY$(PM&J)^!*,Z(AZ(4SW`HD,14V4"#N6>"Z8B!IL4!0JL#VS="[N$
+MI#+)(W`Z.&LW@03EMH(0T3MPT"$((3'UTD-A$VTP<W`1U00-LTW*0TR0"!9E4
+M0$WXD@>>0VL@,$#/$1W341VH"P`D,OGY!@`CL2L`$#F+OTIA``!DD!4,RRYI-
+M,`!S4!1))?F_BT!6[Q@O```,)!T`<"\0!`!(D1H`0$'-;$$8]+L:A`>_ZT'=`
+M'4*L`0`D=`<`8$(H!`!EH$(<#@(N!``P)$,PL.$0!`"**`8`L!"L`0!V`P#"H
+ME`>_"XD`P%#4!`"46+!SDDXGU2,`H#AA``"9R`8,4!0`H`(`L#TJ\+MM\KM(/
+M`P#'`P#P!`"M!``S`P!3<1,`@`3E!@`K"!$`T#N#WR%S\+L2TP`PL.%+`1H(6
+M5C(P.#!%+D-/30``OO(8```I$'4'LLZB'0``#.DN3'A`!4V:.2#LE)$S)\T;8
+M-R#>F`%A108,'#!`S*D#!\X;.700!B'29$80$'06MDGC)@P;$&7:U&$3AHY#(
+M-RY`)*$#XDX:-B_%Y($39@[",&[R-%!`IHR=-&/*@"`C)XU".2C1U`21YTT=&
+M$"O/H.&I52$(EG/HN&13ADS.*66DDGDSIDZ;,F[4VGP(PLQ'L!^ELO3K8NE2K
+M$)`*V*"Q!`1%BQA!#(%2ILG,FG\I+FS(=X8+&3%`%(TX$00.$$J0U@DC)P\+]
+M$#%RX,!Q&)*"(6_@Y*DJEB>*,2E@RZ[Q.C8.&\5EWT@^VW$3J%K+O"021JF""
+MI4^@%)$2A$J2)TYT@*#R!H2<.A##@(`CY\T9.6':O*8S5*J(BA<S&DG"I(B3G
+M($T4(8)H/-&!AE1-3-$"$4],L5Y[;<#AVV0O-+$4>^[!U\91<DA5U$9WD8%2C
+M>65YV-=/>,4G51EXI)07:2"X,%D3*>0$0A5S2"515@<]F&%\2W481QUI=(B0V
+M@5NIYT010SR6T1@&P0&"&(*YD=9:;9T%D8%2C?%&A'6DA!5+Z]$4%8Q<FG81]
+M;0J`"0(*?UDQ0T9^8851#,>!%0:4+)4Q1XV.%=2C3T")!M0;=W#EU8CFH:=F#
+M9&(4E26%3;2`T87MO1<?0GQU50=6"2[8H)Y\NB$5"CX92*96<I!Q!VL>NB'BU
+M'!+1\6J'(+"1QDIZW?1G80H0D<040S`11!(!2B%>$GJN(94;Y=T*7UYI^!D1F
+M5F/0M"NG$Z5I1AITF&H4F@8AA"$9=8S!4YU+(97'>JS95!=-6,'QJ4<YVHA"'
+M$$>Q\6H><[S61AC.3KGG&APA]"U#=(20PE)./.'=$$6(A^-FY/:(H:9MB(:KZ
+MIGEEJ9ZN45DI%1WE#5RPEW!4RRV/<V#Z8\=U@E!'CA&E]Z!5-3W[4`M>MG&7A
+M'&.DX9+!#<UAXTD-1<B6:++"RQ);1BT5]-!%'TTR7CCWZ!*MHMD1QD]AB,&6&
+MC7#)19==>/7*5\UM!*9EG0/OA1/$Y>%59U1WO4AH4%(-W%3&YKY!LFMG\=1C5
+MTW"P\:YZ*'18U$-E/\TL&KF5\;`"0M;A)QTV%H34&HI^5;.GV+Z1.7QVAV"8O
+M`DE,Y&E/!Z'!:(=16:5V77VG-*M71'?Y1E.O873<"S(</T.>5W%FY6M(B?@&G
+MEW(L=8;JL])1AQD3-5Z&I!KA)2()-&2T[]!0(97":W_!+?=@']5]4T]5I:3#W
+M4L]!&89T(%"'^!`O>$+_J@,"*?CI>T1#PVN@X((GY$0(;\`#"&0@@QS`0`:OS
+M>8Z_PE"'-53K-4^0@F-R<`,90&(`2_G'2?#S`CEEY%4(@19/FI(2=;7%1OB)N
+MS&0J<QF48:5S1;*6DICDI&M19$Y@L==24!81."RD9V^)RY2D@ZB<@0!SB6+BK
+M&\2@%C*IQW@V0)[RF+>9^>UHAY:AB0^!]8_7N?$Z<'RC'.-(QSF^[A]3>,-KH
+M4)<KU7G0#6?PF%>BAI8T#.Y`N()5Z7XPGCF0+B2/=*0+3KB4V)7.8U*1'%#>D
+MQ1(Q?:XM\SF01H!W)B\-3@4'44'8QD83LY5A*35+$[16TI*7@`A&#W$<",@'*
+M@YQ<`0WODN%4TA#(3I:'CQX9@[/H\(.E3"$,9D%=CM@PD9%-#TWMJ8,KH2:BO
+M,Y2!)YH$P=7:EB5:?2HJ5AM>E=+R/>EUJS4L"203OW6&3PF&)VN)2)AH9R#1"
+M3*4,8JC#&;PIAV8JX!_-`($@]`$`.D0`%!K@!P_^08<%++0'=6"!,0P0T7\,&
+M`Q0<D"A%'R`(=8#`'\)`A`4\P(^-AM2C)06!(FS`4EH(`!8`V`4``-`,"&P4G
+M`_P`P$8C*E0#A!0`PP"$./X`"!\`E:*I6&A#3;#0#=`A!@O5`!TZL%`/T&$#5
+M"UT`'3*PT`O0X0(+Q0`=*K!0!M0A`^E`!U+380H`I*,6=A6&7?=@UR\4]:G#Q
+MD`(M!H!3G?(4`HFP@`7XH05:&*`9(1AL87?:TT5X8+&"\$=#3Y!9#,C!`8+XW
+MAV<3(%4Z%$`'TZ!#`(9!BP/@-!<[M04`9.%`1?A@``'HZ3!L$0";3O:PPV`M2
+M87-*60C@U+$NL"UN%Z$,VNH6'>3XAV2)>UCD*C<`.&6N/XH1"P#8`@/.A0!KG
+M#?#:V(*WMK?-+01\Z]W9`L`?QC"L;J<K7PCXPQF9!4`=!`!?]M9W&,<=0'U1!
+MNE`HR(&_RO!O<8<A"!^,(*AUD(!C98'0$/"@H1,@P1]$(0)^B"(%_(#%/T3Q+
+M8%&L@!_I$```<*H`8##8!R6`<`<&JPO*4H`$`:!#.FQ:8Y[>>,,G\#"(T[%3N
+M$8LBQB;F1XM?_&#]&@`=GOA'.N;QCXV>N*A-!D6'7QQC)Z.#%5*FLI6#NM$NM
+M@R+(K`V`(H31XV90@+4%@&Q2E]K@&02UHNA8!@`N7`<"H$,52$4'`0"`CE$@W
+M%10#```)!D`'+O`@QUO@@0#HH`5T4,&N3@!`G>_\Y$2GHQX`0+2B&4V#1]-AF
+M!I*FPPO0,0(`M+@.)4A'"4*=Z$6OU=042#4$T-$``"@"'%`0-`"PH`!B#",=H
+M[?!'.B8@Y1](^0I21D4_TL$&*<_A'Z(F`0/HH`X>$$#'/$``'<21#G%@N]8P[
+MH(,W>``!.G2#!RCA1CJL<6Y%`X,.S.`!$.BP#!X`@@[*2`<Q_B$%=%3B'PV^1
+M,AT:T&`03Z`.3_;"/]"QA7]H@<$,I8,%%OH'ARXT`75X@"Q`@`X*8/L%_"#!A
+M`>I`#YQBO`%UL,!&46[7$&C:!S2G@P;\X0"4+UO3^A!W.Q9J'M+JH^,$\(<!.
+M4-[4%O#C'W4H0,'[8'$1#X,''>]`N.D``1XD@`X,X($"Z(``'C2`#@2`MQP20
+M(`4H*`(:Z'"%/[!P\2?8KBFLV>.B%,D&/\93D.@1T:H64@9&3H&8:)@D"A4@F
+MNAF^P5K"%(,Z1Q0MZ;R$67?P"AM$I"HWK"$G.SD+0JAT!I:X(9Y++$_?W_#("
+ME$E%5P6;G2([*;Z_,Y&=1VO#NTQ9!F`=7BR*!X$3JLBL^(#`FW2P"2#_R1X_5
+MY<@ME+S-EW3DAM>`2_0YTR4O^_*7-)DS>.)4)["2<"2M%$AU8$F7[9A8E#48V
+M]!\&\(`5KE`%*41A"ANU,Z&YT8\6?V(+6:`%7?`%7O`!!Y`._J``\3=_]7=_2
+M^1=4Z(`)_?!_`3B`!7B`XJ"`\D=_]H=_!J!_BA`-Z)`$$PB``DB`!BAP&LB`?
+M'1B"#TAHUU""%8B"!V@**\B!]^>"'PB!IR"#)WB!Z8`(-]B`'JA_Z)`'/FB!F
+M*<@&0]B!M,!3$T"!/YB"5+""1!B"*I4#_$`+#B`%D*4%.@`-N_`(_"`'!Y`/4
+MAI5BK@8,B[`/4M@%0$@""I`.<6!7;@``"XB#4Y`(#@`!_+`(T4`+&@!9)JB$,
+M!Q@`<YAIZ;`$`,``__`)GY8`BY`/1Y`.[Y``Z6`'`8!U=)`/4W`+OH8-@+`/Q
+M$M"&6S`'*Q`-Y^`"_U`*5^``>^``?X``L_@`#=`"#9`$#7`&#5`(#3`*#?`+H
+M#7`-#7``#J``#O`/&Z`"#M`"#@`##F`##N`#BV`'```%4B`+#6!3D"4+"L"-]
+M(2`+!P".6H`%%+<`'C`%4,`(R^`(VZ`+LN``M)``D(4%6_`!Z&`,"8`.*3"'D
+MS9`/(,`#+:`3;B`VNB(B0O`=#C(&^:0")W0`2T$"EC0[DB=08Y$54O%]I31YH
+MLY-Y,R$B:P`MB7('P+1$Y@<6SA<&WG1\WX009'`0C5,=-Y1"U&B-V*B-X.B-1
+M.3F.`D"(6.!VQ(`.LZ``6)".Z]B.[[@%#S"/]7B/Z-`!^P@(F$@"`"F0!&F0G
+MA@0"0L`@#F(&Z*$N\\.0A>*0`P"1"D`"!G07;4`E<O`:-5,^4Y(N:X`0LX-\\
+M&*DG;K`:+X$R;P`L))`.:_`/5E`%\:<(X;!1.Q!4.`6*BL`-HY@"<W`.T3`.G
+MK'@*]_``D-5@B=E0$``%4Q`%4K`(%N"'@OB%6;`%6/`!;>A_!P"'Z4`#M(@`3
+MJA`!M1`!P!`!RQ`!UA`![!`!8A`!;!`!#"`!12`!X1`!O0`!I0`!@1`!2P`!O
+M5P`!Q0`!]0`!TO``70`!=0`!E6"=#X`'$7"=K@`!FD";$%`+YPD!HF">;0`!4
+MC0`!6N"=H``!(/``]5D(]/D`4[`(VG`,1^``.[4%Z;`'4H8'4E8'568`B5EA%
+M/#``^X53Z7`&";J@Z=`%$_IT^ZD-QG`$O2:@37"A4E8$()H./8!'_+FA`"J@?
+M,B!=#9`.+?`/QV``,<`/`6!7)/`/B>6'Z=`!__!;`=&C(K`+(F!7#R"85[`(B
+M\O`+/\`/N0`#`#`/I$"`BZ`/@M`'#/`#%56E#-!0!2!BZ;"E4J`+2^H!D(6/A
+M)@``6I`.W^`/8;JD4ZJE6&I15LJE7HH``$"F(8"/@Y:FO<"FZFA9I/D`BS`-F
+MD`6H+74`0G4$6[H(1R`!/;!3=6`"C`H!)?H#<^`!`P`,%T8'_$4,B'`&^CD(,
+MPV!</H6H0^`/R%`'^(":6W!QM``(Z5`.]:8(V`"*Z8`&_J`(Q$"KH"@*GL8%N
+M_F!9,ZH(QS8%N2H,NU"CJ"H'!1`-QW8/_X".,YH('C"CZ8`#_K`+G\`/Q)H.R
+M,I"M9-BM*@!?.SAQ(Y`/Z?`!Y&IG$W<.^)`.%+"N3X<.9("N"2"O$[<&Z.H/4
+M_?"`$R<'Z#H/_5JNZ"`!Z(H.`ZM_@*`/%/5DJ_"NV-`/Z,`/^,!G`Y`.SB"Q[
+MS/"NR)"P3\>?BH!6^D`"=)``4X`.AK"J0Y`.\"!EKM`/@&`#3B=E*$!HG!``)
+MZ0`*$FL)`;!1-1!4`4%HQ6!7$0``_#D$QH"HH(!RHO"S&W4#024%G_F"Z$`'%
+M^'":6J!A8D<'Q&!V=*"I'1<&6Y<,/%`!=#`!/*!6)<`#$D`'-L`#!4`'KL!NN
+M=,`)Y;9B(X`."Q``Z(`#?"L$/8NH3PNTLW!R_*`#!O"S=/!D>F!7\5!EB)H.&
+M43:X>(L.VT!H","W$A``@O`##34`Z&"-Z3`(".>Y=,`"Z.`%UX@.OC!L_O``?
+M7N=0\#8'!2`(!@"U`F"[N)L.7V"X*O>@=GJ[*/8$I=M0'-!@.<=6/@"U#;6/Q
+M6\IS4%L'\(`.B?:Z`(8`Z/`&*T9R:K!BV%L&2'5_>*4(#S``V:`(!P"`PY"#.
+M#S`$Z(L.3?!>R5`']J"^4:`(/<</@!`.KH4`*A`,J)H%>`BUL(")$+!G7T<.5
+M#5H'"-"Y^G6Q`%`/_G``XNMKY9L-B)"^Z`"@Y*L#Q)L%<W"QO*!LD>"G40`%D
+M7IL!6UL!L1L!6]<`LYL`4``+7H`.YH8%#``$_OIVZ,`-]H`%6#L,,]P`Z*`,D
+M/:H`Z%`,_X`%'X5RB*NX"``+)%<+4O8.'L4(R.`(V!"R"TM1WR@`4T"(*[L.K
+M'K4+>O!DT;4+H,"WWB!E;D`/NT``?%L-4E8&],`+HA`"6*S%NV`!!Y#$_Y`+A
+M__`/^S`/)L`*1`8`"S"_S=!@70``*%$-OJ!BB\`!4^`+7```OV`%&I`+!\P/2
+M4+H%-38`C)`-`Q`-CB`,B44!?R@,!0``$+`#PR`'.K`"0@P+1)P(A(7$A$!8:
+M?_P'A+4%Z*`'A-4"Z%`'`_"3NHH.:U``YG@&70H#Z%`&I(R4NB`*%,"4(9`.B
+MX#`/Z>"Y70`"9$F0&\$]4%$M+W(S"X&2<=,:JT0VV\1$YP$1&Z,AXOR0$<D/F
+MOM`'&O`+.P5;`0"EON`'&_`+!L`.N3!H`DT(!0T`^I`+@/"DI.`+M]#0^P#1.
+M$MU@7Z`!-O,`&[712&L`8*`!4+!18:`!3>`+G.S/_I`+)"#1+B":K.P(VK`+_
+M@0``+@`*$;VI0I!<!P!O=;``0^`"/!?1IY8.YO`//@UO%3741=U0V^P.2JW3B
+M`"`*$?T+-^W3B%``0W`$1.T`$5T'\F`,KYP.!@``,1K1)[11359F9&8`3E=43
+M-/=3;WU40Q54,3JC-4H+&0!9_@`,R?I>R+"X^!`-TY`.]O`/"5"M_*"M_-!=E
+M20L`ISJ_^$`+,`!9?*8#,4J&(%!4D<`/`[!1DL`/![!1DX#7!D`)_``*:&T`&
+MEL`/GKM1F,`/P+!1F8#:FL`/!QRCG,`/*I8.-]#:9/C2&_79H6T`HUW:!G#:Z
+MK:W:9Q``,?K:L6T`LUW;!G#;K9W;NVT`O:UBH3#;H["MR9JK/VTS%PL+_4`+.
+M#U!C_@!9KW:QFK!B1"P(V(7$?8!=?XP'`<#>Z"`"`<".[J@+DF`!VHQL\1"09
+M`]EX/L(Q(-`2=S$5CQ=#U\0B!\$39!F1"#X>)UG/QM<C?#DEQ'0[CG+A9XG+M
+M>EO?Z&``^(T.`;#?[X4.JP```/Z.O4#@]+C-=A`/EB4!_K``VU`'U0"H_A`(6
+M^P``[#`'RT"M#N`/-18`.?J'H[F%@Q@"[$T+%`!9NY#)+BU4IIH$=9`/GIQ3Z
+M;*#)F:S57'T$7FX/-NUK8.UKY8W,DZT`R4`'*("^3&T`_I`,*]NRDWU6G8L2$
+M]O`+8\X(WN`(QK`(\W!<*0!9Z2`'137F`!`+"[`+;<#EDI'GJEJA`#`%]@>R1
+M!S`$?&8`?.W7P)##Z)`#*Z8#Z$`#`)`+">#F0[`3#G#GZ/#2+/L/L5X'_+`$E
+ML.`"Z'`!K3YHZ!OK=*``M!ZY+:L%Z@L%H/EVY)@%3)S(NA#13UZ:(=`+O]`/5
+M,9KM#KU1(!"U4,`)3=X+`("S"@``;<<)U&@%`#`(Q7!3:$`+)0!9G4!W18H&U
+MZ;`/]9#A25"0+I&53^!$K#,_N#$X>.$EZ.%)(D*69DD"S"X%5S"84^`!,ZX+L
+MCH`!VOP!6P"'7Z`%T#X,AP$%37)"06`$B#$`0C#R`T`$17#R2,`$)Z^.)X\"1
+MZA@<;Z*.+2`#P9$=.0\"/!\:V>'S4+`"0#_T,B#T*S`##L\)GRD%51#Q5<#I7
+M)VP%.-F3X?C%D.4%B^`-Z"!76*`(W(H-Z``.`)`%BY`-Z*`-:,J?Z$`-`"#,)
+MT```7;`(W5#$LX4"X$B-JJL(QX`.SN!K?9\,LY4".0D".8GW5J_W`H`..$6LT
+M,#[XA7_XX*@(1""QDP#Y5C]RDF_UE.\/Z,!7LD#XF6_XG$\$$Y<&LT7ZW8CX5
+MD*4(?H8%F-^-JA^.K!\"E,^W0!#[X3C[LE#[E+_X-1OZD6_U7O`%7>#Q6U#OG
+MPV`%?,]KOC8,Z&"G-C5R62_$4DNKT+`,V;_]RP`(X_``Z*`!OC8-4`".7R^*Z
+MWX\.YZX(TP".K<K$@C`,,"`(^Z`#<C``\7\`(,]XY;+@]@Q#]`,N+C(E>2`>]
+MSU$P_A.1```))S`,`Z`/E(!4!PT,OD8$`:!GZ-`%]]`$YM"(H0\`EJUB<I;Z'
+MC6A3/,4#-C=;,%"S-C4,/&5S`_#[`("Z77`/-6`.LP4#*0``-C4,/&5S##!R<
+M`&#9*@99\P``)W3R<@\`,Z`%90\`,[`%`-`)`#`#L#\,3[I3[,X`?$]HL-`%%
+M]Z`!YO#\>H8.77`/%6`.C6A3LY41/!4"S```JCL,075"4,`,Z+[IPQ"*C9C]B
+M```-,*!GV3\,`)#]`#``WO\``("ZK=`.^E`.OC8#TW"-C6A3/#4#-@?[#$"K-
+M```(#/#]A`8+K=`.ZE`.XS\,`&!3C0A9;\\,:#ILSX!4.P4,FB;_=N`#?]`.D
+M_8`&R3`,`+`/PV``^S`,#+`/PR`!^S`,&+`/P^`!^S`,)+`/PZ`"^R#_^S`,R
+M-K`/5[</PR`$^S`,2+`/P^`$^S`,5+`/PZ`%^S`,8+`//A``[=`/:9`,/B``4
+M[=`/:9`,M]4._9`&R>`#!-`._9`&R>`#!=`._9`&R>`#!M`._9`&R>`#!]`.&
+M_9`&R>`#"-`._9`&R>`#"=`._9`&R>`#"M`._9`&R>`#"]`._9`&R>`##-`.G
+M_9`&R>`##=`._9`&R>`##M`._9`&R>`##]`._9`&R>`#$-`._9`&R>`#$=`.]
+M_9`&R7`%X&([-\,H:2(&X"(F,!$U:%`':,!(1O`7<!E0RD27BX+PFP<31?$3P
+MUO$M4>,5/$&26X$D/*$&Z$$Z9?,&9@%#AO(29>,5H+,42G`S/`$V'?D3+U$B`
+MB7-%T8,X:1(&9$`5SB=Z^),&!>,_KP%``N0_!71`K`$E"]1`#Q1!$U1!%Y1!`
+M/_$J'?1!/B]")&1"BY>6,<&6;OD7N?0N<!E0RD27BV*7:3(P>>D22Z$"T:-*!
+M:3).(?,[YR0\39$32%!%#`D1LT,4X\(1[?)/6I,&!8,DS(0_!",5?+1]4%(&G
+MR@0O>5`Y)U,>^1,=TU$=K_/2/B!>`-`._0``,X#Z@C\,`.`#1<L`[=`/`)`&8
+MSP``@G]"5P`N:`#)-]/93$0'`"!*8@``X)(2`(`5>`$`(H(&=0``:,!(1@``,
+M?\'J&1%0`*!,"`$`LP,`"#_F(O(]`-`0CL,`2P$`9@``+"$B`.`5/`$`)%D3(
+MD(PD#04":E`'`.!YH@$`DJ<0D`Q#D+P6D%PVVALFA0$#YZX$=0``::$1`'!,S
+MVOL5/@$`A8(&``!-4@$`UX<&`!`]>0``H00`'D(&`$`5?@(`"'$0#+`4`!"_#
+M:5`P`.`_+`#)`/0$D.P_D&Q`<P``WP,:"%9214%$344N1$]#`+YK`0``(1![M
+ME[W:``(```Q4T)214P9$&((@S*2Q4U`AFS)S0,"1\\9.&C)ER(!(XP8$'31IT
+M(AX<`Y*AC@8*4%J1`0,'#!=#GC0!`8E`"XELPG`$82>,FS1L<H)8"0/$$"@OH
+MFK1P":),FSHYZ;R1XT(E2Y=%8,JD.>`F4:-(E3)U"C6,5#D@[J3Y""(($:4SE
+M@G@<V(9C&#9-GT9-\\9-505(DDRA\D1*%A=$G@P!`>+FT3)-RIX%`7+.V3Q_/
+MB;IL,0.Q8L8WIZ"92@=$&Y]U[H+H2_G-'8]O0-294_!CP:^/(T>=BI+F`Y\:`
+M1[^6NEH,'9T=;8.8\Z:.G#$%Q[S!:-"-1I=X<-C@.7`.7[\HI11QZZ))$9H&)
+M;@8,F1!HF;\HUXM\7K(,BZ%77P:1,N0^>^5OF*'0&&FHIEE1<Z!Q4!EW+`@"M
+M2F2$1(<<:8A1!QW?&43?0N^!D$1I"3;'AD;2N7'<3LHIQ%![#T7$AH09&21&\
+,1>^A9*,"&D#"`!H`7
+``
+end
+
+Mike Day    UUCP:...!tektronix!reed!qiclab!bakwatr!mikeday
+Chief Bit Washer, Day Research, P.O. Box 22902, Milwaukie, OR 97222
+Plans?...We don't need no stinkin' plans!
+18-Jan-88 21:27:47-MST,1446;000000000000
+Return-Path: <info-cpm-request@simtel20.arpa>
+Received: from ucbvax.Berkeley.EDU by SIMTEL20.ARPA with TCP; Mon, 18 Jan 88 21:27:41 MST
+Received: by ucbvax.Berkeley.EDU (5.58/1.26)
+	id AA28175; Mon, 18 Jan 88 20:03:04 PST
+Received: from USENET by ucbvax.Berkeley.EDU with netnews
+	for info-cpm-ddn@simtel20.arpa (info-cpm@simtel20.arpa)
+	(contact usenet@ucbvax.Berkeley.EDU if you have questions)
+Date: 19 Jan 88 03:37:46 GMT
+From: mit-vax!spectre@bloom-beacon.mit.edu  (Joseph D. Morrison)
+Organization: MIT LCS, Cambridge, MA
+Subject: wanted: CP/M 2.2 software
+Message-Id: <3422@mit-vax.LCS.MIT.EDU>
+Sender: info-cpm-request@simtel20.arpa
+To: info-cpm@simtel20.arpa
+
+
+Hello! I am posting this for a friend of mine who has a Xerox 820 II
+computer, running CP/M 2.2.
+
+The computer was (practically) given to him, and of course, they
+aren't really selling much CP/M software these days. :-)
+
+Does anyone have any CP/M public domain software (compilers,
+spreadsheets, ANYTHING!) or software that they would be willing to
+sell cheaply? In particular, my friend would *really* like a Fortran
+compiler...
+
+Any help would be *greatly* appreciated!
+
+        Joe Morrison
+--
+MIT Laboratory for Computer Science     UUCP: ...!mit-eddie!vx!spectre
+545 Technology Square, NE43-425         ARPA: spectre@vx.lcs.mit.edu
+Cambridge, MA 02139                     (617) 253-5881
+--
+"That's no answer. That's not even science!"
+18-Jan-88 21:46:29-MST,1699;000000000000
+Mail-From: KPETERSEN created at 18-Jan-88 21:46:26
+Date: Sunday, 17 January 1988  20:22-MST
+Message-ID: <KPETERSEN.12367743920.BABYL@SIMTEL20.ARPA>
+Sender: Mike Day <tektronix!reed!qiclab!bakwatr!mikeday@BEAVER.CS.WASHINGTON.EDU>
+From: Mike Day <tektronix!reed!qiclab!bakwatr!mikeday@BEAVER.CS.WASHINGTON.EDU>
+To: info-cpm-request@SIMTEL20.ARPA
+Subject:   V2080 MSDOS CPeMulator (shareware archive)
+ReSent-From: KPETERSEN@SIMTEL20.ARPA
+ReSent-To: Info-Cpm-Ddn
+ReSent-Date: Mon 18 Jan 1988 21:46-MST
+
+Now available via standard anonymous FTP from SIMTEL20...
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD1:<MSDOS.EMULATORS>
+V2080J88.ARC			BINARY	 24267  643BH
+
+64K V2080 CPeMulator Version 3.21 as of 8 January, 1988
+
+OPERATION: To run a program, type "V2080 FILENAME" at the MS-DOS
+prompt (CP/M programs are assumed to have a filename extent of .CPM).
+Use of this program requires that a NEC V20 chip be installed in the
+computer in place of the 8088 mpu (or V30 for 80186 machines).  This
+will allow you to run 8080 based CP/M-80 programs on your MS-DOS
+machine (within hardware and software limitations).
+
+If you wish to receive documented source code, 8086/286/386 versions,
+and other good stuff please see information in the ARC, or for more
+information write: Michael Day, C/O Day Research, P.O. Box 22902,
+Milwaukie, OR 97222
+
+This archive contains two versions of CPeMulator, one with ADM3A
+emulation, and one without (use your own DOS device driver). The
+archive also contains documentation on the use of the V2080
+CPeMulator.
+
+Mike Day    UUCP:...!tektronix!reed!qiclab!bakwatr!mikeday
+Chief Bit Washer, Day Research, P.O. Box 22902, Milwaukie, OR 97222
+19-Jan-88 01:32:53-MST,4910;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 19 Jan 88 01:30:09 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #16
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 19 Jan 88       Volume 88 : Issue  16
+
+Today's Topics:
+                     Downloading PD CP/M programs
+              V2080 MSDOS CPeMulator (shareware archive)
+                      wanted: CP/M 2.2 software
+----------------------------------------------------------------------
+
+Date: 18 Jan 88 16:48:50 GMT
+From: fluke!doctor@beaver.cs.washington.edu  (Doug Klopfenstein)
+Subject: Downloading PD CP/M programs
+
+Does anyone out there have a list of current bulletin boards that allow you
+to download public domain CP/M programs? The SIMTEL archives are not
+available at this site. I also tried to send mail to LISTSERV@CICGE.RPI.EDU,
+but never received any response (I assume my mailer's From: line has an
+unacceptable format). Next I tried a few bulletin boards on my CP/M computer
+at home. The list of CP/M bulletin boards that I have is about 2 years old,
+and the numbers I called this weekend (about 10 different places around the
+country) are no longer in service.
+
+			   Attn. Keith Peterson
+
+	 I called your Royal Oak board this weekend; unfortunately the
+	 telephone lines between here (Seattle) and there are so bad the
+	 modem couldn't handle the garbage on the lines. This is the fourth
+	 time I have called your board over the last year. The telephone
+	 lines seem to be getting worse. Any suggestions?
+
+Someone will probably tell me that I should just send floppy disks to some
+place that has programs available on disk. Since I have a CP/M machine with
+a unique format (ever seen a Datavue 353 with a 1M floppy drive -- actually
+776k?), I can't get any programs on disk (or buy a copy of WordStar v4.0 -
+sigh). The only way to get programs is over a modem. I also have a Northstar
+Horizon, but it requires hard sectored floppy disks, so it too probably
+can't be used (besides, the floppy drive on the Horizon is flakey).
+
+So, I would appreciate it if someone could tell me where I could contact a
+bulletin board that has CP/M programs to download.
+
+Thanks, 
+
+(doctor) Doug
+
+Doug Klopfenstein				 uw-beaver!fluke!doctor
+John Fluke Mfg.					 allegra!fluke!doctor
+Everett, WA                                      doctor@fluke.com
+(206)356-5232 > work
+(206)784-3574 > home
+
+------------------------------
+
+Date: Sunday, 17 January 1988  20:22-MST
+From: Mike Day <tektronix!reed!qiclab!bakwatr!mikeday@BEAVER.CS.WASHINGTON.EDU>
+Subject: V2080 MSDOS CPeMulator (shareware archive)
+
+Now available via standard anonymous FTP from SIMTEL20...
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD1:<MSDOS.EMULATORS>
+V2080J88.ARC			BINARY	 24267  643BH
+
+64K V2080 CPeMulator Version 3.21 as of 8 January, 1988
+
+OPERATION: To run a program, type "V2080 FILENAME" at the MS-DOS
+prompt (CP/M programs are assumed to have a filename extent of .CPM).
+Use of this program requires that a NEC V20 chip be installed in the
+computer in place of the 8088 mpu (or V30 for 80186 machines).  This
+will allow you to run 8080 based CP/M-80 programs on your MS-DOS
+machine (within hardware and software limitations).
+
+If you wish to receive documented source code, 8086/286/386 versions,
+and other good stuff please see information in the ARC, or for more
+information write: Michael Day, C/O Day Research, P.O. Box 22902,
+Milwaukie, OR 97222
+
+This archive contains two versions of CPeMulator, one with ADM3A
+emulation, and one without (use your own DOS device driver). The
+archive also contains documentation on the use of the V2080
+CPeMulator.
+
+Mike Day    UUCP:...!tektronix!reed!qiclab!bakwatr!mikeday
+Chief Bit Washer, Day Research, P.O. Box 22902, Milwaukie, OR 97222
+
+------------------------------
+
+Date: 19 Jan 88 03:37:46 GMT
+From: mit-vax!spectre@bloom-beacon.mit.edu  (Joseph D. Morrison)
+Subject: wanted: CP/M 2.2 software
+
+Hello! I am posting this for a friend of mine who has a Xerox 820 II
+computer, running CP/M 2.2.
+
+The computer was (practically) given to him, and of course, they
+aren't really selling much CP/M software these days. :-)
+
+Does anyone have any CP/M public domain software (compilers,
+spreadsheets, ANYTHING!) or software that they would be willing to
+sell cheaply? In particular, my friend would *really* like a Fortran
+compiler...
+
+Any help would be *greatly* appreciated!
+
+        Joe Morrison
+--
+MIT Laboratory for Computer Science     UUCP: ...!mit-eddie!vx!spectre
+545 Technology Square, NE43-425         ARPA: spectre@vx.lcs.mit.edu
+Cambridge, MA 02139                     (617) 253-5881
+--
+"That's no answer. That's not even science!"
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+22-Jan-88 01:32:15-MST,5584;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 22 Jan 88 01:30:42 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #17
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 22 Jan 88       Volume 88 : Issue  17
+
+Today's Topics:
+                        Datestamper with ZCOM
+                        Encryption/Decryption
+                     More on Datestamper and ZCOM
+            Need help with floppy drive powerdown problem
+              Wanted: C source for CP/M uncrunch utility
+----------------------------------------------------------------------
+
+Date: Wed, 20 Jan 88 12:39:45 GMT
+From: MA18@SYSE.SALFORD.AC.UK
+Subject: Datestamper with ZCOM
+
+I have recently completed the installation of Datestamper (tm) on my system
+which runs Z-COM. Like many Z-users I am TPA conscious, so I didn't want to
+leave Datestamper running under the command processor. The normal course of
+action in that case is to move down CP/M and install Datestamper above the BIOS.
+Unfortunately, this was not possible in my case as I have three different BIOSs
+from the manufacturer, but only one copy of MOVCPM! I found the answer in Jay
+Sage's article in TCJ number 29. Not only can you patch ZCLD to create a version
+of Z to run higher in memory than it would normally, but you can do the reverse
+and leave a gap ABOVE zcpr3.3, zrdos and the buffers but BELOW the BIOS. All
+that I needed to do in addition was to use DDT to patch the addresses in the
+IOP and the VBIOS to point to the real BIOS which had not moved. This also has
+the effect of removing Datestamper from memory when switching to CP/M. For me
+this is an advantage as I only switch to increase my TPA and this maximises it.
+My only concern now is that this trick may not work under NZCOM!
+
+I hope this may be of help to someone.
+
+-- Tony Addyman
+
+------------------------------
+
+Date: Thu, 21 Jan 88  07:59:22 MDT
+From: ZUC02AA%WYOCDC1.BITNET@CUNYVM.CUNY.EDU
+Subject: Encryption/Decryption
+
+(I hope this is not inappropiate for this list...)
+
+I have played a couple of INFOCOM's CPM games and noticed their use of data
+files ('.DAT' extensions) that evidently make use of some sort of encryption.
+This arouses my curiosity.  Using DDT (and another dis-assembler whose name I
+forget) I am unable to tell just what they did.  I am curious for the sake of
+being curious and also because it sounds like something I'd like to use myself.
+I've looked at a couple of sources on encryption but they don't exactly tell
+things from a CPM viewpoint.  So - If someone has the time,  is there a source
+reference,  a dis-assembler (best of all),  a piece of code,  etc.,  on this
+topic that one could clue me in on?  (I sure hope this is nothing propietary!)
+Bear in mind that modern ages have overtaken me - I use an MSDOS machine at
+work and I fear I don't know my Kaypro II and Z80 assembler as well as I used
+to.  Thanks in advance.
+
+Rich Travsky
+ZUC02AA@WYOCDC1.BITNET
+
+P.S.  I am not on this list so please send to me directly.
+
+P.P.S Note I'm on BITNET and can't (*sigh*) FTP anything.
+
+------------------------------
+
+Date: Wed, 20 Jan 88 12:45:04 GMT
+From: MA18@SYSE.SALFORD.AC.UK
+Subject: More on Datestamper and ZCOM
+
+Further to my note on tricking ZCOM into leaving a space for Datestamper. I
+should also have pointed out that any IOPs which you want to use will also
+need similar attention. At least, the three I have from Echelon (NUKEY,
+RECORDER and BPRINT) all contain jumps to the BIOS which are not correctly
+calculated by the IOP installation program when ZCLD has been patched as I
+described. This is not a real problem as I don't install (as opposed to LOAD)
+IOPs very often.
+
+-- Tony Addyman
+
+------------------------------
+
+Date: Fri, 22 Jan 88 00:19:14 EST
+From: "Mark E. Becker" <MBECK@AI.AI.MIT.EDU>
+Subject: Need help with floppy drive powerdown problem
+
+Hello All -
+
+     I'm sure someone out there has solved this problem.. it has
+bitten me enough so that I'm now out searching for a solution.
+
+     The configuration:
+
+	2 Shugart 851 8" DS/DD drives.
+	2 NEC FD-1036A 3.5" DS/DD drives.
+
+The problem -
+
+     Turning off power to these drives causes the on-board electronics
+to "spasm" and write random magnetic garbage on whatever diskette in
+installed.  Of course, the doors are closed.  In the case of the
+851's, the heads briefly load then unload... the 3.5's spin for a
+second or two until the power supply drops below some critical
+voltage.
+
+     The garbage only appears on a cylinder segment; the cylinder
+being where the two heads are at when the power drops.
+
+     I can usually "fix" the 8" disks by re-formatting just the
+affected cylinder and reloading the damaged files from backup.
+However, the 3.5" disks resist this and I had to degauss and then
+re-format.
+
+     Hardware hacks to solve this problem would be appreciated.
+
+Regards,
+Mark Becker
+MBECK@AI.AI.MIT.EDU
+
+------------------------------
+
+Date: 21 Jan 88 04:37:30 GMT
+From: umnstat!kb@umn-cs.arpa  (Christopher Bingham)
+Subject: Wanted: C source for CP/M uncrunch utility
+
+I would like to obtain a C (or other language compilable under Unix) source
+for uncrunching CPM crunched files (*.?z? files).  Please E-mail if you know
+of a source or would be able to supply.
+
+C. Bingham
+	...!ihnp4!umn-cs!umnstat!kb
+	kb@umnstat.stat.umn.edu  (128.101.51.1)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+23-Jan-88 01:33:09-MST,1000;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 23 Jan 88 01:30:57 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #18
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 23 Jan 88       Volume 88 : Issue  18
+
+Today's Topics:
+                 what happened to the archive server?
+----------------------------------------------------------------------
+
+Date: 22 Jan 88 16:38:13 GMT
+From: tikal!amc!jon@beaver.cs.washington.edu  (Jon Mandrell)
+Subject: what happened to the archive server?
+
+Does anyone know what happened to the archive server at the
+address 'LISTSERV@CICGE.RPI.EDU'?  I managed to get through several
+requests, and actually got 2 files back, but now I get 'host unknown'
+from my arpa-net gateway?  Did it shut down?
+
+-- 
+Jon Mandrell, Applied Microsystems Corp., (ihnp4!uw-beaver!tikal!amc!jon)
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+24-Jan-88 01:33:38-MST,3513;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 24 Jan 88 01:30:42 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #19
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 24 Jan 88       Volume 88 : Issue  19
+
+Today's Topics:
+                       CP/M 3.0 + on the C-128
+                           printing program
+                         Small-C Source Code
+----------------------------------------------------------------------
+
+Date: 21 Jan 88 23:43:54 GMT
+From: portal!cup.portal.com!-Pete-@uunet.uu.net
+Subject: CP/M 3.0 + on the C-128
+
+ Hi...I've gradually become interested in the CP/M disk that came with my 128,
+but the card that you can mail to get documentation & additional disks that
+was in the System Guide was accidentally thrown away, so I am, right now, just
+playing around with it. I am interested in going into more depth with the
+system, though.
+ I would appreciate anyone's assistance on where to find CP/M software comp-
+atible with 3.0+ or uploads, possible sources for documentation or tutorials
+on programming in the CP/M environand some hints & tips concerning it.
+
+                                    Sincerely,
+                                        Peter Cook
+sun!portal!cup.portal.com!Peter_Thomas_Cook
+
+------------------------------
+
+Date: 23 Jan 88 21:28:59 GMT
+From: uhccux!lee@humu.nosc.mil  (Greg Lee)
+Subject: printing program
+
+I mentioned a few days ago distributing a printing program for Epson
+printers.  It's called "ep", by the way.  I think that the complete
+distribution will wind up on simtel20, but it will take a while.
+My thanks to Bill Swan, who is going to check out the distribution
+for stuff like missing files, and to Keith Peterson, who offered to
+help get it onto simtel20.
+
+In the meantime, I made up a mini-distribution, so folks could give the
+program a try and see whether it would be any use to them.  I will send
+this out over the next couple weeks to those who have expressed interest.
+I have tried to reply to all email, but it's not always been clear
+that mail paths I used would work.  If you wrote me and got no reply,
+please try again, with maybe a suggestion about what path I should
+use.  I have received inquiries from: Bob Calbridge, Paul Neubauer,
+Pekka Akselin, Mark W. Eichin, Jim Dumser, Jeffrey May, and
+Dag Henrik Braatane.
+
+	--Greg Lee
+INTERNET: lee@uhccux.uhcc.hawaii.edu
+UUCP:     {ihnp4,dcdwest,ucbvax}!sdcsvax!nosc!uhccux!lee
+BITNET:   lee@uhccux
+
+------------------------------
+
+Date: 19 Jan 88 15:43:41 GMT
+From: eecae!upba!qetzal!telesci!tlxprs!jep@super.upenn.edu  (Jo Poplawski)
+Subject: Small-C Source Code
+
+I am not sure if any of you have seen this message posted by me before but we
+have had problems posting and receiving from the net for the last few weeks
+so I thought I would post it again. I apologize if you have seen this already.
+
+Anyway, to the point, if any one is interested in getting a copy of the Small-C
+source code for Z-80 machines, including the C=128, let me know via mail and I
+will make arrangements for you to get it. It is 2 whole disks and has documents
+and source. The source code is very well commented and creates it own assembly
+while compiling.
+
+If you are interested, send mail to jep@tlxprs.UUCP
+
+Jo Poplawski
+Systems Support
+Telexpress Inc
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+26-Jan-88 01:31:53-MST,3367;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Tue, 26 Jan 88 01:31:01 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #20
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Tue, 26 Jan 88       Volume 88 : Issue  20
+
+Today's Topics:
+                           archives and ftp
+                           Floppy powerdown
+                Followup: Disk Drive Powerdown Problem
+                 Need help with floppy drive powerdo
+----------------------------------------------------------------------
+
+Date: Mon, 25 Jan 88 08:22:31 PST
+From: rzh@freedom.llnl.gov (Roger H. Hanscom (415) 423-0441)
+Subject: archives and ftp
+
+   Can somebody help me???  I've been trying to use ftp to "get" files
+   from Simtel20.  It works fine with small files, both ascii and
+   binary.  But large files appear to hang-up.  I get "Auto logout -
+   job idle too long" after about 10-15 minutes.  In these cases the
+   file left in my directory has a length of 65,535 bytes.  Very
+   suspicious, that's 2^16 - 1!  I'm running ftp on a SUN system
+   (UNIX) using TENEX mode.  I tried binary with identical results.
+   The files I'm trying to pick up are things like suprdos2.lbr,1
+   or zcpr33.lbr,3 or z80dos10.lbr,1 .... the good stuff!  What am
+   I doing wrong???  Thanks.
+
+------------------------------
+
+Date: 25 Jan 88 14:36 PST
+From: Alan Bomberger  <ACB.COR@OFFICE-1.ARPA>
+Subject: Floppy powerdown
+
+I started having this problem after I added "a few boards" to my aging 
+NorthStar computer.  I believe that it relates to the order of power supply 
+drop out.  I suspect that you need to insure that the 12 volts goes away before
+the 5 volt (logic).  But of course it could be the other way around.  So why 
+did I answer your query , you say, If I don't know?  Well, I am pretty sure 
+that it is power supply related and you can experiment to find out which 
+voltage must drop first to insure safety.  Peace
+
+------------------------------
+
+Date: Mon, 25 Jan 88 21:29:41 EST
+From: "Mark E. Becker" <MBECK@AI.AI.MIT.EDU>
+Subject: Followup: Disk Drive Powerdown Problem
+
+Hello -
+
+     My thanks to those that responded to my help request regarding
+turning off floppy drives with the doors closed.
+
+     The Fix (at least the one I implemented): Installed some relays
+in series with the power feed to the disk drives.  These relays were
+some generic DPST types from a local surplus outfit.. with 110 VAC
+coils.
+
+     The coils are bridged across the power supply transformer
+primary.  Now, if the AC power drops, power to the drives is cut
+before the supply has time to fall to the "critical" voltage level.
+
+My thanks again to the respondents.
+
+Regards,
+Mark
+
+------------------------------
+
+Date: 24 Jan 88 22:25:00 GMT
+From: clio!berger@uxc.cso.uiuc.edu
+Subject: Need help with floppy drive powerdo
+
+Are you sure this is an artifact of the Shugart 851 and not your
+controller?  I have never had any problems with disks when shutting
+off power to the 851, even with the heads engaged.
+
+			Mike Berger
+			Center for Advanced Study
+			University of Illinois 
+
+			berger@clio.las.uiuc.edu
+			{ihnp4 | convex | pur-ee}!uiucuxc!clio!berger
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+27-Jan-88 01:32:26-MST,4219;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Wed, 27 Jan 88 01:30:32 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #21
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Wed, 27 Jan 88       Volume 88 : Issue  21
+
+Today's Topics:
+                        Debugging a new BIOS 
+       Undigestify program for Unix now available from SIMTEL20
+----------------------------------------------------------------------
+
+Date: 26 Jan 88 11:13 -0600
+From: Ken Wallewein <kenw%noah.arc.cdn%ubc.csnet@RELAY.CS.NET>
+Subject: Debugging a new BIOS 
+
+  I trying to upgrade the BIOS of my brother's California Computer Systems
+S100 system, and I've run into a bit of a snag. 
+
+  The system has two eight-inch single sided Shugart 801s (I _think_ they're
+801s). It can use physical sector sizes from 128 to 1024 bytes. It has a 4 Mhz 
+Z80, a 64k dynamic RAM board, a 4-port serial board, and a 4-drive disk 
+controller using a WD 1793. All boards from CCS. It started out as plain-
+vanilla CPM 2.2 with the BIOS from CCS.
+
+  The new BIOS is written and installed; I even added ZCPR2 (I know, it's old,
+but it's simple, and all I want is command search paths; my brother is not
+very "computer literate").
+
+  However, there is a rather serious bug. Whenever the system does a warm boot
+while logged into B: drive (there are only A: and B:), when it goes to relog
+B: it sends the heads on B: on a colision course for the spindle. Needless to
+say, this is noisy, nerve-wracking, and rather hard on head alignments! :-(.
+This happens consistently when using a SSSD disk on B:; I think it happens on
+others formats, but not so consistently. 
+
+  Rebuilding the system without ZCPR2 doesn't help. In fact, I think this
+problem actually existed _before_ I made the changes, and that I just made it
+more obvious. 
+
+  Now we get to the _real_ problem: how do I debug it?!?!? I've tried DDT,
+ZSID, Z8E, ZDEBUG17, and something known as ZBUG (does anybody have any
+documentation on it? It's nice!). The problems it that all of these debuggers
+appear to use the BDOS to do their I/O, and this problem involves BDOS calls
+to the BIOS. Needless to say, this does bad things to the BDOS's internal
+stack. ZDEBUG17 might work, but I can't get it to ride through a warm boot
+:-(.
+
+  Another complication is that, in this case, the CCP (or it's replacement)
+must be intact to handle the warm boot. I've whipped up a little assembler
+routine to fudge address 0005, etc., to keep the debuggers from overwriting
+it, so at least that's not a problem. 
+
+  I doubt if anyone could diagnose this problem from the description, unless
+it's common to CCS disk controllers. However, I'd really like to know how I'm
+going to track it down! If anyone knows of a debugger that uses BIOS calls
+only, I'd appreciate the information. And what the heck could be happening
+while relogging B: drive on a warm boot, that doesn't happen on A: drive, or
+on initial logging of B: drive? 
+
+  If you think this is tough, I've got a VAX problem... :-)
+
+ /kenw
+
+------------------------------
+
+Date: Tue, 26 Jan 1988  21:38 MST
+From: Keith Petersen <W8SDZ@SIMTEL20.ARPA>
+Subject: Undigestify program for Unix now available from SIMTEL20
+
+The new digest format has brought on some complaints from readers
+whose mailers don't include an "undigestify" feature.
+
+Those with Unix can now undigestify using:
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD2:<UNIX.MAIL>
+UNDIGESTIFY.C.1			ASCII	  5128  6D91H
+
+which is available via standard anonymous FTP from SIMTEL20.
+
+It turns out that this program has been here for some time, buried in
+the <MSDOS.TXTUTL> directory (no it's not an MSDOS program, it's for
+Unix).  It was submitted to Info-IBMPC for their "lending library" so
+readers of their digest could undigestify it.  It can probably be used,
+with minor modifications, on any operating system that has a C compiler.
+
+--Keith Petersen
+Arpa: W8SDZ@SIMTEL20.ARPA
+Uucp: {decwrl,harvard,lll-crg,ucbvax,uunet,uw-beaver}!simtel20.arpa!w8sdz
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+28-Jan-88 01:33:57-MST,2539;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Thu, 28 Jan 88 01:30:50 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #22
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Thu, 28 Jan 88       Volume 88 : Issue  22
+
+Today's Topics:
+                 Need help with floppy drive powerdo
+----------------------------------------------------------------------
+
+Date: 26 Jan 88 15:36:00 GMT
+From: ssc-vax!shuksan!mikey@beaver.cs.washington.edu  (Mike Fields)
+Subject: Need help with floppy drive powerdo
+
+In article <18700011@clio>, berger@clio.las.uiuc.edu writes:
+> 
+> Are you sure this is an artifact of the Shugart 851 and not your
+> controller?  I have never had any problems with disks when shutting
+> off power to the 851, even with the heads engaged.
+> 
+> 			Mike Berger
+
+The actual problem is a matter of timing - If the 5 volt logic supply 
+drops before the 24 volts for the stepping motor/head load solenoid
+falls, you can get garbage.  Exactly what signals (head load etc) you
+will get from TTL logic when the supply falls to less than 5 volts is
+very hard to predict.  If it generates a head load signal and there
+is still 24 volts available to the head load solenoid, you can get
+a momentary load (and garbage gets written etc).  Some drives are
+jumpered so that the stepping motor is always on when the drive is
+selected - this usually (but it depends on the filter caps) causes the
+24volts to drop quickly.  The correct solution is to set up the supply so
+that the 24volts is cut off as soon as a power-fail condition is detected.
+This would eliminate any chance of a stray write occuring.  Temporary
+measures could consist of increasing the filtering on the 5 volt buss to
+keep the 5 volt logic alive longer, decreasing the filtering on the
+24 volt buss to allow it to drop faster and/or increasing the load
+on the 24 volt buss with a load resistor to get it to drop when the 
+power is turned off (if there is no bleader resistor and no drain on
+the 24 volts, it could stay up for minutes!).  This problem can occur
+with all the drives I am familiar with - its just a matter of timing!
+
+
+-- 
+Mikey (yes "he likes it!")
+==============================================   Mike Fields
+ssc-vax!shuksan!mikey   (206) 251-4638 [work]    12022 NE 138th Pl.
+(alt) ssc-vax!mikey     (206) 821-3492 [home]    Kirkland, Wa. 98034
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+29-Jan-88 01:32:06-MST,1080;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Fri, 29 Jan 88 01:30:13 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #23
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Fri, 29 Jan 88       Volume 88 : Issue  23
+
+Today's Topics:
+             Modified 'undigestify.c' available if wanted
+----------------------------------------------------------------------
+
+Date: Thu, 28 Jan 88 09:17:10 CST
+From: jdb@ncsc.ARPA (Brown)
+Subject: Modified 'undigestify.c' available if wanted
+
+I have modified the undigestify.c program mentioned in a previous
+message to correctly figure out the VOL and NUM of the Info-CPM digest.
+(also tested with Info-IBM and Info-Kermit digests).  The default
+output file name was also changed to <digest-name>.VOL.NUM rather than
+just VOL.NUM.  
+
+If anyone is interested, I could send it to them or re-upload it
+back to Simtel20 if told how.
+
+David Brown
+jdb@ncsc.arpa
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+30-Jan-88 01:33:10-MST,5026;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sat, 30 Jan 88 01:30:16 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #24
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sat, 30 Jan 88       Volume 88 : Issue  24
+
+Today's Topics:
+  Anybody heard of a company called High Tech Research? (Also Z280)
+           Modified 'undigestify.c' available from SIMTEL20
+                    VT-52 Emulator for Osborn Exec
+----------------------------------------------------------------------
+
+Date: 26 Jan 88 19:23:51 GMT
+From: oliveb!intelca!mipos3!cadev4!dbraun@AMES.ARC.NASA.GOV  (Doug Braun ~)
+Subject: Anybody heard of a company called High Tech Research? (Also Z280)
+
+About 10 months ago someone in this newsgroup mentioned a product
+called the "Ultraboard" that was being developed for Kaypro computers.
+It was being worked on by a company called "High Tech Research",
+which announced it at last year's West Coast Computer Faire.
+It is a replacement for the Kaypro main board that uses the Zilog
+Z280 CPU.
+
+I just read in Ted Silveira's CP/M column, in the latest issue
+of Bay Area Computer Currents, that the company encountered some
+"bugs in the Z280" and still hasn't finished the product.
+Since I am working on my own Z280 board, I would be very interested
+in talking to someone at High Tech about their experiences
+with the Z280.  Does anyone have any more information about them
+(address, phone, etc.)?  Zilog hasn't issued any application
+notes, etc. on the Z280, so it would be really useful for me
+to talk to someone who has some experience with the part.
+
+Actually, my Z280 board is coming along very well.
+It will run my floppy version of CP/M, but I have
+to modify my hard disk BIOS to use the Z280's on-chip
+DMA controller.  Also, my floppy BIOS needs a timing
+problem fixed before it will work with the cache turned on.
+
+The board has the following parts:
+
+Z280 CPU
+2 2732 EPROMS
+2 32Kx8 static RAM chips
+2 Address latches
+2 16L8 PALs
+2 TTL glue chips
+1 6850 ACIA serial chip (included for software compatibility)
+
+The disk controllers and many other things are on seperate boards.
+Sometime I plan to add 512k of memory in the form of 4 256Kx4 
+dynamic RAM chips, which will let it run in burst mode with a 10 MHz
+bus clock.
+
+Some preliminary benchmarks:
+
+The classic Sieve program, compiled with the Software Toolworks C
+compiler (I think):
+
+Original 4 MHz Z80:				34 sec.
+9.8 MHz Z280, no cache:				45 sec.  (!!!)
+Z280, instructions cached, no burst mode:	16 sec.  (whew!)
+Z280, data and instructions cached:		13 sec.
+
+Basically, we get a 2.5x speedup on the same .COM files.
+Having burst mode memory would not affect this benchmark much since
+its inner loops probably fit entirely in the cache, and few external
+memory accesses are needed.
+
+An off the cuff analysis tells me that a simple modification of
+the compiler to substitute new Z280 instructions for subroutine
+calls would speed it up another 50%, and a fancier compiler would
+give another 25% speedup, giving an ultimate time of about 5 sec.
+for the Sieve benchmark.  (BTW, the sieve runs in 3 seconds
+on a 8 MHz V-30 with Turbo C 1.5).
+
+If you can tell me something about High Tech Research,
+or are curious about my project, send me mail.
+
+Doug Braun				Intel Corp CAD
+					408 496-5939
+
+ / decwrl \
+ | hplabs |
+-| oliveb |- !intelca!mipos3!cadev4!dbraun
+ | amd    |
+ \ qantel /
+
+------------------------------
+
+Date: Friday, 29 January 1988  08:42-MST
+From: jdb@NCSC.ARPA (Brown)
+Subject: Modified 'undigestify.c' available from SIMTEL20
+
+I have modified the undigestify.c program mentioned in a previous
+message to correctly figure out the VOL and NUM of the Info-CPM
+digest.  (also tested with Info-IBM and Info-Kermit digests).
+
+The new version of undigestify.c is now available via standard
+anonymous FTP from SIMTEL20 as:
+
+Filename			Type	 Bytes	 CRC
+
+Directory PD2:<UNIX.MAIL>
+UNDIGESTIFY.C.2			ASCII	  5139  3DA1H
+
+If compiled as is, the default output file names will be vv.nn.  If
+LONGNAME is defined, (on Unix, at least 4.3BSD, this can be done as
+cc -DLONGNAME undigestify.c), the default name will be of the form
+<digest-name>.vv.nn.
+
+I don't think it does anything special that would prevent it from
+compiling with any reasonable 'c' compiler.  The mods didn't add any
+new constructs that weren't already in the original except a #ifndef
+directive. The original had a #ifdef.  Too bad there are so many
+flavors of unix/c/etc.
+
+David
+
+------------------------------
+
+Date: 29 Jan 1988 06:18-CST
+From: John A. Wright <SAC.HQSAC-DOCT@E.ISI.EDU>
+Subject: VT-52 Emulator for Osborn Exec
+
+Does  anyone  know  of  a Kermit pgm with a VT-52 emulator for the
+Osborne Executive.
+
+If one does not exist, does anyone know of a VT-52  emulator  for
+the same?
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************
+31-Jan-88 01:33:44-MST,3664;000000000000
+Return-Path: <INFO-CPM-REQUEST@SIMTEL20.ARPA>
+Date: Sun, 31 Jan 88 01:30:16 MST
+From: INFO-CPM-REQUEST@SIMTEL20.ARPA
+Reply-To: INFO-CPM@SIMTEL20.ARPA
+Subject: INFO-CPM Digest V88 #25
+To: INFO-CPM@SIMTEL20.ARPA
+
+INFO-CPM Digest             Sun, 31 Jan 88       Volume 88 : Issue  25
+
+Today's Topics:
+  Anybody heard of a company called High Tech Research? (Also Z280)
+                     Apple //e CP/M Mouse Driver?
+              Need an email address for Richard Conn....
+                       Sieve benchmark for Z280
+----------------------------------------------------------------------
+
+Date: 28 Jan 88 15:04:30 GMT
+From: abp@j.cc.purdue.edu  (Jeffrey J Wieland)
+Subject: Anybody heard of a company called High Tech Research? (Also Z280)
+
+According to the Jan/Feb Micro-Cornucopia:
+
+HTR has been experiencing some"problems with the NCR video chips".  These 
+problems are reported as being solved, but HTR may switch to Hitachi chips 
+instead, which might add $50 to the price.  
+
+The Advanced Concepts Engineering hard disk controller will be available as
+a $99 option.
+
+The bug-free Z280 is supposed to available in quantity by Jan. 1.  If HTR
+stayed with the NCR chips, they were hoping to start production in Nov.;
+if they switched to the Hitachi chips, production will be delayed until
+the first of the year.  If any boards are produced before the bug-free Z280,
+HTR will upgrade them for $40.
+
+Their address & phone is:	High Tech Research
+				1135 Pine Street #107
+				Redding, CA  96001
+				1-800-446-3220
+				1-800-446-3223 (CA only)
+
+			Jeff Wieland
+			abp@j.cc.purdue.edu
+
+------------------------------
+
+Date: 30 Jan 88 15:14
+From: binder%fizbin.DEC@decwrl.dec.com (A glotoun of wordes)
+Subject: Apple //e CP/M Mouse Driver?
+
+Does anyone know of a driver for the Apple mouse that can be used with the
+PCPI Applicard in an enhanced Apple //e ?
+
+Thanks,
+Dick Binder   (The Stainless Steel Rat)
+
+DEC Easynet:	FIZBIN::BINDER
+uucp:		{ decvax, allegra, ucbvax... }!decwrl!fizbin.dec.com!binder
+Internet:	binder%fizbin.DEC@decwrl.DEC.COM
+
+------------------------------
+
+Date: 30 Jan 88 11:46:30 GMT
+From: ecsvax!tcamp@mcnc.org  (Ted A. Campbell)
+Subject: Need an email address for Richard Conn....
+
+I need to get in touch with Richard Conn (of ZCPR3 fame) to ask
+about permission to use some material with his name attached.  Am
+I mistaken in thinking that he has a bitnet or uucp address?  If
+anyone knows it, please give me a note.  Thanks.
+-- 
+Ted A. Campbell       |
+Duke Divinity School  |
+Durham, NC  27706     |
+email:  tcamp@ecsvax  |
+
+------------------------------
+
+Date: Sat, 30 Jan 88 10:50:52 PST
+From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+Subject: Sieve benchmark for Z280
+
+A year ago, curious about the speed of compilers vs. hand-optimized
+Z80 code, I wrote JETPRIME.  It proved about 140% faster that
+Turbo-Modula 2, which itself was much faster than Turbo Pascal, BDS-C,
+and a number of 8088 compiled versions.  JETPRIME, on 4Mhz Ampro
+Littleboard, was 4.1 sec for 10 iterations; TM2 was about 10.
+
+JETPRIME.LBR or JPRIME.LBR is available on ZNode-Central,
+408-432-0821.  It may also be on other boards, and simtel20.
+
+I'd be curious to hear how it holds up on the 280.
+
+My third-hand understanding is that the current z280 mask doesn't
+correctly handle code (and data?) changes that occur in the
+associative cache memory.  Self-modifying code is therefore
+unreliable, and possibly there are problems with data values also.
+
+--bridger
+
+------------------------------
+
+End of INFO-CPM Digest
+******************************

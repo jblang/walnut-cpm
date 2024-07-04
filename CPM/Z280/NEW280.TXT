@@ -1,0 +1,125 @@
+                       Some Ideas for a new Z280 product
+                       ---------------------------------
+
+Soon after the Z280 became available I acquired two samples and began 
+experimenting. At this moment I have an S100 board working of sorts and am 
+beginning to give serious consideration to bringing out a product based on the 
+280. The idea behind this document is to get ideas from prospective users on 
+what form it should take and what features should be included to be of most 
+use.
+  Currently I am using an ICD XLM180, a 64180 based S100 system with 2 
+floppies, hard disk, tape backup and 512k memory, to which I have added an 
+Illuminated Technologies 1024x1024 color graphics card. Any new system should 
+have at least the capabilities of this, and preferably more.
+
+Bus Structure
+-------------
+  The present system uses IEEE S-100 bus which I find very satisfactory. 
+However I would not use it for the 280 system. Why? Because first, the 280 
+cannot generate strict IEEE spec signals, specifically the sM1 signal. Though 
+it is possible by means of external logic to distinguish fetches of operands 
+and opcodes and thus generate a sort of sM1 signal, it would be useless as 
+because of the cacheing and pipelining in the 280, fetching and execution are 
+wholly asynchronous events, thus none of the usual uses of this signal would 
+work (hardware debuggers and the like). Second there is the lack of choice of 
+really up-to-date peripheral cards for the bus. After lookink at several 
+alternatives, I have chosen the IBM AT bus.
+  The AT bus is lousy. It is sadly deficient in a number of areas, but most of 
+these do not matter to a single user system. In its favour there is an enormous 
+wealth of cheap and technically advanced peripheral cards available, and the 
+mechanical hardware needed for building an AT-like system is cheap and readily 
+available. The 280 can easily be made to deliver 286-type signals to give 
+wholly compatible bus timings. As far as I can see the only peripherals that 
+would not work without modification would be hard-cards and the like which 
+contain ROMS full of 8086 code, which would have to be changed. But as the 
+system would come with a hard disk as standard I see no need for hard-cards.
+
+Disks
+-----
+  I propose two 3.5 inch floppies (800k each) and a 40MB hard disk. Though 3.5 
+inch disks are not widely used outside 68000 systems, they have surely proved 
+themselves and are a big improvement over 5.25 and (heaven forbid!) 8 inch 
+floppies. Also they will help to keep the size down. The AT, and my XLM180, are 
+huge beasts, and I don't want my new machine to be any bigger than an XT. But 
+the disk controller used will support 4 floppies so external 5.25inch drives 
+can always be used to read older disks. The hard disk controller would be SCSI 
+and easily replaceable for future upgrades.
+
+I/O
+---
+  Two serial ports, Centronics parallel, and SCSI ports would be included on 
+the mother board, as well as a 2400/1200/300 baud modem. Additional I/O can of 
+course be added on plug in boards in the six expansion slots provided.
+
+Keyboard and display
+--------------------
+  A normal AT-type plug-in keyboard would be used. The display would be wholly 
+unlike anything on an AT, being a bit-mapped 1024x768 color screen of 15 inch 
+diagonal. The dispay would use its own processor, a TMS34010, and its own 768KB 
+of memory which would be independent of and not encroach the main address 
+space. Graphics cpu program memory would, however be accessible to the Z280 so 
+new graphics primitives could be developed and loaded. This memory, accessible 
+to both processors would be accessed on an alternate-phase system permitting 
+both cpu's to access at full speed without using DMA. Graphics commands would 
+be passed through a small bloc of this memory. The bit-mapped display would 
+enable anything that could be done on a Mac to be done on this machine, and in 
+full color. And the resolution is sufficient for decent CAD applications.
+
+Memory
+------
+  There would be room on the motherboard for 32 memory chips, giving 1MB using 
+256k chips or 4Mb using 1Mb chips. This could be expanded on external memory 
+boards to 16Mb, less that used for ROM and the 128k or so of graphics 
+primitives.
+
+Power Supply
+------------
+  A 200 watt supply using a special circuit of my own which gives very high 
+efficiency and large power/volume ratio. This will help keep the size of the 
+unit down.
+
+Operating System
+----------------
+  I'm currently thinking of some form of ZRDOS, either a modification by me, 
+Echelon, or a third party, or a wholly new clone of same. To be useful in such 
+a system, ZRDOS needs adding to it (a) large memory model support (b) graphics 
+support, and (c) multitasking would be very useful. Large memory models need 
+careful thought; I am already using large (by this I mean >64k) programs on my 
+XLM180, but to do the addressing I have to manipulate the MMU registers from 
+within the applications program, a highly unportable approach, and one 
+impossible on the 280 as changing the MMU registers is a privileged instruction 
+and can only be done in system mode. So we need a set of standardised OS calls 
+for this purpose, as well as a means of loading a large program (cf. EXE files 
+in MeSsyDOS). As far as the graphics are concerned, why not take a look at the 
+way the Mac does it. On the IBMs, it's a hopeless mess and I don't see much 
+point in emulating that. Also we need an operating system call to 
+enable/disable the cache. Again it's a privileged instruction but occasionally 
+a user's program may want to disable the cache if it's executing self-modifying 
+code in tight loops, though my own experiments suggest that the pipeline is 
+probable more to blame than the cache. In any case, despite rumors to the 
+contrary, 95% of self modifying code WILL run correctly on the 280. One very 
+special case where the cache must be off is where code is loaded via DMA and 
+then immediately executed - the cache will still contain the old code. But no 
+USER program is likely to do that sort of stuff - much more likely in a BIOS or 
+IOP - which would be in system mode anyway.
+
+
+  So these are the ideas I currently have for the 280 system. Please let me 
+know what you think - any suggestions for improvements - etc. Please keep it 
+reasonable - I know you'd all like 100MHz systems with 16Mb memory, 1GB optical 
+disks and 4096x3072 pixel realtime color graphics, but it would be so 
+preposterously expensive that the customer base would be zilch. This system has 
+to be cost effective compared to an AT - thats the reason for using cheap AT
+clone parts in it to start with. And don't destroy its compatibility - I see no 
+reason we can't have a system that concedes nothing to IBM, Apple, Atari and 
+Commodore in up-to-the-minute features yet will still run all our old favorite 
+Z80 programs - even faster than before.
+
+  I can be regularly contacted on Canada Remote Systems BBS 416-232-0442. Less
+ regularly on Znode Central, ICBBS Ottawa or Holly Park RCPM. Or you can 
+phone me at home (416-299-0502) after 6pm EST or at work (416-439-4273) 9am-5pm 
+EST Mon-Fri on voice. Or even FAX (416-439-3875). Or write to: 1131 Sandhurst
+Circle #111, Scarborough, Ontario M1V1V5, Canada.
+
+     Greg Trice, Dec 1987.
+

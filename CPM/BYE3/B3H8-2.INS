@@ -1,0 +1,132 @@
+; B3H8-2.INS - Heath H89 insert for BYE3 - 		07/30/85
+;
+;	     8250 I/O with built-in baudrate generator
+;
+;	      Note:  This is an insert not an overlay
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/30/85  Restored original format			- pst
+; 07/21/85  Fixed LOADBD code				- Bill Wood
+; 06/16/85  Put in missing RET just before MDINP.       - Bill Wood	
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; The following define the port address to use.
+;
+DPORT	EQU	0D8H		; Data port
+LCPORT	EQU	DPORT+3		; Line control register
+MCPORT	EQU	DPORT+4		; Modem control register
+LSPORT	EQU	DPORT+5		; Line status register
+MSPORT	EQU	DPORT+6		; Modem status register
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00100000B	; Transmit buffer empty
+DCD	EQU	10000000B	; Data carrier detect
+;
+BD300	EQU	0180H		; 300  baud
+BD1200	EQU	0060H		; 1200 baud
+BD2400	EQU	0030H		; 2400 baud
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MSPORT		; Get modem status
+	ANI	DCD		; Check for carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	XRA	A		; Shut off DTR & RTS
+	OUT	MCPORT		; Which turns off modem.
+;
+	PUSH	B		; Preserve since we need it
+	MVI	B,20		; 2 seconds delay to drop any carrier
+OFFTI:	CALL	DELAY		; .1 second delay
+	DCR	B
+	JNZ	OFFTI		; Loop until done
+	POP	B		; Restore BC
+;
+	MVI	A,03H		; 8-level, 1 stop bit, no parity
+	OUT	LCPORT		; Line control register (03=1, 07=2)
+	MVI	A,03H		; Turn on DTR and RTS & wait for call
+	OUT	MCPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Init smartmodem
+	 ENDIF			; IMODEM
+;
+	RET			; Added in B3H8-1.INS to make function
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	LSPORT		; Get status
+	ANI	DAV		; Check receive ready bit
+	RZ			; Return if not ready
+	ORI	255		; We have a character
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	LSPORT
+	ANI	TBMT		; Check transmit ready bit
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	XRA	A		; Turn off DTR (in case NORING was on)
+	OUT	MCPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	LXI	H,BD300		; Get 300 baud parameters in HL
+	JMP	LOADBD		; Go load them
+;
+SET1200:LXI	H,BD1200
+	JMP	LOADBD
+;
+SET2400:LXI	H,BD2400
+;
+LOADBD:	DI			; Turn off interrupts for initialization
+	XRA	A
+	OUT	DPORT+1		; Interrupt enable register
+	MVI	A,80H		; Insure out of mode to set baud rate
+	OUT	LCPORT		; Line control register
+	MOV	A,L		; Get least significant baud rate byte
+	OUT	DPORT
+	MOV	A,H		; Get most signifcant baud rate byte
+	OUT	DPORT+1
+	MVI	A,03H		; 8-level, 1 stop bit, no parity
+	OUT	LCPORT		; Line control register (03=1, 07=2)
+	MVI	A,01H		; Set 'DTR' nromal
+	OUT	MCPORT		; Modem control register
+	EI			; Restore interrupts to normal
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

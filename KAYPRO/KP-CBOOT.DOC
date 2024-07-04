@@ -1,0 +1,94 @@
+J. Steele
+7-6-84
+
+COLD BOOT INITIALIZATION K10 CPM 2.2 F
+
+Purpose: KAYPRO, in it's corporate wisdom decided to go for the most common
+         IO configuration which is 300 baud on the serial ports and using
+         the parallel printer.  Those who don't do this, and especially
+         those who use a variety of customized CP/M's have to use CONFIG
+         or a special boot-up routine to overcome the Kaypro scheme. The 
+         following technique avoids this problem once and for all plus
+         you learn a few added things about the "inner" secrets of the
+         Kaypro BIOS. (It might be easier on Kaypro to release the BIOS
+         and let the hackers have at it. No telling what good things might
+         be done.)
+
+----------------------------------------------------------------------------
+
+On the COLD BOOT the IO byte and the baud ports are initialized from high
+memory locations which means we can get to them for our own needs.
+
+	o The initial IO byte is loaded from EA33h
+	o The initial Printer Baud is loaded from EA48h
+	o  "    "     Modem    "    "   "     "   EA47h
+
+--------------------------------------------------------------------------
+
+These locations are on either side of the cursor-keypad table which makes
+them very easy to find and change with EDFILE to eliminate continual 
+use of the (barf) CONFIG program.
+
+
+ +-> This is the IO byte                                    +----> Modem Bd
+ |    +>cursor <+  +--> keypad table here <---------------+ |  +-> Printer Bd
+ |    | keys    |  |                                      | |  |
+81 00 0B 0A 08 0C 30 31 32 33 34 35 36 37 38 39 2D 2C 0D 2E 05 05
+      ^  v  <- ->| 0  1  2  3  4  5  6  7  8  9  -  , EN  .|
+      up dn lf rt|   keypad face values for above bytes    |
+--------------------------------------------------------------------------
+Changing the values with the EDFILE disk editor (any will do that can find
+a string in the file)
+
+>EDFILE PUTSYS.COM   (whatever putsys you are using)
+
+S \123456\           (search for the string "123456"
+
+This will put you in the sector and you can edit the appropriate bytes
+as you desire. Consult the KAYPRO manual for baud rates and any good
+CPM text for a discussion of the IO byte.
+--------------------------------------------------------------------------
+
+The IO byte is comes stock set to 81h which enables the Parallel Printer
+and can be set for the serial printer by changing it to 01h. Don't make
+any other changes as the PUNCH and READER don't care and if you set the
+CONSOLE to 0 it will bring the system up looking to the PRINTER port
+for keyboard-screen. Nice, though if you use the K10 with a "real"
+terminal.
+
+Both the MODEM and PRINTER baud come in set at 300 baud which is  05h.
+I set the printer to 07h as I use a 1200 baud serial printer. (an OKI
+that has a parallel port but is two feet too far from the box and I
+can make a long RS232 cable a heck of a lot cheaper than a Centronics)
+
+Note that at the same time, you can alter the initial values of the cursor
+keys and the keypad. The keypad keys can be changed directly to a single
+byte value or by changing the desired key to 00h you may then make up to
+a 4 byte value in the table which follows this stuff. Best to do what you
+want with config first, use DDT to look at the area and then make the final
+edit with EDFILE or another disk file editor. (I am assuming this isn't
+compu-garbage talk to you, but if it is, then you need the experience of
+learning a bit more before you hack up the main software of the machine)
+
+When you have made your changes, just run the PUTSYS (or whatever) and 
+reboot from a RESET. If the computer chokes, try again. I suggest you 
+work on RENamed copies of PUTSYS.COM to avoid junking your on disk
+backup. These bytes only affect the COLD boot from power-up or reset so
+any later finagling you do with Config, Stat, or Whatzit.com will be on
+your head.
+
+The only r-e-a-l bad thing you can do playing around with the BIOS
+would be to accidentally call on the ROM monitor to junk up a disk
+area. This doesn't even go close. (Ask me about the time a WS went
+bonkers and dumped a file on the directory tracks - Real soon after,
+KAYPRO gave me a brand new main board, HD controller and a new Hdisk
+that worked right. That was before the bean counters started adding up
+the cost of in-the-field fixes on THEIR engineering errors. They've
+stopped being so nice now, but Lord help you with the first versions of
+the Western Digital board. The big expensive chips roast out and KAYPRO
+only stocks assemblies, not replacement chips. $210 in exchange cost to
+the dealer. Ask me how I know!!) 
+
+THAT'S ALL FOLKS !!!!!
+
+PS: Works just fine with ZCPR2 for the K-10. Enjoy!

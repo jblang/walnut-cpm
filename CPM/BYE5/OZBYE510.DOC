@@ -1,0 +1,128 @@
+         Osborne 01 / BYE510 / Smart Modem
+
+     The   insert  for  the   Osborne,   B5OS-2.INS, 
+describes  a hardware modification to  the  computer 
+which I was able to avoid.  Since I am using a smart 
+modem  it is possible to let it control BYE as  well 
+as  the  phone connection.  Pin four of  the  serial 
+connector  of  the Osborne is checked by BYE.COM  to 
+determine if the modem is on line.  When this pin is 
+at plus 5 volts or greater, the on-line condition is 
+indicated. (my modem pulls pin four to plus 12 volts 
+when  it  answers) When the caller hangs up  or  the 
+line  is  lost,  the  modem grounds  pin  four.  BYE 
+detects the ground at pin four and recycles,  making 
+itself ready for the next call.  If your modem has a 
+suitable  signal which you can connect to  pin  four 
+you  are in business.  It looks like DATA SET READY, 
+pin six on the modem,  might work.  I had previously 
+modified my modem to bring the off-hook led  voltage 
+to  the connector.  This provided the needed  signal 
+and   I  was  able  to  get  BYE  running  with   no 
+modification to my Osborne.
+
+     When  a disconnect is caused by a  time-out, or 
+when  the  caller  types  the  command  BYE,  it  is 
+necessary  to run a program which commands the modem 
+to disconnect.  When the modem disconnects, pin four 
+will go to ground and BYE will recycle. BYE provides 
+the option of running a program upon exit by setting 
+the EXFILE equate to YES. My exit program sends a ^T 
+to the modem,  delays one second to allow the  modem 
+time  to abort,  and returns to BYE.  The program is 
+named  PEXIT.COM and is on the same disk as  BYE.COM 
+in  user area 14.  These options are selected by the 
+equates EXFILE,  EXDRV,  and EXUSR.  In addition the 
+following two equates must be set to NO:  PRNTGB    
+                                          BYHANG    
+
+     Using  a program to abort the modem solves  two 
+other problems.  I keep BYE.COM on drive A.  What if 
+the  caller decides to terminate the call and  types 
+BYE  when logged on drive B?  I have a copy  of  the 
+exit  program on drive B which I have named BYE.COM. 
+If the caller types BYE while on drive B,  the  exit 
+program  will send the abort character to the  modem 
+and  BYE  will recycle just as  before.  The  second 
+problem  involved  getting  BYE to  recycle  if  the 
+caller was unable to enter the correct password. BYE 
+has  an option for a user password but I decided not 
+to  use  it.  I  wanted more options so  I  wrote  a 
+password  program that is run when the phone line is 
+first  picked up.(See equates  COMFILE,  COMDRV  and 
+COMUSR) If the caller is unable to give the password 
+the program sends a ^T to the modem. If the password 
+is  correct the program sets the wheel byte  to  the 
+value assigned that password. 
+
+     After inserting B5OS-2.INS into BYE510C.ASM, be 
+sure  to  check all the equates to insure that  they 
+are  set correctly for your  system.  After  setting 
+EXFILE  to yes you will also have to select the user 
+area  and a file name.  The file name will  have  to 
+match the exit-file  file name of the BBS equate you 
+set to YES. File names appear in file control blocks 
+toward the end of the BYE asm file. I am not using a 
+BBS  program but I had to set the equate for one  of 
+them to YES to avoid assembler errors.  My exit file 
+name  and my entrance file name match the names used 
+by that BBS system.
+
+
+;PEXIT.ASM for use with BYE510
+;for OSBORNE 01  bios 1.4
+;Causes modem to abort by sending a ^T via the serial port
+TURNOFF EQU     14H ;^T to abort modem - put your abort char here 
+SHADOW  EQU     4000H   ;must be above 4000h
+MEMREG  EQU     0EF08H 
+CONT    EQU     2A00H   ;serial status/control
+CNT1    EQU     0FFH    ;for delay loop
+CNT2    EQU     0FFFFH  ;for delay loop
+CNT3    EQU     04H     ;for delay loop
+        ORG     100H
+        LXI     D,BYBY
+        MVI     C,9
+        CALL    5
+        JMP     DOBLK
+BYBY:   DB      0DH,0AH,'GOOD BYE.....',0DH,0AH,24H
+DOBLK:  LXI     H,BLKSTART
+        LXI     D,SHADOW
+        LXI     B,BLKEND-BLKSTART
+        DB      0EDH,0B0H
+        JMP     SHADOW
+BLKSTART:       EQU     $       ;ends up at 4000h
+        DI
+        OUT     0       
+        MVI     A,0     
+        STA     MEMREG
+        MVI     A,TURNOFF
+        STA     CONT+1
+        OUT     1
+        MVI     A,1
+        STA     MEMREG
+        EI
+        MVI     D,CNT3
+LONG:   MVI     E,CNT1  ;one second delay to allow
+SHORT:  LXI     B,CNT2  ;modem time to abort
+LP1:    MOV     A,C
+        DCR     A
+        MOV     C,A
+        JNZ     LP1
+LP2:    MOV     A,B
+        DCR     A
+        MOV     B,A
+        JNZ     LP2
+        MOV     A,E
+        DCR     A
+        MOV     E,A
+        JNZ     SHORT
+        MOV     A,D
+        DCR     A
+        MOV     D,A
+        JNZ     LONG
+        RET
+BLKEND  EQU     $
+        END
+;
+                       <eof>
+

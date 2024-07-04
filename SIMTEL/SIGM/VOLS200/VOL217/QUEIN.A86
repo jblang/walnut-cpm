@@ -1,0 +1,130 @@
+title 'Create MXconsN Queues'
+
+
+;-------------------------------------------------------------------
+;QUEIN.A86
+;
+;		MXconsN	 queues for MC-DOS
+; Routine to create the queues MXconsN (N = Console number)
+;
+; The MXconsN queues may then be used by application programs that
+; require a console port for direct I/O.
+
+;
+; QUEIN.CMD should be called from the SYSINIT.SUB file on A0 allowing
+;	    the queues to be created during start up.
+;
+;
+;						11/24/84  Alex Soya
+;-------------------------------------------------------------------
+;
+;
+;
+;MC-DOS function calls:
+;
+P_TERMCPM	EQU	0	; Terminate program
+C_WRITESTR	EQU	9	; Print Ascii string to default console
+Q_MAKE		EQU   134	; Create a system queue.
+Q_OPEN		EQU   135	; Open a system queue
+Q_WRITE		EQU   139	; Write a message to system queue
+
+
+;Some equates:
+;
+cr		equ	0dh
+lf		equ	0ah
+MAXCON		equ	2	; Max Console number (1 - 9)
+				; to be used for direct port I/O
+				; MXcon0 will not be created as this
+				; is the Systems Console and should not
+				; be used for anything other than the
+				; console.
+;
+
+
+		CSEG		; Using Small model
+
+
+start:	mov	SP, offset STACK
+	mov	AX,DS
+	mov	SS,AX
+	
+	mov	cx,MAXCON	; Ques are created from MAXCON down
+quelp:	push	cx		; save current count
+	mov	ax,cx
+	add	al,'0'		; Make que number ascii
+	mov	qdname+6,al	; Make que name
+	mov	qpname+6,al
+	mov	msname+6,al
+	mov	Word ptr qd,0	; fill the crap
+	mov	Word ptr qd+2,0
+	mov	Word ptr qd+22,0
+	mov	Word ptr qd+24,0
+	mov	Word ptr qd+26,0
+	mov	Word ptr buffer, Offset msgbuf
+	mov	Word ptr flags,1 ; this is a MX que
+	mov	Word ptr msglen,0
+	mov	Word ptr nmsgs,1
+	mov	dx, offset qd	; get que descriptor offset
+	mov	cl, Q_MAKE	; make that que
+	call	bdos
+
+	mov	Word ptr qpb,0	; now fill in the crap in the QPB
+	mov	word ptr qpb+4,0
+	mov	word ptr qpbuf, offset msgbuf
+	mov	dx, offset qpb
+	mov	cl, Q_OPEN	; open the que
+	call	bdos
+	mov	cl, Q_WRITE	; and write to the que
+	call	bdos
+	mov	cl, C_WRITESTR	; Tell operator which que was created
+	mov	dx, offset msg
+	call	bdos
+	pop	cx
+	loop	quelp		; and do the next one
+
+	mov	cl,P_TERMCPM	; and terminate
+	int	224
+
+
+bdos:	push	cx
+	push	dx
+	int	224
+	pop	dx
+	pop	cx
+	ret
+
+
+	DSEG
+
+	ORG	100h
+
+
+qd	dw	0		; Que descriptor
+	dw	0
+flags	dw	1		; its an MX que
+qdname	db	'MXcons  '	; My name is MXcons
+msglen	dw	0		; message is 0 long
+nmsgs	dw	1		; 1 message at a time
+	dw	0
+	dw	0
+	dw	0
+buffer	dw	offset msgbuf
+
+
+qpb	dw	0		; Que parameter block
+qpid	dw	0		; ID field
+	dw	0
+qpbuf	dw	offset msgbuf
+qpname	db	'MXcons  '
+
+
+msgbuf	dw	0
+
+msg	db	'Console exclusion queue: '
+msname	db	'MXcons  - created',cr,lf,'$'
+
+	rw	36
+stack	rw	0		; here is our local stack
+
+

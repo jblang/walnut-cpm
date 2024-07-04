@@ -1,0 +1,270 @@
+        .TITLE  'Poor Mans Network overlay for the SB180'
+;
+        .HD64   ; Hitachi HD64180 opcodes in low-level I/O routines
+;
+; Assemble with Echelon ZAS
+;
+; POOR MAN'S NETWORK available from:
+;  Anderson Techno-Products
+;  613-722-0690
+;
+; PMN is a 2-computer CP/M networking system. It allows the sharing
+; of any device DSK:, LST: PUN: etc with connection via the serial port.
+;
+; Revision History:
+;------+---------+----------+---------------------------------------------
+; Rev. |  Date   |  Author  |          Description
+;------+---------+----------+---------------------------------------------
+; 1.0  |10 May 87| Al       | - created for ASCII port 0 of SB180
+;      |         | Heynneman|   70110,611 on CompuServe
+;      |         |          |   CL0798 on the Source
+;      |         |          |   HEYNNEMAN on Genie
+;------+---------+----------+---------------------------------------------
+;
+TRUE    EQU     0FFH
+FALSE   EQU     0
+CR      EQU     13
+;
+; HD64180 port definitions
+;
+MODCT1  EQU     00H             ;control port
+MODOUT  EQU     06H             ;data port out
+MODIN   EQU     08H             ;data port in
+MODSTAT EQU     04H             ;status port
+BAUDRP  EQU     02H             ;baud rate port (+ even/odd parity)
+;
+; HD64180 bit definitions
+;
+MDRCVB  EQU     80H             ;receive bit (DAV)
+MDRCVR  EQU     80H             ;receive ready
+MDSNDB  EQU     02H             ;send bit
+MDSNDR  EQU     02H             ;send ready bit
+;
+;***** HD64180 CPU speed *****
+;  (Set only ONE of the following to TRUE)
+;
+CPU12   EQU     FALSE           ;12.288 MHz clock
+CPU9    EQU     TRUE            ; 9.216 MHz clock
+CPU6    EQU     FALSE           ; 6.144 MHz clock
+CPU4    EQU     FALSE           ; 4.608 MHz clock
+CPU3    EQU     FALSE           ; 3.072 MHz clock
+;
+;---------------------------------------------------------------------
+; PMN Eqautes
+
+NETBIOS         EQU     2000H
+OFFSET          EQU     0F00H           
+;
+                ORG     107H
+
+; MODEM COMMANDS (not used in this version)
+;
+MATTNCDS DB     'A','T',0,0,0,0,0,0,0,0 ;ATTENTION
+MINTRCDS DB     '+','+','+',0,0,0,0,0,0,0 ;INTERRUPT
+MDIALCDS DB     'D',0,0,0,0,0,0,0,0,0   ;DIAL A NO
+MHANGCDS DB     'H','0',0,0,0,0,0,0,0,0 ;HANG UP LINE
+MINITCDS DB     'E0',CR         ;HAYES INITIALIZATION
+         DB     'F1',CR         ;(40 BYTES TOTAL)
+         DB     'Q0',CR
+         DB     'V1',CR
+         DB     'X1',CR
+         DB     'S0=0',CR
+         DB     'S7=15',CR
+         DB     0,0,0,0
+         DB     0,0,0,0,0,0,0,0,0,0
+;
+; BAUD RATE TABLE 
+; baud rate divisors for supported rates
+;
+BAUDCODE:
+;
+         IF     CPU12           ; 12.288 MHz clock
+        DW      0EH     ;300
+        DW      0DH     ;600
+        DW      06H     ;1200
+        DW      00H     ;1800
+        DW      05H     ;2400
+        DW      00H     ;3600
+        DW      04H     ;4800
+        DW      00H     ;7200
+        DW      03H     ;9600
+        DW      02H     ;19200
+        DW      00H     ;38400
+         ENDIF
+;
+         IF     CPU9            ; 9.216 MHz clock
+        DW      26H     ;300
+        DW      25H     ;600
+        DW      24H     ;1200
+        DW      00H     ;1800
+        DW      23H     ;2400
+        DW      00H     ;3600
+        DW      22H     ;4800
+        DW      00H     ;7200
+        DW      21H     ;9600
+        DW      20H     ;19200
+        DW      00H     ;38400
+         ENDIF
+;
+         IF     CPU6            ; 6.144 MHz clock
+        DW      0DH     ;300
+        DW      06H     ;600
+        DW      05H     ;1200
+        DW      00H     ;1800
+        DW      04H     ;2400
+        DW      00H     ;3600
+        DW      03H     ;4800
+        DW      00H     ;7200
+        DW      02H     ;9600
+        DW      01H     ;19200
+        DW      00H     ;38400
+         ENDIF
+;
+         IF     CPU4            ; 4.608 MHz clock
+        DW      25H     ;300
+        DW      24H     ;600
+        DW      23H     ;1200
+        DW      00H     ;1800
+        DW      22H     ;2400
+        DW      00H     ;3600
+        DW      21H     ;4800
+        DW      00H     ;7200
+        DW      20H     ;9600
+        DW      00H     ;19200
+        DW      00H     ;38400
+         ENDIF
+;
+         IF     CPU3            ; 3.072 MHz clock
+        DW      06H     ;300
+        DW      05H     ;600
+        DW      04H     ;1200
+        DW      00H     ;1800
+        DW      03H     ;2400
+        DW      00H     ;3600
+        DW      02H     ;4800
+        DW      00H     ;7200
+        DW      01H     ;9600
+        DW      80H     ;19200
+        DW      00H     ;38400
+         ENDIF
+;
+ERRMRK: DB      '^'                     ;PARAMETER ERROR MARKER
+COMP:   DB      'MicroMint SB180 and ASCI0 port',CR
+;                .........1.........2.........3 30 BYTES
+
+        ORG     NETBIOS+31BH
+;
+SCRSIZ: DB      24                      ;LINES ON SCREEN
+SCRWID: DB      80                      ;WIDTH OF SCREEN
+;       
+CLRLIN: DB      2,27,'T',0,0,0,0,0,0,0  ;CLEAR TO EOL
+DIRCUR: DB      2,27,'=',0,0,0,0,0,0,0  ;DIRECT CURSOR ADDR
+MIDCUR: DB      0,0,0,0,0,0,0,0,0,0     ;MIDDLE STRING
+ENDCUR: DB      0,0,0,0,0,0,0,0,0,0     ;ENDING STRING
+VOFF:   DB      32                      ;CURSOR ADDR OFFSET
+CURSTY: DB      0                       ;0=Y,X; 1=X,Y
+ASCCUR: DB      0                       ;ASCII CURSOR ADDR
+VDELAY: DB      0                       ;CURS ADDR DELAY
+REVVID: DB      0,0,0,0,0,0,0,0,0,0     ;REVERSE VIDEO
+NORVID: DB      0,0,0,0,0,0,0,0,0,0     ;NORMAL VIDEO
+SAVECP: DB      0,0,0,0,0,0,0,0,0,0     ;SAVE CURSR POSN
+RSTRCP: DB      0,0,0,0,0,0,0,0,0,0     ;RESTORE CURSR POSN
+MSGL:   DB      0                       ;WHERE TO PUT MESSAGE
+;
+
+        ORG     NETBIOS+61CH
+
+SYSID:  DB      9               ;THIS SYSTEM ID, FOR 9MHZ SB180
+FCLK:   DB      TRUE            ;4MHZ OR BETTER
+MSGKEY: DB      1CH,0,0,0       ;MSG KEY SEQUENCE
+RELOC:  DW      0               ;WHERE TO PUT NETBIOS   
+        DS      8               ;reserved
+;
+; USART CONTROL BYTES
+;
+USART1: DB      0               ;GET USART'S ATTN
+USART2: DB      0               ;SOFTWARE RESET
+FINBIT: DB      0               ;ENABLE XMIT
+FIXED:  DB      0               ;USART CONSTANT BITS
+PARITY: DB      0               ;NO PARITY
+WORD:   DB      64H             ;REC EN, TRANS EN, 8 BITS, 1 STOP
+        DB      0               ;
+BAUD:   DW      21H             ;DEFAULT BAUD RATE (9600, 9MHZ)
+;
+        ORG     NETBIOS+OFFSET
+
+DRIVER:
+
+ANYEXT: JP      DR$ANYEXT       ;is a byte at port
+INEXT:  JP      DR$INEXT        ;read the data port
+EXTRDY: JP      DR$EXTRDY       ;check if ready to xmit
+OUTEXT: JP      DR$OUTEXT       ;write to the data port
+RESET   JP      DR$INITMOD              ;init the port
+ACTIV:  RET
+        NOP
+        NOP
+PBUSY:  RET
+        NOP
+        NOP
+;                 E N D  of Fixed Format Area !
+;===================================================================
+;
+; CHECK IF BYTE AT MODEM
+; Z set if byte available.
+; May use registers A, B, C.
+;
+DR$ANYEXT:
+        IN0     A,(MODSTAT)
+        IN0     A,(MODSTAT)     ;DO TWICE FOR VALID DCD
+        XOR     MDRCVR
+        AND     MDRCVB
+        RET
+
+;...............................
+;
+; GET BYTE FROM MODEM
+; May use registers A, B, C.
+;
+DR$INEXT:
+        IN0     A,(MODIN)
+        RET
+
+;...............................
+;
+; CHECK IF MODEM PORT READY TO XMIT
+; Z set if so.
+; May use registers A, B, C.
+;
+DR$EXTRDY:
+        IN0     A,(MODSTAT)
+        IN0     A,(MODSTAT)     ;DO TWICE FOR VALID DCD
+        XOR     MDSNDR
+        AND     MDSNDB
+        RET
+
+;...............................
+;
+; SEND BYTE TO MODEM
+; May use registers A, B, C.
+;
+DR$OUTEXT:
+        OUT0    (MODOUT),A
+        RET
+
+;...............................
+;
+; RESET/INIT MODEM PORT
+;
+DR$INITMOD:
+        LD      A,(WORD)
+        OUT0    (MODCT1),A
+        LD      A,(BAUD)
+        AND     7FH             ;CHANGE 80H TO 00H IF 3.072 MHZ CLOCK
+        OUT0    (BAUDRP),A
+        RET
+
+;
+;................................
+;
+        END                     ;PMO-SB10.Z80
+

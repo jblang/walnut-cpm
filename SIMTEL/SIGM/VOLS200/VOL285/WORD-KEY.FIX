@@ -1,0 +1,83 @@
+      Last revision: June 8, 1986 at 9:01
+   
+   by: H.M. Van Tassell
+
+Several programs for the PC have their own complex keyboard handlers and
+some of these don't take into account that a few folk have keyboards other
+than the standard IBM type. Now that there is a new style IBM keyboard,
+it is kinda sadistic fun to watch the authors of these programs squirm,
+but that really doesn't help us poor SOBs with 5151 type keyboards. Word,
+Framework II, and Windows are in this category.
+
+Microsoft's WORD (version 3.0) assumes that you don't want the Num Lock
+key on so the little bugger just up and turns it off when the program 
+starts up.  Well, if you have a Num Lock light and/or a cursor keypad,
+things get out of phase. Suddenly the cursor key pad is turned into a
+number keypad and the cursor keys are back on the number pad. The helpful
+keyboard lights are suddenly not synchronized with the computer.  I first
+wrote a little Num Lock toggle program called NUMLOCK.COM and included
+in this ARC file. That worked but you had to drop down to the operating
+system shell to run it. Then I patched WORD.COM to not reset the Num Lock
+bit on startup.  The patching technique used is shown below. 
+
+
+Short, quick, and simple version.
+---------------------------------
+
+Copy WORD.COM to WORDTEMP.COM and invoke debug as follows:
+
+>DEBUG WORDTEMP.COM
+
+Next check a couple of bytes and make change if all looks OK 
+
+-E 39BA         ;press RETURN
+
+               +-------+-------- Press space bar to skip
+              /       /
+1C60:39BA  17.     00.     CF.EF
+                               \__ change the CF to EF, press RETURN
+
+-W              ; press RETURN 
+
+All done, now test it out.
+
+
+"Educational" version for would be hackers  (giggle)
+------------------------------------------
+
+Look for the masking of the the keyboard byte stored at
+location 0040:0017 in BIOS memory, then change it to not
+mask off the Num Lock bit.
+
+>DEBUG WORDTEMP.COM             ; startup DEBUG with WORDTEMP.COM
+                                ; USE a COPY of WORD.COM 
+
+-S 0 a000 17 00                 ; Search for 0017
+
+1C60:39BA                       ; hmmm, found it twice,
+1C60:3FF7
+
+-U39b2                          ; Un-assemble code near the first find
+
+1C60:39B2 B84000         MOV	AX,0040 
+1C60:39B5 8EC0           MOV	ES,AX 
+1C60:39B7 2680261700EF   AND	Byte Ptr ES:[0017],CF 
+                                                  
+        ; here is where the Num Lock and Scroll Lock bits are
+        ; masked off, so lets change it. CF hex = 1100 1111 binary
+        ; Scroll Lock is bit 4, Num Lock is bit 5,  EF = 1110 1111
+
+-E39ba                          ; get ready to make a change
+               +-------+-------- Press space bar to skip
+              /       /
+1C60:39BA  17.     00.     CF.EF
+                               \__ change the CF to EF, press RETURN
+
+-W                              ; write the changed file to disk 
+
+Writing ADD2 bytes
+-Q                              ; all done, ready to test WORDTEMP.COM
+
+
+[eof]
+

@@ -1,0 +1,178 @@
+*********************************************************************
+This article is being presented through the *StarBoard* Journal of
+the FlagShip/StarShip SIGs (Special Interest Groups) on the Delphi
+and GEnie telecommunications networks.  Permission is hereby granted
+to non-profit organizations only to reprint this article or pass it
+along electronically as long as proper credit is given to both the
+author and the *StarBoard* Journal.
+*********************************************************************
+
+                      COLOR YOUR WOR(L)DSTAR!!
+
+                        Patching Information
+                         For WORDSTAR 3.30
+                        On the Commodore 128
+
+                        by KEVIN-S. on GEnie
+
+     This article provides information on patching procedures and
+locations which may be useful in customizing your Commodore
+installation of Wordstar.  It assumes you are familiar with the basic
+techniques involved in copying your master disk and running the
+WINSTALL program.  If you are using version 2.2x of Wordstar, your
+installation and patching commands may be slightly different.  The
+address labels will be the same except where noted, however, and the
+general procedure is the same.  Please see your manual for more
+information.  If you need more basic information in terminal setup,
+etc., there are many texts within the CP/M section of most public
+databases (including GEnie) with more extensive instructions on
+Wordstar patching.
+
+     It is highly recommended that you obtain copies of the C1571.COM
+and CONF.COM programs.  These public domain programs were written by
+Von Ertwine, and are very handy for C-128 CP/M use in general.
+C1571.COM speeds up disk writing operations by a factor of two.
+CONF.COM allows the alteration of many console parameters, such as
+colors, cursor shape and flash rate, keyboard repeat and feel, and
+more.  I use both these commands in a PROFILE.SUB file to initialize my
+terminal setup whenever I boot CP/M.  I will refer to some of the CONF
+parameters in the section on system speedup.
+
+     There are three basic modifications I want to discuss: setting up
+your basic Wordstar colors, changing your highlighting effect, and
+speeding up your Wordstar system.  These are more or less independent
+of each other.  Please feel free to experiment with a BACKUP copy of
+your Wordstar; much information can be gleaned by poking around in this
+program.
+
+     To make any of the alterations discussed in this document, you
+first must have entered the patching area of your Wordstar installation
+program, WINSTALL.  To do this, simply enter a '+' sign at the main
+menu prompt, where you are given the choice of installing terminals,
+printers, special features, or exiting WINSTALL.  The '+' sign will not
+be on the menu.  (2.xx users answer 'N' to the question "Are the
+modifications to Wordstar now complete?")
+
+                     Good luck, and have fun!
+                               KeS
+
+****SYSTEM SETUP
+
+     The Wordstar patch addresses of interest here are :TRMINI and
+:TRMUNI.  Each gives you space for 8 characters of data that can be sent
+to your terminal before (:TRMINI) or after (:TRMUNI) entering or
+leaving Wordstar.  I use :TRMINI to change my screen colors when
+starting a Wordstar session.  With reference to page 223 of the
+Commodore 128 System Guide, screen colors can be changed by sending ESC
+ESC ESC xx, where xx is a hex number between 20h and 2Fh for character
+color, and 30 and 3Fh for background color.  Gruesome, right?  Well, it
+is not really that bad.  Let's walk through this one step by step.  Say
+we want to change our screen colors to light blue on black when
+entering Wordstar.  After entering the patching area of WINSTALL as
+directed above, you will be prompted to enter the location you wish to
+modify.  There will be instructions on the syntax, but using WINSTALL
+on Wordstar 3.30, you simply type :TRMINI (CR).  The program will list
+a string of two digit codes and ask "Is this the address you require?".
+Resist the temptation to type "How the hell do I know?", and enter "Y".
+You will then see a brief description of how to enter code values, and
+then you will see the present value of the code in the first location of
+:TRMINI.  Whenever you enter a patch of more than one location in
+length, the value in the first location must consist of the total
+number of code values you will be changing.  In this case, we are going
+to be entering eight values, three escape codes plus a number for each
+color.  Therefore you enter a ,8 into the first location.  Note that
+the , indicates the use of a hex value, and that we do not count the
+"counter" as a code location.  Even though we are actually modifying
+nine locations, the "counter" should be set at eight.  Now, how to enter
+the ESC codes?  ESC simply means ASCII value 27, which is 1B in hex.
+Enter either #27 or ,1B in the next three locations.  Now for the color
+code.  First the character color.  Color codes are listed on page 98 of
+the System Guide, running from 1 to 16.  Since we want a number from 32
+(20h) to 45 (2Rh), add 31 to the desired color from page 98.  For light
+blue this will be 15+31=46 (2Eh).  Enter #46 or ,2E in the next
+location.  Now put in three more ESC codes, and we are ready to compute
+the value for a black background.  Background values run from 48 (30h)
+to 63 (3Fh), thus a black background will be 1+47=48 (30h).  Enter this
+in the last location.  Now type a period in the next location to exit
+from this address.  Hit a carriage return to remain in patching mode; we
+aren't done yet!
+
+     Now you should be familiar with the basic techniques of patching a
+location, so we can move along a bit faster with the other changes.
+
+****  SYSTEM SPEEDUP
+
+     As we all know, the C-128 implementation of CP/M is quite slow
+when compared to the standard 4-mhz Kaypro and Osborne systems.  This
+can be offset to a degree by modifying certain timing addresses within
+Wordstar.  First, however, you should be sure to issue the CONF.COM
+command "40col=off".  This will increase your effective clock speed by
+about 15-20%.  Also, the baud rate set will present a tradeoff between
+screen update speed and keyboard scanning rate.  This can be a sizeable
+difference; on a test file startup time ranged from 14.5 seconds to 34
+seconds depending on whether I set the baud rate at 300 or 1200.  I
+generally find the default settings to be a good compromise, but if you
+find yourself dropping characters as you type, lower the 'feel'
+parameter or raise the baud rate, or both.  Conversely, if you have
+been using a modem at 1200 baud, W* editing will be very slow unless
+you lower the baud rate.
+
+     The timing addresses which concern us are :DELCUS, :DELMIS, :DEL3,
+:DEL4, and :DEL5.  (NOTE to Wordstar 2.xx users: You may not have
+:DEL5.  Sorry 'bout that!)  :DELCUS and :DELMIS control the delay
+following cursor positioning and other such things, while the DELx
+values control pauses before bringing up menus and such things.  All of
+these can profitably be patched down to 0, with the exception of :DEL3.
+This delay controls how long after entering a control command Wordstar
+will wait before bringing up the help menu for that command.  If you
+patch it to zero, you will force the menus to be redrawn every time you
+execute a two-character command, taking quite a bit of time.  I find 6
+to be a good choice.  These changes will speed up your Wordstar LOTS,
+maybe as much as 40% on top of the gain from turning off the 40-column
+screen!  Of course, these gains don't affect your disk I/O, so make
+sure you run C1571.COM as well.
+
+****  COLOR HIGHLIGHTING
+
+     I'm sort of proud of this one: I got the idea after using a BASIC
+utility which sets Wordstar colors on the MS-DOS version of Wordstar.
+Originally, Wordstar was used on good old CP/M systems which were
+fortunate to have any provision for distinguishing text types, much
+less offering living color!  Still, the patch locations for the
+highlighting sequence are listed, so we may feel free to go in and
+make whatever changes we think might work.  :IVON and :IVOFF are the
+locations we want.  These are "string" locations just as the :TRMINI
+address was, meaning that the first location will contain the length of
+the command sequence.  What we are going to do is to put a 4 in the
+first value of :IVON, then ESC ESC ESC xx, where xx is in the range 32-
+47 (20h-2Fh).  Note that this is the exact same procedure as we used to
+set the character color in :TRMINI.  Pick a color that contrasts well
+with your background and text colors:  I am currently using light
+yellow as my highlighting color.  The menus will also be in this color,
+so you should not pick one so bright as to be distracting.  At the same
+time, you must patch the same string into :IVOFF, MAKING SURE to use
+the same color code you used in :TRMINI! This will return you to your
+normal text color when highlighting is switched off.  If you use a
+different color code in :IVOFF than in :TRMINI, you will get some very
+strange effects!  Whenever you change one of these patches, you should
+be sure to change the other.  You could also change to some other
+highlighting technique instead of color changing, such as inverse
+video, underlining, or blinking text.  The escape sequences for these
+attributes are listed in the System Guide, page 224, and their
+implementation is essentially similar to our color highlighting.  Even
+various combinations of these attributes could be used, but this
+procedure is a bit more complex, as the patching area at :IVON / :IVOFF
+is limited to 6 characters, and you would have to insert JMP
+instructions to refer Wordstar to a more extensive patching area if you
+need more space.  Maybe next month!
+
+     Wordstar is perhaps not the state of the art in word processors,
+but it is very versatile, and the direct access to the source code is
+unparalleled among Commodore word processors.  I hope you will take
+advantage of these techniques, and come up with others of your own to
+share with me!
+                                      Enjoy!
+
+                                        KeS
+
+

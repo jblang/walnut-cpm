@@ -1,0 +1,178 @@
+; BYECOM.MAC - get signoff comment then hang up and loop.
+;
+; Uses SYSLIB calls.
+;
+; This program was designed as a "quick and dirty"
+; way of getting any comments a caller might have.
+; Normally, he would have to go back to the message-
+; or logon subsystem to leave any late comments.
+; This way he can leave them at signoff or he can
+; execute the (renamed) BYE.COM file for fast logoff.
+; BYECOM jumps to the line input routine after hanging
+; up the phone. This prevents any disk access from being
+; rudely aborted by BYE when it takes control due to
+; the lost carrier.
+;
+; This program may not be an example of efficient
+; programming, but it serves it's purpose.
+;
+; Written in December 1982, updated 2/8/83.
+;
+.Z80
+;
+CR	EQU	0DH
+LF	EQU	0AH
+DISKWR	EQU	3FH		;this flag indicates disk write to BYE
+CALLER	EQU	40H		;first 4 chars of caller's name stored here
+PMMI	EQU	0E3H		;modem control port for hang-up
+COMDSK	EQU	0		;COMMENTS file drive (0=A, 1=B...)
+COMUSR	EQU	15		;COMMENTS file user
+;
+; SYSLIB calls:
+;
+	EXT	CODEND
+	EXT	CIN
+	EXT	COUT
+	EXT	CAPS
+	EXT	F$EXIST
+	EXT	F$DELETE
+	EXT	FO0$OPEN
+	EXT	FI0$OPEN
+	EXT	FO0$CLOSE
+	EXT	FI0$CLOSE
+	EXT	F0$PUT
+	EXT	F0$GET
+	EXT	F$RENAME
+	EXT	INITFCB
+	EXT	INLINE
+	EXT	PRINT
+	EXT	LOGUD
+	EXT	MOVEB
+	EXT	CRLF
+;
+; Say who we are, what we want.
+;
+START:	CALL	PRINT
+	DB	CR,LF,'Do you want to leave '
+	DB	'any comments? ',0
+	CALL	CODEND
+	LD	A,1
+	CALL	INLINE
+	LD	A,(HL)
+	CALL	CAPS
+	CP	'N'
+	JP	Z,HANGUP	;no comments, hang up phone
+	CP	'Y'
+	JR	NZ,START
+	LD	BC,COMDSK*100H+COMUSR	;b=disk,c=user
+	CALL	LOGUD
+	LD	DE,COMFCB
+	PUSH	DE
+	CALL	INITFCB
+	LD	DE,TEMFCB
+	CALL	INITFCB
+	CALL	FO0$OPEN
+	JP	NZ,DISKERROR
+	POP	DE
+	CALL	F$EXIST
+	JR	Z,X
+	CALL	FI0$OPEN
+	JP	NZ,DISKERROR
+;
+; copy old file to new file
+;
+CPYLP:	CALL	F0$GET
+	CP	1AH
+	JR	Z,EXITCP
+	CALL	F0$PUT
+	JR	CPYLP
+;
+EXITCP:	CALL	FI0$CLOSE
+X:	LD	HL,CALLER
+	LD	DE,NAME
+	LD	B,4
+	CALL	MOVEB
+;
+; now write his name
+;
+	LD	DE,FROM
+WNAME:	LD	A,(DE)
+	CALL	F0$PUT
+	INC	DE
+	CP	LF
+	JR	NZ,WNAME
+	CALL	PRINT
+	DB	CR,LF,LF,'Enter comments one line at a time.'
+	DB	CR,LF,'CR alone to end.',CR,LF,0
+;
+; get comments a line at a time
+;
+GETCOM:	CALL	CODEND
+	CALL	PRINT
+	DB	'--> ',0
+	LD	A,1
+	CALL	INLINE
+	LD	A,(HL)
+	OR	A
+	JR	Z,EOF
+	LD	A,1
+	LD	(DISKWR),A
+	CALL	WRITECOM
+	XOR	A
+	LD	(DISKWR),A
+	JR	GETCOM
+;
+; write line to disk
+;
+WRITECOM:
+	LD	A,(HL)
+	OR	A
+	JR	Z,CRLFF
+	CALL	F0$PUT
+	INC	HL
+	JR	WRITECOM
+;
+CRLFF:	LD	A,CR
+	CALL	F0$PUT
+	LD	A,LF
+	JP	F0$PUT
+;
+EOF:	LD	A,1
+	LD	(DISKWR),A
+	CALL	CRLFF
+	CALL	FO0$CLOSE
+	LD	DE,COMFCB
+	CALL	F$DELETE
+	EX	DE,HL
+	LD	DE,TEMFCB
+	CALL	F$RENAME
+	JR	Z,DISKERROR
+	CALL	PRINT
+	DB	CR,LF,'Thank you for your comments.',0
+;
+; now say goodbye and hang him up.
+;
+HANGUP:	CALL	PRINT
+	DB	CR,LF,'Good bye - call again',CR,LF,0
+	XOR	A
+	LD	(DISKWR),A	;clear disk write flag
+	OUT	(PMMI),A
+	JP	INLINE		;hang up while in I/O loop
+;
+DISKERROR:
+	CALL	PRINT
+	DB	7,CR,LF
+	DB	'++error in COMMENTS file++',CR,LF
+	DB	'Please use CBBS for comments or BYEBYE for logout'
+	DB	CR,LF,0
+	JR	HANGUP
+;
+FROM:	DB	'FROM '
+NAME:	DB	'     ',CR,LF
+;
+COMFCB:	DB	0,'COMMENTS   '
+	DS	24
+TEMFCB:	DB	0,'COMMENTS$$$'
+	DS	24
+	END
+

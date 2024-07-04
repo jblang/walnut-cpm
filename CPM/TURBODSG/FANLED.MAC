@@ -1,0 +1,724 @@
+; FANLED - FANcy Line EDitor for TurboDOS 1.4x
+;
+; RELEASE VERSION HISTORY
+; 1.00	04/02/85 changed kill buffer logic to retain last kill buffer
+;		 contents until ^K or ^X (rather than erasing at the
+;		 beginning of each edit session).  This now allows
+;		 use of the kill buffer as "storage" for a frequently
+;		 used command.
+; 1.10	04/05/85 Optimized code for size
+; 1.11		 fixed quote problem
+; 1.20  04/09/85 Made edit keys global
+; 1.30  05/04/85 Fixed problem in ^Y routine
+;
+	name	('FANLED')
+;
+; Input:
+;   HL points to a data structure:
+;   <HL>   = CLBLEN (command line buffer length
+;   <HL+1> = actual command line length
+;   <HL+2> = first byte of null-terminated command line
+; Output:
+;   HL     = pointer to actual command line length
+;   A      = actual command line length
+;
+.z80
+;
+; Externals used:
+;
+	extrn	dms,echo,conin,conout
+;
+; Global entry point:
+;
+	public	inpln
+;
+; Global patch point:
+;
+	public	forspc
+;
+; command character equates
+;
+beglin	equ	'A'-40h		; ^A - beginning of line
+backch	equ	'B'-40h		; ^B - cursor backwards
+delfor	equ	'D'-40h		; ^D - delete char forward
+endlin	equ	'E'-40h		; ^E - end of line
+forwch	equ	'F'-40h		; ^F - cursor forward
+delbak	equ	'H'-40h		; ^H - delete char backward
+kilfor	equ	'K'-40h		; ^K - kill forward
+quote	equ	'Q'-40h		; ^Q - quote next char
+recall	equ	'R'-40h		; ^R - recall previous command line
+abort	equ	'U'-40h		; ^U - abort line
+kilbak	equ	'X'-40h		; ^X - kill backward
+yank	equ	'Y'-40h		; ^Y - yank (unkill)
+delete	equ	7fh		; DEL- same as ^H
+;
+; other equates
+;
+cr	equ	0dh		; carriage return
+bell	equ	7		; bell character
+litc	equ	'^'		; caret (prefix for control char display)
+;
+; data storage areas
+;
+	dseg
+;
+forspc:	db	'L'-40h		; nondestructive forward space character
+qflag:	db	0ffh		; quote next flag
+clsave:	dw	0		; command line structure pointer save
+clen:	db	0		; command line length
+insy:	db	0		; insert yank flag
+killen:	db	0		; length of kill buffer
+kilbuf:	ds	162		; 162 byte kill buffer
+oldlin:	ds	162		; old command line
+;
+; command table
+;
+cmdtbl:
+fanbg::	db	beglin
+	dw	cbegli
+fanbk::	db	backch
+	dw	cbackc
+fanel::	db	endlin
+	dw	cendli
+fanfc::	db	forwch
+	dw	cforwc
+fandf::	db	delfor
+	dw	cdelfo
+fandb::	db	delbak
+	dw	cdelba
+fankf::	db	kilfor
+	dw	ckilfo
+fanqu::	db	quote
+	dw	cquote
+fanrc::	db	recall
+	dw	crecal
+fankb::	db	kilbak
+	dw	ckilba
+fanya::	db	yank
+	dw	cyank
+fanab::	db	abort
+	dw	cabort
+	db	delete
+	dw	cdelba
+	db	cr
+	dw	exit
+ncmds	equ	($-cmdtbl)/3		; number of commands
+;
+	cseg
+;
+; REGISTER USAGE:
+; HL normally points to the current character in the command line
+;    unless used otherwise
+; DE normally points to the kill buffer or the old line buffer
+; B  always holds the current byte count for the main command line
+; C  always holds the current cursor position in the command line
+; A  usually holds a byte received from the keyboard and/or echoed
+;
+; SUBROUTINES:
+;
+; GETCH - get character in A, preserve all regs
+;
+getch:	push	bc
+	push	de
+	push	hl
+	call	conin
+	jr	popr
+;
+; BKSPC - backspace
+;
+bkspc:	ld	a,delbak
+;
+; PUTCH - display character in A, preserve all regs
+;
+putch:	push	bc
+	push	de
+	push	hl
+	ld	c,a
+	push	af
+	call	conout
+	pop	af
+popr:	pop	hl
+	pop	de
+	pop	bc
+	ret
+;
+; ERROR - ring the bell
+;
+error:	ld	a,bell
+	jr	putch
+;
+; DELLFT - delete left character with pointer movement
+;          assume: HL points into command line, B holds
+;	   current byte count
+;
+dellft:	dec	b		; decrement count
+	dec	c		; decrement cursor pointer
+	dec	hl		; decrement pointer
+	ld	a,(hl)		; get byte
+	cp	' '		; if control...
+	jr	nc,delchl	; delete one char if no control
+	inc	d		; increment control char counter
+	call	delchl
+;
+; DELCHL - delete left character (bs,sp,bs)
+;
+delchl:	push	bc
+	push	de
+	push	hl
+	call	dms
+	db	8,' ',88h
+	jr	popr
+;
+; GETCMD - A=character, determine if it's an edit command
+;
+getcmd:	push	hl
+	push	bc
+	cp	cr
+	jr	z,iscr
+	ld	hl,qflag
+	bit	0,(hl)
+	set	0,(hl)
+	jr	z,getcmx
+iscr:	ld	b,ncmds
+	ld	hl,cmdtbl	; point to command table
+getcml:	cp	(hl)
+	jr	z,gotcmd	; got a command
+	inc	hl
+	inc	hl
+	inc	hl
+	djnz	getcml		; keep searching
+	ld	b,a
+	xor	a		; set zero flag
+	ld	a,b
+	jr	getcmx		; exit
+;
+gotcmd:	inc	hl
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	xor	a
+	inc	a		; reset zero flag
+getcmx:	pop	bc
+	pop	hl
+	ret
+;
+;
+; MAIN PROGRAM ENTRY POINT
+;
+;
+inpln:	xor	a		; zero byte count/cursor buffer
+	ld	b,a
+	ld	c,a
+	dec	a
+	ld	(qflag),a	; reset quote flag
+	ld	a,(hl)		; get max byte count
+	inc	hl		; point to current byte count
+	ld	(clsave),hl	; save pointer
+	ld	(hl),0		; be sure command line is empty
+	inc	hl		; point to first char of command line
+	ld	(clen),a	; store max command line length
+;
+; this is the main loop
+;
+getnxt:	call	getch		; get a character
+	call	getcmd		; check if command, return zero if not
+	jr	z,ascii		; no command, enter it into cmd line
+	push	de		; jump to de
+	ret
+;
+; enter A into command line, echo character
+;
+ascii:	push	af
+	ld	a,(clen)	; get max line length
+	cp	b		; reached?
+	jr	nz,nolov	;   nope
+	pop	af
+	call	error		;      else beep
+	jr	getnxt		;         and try again
+;
+nolov:	ld	a,c		; see if at end of line
+	cp	b
+	jr	nz,insert	; inside line, so do insert mode
+	pop	af
+	ld	(hl),a
+	inc	hl		; increment
+	inc	b		;    pointers
+	inc	c
+	call	outch
+	jr	getnxt		; go get another
+;
+; INSERT - insert a character, move all others right
+;
+insert:	ld	a,(clen)	; get allowed length
+	cp	b
+	jr	nz,insne
+	call	error		; complain
+	pop	af
+	jr	getnxt		;    and exit if too long
+;
+insne:	ld	a,b		; get total chars in line
+	sub	c		; subtract cursor position
+	push	bc		; save pointers
+	ld	c,a		; set counter
+	ld	b,0		; bc=number of bytes right of cursor
+	add	hl,bc		; point to end of line
+	ld	d,h		; duplicate in de
+	ld	e,l
+	inc	de		; de points past line
+	inc	bc
+	inc	bc
+	lddr			; move line up one char
+	inc	hl
+	pop	bc		; get counters back
+	inc	b		; increment cursor and count
+	inc	c
+	pop	af		; now get character
+	inc	hl		; increment pointer
+	ld	(hl),a		; save it in command line
+	push	hl		; save pointer
+	push	bc		; save counters
+	ld	a,b
+	sub	c		; count again
+	inc	a
+	ld	b,a
+	ld	c,a
+	ld	a,(hl)		; compensate if ctl char inserted
+	cp	' '
+	jr	nc,insl
+	dec	c
+insl:	ld	a,(hl)
+	cp	' '
+	jr	nc,insnc
+	inc	c
+insnc:	call	outch		; disply the char
+	inc	hl
+	djnz	insl
+;
+insd:	ld	b,c
+	dec	b
+insdl:	call	bkspc
+	djnz	insdl
+;
+inse:	pop	bc
+	pop	hl
+	inc	hl
+	jp	getnxt
+;
+; OUTCH - output a character, display control char if necessary
+;
+outch:	cp	' '		; check if ctl character
+	jr	nc,noctl	; skip if not
+	push	af		; save char
+	ld	a,litc		; prefix char
+	call	putch		; display it
+	pop	af		; get char back
+	add	a,40h		; make it alpha
+noctl:	jp	putch		; display char
+;
+;
+; COMMAND PROCESSOR ROUTINES
+;
+; CR typed -- exit back to turbodos
+;
+exit:	ld	a,c		; see if we're at end of line
+	cp	b		; if so continue
+	jr	z,cntxit
+	inc	hl		; else up pointers
+	inc	c
+	jr	exit
+;
+cntxit:	ld	(hl),0		; terminate command line
+	push	bc
+	ld	a,cr
+	call	echo		; echo the RETURN
+	pop	bc
+	ld	hl,(clsave)	; get command line pointer
+	ld	(hl),b		; save actual byte count
+	push	hl		; save
+	push	bc		;    registers
+	ld	c,b		; set up count
+	ld	b,0
+	inc	c
+	ld	de,oldlin	; point to previous line buffer
+	ldir			; store current line there
+	pop	bc		; get regs back
+	pop	hl
+	ld	a,b		; byte count in A
+	ret
+;
+;
+; CBEGLI - go to beginning of line
+;
+cbegli:	inc	c		; set up cursor pointer
+cbegl1:	dec	c		; decrement cursor ptr
+	jr	z,..gn1		;    until zero
+	call	bkspc
+	dec	hl
+	ld	a,(hl)
+	cp	' '
+	call	c,bkspc
+	jr	cbegl1
+;
+; CENDLI - go to end of line
+;
+cendli:	ld	a,c		; get cursor
+	cp	b		; if cursor at end of line
+	jr	z,..gn1		;    then get next char
+	inc	c		; point to next char
+	ld	a,(hl)
+	inc	hl
+	cp	' '
+	ld	a,(forspc)
+	call	c,putch
+	call	putch
+	jr	cendli		; and so on
+;
+; CBACKC - back 1 char
+;
+cbackc:	ld	a,c		; get count
+	or	a		; if at left
+	jr	z,..gn1		;    do nothing
+	call	bkspc		; else backspace
+	dec	c		; decrement counter
+	dec	hl		;    pointer
+	ld	a,(hl)
+	cp	' '
+	call	c,bkspc
+	jr	..gn1
+;
+; CFORWC - forward 1 char
+;
+cforwc:	ld	a,c		; get count
+	cp	b		; if at end
+	jr	z,..gn1		;    do nothing
+	inc	c		; increment counter
+	ld	a,(hl)
+	cp	' '
+	ld	a,(forspc)
+	call	c,putch
+	call	putch		; move cursor
+	inc	hl		;    pointer
+..gn1:	jp	getnxt
+;
+; CQUOTE - do next char literally
+;
+cquote:	xor	a
+	ld	(qflag),a
+	jr	..gn1
+;
+; CRECAL - recall previous command line
+;
+crecal:	inc	b		; test if b=0
+	dec	b
+	jr	nz,..gn1	; count must be 0
+	ld	a,(oldlin)	; anything in?
+	or	a
+	jr	z,..gn1		;    no, empty
+	push	hl
+	ld	de,oldlin	; get old line
+	ex	de,hl		; set up for move
+	dec	de
+	ld	c,(hl)
+	ld	b,0
+	push	bc
+	inc	c
+	ldir
+	pop	bc
+	ld	b,c		; get count into b
+	pop	hl		; get pointer
+dslp:	ld	a,(hl)		; get byte
+	call	outch		; display it with ctl char expansion
+	inc	hl		; point to next
+	djnz	dslp		; until all done
+	ld	b,c		; count = cursor
+	jr	..gn1		; exit
+;
+; CDELBA - delete previous character, move following chars to left
+;
+cdelba:	ld	a,c		; see if at start of line
+	or	a
+	jr	z,..gn2
+	ld	de,0
+	call	dellft		; delete char to the left
+	ld	a,b
+	cp	c
+	jr	z,..gn2
+	jr	movdel		; move after delete
+;
+; CDELFO - delete following character, move remainder left
+;
+cdelfo:	ld	a,c		; if cursor at right end
+	cp	b
+	jr	z,..gn2		;    then do nothing
+	ld	de,0
+	dec	b
+movdel:	ld	a,b		; see if end of line
+	push	bc		; save counters
+	push	hl		; save line ptr
+	sub	c		; a=number of chars
+	push	af
+	inc	a
+	ld	c,a
+	ld	b,0
+	push	de		; save control char count
+	ld	d,h
+	ld	e,l
+	inc	hl
+	ldir
+	pop	de		; get control char count (0/1)
+	pop	af		; get byte count
+	pop	hl		; get line pointer
+	push	hl		; save it again
+	ld	b,a
+	or	a
+	jr	nz,mvdell
+	ld	a,' '
+	call	putch
+	call	putch
+	call	bkspc
+	call	bkspc
+	jr	mvdelq
+;
+mvdell:	ld	a,(hl)
+	cp	' '
+	jr	nc,mvd1
+	inc	e
+mvd1:	call	outch
+	inc	e		; increment char count
+	inc	hl
+	djnz	mvdell
+	ld	a,' '
+	call	putch		; wipe out last char
+	call	putch
+	call	bkspc
+mvdel1:	ld	b,e
+	call	bkspc
+mvdel2:	call	bkspc
+	djnz	mvdel2
+mvdelq:	pop	hl
+	pop	bc
+..gn2:	jp	getnxt
+;
+; CKILFO - kill all chars forward
+;
+ckilfo:	ld	a,b
+	cp	c
+	jr	z,..gn2		; nothing to kill
+	sub	c		; get byte count
+	ld	b,c
+	push	bc		; save count, cursor
+	ld	(killen),a	; store kill buffer length
+	ld	c,a
+	ld	b,0
+	push	bc
+	push	hl		; save line pointer
+	ld	de,kilbuf
+	ldir			; move into kill buffer
+	pop	hl
+	pop	bc
+	push	hl
+	ld	b,c
+ckilf1:	ld	a,(hl)
+	inc	hl
+	cp	' '
+	ld	a,' '
+	jr	nc,ckilf2
+	call	putch
+	inc	c
+ckilf2:	call	putch
+	djnz	ckilf1
+	ld	b,c
+ckilf3:	call	bkspc
+	djnz	ckilf3
+	pop	hl
+	pop	bc
+	ld	(hl),0
+	jr	..gn2
+;
+; CKILBA - kill all chars backward
+;
+ckilba:	ld	a,c
+	or	a
+	jr	z,..gn2		; nothing to kill
+	push	bc		; save counters
+	push	hl		; save pointer
+	ld	de,(clsave)	; get pointer to start
+	inc	de
+	or	a
+	sbc	hl,de		; hl is now length
+	ld	b,h
+	ld	c,l
+	ld	hl,killen	; point to kill buffer
+	ld	(hl),c
+	inc	hl
+	ex	de,hl
+	ldir			; move stuff into kill buffer
+	pop	hl		; get old ptr
+	pop	bc
+	push	bc
+	push	hl
+ckilb1:	dec	hl
+	ld	a,(hl)
+	cp	' '
+	ld	a,8
+	call	c,putch
+	call	putch
+	dec	c
+	jr	nz,ckilb1
+	ld	e,0
+ckilb2:	ld	a,(hl)
+	inc	hl
+	cp	' '
+	ld	a,' '
+	jr	nc,ckilb3
+	call	putch
+	inc	e
+ckilb3:	call	putch
+	inc	e
+	djnz	ckilb2
+	ld	b,e
+ckilb4:	call	bkspc
+	djnz	ckilb4
+	pop	hl		; get line ptr
+	pop	bc		; get counters
+	ld	a,b
+	sub	c		; a now has byte count
+	ld	c,a
+	ld	b,0
+	push	bc
+	inc	bc
+	ld	de,(clsave)
+	inc	de
+	push	de
+	ldir
+	pop	hl
+	pop	bc
+	ld	b,c
+	ld	c,0
+	ld	a,b
+	or	a
+	jr	z,..gn3
+	push	hl
+	push	bc
+	ld	e,0
+ckilb5:	ld	a,(hl)
+	cp	' '
+	jr	nc,ckilb6
+	inc	e
+	push	af
+	ld	a,litc
+	call	putch
+	pop	af
+	add	a,40h
+ckilb6:	call	putch
+	inc	e
+	inc	hl
+	djnz	ckilb5
+	ld	b,e
+ckilb7:	call	bkspc
+	djnz	ckilb7
+	pop	bc
+	pop	hl
+..gn3:	jp	getnxt
+;
+; CYANK - yank kill buffer to current cursor
+;
+cyank:	ld	a,(killen)	; get kill buffer length
+	or	a
+	jr	z,..gn3		; kill buffer empty
+	add	a,b		; check total size
+	jr	c,er1		; gee, much too much (>256)!
+	ld	e,a
+	ld	a,(clen)
+	cp	e
+	jr	nc,yntl		; go ahead if not too long
+er1:	call	error		; too long
+	jr	..gn3
+;
+yntl:	xor	a
+	ld	(insy),a
+	ld	a,b
+	cp	c		; check if cursor at end of line
+	ld	a,(killen)	; get length of kill buffer
+	jr	z,nomove	; skip if at end of line
+	push	bc		; save count
+	push	hl		; save pointer
+	ld	e,a
+	ld	d,0		; de = number of bytes to be freed
+	ld	a,b
+	sub	c		; a has bytes to be moved
+	ld	c,a
+	ld	b,0		; bc has bytes tbm
+	add	hl,bc		; point to end of line
+	push	hl
+	add	hl,de		; point to new end of line
+	ex	de,hl
+	pop	hl
+	inc	bc
+	inc	bc
+	lddr
+	pop	hl
+	pop	bc
+	ld	a,0ffh
+	ld	(insy),a
+	ld	a,(killen)	; get length of kill buffer
+nomove:	push	bc
+	push	hl
+	ex	de,hl		; destination to de
+	ld	hl,kilbuf
+	ld	c,a
+	ld	b,0
+	push	bc
+	ldir
+	pop	de
+	pop	hl
+	pop	bc
+ydslp:	ld	a,(hl)
+	call	outch
+	inc	b
+	inc	c
+	inc	hl
+	dec	e
+	jr	nz,ydslp
+	ld	a,(insy)
+	inc	a
+	jr	nz,..gn3
+;
+; now redisplay remainder of line, then step back
+;
+	push	hl		; save line ptr
+	push	bc
+	ld	e,0		; character count
+ytl1:	ld	a,c
+	cp	b
+	jr	z,ytl25
+	inc	c
+	ld	a,(hl)
+	cp	' '
+	jr	nc,ytl2
+	inc	e
+ytl2:	inc	e
+	call	outch
+	inc	hl
+	jr	ytl1
+;
+ytl25:	pop	bc
+ytl3:	call	bkspc
+	dec	e
+	jr	nz,ytl3
+	pop	hl
+	jr	..gn3
+;
+; abort line
+;
+cabort:	ld	bc,0
+	ld	hl,(clsave)
+	inc	hl
+	jp	exit
+;
+	END
+ointer
+	ld	e,a
+	ld	d,0		; de = number of bytes to be freed
+	ld	a,b
+	sub	c		; a has byt

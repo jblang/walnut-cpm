@@ -1,0 +1,937 @@
+
+                     A Reference Guide to DU
+                         (Disk Utility)
+
+An  "Impatient User's Guide" to DU (Disk Utility),  a famous disk 
+fixer from the public domain libraries.
+
+Prepared  for The User's Guide Magazine,  Vol.1,  No.4 June  1983 
+(pages  53-63) by Kelly Smith (TUG Contributing Editor) from  the 
+original program and documentation by Ward Christensen,  prolific 
+contributor to the world of public domain CP/M software.
+
+For more information on this article and others like it,  contact 
+The User's Guide to CP/M Systems & Software,  Box 3050, Stanford, 
+VA 94305, (415) 851-7352.  TUG is published every two months, $18 
+US, $24 outside US (add $10 for first class delivery anywhere).
+
+                          Introduction
+
+DU  is a comprehensive "disk diddler" utility that allows a  user 
+to  examine  and modify ANY portion of a CP/M-80 (Version 2.0  or 
+greater) disk at the "byte level".  An "On-Line Help" facility is 
+included  (just press the '?' key followed by RETURN) should  you 
+forget  the  extensive  command set  (typically  single  keyboard 
+entries, terminated with a RETURN key). 
+
+A  word  of caution to the novice user...it is possible to  DU  a 
+disk to death!   That is,  casual modification of portions of the 
+CP/M-80  operating  system data tracks is usually destructive  to 
+the proper operation of the "copy" of CP/M on the modified  disk.  
+
+Use particular care when writing your modifications back to disk!
+
+DU  is  an invaluable tool for recovery of "bombed  directories", 
+modification  of  CP/M "run time" parameters,  or even  making  a 
+"backup"  of your disk directory and preserving it someplace  "in 
+reserve" on your disk...the possibilities are NOT LIMITED by DU!
+
+The  best part is that it was provided FREE to the public  domain 
+(may be freely used and given away) by Ward Christensen, and even 
+includes  source  code  for  your  detailed  examination   and/or 
+customization (when customizing public domain software, your "on-
+your-own" however...don't expect "hand-holding" from the original 
+author when you "write on their wall"!).
+
+So  before you go out and BUY a functionally  identical  software 
+package (Gads!  I would love to name names!!!), take a look at DU 
+first.  You wont't find a better program for the money!
+ 
+Thank you again Ward,  for yet another major contribution to  the 
+CP/M  software user community!   So without further ado,  here is 
+your User's Guide to DU (poetic!):
+
+
+                              Index
+
+1.0 Installation.
+
+2.0 Usage.
+
+     2.1 Commands, by Function (Quick Reference).
+
+     2.2 Alphabetic Command Summary.
+
+3.0 Usage Notes.
+
+     3.1 Multiple Commands.
+
+     3.2 Dump Commands.
+
+     3.3 Logging in Disk.
+
+     3.4 Sector Buffers.
+
+4.0 Interpreting CP/M Directory Data.
+
+     4.1 Single Density.
+
+     4.2 Double Density.
+
+5.0 DU Usage Examples
+
+     5.1 Erased Program Recovery
+
+     5.2 Modifying a Disk for "Program Autoload"
+
+     5.3 Finding and Modifying Program Data Quickly
+
+     5.4 A "Poor Man's" Disk Test
+
+
+1.0 Installation
+
+DU  (Disk Utility),  Versions 7.0 and later,  are designed to  be 
+installed  with  a minimum of trouble.   In fact,  in almost  all 
+cases,  no changes to the source file should be necessary to  get 
+DU "up and running".   Yes!  8080 source code is available if you 
+want  it from various RCPM systems as well as directley from  the 
+CP/M  User's Group library (or you may contact the CPMUG care of: 
+Lifeboat Associates, 1651 Third Avenue, New York. N.Y. 10028).  
+
+The only requirement for usage of DU, is that you must be running 
+in  a CP/M-80 Operating System environment of "vintage"  2.0  (or 
+greater).  This  is  because  DU uses the  disk  parameter  block 
+incorporated in the latest releases of Digital Research's CP/M-80 
+to  determine the characteristics of the disk  environment.  Note 
+also,  that  earlier versions of DU supported only the standard 8 
+inch  "distribution  standard" IBM 3740  type  diskette,  running 
+CP/M-80  version 1.4 and in some cases did not work  for  certain 
+"non-standard" versions of CP/M-80 (i.e., CDOS from Cromemco, and 
+some implementations of CP/M-80 from Lifeboat Associates). 
+
+The only parameter that you might need to change, will be the CPU 
+clock  speed flag at address 103H (when DU is loaded into  system 
+memory).   Leave  this  byte  zero if you have  a  2  MHz  clock.  
+"Patch"  it  non-zero (change the address content to 0FFH) for  4 
+MHz (refer to your Digital Research DDT (Dynamic Debugging  Tool) 
+documentation  if you are unfamilier with modification of program 
+files,  and "patching" techniques).   This is only needed for the 
+"Z"  (sleep)  command.   An  alternative is just  to  use  larger 
+numbers when running DU with a computer system clock rate of 4MHz 
+or greater.
+
+
+2.0 Usage
+
+An  initial command string may optionally be placed as an operand 
+of the DU command at the CP/M system user command level, i.e.:
+
+                A>DU G0;D;G2;=OK<D><A><1A>;D<cr>
+
+For  example,  if you want to only 'MAP' the disk and then  exit, 
+you would enter at your console keyboard:
+
+                          A>DU M;X<cr>
+
+The  DU  program  would  then respond  with  the  diskette  'MAP' 
+(actually a display of the diskette Group Allocations),  as shown 
+in  the  following  example  'MAP'  of  a  Compupro  8/16  System 
+diskette:
+
+DISK UTILITY ver 7.7
+Universal Version
+
+Type ? for help
+Type X to exit
+0004-0005  00 COPY    .COM 00 : 0006-000D  00 WS      .COM 00 
+000E-0010  00 DDT     .COM 00 : 0011-0018  00 FMTMEM  .COM 00 
+0019-001A  00 FORMAT  .COM 00 : 001B-001B  00 CONV    .COM 00 
+001C-001C  00 CRCK    .COM 00 : 001D-001D  00 CROSSREF.COM 00 
+001E-001E  00 D       .COM 00 : 001F-0021  00 DU      .TXT 00 
+0022-0025  00 PIP     .COM 00 : 0026-0026  00 XDIR    .COM 00 
+0027-0027  00 FILE-XT2.COM 00 : 0028-002E  00 RMAC    .COM 00 
+002F-0033  00 LINK    .COM 00 : 0034-0034  00 EXEC    .COM 00 
+0035-0035  00 SYSGEN  .COM 00 : 0036-0036  00 FMAP    .COM 00 
+~                                                           ~
+|  The  diskette 'MAP' shown here is "edited" for brevity!  |
+~                                                           ~
+| .-- Group Allocation Number                               |
+~ |           .-- Filename                                  ~
+| |           |        .-- Filetype                         |
+~ |           |        |    .-- Extent Number               ~
+| |           |        |    |               .-- User Number |
+~ |           |        |    |               |               ~
+020F-020F  00 PBIOS   .ASM 03 : 0210-0216  01 ALIENS  .COM 00 
+0217-0218  00 PBIOS   .ASM 03 : 0219-0219  00 MOVCPM  .COM 00 
+021A-021A  00 MNTR    .DOC 00 : 021B-021C  00 PRNT    .DOC 00 
+021D-0220  00 REQ'D-SW.DOC 00 : 0221-0228  00 SW-DEF  .TXT 00 
+0229-0230  00 SW-DEF  .TXT 01 : 0231-0238  00 SW-DEF  .TXT 02 
+0239-023E  00 MOVCPM  .COM 00 : 023F-0241  00 FORMAT  .ASM 00 
+0242-0242  00 FORMAT  .ASM 01 : 0243-0247     ++FREE++        
+0248-024B  00 PBIOS   .ASM 04 : 024C-0253  00 SETATR  .ASM 00 
+0254-0254  00 PBIOS   .ASM 04 : 0255-0257     ++FREE++        
+
+G=0000:00, T=4, S=1, PS=0
+
+A>
+
+
+Once  DU  is running,  it will display the character ':'  as  the 
+command  level prompt,  and expects single-letter  commands  much 
+like  DDT.   For ease of use,  multiple commands may be placed on 
+one  line,  separated by ';'.   In addition,  a given command  or 
+string  of commands may be repeated,  either indefinitely  (until 
+Control-C  (shown from now on as '^C') is pressed),  or  a  given 
+number of times.
+
+To  avoid  an  accidental ^C from dropping out  of  DU,  only  an 
+explicit 'X' command will exit DU.
+
+
+2.1 Commands, by Function (Quick Reference)
+
+Help: 
+	?	Request help. Example:
+
+                :?<cr>
+                Operands in brackets [...] are optional
+                Numeric values: 'n' are decimal, 'x' hex
+
+                +[n]   step in [n] sectors;
+                -[n]   step out [n] sectors
+                #      print disk parameters for curr drive.
+                =xxx   search for ASCII xxx from curr sector.
+                       Caution: upper/lower case matters.
+                       Use <xx> for hex:
+                       To find "IN 0" use: =<db><0>     or
+                       "(tab)H,0(CR)(LF)" use: =<9>H,0<D><A>
+                <      save current sector into mem. buff.
+                >      restore saved sector
+                ?      give help
+                A[ff,tt] ASCII dump
+
+                (Type any char. to continue)<cr>
+
+                C      Change:
+                CHaddr,byte,byte... (hex)
+                or   CAaddr,data...  (Ascii)
+                <xx> Allowed for imbedded hex.
+                or   CHfrom-thru,byte  e.g. ch0-7f,e5
+                or   CAfrom-thru,byte
+                D[ff,tt] Dump (hex+ASCII)
+                Fn.t   Find file
+                Gnn    CP/M Allocation Group nn
+                H[ff,tt]       hex dump
+                L      Log in drive
+                Lx     Log in drive x
+                M[nn]  Map [from group nn]
+
+                (Type any char. to continue)<cr>
+
+                N      New disk
+                P      Toggle printer switch
+                Q      Quiet mode (no msgs)
+                R      Read current sector
+                Snn    Sector nn
+                Tnn    Track nn
+                Unn    Set User nn for Find command (CP/M-2 only)
+                V[nn]  View [nn] ASCII sectors
+                W      Write current sector
+                X      Exit program
+                Y      Yank current sector into sequential memory
+                Z[nn]  Sleep [nn tenths]
+                /[nn]  Repeat [nn (decimal) times]
+
+                (Type any char. to continue)<cr>
+
+                Cancel a function with C or Ctl-C.
+                Suspend output with S or Ctl-S.
+                Separate commands with ";".
+                       Example: g0
+                       +;d;z#20;/
+                       would step in, dump, sleep 2 sec, 
+                       and repeat until control-c typed.
+                All "nn" usage except "/", "T", and "S" are
+                       HEX.  Use #nn for decimal.
+
+                See DU.DOC for complete examples.
+
+
+Positioning:
+
+Keeping  "track"  (literally!)  of where your are on  a  disk  is 
+indicated by a terse display (e.g.,  G=009C:04, T=43, S=5, PS=4).  
+
+To  best  illustrate the display (and most importantly,  what  it 
+means), just enter the following command:
+
+:+;/<cr> <-- advance to the next sector and repeat forever...
+
+And  the  Group,  Track,  Logical  Sector,  and  Physical  sector 
+"assignments"  will  incrementally be displayed for  your  entire 
+disk  continuously  (use  ^C to quit).   The  "meaning"  (and  an 
+example display), is as follows:
+
+     .-- Group Allocation Number
+     |  .-- Sector Block Number (always 128 bytes)     
+     |  |     .-- Physical Track     
+     |  |     |    .-- Logical Sector
+     |  |     |    |     .-- Physical Sector  
+     |  |     |    |     |
+G=009C:01, T=43, S=2, PS=1
+G=009C:02, T=43, S=3, PS=2
+G=009C:03, T=43, S=4, PS=3
+G=009C:04, T=43, S=5, PS=4
+G=009C:05, T=43, S=6, PS=5
+G=009C:06, T=43, S=7, PS=6
+G=009C:07, T=43, S=8, PS=7
+G=009C:08, T=43, S=9, PS=24
+G=009C:09, T=43, S=10, PS=25
+G=009C:0A, T=43, S=11, PS=26
+G=009C:0B, T=43, S=12, PS=27
+G=009C:0C, T=43, S=13, PS=28
+G=009C:0D, T=43, S=14, PS=29
+G=009C:0E, T=43, S=15, PS=30
+G=009C:0F, T=43, S=16, PS=31 <-- end of 2K Group Number 009C
+G=009D:00, T=43, S=17, PS=48 <-- a new Group Allocation number starts
+G=009D:01, T=43, S=18, PS=49     after Sector Block Number 16 (0F HEX)
+~                          ~     (but may be different for YOUR DISK!)
+|     etc., etc., etc.,    |
+
+
+Positioning therefore,  is done by Group (Gnn),  Track (Tnn),  or 
+Sector (Snn) movement commands as follows:
+
+	Gnn	By allocation group.  Example:
+
+                :g0<cr>
+                G=0000:00, T=4, S=1, PS=0
+
+	Tnn	By track.
+
+	Snn	By sector.
+
+	+nn	Move ahead nn sectors.
+
+	-nn	Move back nn sectors.
+
+
+I/O:
+
+	R	Reads sector.
+
+	W	Writes sector.
+
+	<	Puts current sector "away" into a buffer.
+
+	>	Recalls previously saved sector.
+
+
+Displaying:
+
+	G	Shows current group, track, sector.
+
+	M	Maps the disk (file group allocations).
+     	  or,
+	Mxx	Map starting at group xx
+
+	D	Dump the sector (Hexadecimal and ASCII display).
+
+	A	Dump sector in ASCII.
+
+	H	Dump sector in hexadecimal.
+
+	Vnn	Views (like CP/M TYPE) nn sectors.
+
+	#	Shows disk parameters, also the number of sectors
+		stacked and used via '<<' and '>>'. Example:
+
+                :#<cr>
+                Disk Information:
+                Tracks:         154
+                Sec/trk:        64
+                Grpsize:        16 (sectors per group)
+                Tot grps:       599
+                Dir entries:    256
+                Sys tracks:     4
+
+
+Changing:
+
+	CHnn,val Change data in hexadecimal.
+
+	CAnn,val Change data in ASCII ( with <xx> escape to hexadecimal).
+
+	N	Insert new disk.
+
+	Unn	Change user directory number to nn.
+
+
+Searching:
+
+	Fname	Find a file in the directory.
+
+	F	Find next occurrence (extent) of same name.
+
+	=aaaa	Scan for aaaa (in ASCII) from current sector on.
+
+
+Miscellaneous:
+
+	Znn	Sleep (nn tenths of a second) such as to allow
+		viewing data before it scrolls off.
+
+	Lx	Log in disk x.
+
+	P	Turn on/off printer output toggle.
+
+	Q	Before any command does it "quietly".
+
+	X	Exit to CP/M.
+
+	/nn	Repeat previous command nn times (indefinitely if nn omitted).
+
+2.2 Alphabetic Command Summary
+
+
+	#	Prints the disk parameters.
+
+	+	Advance 1 sector (if below track 2,
+		this advances to next numerical, if
+		2 or greater, advances based on CP/M's normal
+		sector scrambling algorithm, i.e. so '+'
+		will get the next logical sector of the file).
+
+	-	Backs up 1 logical sector.
+
+		Note + and - may take an amount:
+		for example, +15 steps in 15 sectors.
+
+	/	Repeats entire command.  Defaults to "forever".
+           or,
+	/nn	nn may be 2 to 65,535.
+
+	<	Saves current sector in a save buffer, and
+		also resets buffer pointer used by '<<' and '>>'.
+
+	<<	Saves current sector, bumps memory pointer.
+		Thus subsequent '<<' saves "next" buffer in
+		memory.  Use '<' to reset, or '>>' to
+		sequentially retrieve the buffers, such as to
+		move several sectors from one place on disk
+		to another, or to another disk, or just to
+		memory (stored at 2000H where DDT can be used 
+		to subsequently access them).
+
+	=string	Ascii search, starting at current
+		sector. <xx> hex may be imbedded,
+		or used alone:  To find "IN 0FEH":
+		=<db><fe><cr>
+
+		Note: ignores bit 7 unless <xx> is used.
+
+		Since ";" is a command delimiter, you
+		have to use <3B> to search for a ";".
+		
+		Also, since "<" is a hex-escape character,
+		use << to means a single "<".
+
+		Also note that the special symbol "@" contains
+		the displacement at which the match occurred.
+		It may thus be subsequently used in a 'C'
+		command, as in:
+
+			=LIX;CA@,LXI;W<cr>
+
+		would search for the string LIX, change
+		it to an LXI, and write it back.
+
+
+	>	Gets saved buffer.  '<' and '>' may be used
+		to move a sector to another place.
+
+	>>	Restore "oldest" unrestored sector saved
+		by '<<' command.  This command may be
+		"buried" in the middle of an infinite
+		repeat '/', because it will stop operating
+		when there are no more sectors in the buffer.
+
+	?	Gives command summary.
+
+	A	Dump sector, ASCII only.
+
+	CHaddr,val,val,val... change hexadecimal in sector.
+
+	CAaddr,char string... change ASCII in sector. '<xx>'
+                 may be hex imbedded in the ASCII: ca0,OK<d><a><1a>
+
+		Note: use 'W' to write changes to disk. The 'C'
+                "echoes" overlaid data for verification.
+
+	CHaddr-addr,byte
+          or,
+	CAaddr-addr,byte	Repeats a change.
+
+	D	Dump sector, hexadecimal and ASCII.
+
+	Fname	print directory for file "name",
+		then positions to it's directory
+		sector.
+
+	F	Find next occurrence of name in the directory.
+
+	Gnn	Position to group nn and read.
+
+	G	Shows current position.
+
+	H	Dump sector, hexadecimal only.
+
+	L	Re-logs in the current disk. You may pull
+		out a disk, put in a new, and "L" just
+		to log it in. (See "LOGGING IN DISK" in NOTES
+		below)
+
+	Lx	Logs in disk 'x', such as: LB<cr>
+
+	M	Dumps a map of the group allocations
+		for files.
+          or,
+	Mn	Shows which file is allocated to
+		group "n".
+
+
+	N	Resets CP/M via the BDOS.  This may
+		make it possible under some implementations
+		of CP/M to change the disk format (e.g., density,
+		sides, etc).
+
+	P	Toggle printer switch on/off.
+
+	Q	Quiet: Preceeding any command, suppresses console
+		output.
+
+	R	Reads the sector currently positioned to
+		into memory.  Note: 'R' (Read) is implicit in
+		the 'G', '+', and '-' commands, but NOT in the
+		'S' and 'T' commands.
+
+	Snn	Position to sector nn, and read.
+
+	Tnn	Seek to track nn (no read).
+
+	Ux	Logs user 'x' for next F command. Displays the character
+		'?' error if not CP/M-80 version 2.0 (or greater).
+
+	V	Views the current sector (assumes ASCII data).
+
+	Vnn	Views nn sectors.
+
+	W	Write back the current sector. Note: may
+		not be used after an F command, as CP/M was
+		used to find the file in the directory.
+
+	X	Exit back to CP/M (Must press return).
+
+	Z	Sleep - causes the program to pause, such
+		as to look at a dump.  'Z' is 1 second.  Znn
+		is nn tenths of a second on a 2 MHz 8080 CPU.
+
+
+3.0 Usage Notes
+
+3.1 Multiple Commands: May be separated by ";"
+
+Example:  the following commands will erase the B: disk directory 
+          to all E5's:
+
+	lb<cr>		"Log-in" (select) the 'B:' drive.
+	g0<cr>		Position to the start of the directory.
+	ch0-7f,e5<cr>	Fill with the value 'E5' hexadecimal.
+	<<cr>		Save the sector
+	>;w;+;/16<cr>	Restore, write, next repeat 16 times.
+
+This could be shortened to:
+
+	lb;g0;ch0-7f,e5;<<cr>
+	>;w;+;/16<cr>
+
+
+3.2 Dump Commands - All dump commands (D, A, H) may be optionally 
+followed by a starting and ending address:
+
+	D0,7F<cr>	...is the same as just D<cr>
+	D3,5<cr>
+	A20,3F<cr>
+
+3.3  Logging in Disk - Some problems may arise when  "logging-in" 
+diskettes with "mixed-density" (i.e., Track 00 is single density, 
+and  the directory tracks are double density,  ala IBM System  34 
+type disks).   A solution is to log in a disk which is OK, and is 
+of  the  same  density as the disk that you want to  examine  and 
+alter, then put in the new disk WITHOUT logging it in.
+
+However,  you  are now opening yourself up to  possible  problems 
+because  of the buffering of physical sectors in the  BIOS.   The 
+best  technique,  (but not guaranteed),  would be to seek to  the 
+unused inner tracks of the first disk,  do the read,  THEN change 
+disks.   That way if it writes anything, you won't have destroyed 
+anything...assuming  the disk is not  completely  full.   Another 
+technique,  assuming  the  second  disk does not contain  a  CP/M 
+system,  would be to seek to Track 1, then do the read there, and 
+then change disks to the new one.
+
+
+3.4  Sector  Buffers  (The '<<' and '>>' commands)  - Up  to  255 
+sectors (only because its a 1 byte counter) may be saved by '<<'.  
+ANY TIME '<' is executed, the buffers are "thrown away". One '>>' 
+to fetch a saved buffer and make it available for writing, may be 
+issued for each previous '<<'.   The 'M' (directory map)  command 
+uses  an  area  of memory for a  buffer.   To  minimize  problems 
+(caveat  programmer),  the MAP buffer is placed a the END of  the 
+CURRENTLY HIGHEST USED '<<' buffer.  On small systems, where many 
+buffers  have been saved via '<<',  the 'M' command might  report 
+that  it ran out of memory.   Executing '<' or '>>' a  sufficient 
+number  of times for it to tell you there are no more sectors  in 
+the  buffer,  will then make room available in memory at a  lower 
+address.  Then 'M' may be used for "mapping" the directory.
+
+
+4.0 Interpreting CP/M Directory Data
+
+4.1 Single Density
+
+The  following  explains the format of a CP/M directory entry  as 
+shown by DU,  using either the 'F' (find file) command,  or  just 
+doing  'D' (dump) of the directory sectors,  which are located in 
+groups 0 and 1 on a single density disk.
+
+Sample result of 'fSID.COM' (find 'SID.COM') command:
+
+40  00534944 20202020  20434F4D 0000003A  *.SID     COM...:*
+50  33343536 3738393A  00000000 00000000  *3456789:........*
+
+First line -
+
+40  00534944 20202020  20434F4D 0000003A  *.SID     COM...:*
+||  |||                      |  ||    ||    |         |
+||  ||^----HEX File Name-----^  ||    ||    ^File Name^
+||  ||                          ||    ||     in ASCII
+||  ||                   Extent-^^    ||
+||  ||                                ||
+||  ||           File Size in Sectors-^^
+||  ||
+||  ^^-00 = File Active (other values (e.g., 03 = User Number 3)
+||     E5 = File Erased
+^^-Displacement of the "line" (16 entries/line) in the directory sector
+
+Note:  for  the  newcomer  to  "CP/M  jargon",  a  file  'extent' 
+(actually the extension of a file) indicates to the CP/M BDOS the 
+number of 16 thousand (16K) consecutive bytes contained within  a 
+file.   Extents are numbered from 0 to 31. One extent may contain 
+1,  2,  4,  4,  8 or 16 blocks (a block,  is a basic unit of disk 
+space allocation,  and may be 1K,  2K,  4K, 8K or 16K consecutive 
+bytes).   These blocks then are assigned group numbers (a "group" 
+is  a  group of disk sectors),  and are allocated dynamically  to 
+accomodate the required disk space on a disk,  as used by a given 
+file  (Group  0  is ALWAYS the start  of  the  directory  group).  
+Therefore, a file "name" might appear in the director a number of 
+times  ,  depending  on  the  number of  extensions  required  to 
+accomodate  the  files size (refer to the sample  disk  "MAP"  in 
+section   2.0   Usage...the   file   PBIOS.ASM   shows   multiple 
+extents)...Whew! With that out of the way then, I hope this makes 
+sense:
+
+Second line -
+
+50  33343536 3738393A  00000000 00000000  *3456789:........*
+    |				       |   |
+    |				       |   ^- The allocation groups
+    ^-----Allocation Group Numbers-----^      that just happened
+					      to be printable!
+
+4.2 Double Density
+
+The following is a sample of  SID.COM running on a double density 
+system:
+
+:fSID.COM<cr> <-- Find 'SID.COM' on the disk...
+00  00534944 20202020  20434F4D 0000003A  *.SID     COM...:*
+10  38003900 3A003B00  00000000 00000000  *8.9.:.;.........*
+G=0000:00, T=2, S=1, PS=0
+
+The  primary  difference is that the groups now occupy  2  bytes, 
+i.e.  "38  00",  "39 00",  etc.   This follows the INTEL and CP/M 
+convention  of putting 16 bit values  high-byte-first.   Thus  it 
+means group 0038, 0039, etc.
+
+Note that in double density,  each group stood for 2K, not 1K, so 
+there were half as many groups for the same file.
+
+Be  VERY careful when patching a directory under double  density.  
+I once made the mistake of putting, for example:
+
+	ch10,38,39,3a,3b...
+
+When  I went to read this file,  it tried to access  group  3938, 
+with  resultant  angry exclamations from the disk stepper  as  it 
+attempted to go south to Peoria for the data.
+
+5.0 DU Usage Examples
+
+5.1 Erased Program Recovery
+
+Let's  suppose that you have just put on the "final  touches"  to 
+your  latest'n'greates  program to market as your new "let's  get 
+poor  quick" scheme...you (of course) have NEVER made  a  back-up 
+copy  after  having  put in 10^16 (that 10 to  the  16th  power!) 
+weekends of time into it. So you proudly examine the directory of 
+your pride-and-joy:
+
+A0>dir b:
+
+B: BIZ-INIT BAS : BIZ-CALC BAS : BIZ-CHRT BAS : BIZ-WIZ  TXT
+B: BIZ-WIZ  BAS
+
+Yep...All  there,   and...(ring,   ring...its  the  #%&"*+  phone 
+again!).  O.K. be back in a few minutes and get a printer listing 
+for posterity...(tick, tick...minutes turn to hours...):
+
+Ah yes,  lets see where was I?  Oh yes, that guy called an wanted 
+to  modem over his latest version of FOOBAR...Fine,  better  make 
+some room on this "scratch disk" in the B: drive...so we:
+
+A>era b:*.* <-- lets just get rid of whatever junk is there...
+ALL (Y/N)?y <-- sure,  if  I can't remember whats there, can't be important!
+
+A0>dir b: <-- and just to be sure...
+
+NO FILE <-- Yep! No files left...but...AAaarrgghh! The wrong $&+#* disk!!!
+
+
+                      What do you do,... what do you do???
+
+Do you...D You....Dee U.....ahh Hah! DU!!! Disk Utility to the rescue!
+
+I  just  KNEW something clever would (eventually) emerge from  my 
+beer-fogged brain to save my ASCII (err, ahh)...so here I go!
+
+A0>du<cr>
+
+
+DISK UTILITY ver 7.7
+Universal Version
+
+Type ? for help
+Type X to exit
+
+:lb<cr> <-- "log" disk B: (forest reclamation project!)
+
+:g0;d<cr> <-- Go to Group 0 (always the directory group) and Dump:
+G=00:00, T=2, S=1, PS=1
+00  E542495A 2D494E49  54424153 0000001C  *eBIZ-INITBAS....*
+10  02030405 00000000  00000000 00000000  *................*
+20  E542495A 2D43414C  43424153 00000050  *eBIZ-CALCBAS...P*
+30  06070809 0A0B0C0D  0E0F0000 00000000  *................*
+40  E542495A 2D434852  54424153 00000019  *eBIZ-CHRTBAS....*
+50  10111213 00000000  00000000 00000000  *................*
+60  E542495A 2D57495A  20545854 00000029  *eBIZ-WIZ TXT...)*
+70  14151617 18190000  00000000 00000000  *................*
+
+Hmmm...my   files  alright  with  funny  little  "e's"  in  front 
+of'em...lets also look at the next directory sector:
+
+:+;d<cr> <-- advance +1 sector and Dump it also:
+G=00:01, T=2, S=2, PS=7
+00  E542495A 2D57495A  20424153 00000080  *eBIZ-WIZ BAS....*
+10  1A1B1C1D 1E1F2021  22232425 26272829  *...... !"#$%&'()*
+20  E542495A 2D57495A  20424153 0100006B  *eBIZ-WIZ BAS...k*
+30  2A2B2C2D 2E2F3031  32333435 36370000  **+,-./01234567..*
+40  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+50  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+60  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+70  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+
+Well,  its  all  sitting there (sort'a!) in the  directory...lets 
+backup  one sector,  and start fixing things up to recover  those 
+erased files:
+
+:-<cr> <-- minus 1 sector...
+G=00:00, T=2, S=1, PS=1
+
+:ch0,0;ch20,0;ch40,0;ch60,0<cr> <-- CHange all "E5's" to zeros:
+E5E5E5E5 <-- the "E5's" (erased file flags) evaporate before our very eyes!
+:d<cr> <-- Dump it just to check...
+00  0042495A 2D494E49  54424153 0000001C  *.BIZ-INITBAS....*
+10  02030405 00000000  00000000 00000000  *................*
+20  0042495A 2D43414C  43424153 00000050  *.BIZ-CALCBAS...P*
+30  06070809 0A0B0C0D  0E0F0000 00000000  *................*
+40  0042495A 2D434852  54424153 00000019  *.BIZ-CHRTBAS....*
+50  10111213 00000000  00000000 00000000  *................*
+60  0042495A 2D57495A  20545854 00000029  *.BIZ-WIZ TXT...)*
+70  14151617 18190000  00000000 00000000  *................*
+
+:w<cr> <--Write this directory sector back to the disk:
+
+:+<cr> <-- advance to the next directory sector:
+G=00:01, T=2, S=2, PS=7
+
+:d<cr> <-- Dump it also, to be sure...
+00  E542495A 2D57495A  20424153 00000080  *eBIZ-WIZ BAS....*
+10  1A1B1C1D 1E1F2021  22232425 26272829  *...... !"#$%&'()*
+20  E542495A 2D57495A  20424153 0100006B  *eBIZ-WIZ BAS...k*
+30  2A2B2C2D 2E2F3031  32333435 36370000  **+,-./01234567..*
+40  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+50  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+60  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+70  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+
+:ch0,0;ch20,0<cr> <-- just CHange for the two directory entries...
+E5E5
+
+:d<cr> <-- why "valley girls" take 2 birth control pills (to be sure, fer'sure!)
+00  0042495A 2D57495A  20424153 00000080  *.BIZ-WIZ BAS....*
+10  1A1B1C1D 1E1F2021  22232425 26272829  *...... !"#$%&'()*
+20  0042495A 2D57495A  20424153 0100006B  *.BIZ-WIZ BAS...k*
+30  2A2B2C2D 2E2F3031  32333435 36370000  **+,-./01234567..*
+40  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+50  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+60  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+70  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  *eeeeeeeeeeeeeeee*
+
+:w<cr> <-- Write this directory sector as well, before we quit!
+
+:x<cr> <-- eXit to CP/M-80...
+
+A0>dir b:<cr> <-- and as if by magic...
+
+B: BIZ-INIT BAS : BIZ-CALC BAS : BIZ-CHRT BAS : BIZ-WIZ  TXT
+B: BIZ-WIZ  BAS
+A0>...It's all done with mirrors!
+
+5.2 Modifying a disk for "Program Autoload"
+
+By  modifying  a portion of the CP/M operating  system,  you  can 
+force it load automatically and execute a command file.  This can 
+be  particularly useful if you want to set-up some fancy  printer 
+initialization,  modify some serial port Baud rate or data format 
+parameters,  etc.  To  enter  an  "autoload" filename to  a  CP/M 
+diskette:
+
+:t2;s1;d<cr> <-- position to Track 2, Sector 1, and Dump...
+ T=2, S=1, PS=0      (NOTE: this is representative of my disk only!)
+ T=2, S=1, PS=0
+00  C35CDDC3 58DD7F00  20202020 20202020  *C\]CX]..        *
+10  20202020 20202020  434F5059 52494748  *        COPYRIGH*
+20  54202843 29203139  37392C20 44494749  *T (C) 1979, DIGI*
+30  54414C20 52455345  41524348 20200000  *TAL RESEARCH  ..*
+40  00000000 00000000  00000000 00000000  *................*
+50  00000000 00000000  00000000 00000000  *................*
+60  00000000 00000000  00000000 00000000  *................*
+70  00000000 00000000  00000000 00000000  *................*
+          
+:ca8,SIGNON<0><cr> <-- Change ASCII, address 8 to 'SIGNON' and '0'.
+                 
+:ch7,6<cr> <-- Change Hex, address 7 to a value of 6 (length byte)
+00            <-- what the value "was" prior to the change
+:d<cr>     <-- Dump the disk sector for display
+00  C35CDDC3 58DD7F06  5349474E 4F4E0020  *C\]CX]..SIGNON. *
+10  20202020 20202020  434F5059 52494748  *        COPYRIGH*
+20  54202843 29203139  37392C20 44494749  *T (C) 1979, DIGI*
+30  54414C20 52455345  41524348 20200000  *TAL RESEARCH  ..*
+40  00000000 00000000  00000000 00000000  *................*
+50  00000000 00000000  00000000 00000000  *................*
+60  00000000 00000000  00000000 00000000  *................*
+70  00000000 00000000  00000000 00000000  *................*
+          
+:w<cr> <-- Write the disk sector.
+:x<cr> <-- eXit to CP/M.
+
+You  could  now  "cold  boot"  this  CP/M-80  system  disk,   and           
+it   would   "autoload"   by   running   the   'SIGNON'   program           
+(whatever that is!) prior to doing anything else.
+
+5.3 Finding and Modifying Program Data Quickly
+
+This example show how to find a filename in the  directory,  then 
+locate  the data within the file for subsequent modification  (in 
+this case just to change a version number in the source code...we 
+could (I suppose) have used (barf...) 'ED'!):
+
+:fSYSTOSYS.ASM<cr> <-- Find the program 'SYSTOSYS.ASM'
+20  00535953 544F5359  5341534D 00000080  *.SYSTOSYSASM....*
+30  0E010F01 10011401  15011601 4F015001  *............O.P.*
+G=0000:00, T=4, S=1, PS=0
+
+:g10e<cr> <-- Go to Group '10E' (see it above at address 30 and 31? Also,
+G=010E:00, T=71, S=33, PS=32         remember to enter 2K groups "bas-akwards" 
+                                     from what you see. In this case NOT E01!)
+:d<cr> <-- Dump it...
+00  3B202020 20202020  20202020 20202020  *;               *
+10  436F6D70 7570726F  20382F31 3620436F  *Compupro 8/16 Co*
+20  6D706174 69626C65  20535953 544F5359  *mpatible SYSTOSY*
+30  53205665 7273696F  6E20312E 340D0A3B  *S Version 1.4..;*
+40  20202020 20202020  20202020 20202043  *               C*
+50  6F707972 69676874  20284329 20313938  *opyright (C) 198*
+60  312C2031 3938322C  20313938 33206279  *1, 1982, 1983 by*
+70  204B656C 6C792053  6D697468 0D0A3B0D  * Kelly Smith..;.*
+
+:ca3c,5<cr> <-- I want to change from version 1.4 to 1.5:
+4
+:d<cr> <-- what sound does the Lone Rangers horse make? (Dump'ta'da'Dump'ta'da...)
+00  3B202020 20202020  20202020 20202020  *;               *
+10  436F6D70 7570726F  20382F31 3620436F  *Compupro 8/16 Co*
+20  6D706174 69626C65  20535953 544F5359  *mpatible SYSTOSY*
+30  53205665 7273696F  6E20312E 350D0A3B  *S Version 1.5..;*
+40  20202020 20202020  20202020 20202043  *               C*
+50  6F707972 69676874  20284329 20313938  *opyright (C) 198*
+60  312C2031 3938322C  20313938 33206279  *1, 1982, 1983 by*
+70  204B656C 6C792053  6D697468 0D0A3B0D  * Kelly Smith..;.*
+
+:w<cr> <-- Write it...
+
+:x<cr> <-- Do with me what you will (just don't leave me unsatisfied!)
+
+A>Ahhhhh...thats better!
+
+5.4 A "Poor Man's" Disk Test
+
+DU  can also function in the capacity of a "Poor Man's" disk test 
+by  performing simple sequential write/read/seek  functions  with 
+user specified data patterns.   Here in very simple form,  is a 4 
+sector  non-destructive  read-only/seek  test.  Any   susbsequent 
+errors would be trapped by the CP/M BDOS and stop the "test" with 
+whatever error message was appropriate (e.g.,  BDOS Err on B: BAD 
+SECTOR):
+
+:t20;s1<cr>
+G=0040:00, T=20, S=1, PS=0
+
+:+;+;+;+;-;-;-;-;/<cr> <-- read forward 4 sector,
+G=0040:01, T=20, S=2, PS=1     read backward 4 sectors,
+G=0040:02, T=20, S=3, PS=2     repeat 'ad nauseum' (actually until ^C)
+G=0040:03, T=20, S=4, PS=3
+G=0040:04, T=20, S=5, PS=4
+G=0040:03, T=20, S=4, PS=3
+G=0040:02, T=20, S=3, PS=2
+G=0040:01, T=20, S=2, PS=1
+G=0040:00, T=20, S=1, PS=0
+G=0040:01, T=20, S=2, PS=1
+G=0040:02, T=20, S=3, PS=2
+G=0040:03, T=20, S=4, PS=3
+G=0040:04, T=20, S=5, PS=4
+G=0040:03, T=20, S=4, PS=3
+~                        ~
+| days or weeks later... |
+~                        ~
+G=0040:03, T=20, S=4, PS=3
+G=0040:02, T=20, S=3, PS=2
+G=0040:01, T=20, S=2, PS=1
+G=0040:00, T=20, S=1, PS=0
+G=0040:01, <-- interrupted with ^C from the keyboard.
+:
+
+By  using  your imagination,  you can come-up with a  variety  of 
+usefull applications for DU...Have fun!
+
+G=0040:02, T=20

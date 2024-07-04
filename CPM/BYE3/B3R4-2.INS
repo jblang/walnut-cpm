@@ -1,0 +1,132 @@
+;
+;	     TR1865 I/O and BR1943 baudrate generator
+;
+;	      Note:  This is an insert not an overlay
+;
+;
+; This BYE3 insert is for the TRS-80 model IV and Model IV Gate Array
+; computers using the Montezuma Micro CP/M 2.2.
+;
+; NOTE:  The MDCARCK routine contains a "CMA" statement other similar
+;	 inserts do not have.  The TRS-Model IV seems to invert the
+;	 DCD line from the modem.  If having problems installing this
+;	 insert, you might try nulling out the CMA instruction.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 08/01/85  Upgraded for v337				- pst
+; 06/15/85  Modified from my previous B31865 insert	- Tom Brady
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Modem port equates
+;
+DPORT	EQU	0EBH		; Modem port
+MDCTL1	EQU	DPORT-1		; Status port
+BPORT	EQU	DPORT-2		; Baud rate port
+RPORT	EQU	DPORT-3		; Reset port
+;
+DAV	EQU	10000000B	; Data available
+TBMT	EQU	01000000B	; Xmit buffer empty
+DCD	EQU	00100000B	; Data carrier detect
+;
+B300	EQU	055H		; 300 baud
+B1200	EQU	077H		; 1200 bps
+B2400	EQU	0AAH		; 2400 bps
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:IN	RPORT		; Read port
+	CMA
+	ANI	MDDCD		; Isolate the DCD response
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0EBH		; DTR, RTS off to hang up phone
+	OUT	SPORT
+;
+	PUSH	B
+	MVI	B,20		; 2 seconds to let modem settle down
+OFFTI:	CALL	DELAY
+	DCR	B
+	JZ	OFFTI
+	POP	B
+;
+	MVI	A,01		; Reset UART, enable modem control
+	OUT	RPORT
+	MVI	A,0ECH		; Turn DTR back on
+	OUT	SPORT
+	CALL	DELAY
+	CALL	DELAY
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Read port
+	ANI	DAV		; Mask crap
+	RZ			; Nope, nothing there
+	ORI	255		; We got something...
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	SPORT		; Read port
+	ANI	TBMT		; Mask crap
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Send ATZ and ATS0=0 (auto-answer off)
+	 ENDIF			; IMODEM
+;
+;
+; Called by main program after caller types BYE
+;
+MDSTOP:	MVI	A,0EBH		; Turn off DTR so that modem will quit
+	OUT	SPORT
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	A,B300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,B1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,B2400
+;
+SETBAUD:OUT	BPORT
+	XRA	A
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

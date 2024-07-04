@@ -1,0 +1,197 @@
+                                  UKM7
+
+             A SOFTWARE COMMUNICATIONS PROGRAM FOR CP/M-80.
+
+UKM7 has been adapted from MODEM7 for use in the UK. MODEM7 was original-
+ly written in 1977 by Ward Christensen, principally for the American PMMI 
+modem and although it generally works,  many bugs and problem areas  were 
+in  evidence.  Being very modem dependent (PMMI modems must be as rare as 
+hen's teeth in the UK), David Back has removed all of the modem dependent 
+features and at the same time,  cleaned up a great many bugs, mainly from 
+the Terminal mode.  Further,  tidying up the file and combining  Terminal 
+and  Echo  modes,  so that you may now echo whilst retaining all  of  the 
+Terminal mode facilities.  In spite of the appearance of the Menu,  which 
+is more complete than that of MODEM7,  no functions useful in the UK have 
+been omitted, indeed, many of MODEM7's functions have been improved.
+
+1)   You  may  use  UKM7  direct from a CP/M  command  line  without  any    
+     restrictions.
+
+2)   All  terminal  file writing and closing  has  been  made  completely 
+     automatic so that it is now impossible to forget to write and  close 
+     the file.
+
+3)   You  may return from Terminal mode to the main menu and perform  any
+     allowable   option,  including  Send  and/or  Receive  files  whilst
+     retaining an open terminal file.
+
+4)   You may return to the same terminal file from menu level  simply  by
+     entering  T,  both ECHO and FILESAVE will be ON or OFF as  you  left 
+     them.
+
+5)   You may start a new terminal file by exiting to MENU level and  then
+     re-entering terminal mode with another, or even the same, filename.
+
+6)   An automatic LOG ON/answerback feature has been added,  activated by
+     receipt of a ^E, from the menu level.
+
+7)   Automatic terminal filesave  has been added.  If a terminal file  is
+     open and terminal file save is off then it can be remotely turned on
+     by receipt of ^R and off by receipt of ^T.
+
+8)   Echo on/off may be toggled whilst in terminal mode. (Control-C)
+
+9)   Printer On/Off toggle via control-P
+
+As  UKM7 may be assembled with either ASM or MAC,  there is no  point  in 
+retaining  the elaborate patching facilities of the MODEM7  series.  They 
+are  still  there in a modified form but a UKM7.SET file is not provided.
+There are no modem dependent features in UKM7 and all system dependencies 
+are  gathered together at the beginning of the program.  The program  has 
+been  patched  with 820 port addresses and initialisation.  Other  simple 
+patches are possible, they are commented on in the source file and may be 
+altered to taste.
+
+The  file sending and receiving protocols of UKM7 are exactly as those in 
+MODEM765.  They are compatible with all of the MODEMX program series back 
+to at least as far as MODEM4.  The protocols work well,  being relatively 
+bug free and are widely used, but does have some snags which will show up 
+sometimes on a bad line.  These are documented by David Back in the  form 
+of flow charts,  but they are too complex to present here. UKM7 will work 
+equally well with CP/M 1.4 or CP/M 2.2.
+
+Hopefully,  the  command syntax is self evident from the built in  menus. 
+Type  M  followed by a carriage return to get the menu display  when  the 
+program begins in expert mode.
+
+Although  the non-batch mode of file transfer is redundant,  it has  been 
+retained  for  compatibility  with other MODEM programs and  because  the 
+protocol  is simpler and more suitable than batch mode  for  transmitting 
+files  over  a non-duplex link such as a radio channel.  Note that  batch 
+mode  is now the norm and you have to include secondary option N  to  get 
+non-batch operation.
+
+The quiet mode is retained as original.  This is intended for  situations 
+where  UKM7  is  running on a remote CP/M system.  (Suppress  all  system 
+messages (don't display the screen).
+
+In order to upload or download files from a remote system using UKM7 S or 
+R modes,  it is first necessary to contact and sign on with the remote in 
+the normal way using the Terminal mode.  Assuming that the remote station 
+has UKM7 available, it can then be given the command:
+
+            UKM7 SQ afn list          or           UKM7 RQ
+ 
+Having done this, the local must then use ^E to return to main menu level 
+and give the RT or ST command as appropriate. File transfer will commence 
+and, when complete, the local station will finish up in Terminal mode and 
+the remote will be in UKM7 at main menu level.  Thus,  further  transfers 
+may be initiated, or the CPM command may be given to return the remote to 
+CP/M command level.
+
+EXPLANATION OF COMMAND SYNTAX AT MENU LEVEL
+
+The  menu  indicates  a  general command  syntax  which  applies  to  all 
+commands,  but as syntax varies somewhat from one command to another, the 
+explanation  below may be useful.  Note that entry of ^X at either end of 
+the communication link will abort the file transfer in progress - one way 
+or another.  (This feature has been left exactly as it was found and does 
+not work entirely satisfactorily.  An abort protocol needs to be invented 
+and the author may work on this for a later issue if nobody else comes up 
+with any ideas.)
+
+SEND FILES IN BATCH MODE, primaryoption S
+
+Either  single  or multiple files may be sent with one command by use  of 
+this option.
+
+The Sending command is:         S[Q][S|R|V][T] [drive:]afn [ [drive:]afn]
+
+i.e. you may use a list of ambiguous filenames separated by spaces. Files 
+with the $SYS attribute set,  i.e.  system files,  cannot be sent. If the 
+receiving  station is not using UKM7 you must tell it that you are  going 
+to use the Batch Mode.
+
+RECEIVE FILES IN BATCH MODE, primaryoption R
+
+Filenames are transmitted along with the file and used to make new  files 
+at  the receiving station.  If a file of the same name already exists the 
+existing file will be renamed .BAK
+
+The Receiving command is:                         R[Q][S|R|V][T] [drive:]
+
+If  the drive is not specified then files will be directed to the default 
+drive.
+
+TERMINAL MODE, primaryoption T
+
+To enter Terminal mode:                   T [drive:][unambiguousfilename]
+
+In  order  to start a terminal file,  a filename must be  specified  when 
+entering terminal mode.
+Exit  from  terminal  mode to Menu level (using ^E) does  not   close  an 
+existing terminal file.
+
+If  a  terminal  file is open then re-entry to terminal  mode  without  a 
+filename will allow its continued use.
+
+Entry  to terminal mode with a filename specified will close the  current 
+terminal file, if one existed, then open a file with the specified name.
+
+When  return is made to the CP/M command level by using the  CPM  primary 
+option,  the current terminal file will be closed. Do not exit to CP/M by 
+re-booting or else an open terminal file will not be closed and data will 
+be lost.
+
+The terminal menu may be displayed after entry to terminal mode by typing 
+^D. When a terminal file is open, its name will be displayed in the menu. 
+No name means no file and data cannot then be saved.
+
+The Computer mode may be entered by typing ^C. Only one end of a communi-
+cation  link  may be in the Computer mode at any one  time.  In  Computer 
+mode, characters received via the Modem are echoed back to the originator 
+and  characters  sent are echoed to the local  console.  Line  feeds  are 
+automatically  appended to carriage returns.  Both terminal file save and 
+file  transfer  with the ^T option work in Computer mode as  they  do  in 
+Terminal mode.
+
+Remaining features of the terminal menu are self evident.
+
+DIRECT ENTRY FROM CP/M COMMAND LEVEL
+
+Any  of  the  above commands may be given to UKM7 direct  from  the  CP/M 
+command level. For example:
+
+A>UKM7 ST B:*.COM IQ*.ASM
+
+will transmit all .COM files from drive B: and all .ASM files which begin 
+with  IQ from drive A:  and finish up in Terminal mode.  There will be no 
+terminal file.
+
+A>UKM7 T B:TFILE
+
+will open terminal file B:TFILE and enter terminal mode.
+
+Both M and X commands may be executed direct from the CP/M command level.
+
+NON BATCH MODE, secondaryoption N
+
+This  mode  has been retained for compatibility with  older  versions  of 
+MODEMX.  One  unambiguous filename is required for both Send and Receive, 
+i.e. only one file may be transferred at a time.
+
+Send a file, non batch mode:                 SN[Q][S|R|V][T] [drive:]unfn
+
+Receive a file, non batch mode:              RN[Q][S|R|V][T] [drive:]unfn
+        
+PRACTICAL POINTS
+
+The  author  has tried unsuccessfully to provided control such  that  the 
+modem  has  always  been  automatically  connected  and  disconnected  at 
+appropriate  times.  A manually operated switch on the modem  is  better. 
+A manual switch is also preffered for selecting Call or Answer modes  for 
+local attended operation. Smartmodems of the Hayes variety have yet to be 
+commercially available at reasonable prices in the UK.  This program will 
+therefore be of special interest to those users without "smart"
+features.
+

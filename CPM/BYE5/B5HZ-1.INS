@@ -1,0 +1,192 @@
+
+; B5HZ-1.INS - Heath/Zenith-100 insert for BYE5 - 07/17/85
+;
+;	2661B I/O with built-in baudrate generator, 4.9152 MHz
+;
+;	Note:  This is an insert, not an overlay.
+;
+;
+;	WIRING THE HEATH:
+;	----------------
+;	   The HZ-100 has a quirk with the 2661 that requires the
+;	   DCD signal (carrier detect) from the modem be brought
+;	   to the DSR input on the computer, rather than to its DCD
+;	   input, else the HZ-100 cannot be programmed properly.
+;	   If using the Heath HCA-11 RS-232 cable between the modem
+;	   and the computer, the following will need to be done:
+;
+;		Push pins 6 (blue) and 8 (black) from the male
+;		connector at the modem end, then put the blue
+;		one in pin 8, leaving the black one unconnected.
+;		(Tape it or whatever and replace the connector.)
+;
+;		This hooks pin 8 at the modem end to pin 6 at
+;		the computer end and then has nothing connected
+;		to pin 6 at the modem end.  (You can make this
+;		change at either end that is most convenient, so
+;		the computer effective winds up with nothing at
+;		its pin 8.)  This permits the computer's DSR in-
+;		put to check the modem's DCD line.
+;
+;
+;			If using a Hayes Smartmodem 1200,
+;			insure all switches are up except
+;			3, 5 and 8 which should be down.
+;
+;			      modem	 computer
+;				 1-----------1
+;				 2-----------2
+;				 3-----------3
+;				 6 n/c	     8 n/c
+;				 7-----------7
+;				 8-----------6
+;				20-----------20
+;
+;		The Hayes Smartmodem actually has a short between
+;		its pin 6 and pin 8, internally.  It does not have
+;		any actual DSR information available, giving DCD
+;		information at both its pins 6 and 8.  Other modems
+;		do not use this unorthodox method.
+;
+;		(Thanks to Dennis Vallianos and others for helping
+;		develop this fix for the HZ100 series.)
+;
+;					- Notes by Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written for use with BYE5 and later	- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Modem port equates
+;
+PORT	 EQU	0ECH		; Data port for Heath/Zenith-100 series
+MDCTL1	 EQU	PORT+1		; Status port
+MDCTL2	 EQU	PORT+2		; Modem port
+MDCTL3	 EQU	PORT+3		; Control port
+;
+BD300	 EQU	0F6H		; 300 baud
+BD1200	 EQU	0F8H		; 1200 bps
+BD2400	 EQU	0FBH		; 2400 bps
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Status port
+	ANI	80H		; See if there is a carrier (DSR pin)
+	RET			; If yes, return with Zero flag set
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,15H		; Turn off DTR, RTS to hang up phone
+	OUT	MDCTL3		; Control port
+	IN	MDCTL3		; Make sure it is now clear
+	IN	MDCTL3		; Try once more
+	PUSH	B		; In case it was being used
+	MVI	B,20		; Delay for 2 seconds
+;
+OFFTI:	CALL	DELAY		; .1 second increments
+	DCR	B		; One less to go
+	JNZ	OFFTI		; If not zero, loop until zero
+	POP	B		; Restore to original
+	MVI	A,37H		; Reset RTS, flags, DTR, enable R/T
+	OUT	MDCTL3		; Control port
+	IN	MDCTL3		; Clear any incoming characters
+	IN	MDCTL3		; Try once more
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize modem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; The following is a routine that will input one character from the mo-
+; dem port.  If there is nothing there, it will return garbage... so use
+; the MDINST routine first.
+;
+MDINP:	IN	PORT
+	RET
+;.....
+;
+;
+; The following is a routine to determine if there is a character wait-
+; ing to be received.  If there are none, the zero flag will be set.
+; Otherwise, 0FFH will be returned in 'A' reg.
+;
+MDINST:	IN	MDCTL1
+	ANI	02H		; Check for receive ready bit
+	RZ
+	ORI	0FFH		; We got something...
+	RET
+;.....
+;
+;
+; The following is a routine to determine if the transmit buffer is em-
+; pty.	If not, it returns with the Zero flag set, otherwise it will
+; return with Zero clear.
+;
+MDOUTST:IN	MDCTL1
+	ANI	01H		; Check the transmit ready bit
+	RZ
+	ORI	0FFH
+	RET
+;.....
+;
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+MDSTOP:	MVI	A,15H		; DTR off, modem will quit working
+	OUT	MDCTL3
+	RET
+;.....
+;
+;
+; The following is a routine that will output one character in the 'A'
+; reg. to the modem.
+;
+;
+MDOUTP:	OUT	PORT
+	RET
+;.....
+;
+;
+; Set the baudrate, returns with Zero flag set with successful change
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the Zero flag is not set
+	RET
+;
+SET300:	MVI	B,BD300
+	JMP	LOADBD
+;
+SET1200:MVI	B,BD1200
+	JMP	LOADBD
+;
+SET2400:MVI	B,BD2400
+;
+LOADBD:	MVI	A,4EH		; 1 Stop, no parity, 8 bits, 16x asynch
+	OUT	MDCTL2		; Send to mode register
+	MOV	A,B		; Get the baudrate
+	OUT	MDCTL2		; Set the desired speed
+	MVI	A,37H		; Reset flags, RTS, DTR, enable R/T
+	OUT	MDCTL3		; Send to command register
+	IN	MDCTL3		; Clear any incoming characters
+	IN	MDCTL3		; Try once again
+	XRA	A		; Shows the baudrate change was ok
+	RET
+;.....
+;
+;
+;			       end
+;-----------------------------------------------------------------------
+

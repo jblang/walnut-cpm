@@ -1,0 +1,185 @@
+.COMMENT \
+
+MXSET Rev. 1.2 by Simon J. Ewins, Toronto, Ontario, Canada.
+***********************************************************
+
+This program will set/reset all of the major functions of the Epson MX-80
+printer. The program uses Z80 Zilog mnemonics and calls are made to Richard
+Conn's excellent SYSLIB.REL file. Microsoft's M80 macro assembler is needed
+for assembly of this file as well as the SYSLIB file.
+
+June 28, 1983.   Toronto, Ontario.
+
+******************************************************************************
+\
+	.Z80
+	CSEG
+START:	CALL	PRINT##
+	DB	13,10,10,10,10,10
+	DB	'MXSET Rev. 1.2',13,10
+	DB	'by Simon J. Ewins -- 06/28/83',13,10,10
+	DB	'OPTIONS:',13,10,10
+	DB	'A: Set printer to defaults',13,10
+	DB	'B: Home printhead',13,10
+	DB	'C: Turn ON underline mode -- use A: to turn OFF',13,10
+	DB	'D: Turn ON unidirectional mode -- use A: to turn OFF',13,10
+	DB	'E: Set column length',13,10
+	DB	'F: Turn ON perforation skipover',13,10
+	DB	'G: Turn OFF perforation skipover',13,10
+	DB	'H: Turn ON paper-end detector',13,10
+	DB	'I: Turn OFF paper-end detector',13,10
+	DB	'J: Select character fonts',13,10
+	DB	'K: Print test',13,10
+	DB	'^C=Quit to CP/M',13,10,10
+	DB	'Enter your choice: ',0
+	LD	A,1
+	CALL	BBLINE##
+	LD	A,(HL)
+LA:	CP	'A'		;Set printer to defaults
+	JR	NZ,LB
+	CALL	ESC
+	CALL	LPRINT##
+	DB	64,13,10,0
+	JP	START
+LB:	CP	'B'		;Home printhead
+	JR	NZ,LC
+	CALL	ESC
+	CALL	LPRINT##
+	DB	60,13,10,0
+	JP	START
+LC:	CP	'C'		;Turn on underline mode
+	JR	NZ,LD
+	CALL	ESC
+	CALL	LPRINT##
+	DB	45,1,13,10,0
+	JP	START
+LD:	CP	'D'		;Turn on unidirectional
+	JR	NZ,LE
+	CALL	ESC
+	CALL	LPRINT##
+	DB	85,13,10,0
+	JP	START
+LE:	CP	'E'		;Set column length
+	JP	NZ,LF
+LE1:	CALL	PRINT##
+	DB	13,10,10,'Enter column length: ',13,10
+	DB	'Up to <80> when in normal or emphasized mode.',13,10
+	DB	'     <132> when in condensed mode.',13,10
+	DB	'      <40> when in enlarged mode.',13,10
+	DB	'      <60> when in enlarged-condensed mode',13,10
+	DB	'---> ? ',0
+	LD	A,0
+	CALL	BBLINE##
+	CALL	EVAL10##
+	PUSH	AF
+	LD	HL,132
+	CALL	COMPHD##
+	JP	C,LE1
+	POP	AF
+	CP	0
+	JP	Z,START
+	LD	(LE2),A
+	CALL	ESC
+	CALL	LPRINT##
+	DB	81
+LE2:	DS	1
+	DB	13,10,0
+	JP	START
+LF:	CP	'F'		;Turn on perf. skip-over
+	JR	NZ,LG
+	CALL	ESC
+	CALL	LPRINT##
+	DB	78,13,10,0
+	JP	START
+LG:	CP	'G'		;Turn off perf. skip-over
+	JR	NZ,LH
+	CALL	ESC
+	CALL	LPRINT##
+	DB	79,13,10,0
+	JP	START
+LH:	CP	'H'		;Turn on paper-end detector
+	JR	NZ,LI
+	CALL	ESC
+	CALL	LPRINT##
+	DB	57,13,10,0
+	JP	START
+LI:	CP	'I'		;Turn off paper-end detector
+	JR	NZ,LJ
+	CALL	ESC
+	CALL	LPRINT##
+	DB	56,13,10,0
+	JP	START
+LJ:	CP	'J'		;Choose alternate fonts
+	JP	NZ,LK
+	CALL	PRINT##
+	DB	13,10,10
+	DB	'1:  Set italics ON',13,10
+	DB	'2:  Set italics OFF',13,10
+	DB	'3:  Set emphasized ON',13,10
+	DB	'4:  Set emphasized OFF',13,10
+	DB	'5:  Set double print ON',13,10
+	DB	'6:  Set double print OFF',13,10
+	DB	'7:  Set condensed ON',13,10
+	DB	'8:  Set condensed OFF',13,10
+	DB	'9:  Set enlarged ON (ignores linefeeds) -- '
+	DB	'use option A: to turn OFF',13,10,10
+	DB	'Enter your choice: ',0
+	LD	A,0
+	CALL	BBLINE##
+	CALL	EVAL10##
+	PUSH	AF
+	LD	HL,9
+	CALL	COMPHD##
+	JP	C,LJ
+	POP	AF
+	CP	0
+	JP	Z,START
+	CP	9
+	JR	NZ,LJ1
+	CALL	ESC
+	LD	A,87
+	CALL	LOUT##
+	LD	A,1
+	CALL	LOUT##
+	CALL	LPRINT##
+	DB	13,10,0
+	JP	START
+DATA:	DB	52,53,69,70,71,72,15,18
+LJ1:	DEC	A
+	LD	(LJ2),A		;store A for index
+	LD	IX,DATA		;set indexed pointer
+	DB	11011101B	;1st byte of LD A,(IX+d)
+	DB	01111110B	;2nd byte of LD A,(IX+d)
+LJ2:	DS	1		;storage for index
+	LD	(LJ3),A
+	PUSH	AF
+	CALL	ESC
+	POP	AF
+	CP	15
+	JR	NZ,LJ2A
+	CALL	LOUT##
+	LD	A,13
+	LD	(LJ3),A
+	JR	LJ2C
+LJ2A:	CP	18
+	JR	NZ,LJ2C
+	CALL	LOUT##
+	LD	A,13
+	LD	(LJ3),A
+LJ2C:	CALL	LPRINT##
+LJ3:	DS	1
+	DB	13,10,0
+	JP	START
+LK:	CP	'K'		;Print test
+	JP	NZ,START
+	CALL	LPRINT##
+	DB	13,10,10
+	DB	'ABCDEFGHIJKLMNOPQRSTUVWXYZ  abcdefghijklmnopqrstuvwxyz',13,10
+	DB	"1234567890-=['\;,./",'!@#$%^&*()_+]"|:<>?',13,10,10,0
+	JP	START
+ESC:	PUSH	AF
+	LD	A,27
+	CALL	LOUT##
+	POP	AF
+	RET
+	END

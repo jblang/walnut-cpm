@@ -1,0 +1,122 @@
+; Module:	DAYOWEEK derives day of week from month/day/year
+; Author:	Bill Elliot
+; Date:		30 March 1990
+;
+;HISTORY:
+;
+; Version .01 (30 March 1990)
+;
+; This is just a module that can be modified for different uses.  My
+;    particular use is for setting the RTC in the ON! computer and the 
+;    ONEAC ONEGRAPH (power line monitor).
+;
+; As presented here the module only obtains the byte value needed for
+;    setting into the clock register for day of week (Sunday = 0).
+;    Obviously some other code will need to be written for display etc.
+;
+; This module makes several assumptions:
+;
+;	- Earliest date is 1/1/88
+;	- It will only be used until 12/31/2087
+;
+; (These assumptions could be removed with a little more code.)
+;
+;
+bench:	equ	88		; Benchmark year
+;
+entry:	jp	start
+	ds	13,0		; Fill rest of line with 0
+clock:	db	0,0		; Seconds
+mins:	db	2,5
+hours:	db	3,1
+dayw:	db	0
+date:	db	6,0
+month:	db	8,0
+year:	db	0,9
+;
+;
+start:	ld	hl,year+1
+	ld	a,(hl)		; Get tens of years in A
+	call	atim10		; Return with A=A*10
+	dec	hl
+	ld	b,(hl)
+	add	a,b		; A now has number of years
+	cp	bench		; Compare against benchmark
+	jr	nc,dodays
+	add	a,100
+dodays:	sub	bench		; Subtract out benchmark years
+	ld	e,a		; E has number of days due to years
+	ld	b,-1		; Clear counter
+	ld	c,0		; Clear exact leap year flag
+	jr	z,stleap	; Current year must be 1988
+	inc	e		; Up one for 1988 leap year
+	ld	d,4		; Leap year occurs every four years
+ckleap:	sub	d		; Divide by 4
+	jr	z,stleap	; Do exact leap year stuff
+	inc	b		; Increment leap year day counter
+	jr	nc,ckleap
+	jp	doleap
+stleap:	inc	b
+	inc	c		; Set exact leap year flag
+;
+doleap:	ld	a,e
+	add	a,b		; Total number year and leap offset days
+	ld	l,a		; Put it into L for now
+	ld	h,0		; Go for 16 bits now
+	ld	de,(month)	; Get tens of month value
+	ld	a,d
+	call	atim10
+mtadd:	add	a,e		; A now has month value
+	dec	c		; Check for exact leap year (In C)
+	jp	m,noleap	; If M, not an exact leap year
+	cp	3		; Check for >= 3/1
+	jr	c,noleap	; Do not add leap day
+	inc	hl		; Add leap day
+noleap:	dec	a
+	jr	z,adddte
+	ld	b,a
+	ld	de,dmonth
+mnthlp:	ld	a,(de)		; Get number of days in month
+	add	a,l
+	ld	l,a		; Put new number in L
+	ld	a,h		; Put H into A
+	adc	a,0		; Get carry into H value
+	ld	h,a		; Put H back
+	inc	de		; Bump the pointer
+	djnz	mnthlp
+;
+adddte:	ld	de,(date)
+	ld	a,d
+	call	atim10
+	add	a,e		; x10 + units
+	ld	e,a
+	ld	d,0
+	add	hl,de		; Finally, total number of days
+	ld	de,7		; Determine remainder after # of weeks
+	xor	a		; Clear carry
+dropwk:	sbc	hl,de
+	jr	nc,dropwk
+	add	hl,de
+	ld	e,l		; L has remainder
+	ld	d,0
+	dec	e
+	jp	p,dayok
+	ld	e,6
+dayok:	ld	hl,day
+	add	hl,de		; Offset to correct day of week
+	ld	a,(hl)
+	ld	(dayw),a
+	ret			; All done
+;
+atim10:	add	a,a		; x2
+	ld	b,a		; Save x2 value
+	add	a,a		; x4
+	add	a,a		; x8
+	add	a,b		; x10
+	ret
+;
+;
+day:	db	5,6,0,1,2,3,4	; Day order FSSMTWT
+dmonth:	db	31,28,31,30,31,30,31,31,30,31,30,31
+;
+

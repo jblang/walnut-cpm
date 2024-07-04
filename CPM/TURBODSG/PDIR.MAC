@@ -1,0 +1,60 @@
+; primitive dir
+;
+	cseg
+;
+.z80
+.request syslib
+;
+start:	ld	sp,stack
+	call	crlf##
+	ld	c,32
+	ld	e,0ffh
+	call	bdos##
+	ld	(curusr),a
+	ld	de,fcb
+	ld	c,17
+	call	bdos##
+	call	eval
+loop:	ld	de,fcb
+	ld	c,18
+	call	bdos##
+	cp	0ffh
+	jr	z,done
+	call	eval
+	jr	loop
+;
+eval:	ld	bc,20h
+	ld	hl,80h
+	or	a
+	jr	z,nom
+evl:	add	hl,bc
+	dec	a
+	jr	nz,evl
+nom:	ld	a,(curusr)
+	cp	(hl)
+	ret	nz
+;
+dsply:	inc	hl
+	ex	de,hl
+	call	pfn1##
+	call	print##
+	db	'   ',0
+	ld	a,(col)
+	dec	a
+	ld	(col),a
+	ret	nz
+	ld	a,5
+	ld	(col),a
+	jp	crlf##
+;
+done:	call	crlf##
+	rst	0
+;
+	dseg
+;
+curusr:	db	0
+col:	db	5
+fcb:	db	0,'???????????',0,0,0,0
+	ds	80
+stack	equ	$
+	end

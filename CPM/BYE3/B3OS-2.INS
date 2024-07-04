@@ -1,0 +1,274 @@
+
+; B3OS-2.INS - Osborne OS-1 insert for BYE3 - 07/30/85
+;
+;			6850 ACIA
+;
+; Note:  This is an insert, not an overlay.  If your OS-1 does not have
+;	 have the hardware mod to support DTR, (shown below) then set
+;	 the NODTR option in BYE3 to "YES".  Also set:
+;
+;		    IMODEM   EQU   YES
+;
+;
+; MAIN LOGIC BOARD TRACE CUTS:
+; --------------------------
+; Solder Side:
+;
+; Cut  trace  running  from pin 5 to pin 6 on inner  row  of  pads
+; used in mounting the	RS-232	female serial connector at the front
+; of  main logic board.  Pin 1 is pad with wide ground trace.
+;
+; Component side:
+;
+; Cut trace from pin 5 of UC4 (6850) to R20 (10K ohm).
+; Cut trace that runs between pins 3 and 4 of UC4 (6850).
+;
+;
+; PART ADDITIONS:
+; --------------
+; Solder side:
+;
+; Add jumper from pin 1 of UE3 (MC1458) to pin 5 of inner row of
+;    RS-232 serial port pads.  Pin 1 has wide ground trace.
+; Add jumper from pin 3 to pin 5 of UE3 (MC1458).
+; Add jumper from pin 10 of UD4 (LM3400) to pin 5 of UC1 (74LS08).
+; Add jumper from pin 4 of UC1 (74LS08) to pin 1 of UE20 (74LS04).
+; Add jumper from pin 6 of UC1 (74LS08) to pin 5 of UA11 (74S04).
+; Add jumper from pin 6 of UA11 (74S04) to pin 19 of UC15 (6821).
+;
+; Component side or solder side (whichever side you feel more
+; comfortable using for mounting components):
+;
+; Add 10K ohm resistor from Vcc (+5 volts) to pin 2 of UE3 (MC1458).
+; Add 220 ohm resistor from pin 5 of UC4 (6850) to pin 2 of UE3 (MC1458).
+; Add 1k  ohm resistor from pin 19 of UC15 (6821) to Vcc (+5 volts).
+;
+; NEW RS-232 MODEM CABLE:
+; ----------------------
+;
+;	  OCC-1 		       MODEM
+;
+;	 2    RXD		      3    RXD
+;	 3    TXD		      2    TXD
+;	 4    DCD (new function)      8    DCD
+;	 5    DTR (new function)     20    DTR
+;	 7    GND		      7    GND
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/30/85  Restored to original format			- pst
+; 07/17/85  Revised for use with BYE3			- Kevin Murphy
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+HARDMOD	EQU	YES	; YES, if hardware mods have been done to Osborne
+			;      O-1 to support DTR and modified DCD.
+			; NO,  if the O-1 is standard (no mods).  If NO
+			;      you must be using a Hayes Compatible modem and
+			;      set NODTR to yes in the main equates.
+
+;
+STATM	EQU	02A00H		; Status memory location
+DATA	EQU	02A01H		; Data memory location
+CDATA	EQU	02C02H		; Video PIA data register
+CSTAT	EQU	02C03H		; Video PIA status register
+;
+	 IF	HARDMOD
+DCD	EQU	40H		; Data carrier detect
+	 ENDIF
+;
+	 IF	NOT HARDMOD
+DCD	EQU	04H		; Data carrier detect
+	 ENDIF
+;
+RDAV	EQU	11111110B	; Reversed DAV
+DAV	EQU	00000001B	; Normal DAV
+;
+RTBMT	EQU	11111101B	; Reversed TBMT
+TBMT	EQU	00000010B	; Normal TBMT
+;
+BD300	EQU	22		; 300 baud
+BD1200	EQU	21		; 1200 baud
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:
+	 IF	HARDMOD
+	DI		; Disable interrupts
+	OUT	0
+	LDA	CSTAT	; Read video PIA status register
+	OUT	1
+	EI
+	 ENDIF
+;
+	 IF	NOT HARDMOD
+	CALL	BNKINS	; Get modem status
+	PUSH	PSW	; Save it
+	ANI	DCD	; If carrier is then reset DCD
+	CNZ	MDINP
+	POP	PSW
+	 ENDIF
+;
+	CMA		; Comp register, bit set with LOSS of carrier
+	ANI	DCD	; Mask out everything but carrier LOSS bit (cb2)
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,57H		; Hangup if we can
+	CALL	BNKOUTS
+;
+	DI
+	OUT	0
+	LDA	CDATA		; Read video PIA data register
+	OUT	1		; Reset for future loss of carrier
+	EI
+;
+	PUSH	B
+	MVI	B,20		; Wait 2 seconds for modem to hangup
+OFFTI:	CALL	DELAY
+	DCR	B
+	JNZ	OFFTI
+;
+	LDA	WRKBAUD		; Modem port reset (enable DTR line)
+	ANI	0BFH		; Enable DTR
+	CALL	BNKOUTS
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize intelligent modem
+	 ENDIF
+;
+	DI
+	OUT	0
+	LDA	CDATA		; Read video PIA data register
+	OUT	1		; Reset for future loss of carrier
+	EI
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	CALL	BNKIND	; Input data from the outside
+	PUSH	PSW	; Save the character
+	LDA	SSTAT	; Load mirror ACIA status register
+	ANI	RDAV	; Mask the DAV bit (reset DAV bit in mirror
+			;   			status register)
+	STA	SSTAT	; Save our mutant status register to ram
+	POP	PSW	; Get the character back
+	RET		; Return to sender
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	PUSH	B
+	LDA	SSTAT	; Load ACIA mirror status register
+			; From last status read operation
+	MOV	B,A
+	CALL	BNKINS	; Input present ACIA status register
+	ORA	B	; Perform an OR operation on both former
+			;   as well as present acia registers
+	STA	SSTAT	; Save both ACIA register states
+	POP	B
+	ANI	DAV	; Mask DAV bit
+	RZ
+	ORI	255
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	CALL	BNKOUTD	; Send the data character modem
+	LDA	SSTAT	; Load the clone register
+	ANI	RTBMT	; Mask the TBMT bit
+	STA	SSTAT	; Save the doppelganger register
+	RET		; Return to sender
+;
+; See if the output is ready for another character
+;
+MDOUTST:PUSH	B
+	CALL	BNKINS	; Get present ACIA status register
+	MOV	B,A	; Move it to 'B' register
+	LDA	SSTAT	; Get mirror ACIA status register
+	ORA	B	; Perform an OR on present and mirror registers
+	POP	B
+	STA	SSTAT	; Save the past and present status registers
+	ANI	TBMT
+	RZ
+	ORI	255
+	RET
+;
+; Called by the main program after caller types BYE
+;
+MDQUIT:
+	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,57H
+	CALL	BNKOUTS	; hangup modem
+	RET
+;
+BNKINS:	DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	LDA	STATM	; Read status register ram location
+	OUT	1	; Switch banks back to progaram memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;
+BNKIND:	DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	LDA	DATA	; Read data register RAM location
+	OUT	1	; Switch banks back to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;
+BNKOUTS:DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	STA	STATM	; Send data to control register ram location
+	OUT	1	; Switch banks to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;
+BNKOUTD:DI		; Disable interrupts
+	OUT	0	; Switch banks to shadow memory bank
+	STA	DATA	; Send data to control register ram location
+	OUT	1	; Switch banks to program memory bank
+	EI		; Reenable interrupts
+	RET		; Go home
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	MVI	A,BD300		; Set 300 baud
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BD1200	; Set 1200 baud
+;
+SETBAUD:CALL	BNKOUTS
+	STA	WRKBAUD		; Save incoming baud rate
+	XRA	A		; Show baudrate was ok
+	RET
+;
+SET2400:ORI	255	; Osborne can't handle 2400 baud
+	RET
+;
+;----------------------------------------------------------------
+;
+WRKBAUD:DB	16H	; [*] OCC1 ++
+SSTAT:	DB	0	; RAM flag location for ACIA status register.
+			;   This is due to ACIA not keeping track of its
+			;   status register when data is going in both
+			;   directions i.e., data being sent out during
+			;   a display listing, and the remote user wants
+			;   to suspend screen display or abort listing
+			;   by generating a ^S or ^K or any other con-
+			;   trol character.
+;
+;	end
+;-----------------------------------------------------------------------
+

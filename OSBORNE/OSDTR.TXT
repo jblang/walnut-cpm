@@ -1,0 +1,43 @@
+Description of a suprisingly simple hardware modification to the OSBORNE-1
+to supply software controlled Data Terminal Ready to a modem connected to
+the RS-232 Serial Port. It is assumed that those interested in applying the
+mod knows how to field strip the OS-1 and remove the motherboard and also
+has an understanding of how to tack solder connections to integrated circuits.
+If you don't have these basic skills, try and find a helper you trust that
+has the knowledge and can guide you.
+                  ......................                                   
+                                                                              
+After removing motherboard, locate R-29 (about 2 inches or so behind RS-232
+connector). It can be further identified by a land running from the resistor
+to pin 6 of the RS-232 connector. Remove R-29. Cut and dress approximately
+2 inch wire. Tack solder one end of the wire to pin 5 of the ACIA and the other
+end to the hole NEAREST, repeat NEAREST, the RS-232 connector where R-29 was
+removed. DO NOT use the hole closest to the ACIA as that is +5 volts. Thats all
+there is to it. This will give DTR on pins 5,6 & 8 of the RS-232 connector as
+long as RTS is high (which it is when you are using the RS-232 port). If you 
+were using +5 volts from any of these pins for anything else (can't think of
+what), you're out of luck on one or the other as the Osborne schematics do not
+agree with the motherboard. If you need +5 volts for another use (??), an
+alternative is to leave R-29 in, cut the land on the reverse side of the
+motherboard between pins 5 & 6, or 6 & 8, and jumper the ACIA to pin 5 or 8 of
+the RS-232 connector. Then configure your modem cable to supply DTR according
+to the method selected.
+                     .....................                                   
+                                                                             
+Programming considerations: Write 6xH (x is don't care) to the MODEM Status
+port (2A00H) to drop DTR to the modem. Then write 56H or 55H to set 300 or 1200
+baud again. You may have to include a routine to reset your modem after setting
+DTR again as I had trouble with my Prometheus getting the baud rate dinged up,
+but that is a known problem with some smart modems.
+                                                                              
+The routines to send ATZ to reset Hayes compatible modems can be borrowed from
+the Smartmodem overlays by copying the SMSEND routine.
+                                                                             
+                       ...................
+                                                                             
+Don't know if you need this mod, but my BYE and MEX certainly worked MUCH
+better after I made it.  I have to admit, I studied the mod a long time before
+attempting it since it was so simple I wondered why OCC did not incorporate
+DTR to begin with. Good luck and happy hacking.
+                                                                    
+                                               Larry G. Bell

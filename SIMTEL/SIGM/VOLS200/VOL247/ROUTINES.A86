@@ -1,0 +1,297 @@
+eject
+;
+;The routines in this file are supposed to be included
+;	in main programs. Any equates or db needed for 
+;	the following routines will be maintained in this
+;	file
+;
+
+	DSEG	$
+
+register	db	'    $'		;for printing of a register
+;
+vector		rs	16		;for ASCII bit vector
+		db	'$'
+;
+cursor_position	db	esc,'=  $'	;for positioning cursor
+;
+ten		dw	10		;for conversion routine
+;
+;--------EQUATES------------
+load_drive_at	equ	.50h		;in base page, location of load drive
+print_string	equ	9
+ret_current_disk equ	25
+esc		equ	1bh
+con_out		equ	2
+list_out	equ	5
+
+eject
+	CSEG	$
+
+;
+;ASCII_DECIMAL_TO_HEX 
+;	si	input buffer
+;	di	result location
+;	cx	# of input characters
+;
+ascii_decimal_to_hex:
+	mov	bx,1
+	add	si,cx
+	dec	si
+	std		;si will be decremented in following loop
+	clc
+dec_loop:
+	xor	ax,ax
+	lodsb		;get character
+	sub	al,30h	;make into number
+	cmp	al,9	;make sure it's a number
+	jg	conversion_error
+	mul	bx	;power of ten * value of char
+	add	[di],ax	;add to result location
+	mov	ax,bx
+	mul	ten	;next power of ten
+	mov	bx,ax
+	loop	dec_loop
+dec_@1:
+	cld
+	jc	conversion_error_1	;if carry set then number was too big
+	ret
+conversion_error:
+	cld
+conversion_error_1:
+	stc
+	ret
+
+;-------------------------------
+;FIND_LOAD_DRIVE
+;	input	none
+;	output	al=drive where program was loaded (0-15)
+;
+find_load_drive:
+	mov	al,load_drive_at
+	dec	al
+	cmp	al,0ffh
+	jne	not_default
+	mov	cl,ret_current_disk	
+	call	bdos
+not_default:
+	ret
+eject
+;------------------------------
+;HEX_TO_ASCII_DECIMAL
+;	input	ax=binary number
+;		cx=# of decimal digits
+;		di=offset of message area
+hex_to_dec:
+	dec di ! add di,cx	;di now points to last digit
+	mov	bx,10
+hex_loop:
+	sub	dx,dx
+	div	bx
+	add	dl,'0'
+	mov [di],dl! dec di
+	loop	hex_loop
+	ret
+;-------------------------------
+;HEX_TO_ASCII_HEX
+;	input	al=hex number
+;	output	dx=ASCII of al
+;
+hex_to_ascii_hex:
+	push	ax
+	xor	dx,dx
+hex1:
+	xor	ah,ah
+	mov	cl,4
+	shl	ax,cl
+	cmp	ah,0ah
+	jge	hex2
+	add	ah,30h
+	jmp	hex3
+hex2:
+	add	ah,37h
+hex3:
+	or	dx,dx
+	jnz	hex4
+	mov	dh,ah
+	jmp	hex1
+hex4:
+	mov	dl,ah
+	pop	cx
+	ret
+;---------------------------
+;PRINT_REGISTER , at current cursor position
+;	input	ax=register
+;		bx=0 if word , 2 if byte
+;
+print_reg_w:
+	xor	bx,bx
+	jmp	print_register
+printf_reg_b:
+	mov	bx,2
+print_register:
+	push	bx
+	mov di,offset register ! call hex_word
+	mov	dx,offset register
+	pop bx ! add dx,bx
+	mov	cl,print_string
+	jmp	bdos
+;
+;--------------------------------
+;PRINT_VECTOR , ASCII vector at current cursor position
+;	input	AX = word for vector
+;
+print_vector:
+	mov di,offset vector ! call make_vector
+	mov dx,offset vector ! mov cl,print_string
+	jmp	bdos
+;
+;------------------------------------
+;PUT_MESSAGE
+;Put message pointed to by SI at specified position
+;input message form: row,col,'message.....$'
+;output	none
+;
+put_message:
+	lodsw ! push si	;get row & col in AX
+	call	place
+	pop	dx
+	mov	cl,print_string
+	call	bdos
+	ret
+;
+;----------------------------------
+;PLACE
+;Place cursor at position in AX
+;input	ah=col al=row
+;output	none
+;
+place:
+	add	ax,2020H
+;row/col are based on one, need to be zero based, also need 20h offset
+
+	mov	word ptr cursor_position+2,ax
+	mov	dx,offset cursor_position
+	mov cl,print_string ! call bdos
+	ret
+;
+;--------------------
+;HEX_WORD
+;input	AX=word
+;	ES:DI= offset of string space
+;
+hex_word:
+	mov	cx,4
+hex_wor_loop:
+	push	cx ! push ax
+	and	ax,0f000h
+	mov	cl,4 ! shr ax,cl
+	cmp	ah,0ah
+	jge	hexw2
+	add	ah,30h ! jmp hexw3
+hexw2:
+	add	ah,37h
+hexw3:
+	mov	[di],ah ! inc di
+	pop	ax 	! shl ax,cl
+	pop	cx
+	loop	hex_wor_loop
+	ret
+hex_byte:
+	mov	cx,2
+	xchg	ah,al
+	jmp	hex_wor_loop
+;--------------------------
+;MAKE_VECTOR
+;Make ASCII vector from word in AX
+;input	AX = word vector
+;	ES:DI = offset of destination
+;output none
+;
+make_vector:
+	mov cx,16 ! mov bl,30h
+vector_loop:
+	clc ! rcl ax,1 ! push ax
+	pushf ! xor al,al ! popf
+	adc al,bl
+	stosb ! pop ax
+	loop	vector_loop
+	ret
+;
+;------------------------------------
+;Put number of fields in CX,starting at offset in AX
+;input	AX = offset into fields_table
+;	CX = number of entries
+;	SI = offset of fields_table
+;
+put_fields:
+	shl ax,1 ! add si,ax
+pf_loop:
+	push	cx
+	lodsw ! push si
+	mov 	si,ax
+	call	put_message
+	pop si ! pop cx
+	loop	pf_loop
+	ret
+;
+;--------------------------------------
+;PRINT_BCD_REGISTER
+;Print BCD register 
+;input	AX = register
+;	BX = 0 for word, 2 for byte
+;
+print_bcd_reg:
+	mov cx,4 ! mov di,offset register
+bcd_loop:
+	push cx ! push ax
+	mov al,0f0h ! and al,ah
+	mov cl,4 ! shr al,cl
+	add al,30h ! stosb
+	pop ax ! mov cl,4 ! shl ax,cl
+	pop	cx
+	loop	bcd_loop
+	mov dx,offset register ! add dx,bx
+	mov cl,print_string ! jmp bdos
+;-------------------------------------
+;P_MESSAGE print mesage
+;
+p_message:
+	mov	cl,print_string
+	jmp	bdos
+;-------------------------------------
+;NEW_PR_LINE  send new-line to printer
+;
+new_pr_line:
+	mov	al,0dh
+	call	list_char
+	mov	al,0ah
+	call	list_char
+	ret
+;
+;NEW_LINE    send new-line to screen
+;
+new_line:
+	mov	dl,0dh
+	call	con_char
+	mov	dl,0ah
+;
+;CON_CHAR	send character to console
+;
+con_char:
+	mov	cl,con_out
+	jmp	bdos
+;
+;LIST_CHAR	send character to list device
+;
+list_char:
+	mov	cl,list_out
+;
+;----------------------------------------------------------
+;
+bdos:
+	int	224
+	ret
+
+	end
+

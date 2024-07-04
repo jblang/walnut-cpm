@@ -1,0 +1,110 @@
+                      LITTLE BOARD/PLUS SCSI BOOT EPROM 
+                      ---------------------------------
+                               November 1, 1985
+
+
+
+A. Introduction
+---------------
+
+     Thå AMPRÏ SCSI/PLUÓ buó interfacå representó á significanô advancå iî 
+single-board-computeò architecture¬ bù providinç á generaì purpose¬ higè 
+performance¬ interprocessoò datá channel®  Thå mosô obviouó uså oæ thå 
+SCSI/PLUÓ buó interfacå ió foò thå additioî oæ SCSÉ (SASI© harä disë 
+controlleró anä drives®  However¬ thió ió noô thå onlù uså foò thå SCSI/PLUÓ 
+bus®  
+
+
+B. Boot Algorithm
+-----------------
+
+     Iî ordeò tï providå á generaì purposå "hook¢ foò a variety of SCSI/PLUÓ 
+applications¬ thå Littlå Board/PLUÓ SCSÉ BOOÔ EPROÍ allowó thå boarä tï "boot¢ 
+directlù froí SCSI¬ withouô thå neeä foò aî attacheä floppù disë drive®  Herå 
+ió whaô thå ne÷ SCSÉ BOOÔ EPROÍ doeó wheî thå boarä ió RESET:
+
+     (1© Checkó foò thå presencå oæ á bootablå floppy®  Iæ onå ió present¬ iô 
+     attemptó tï booô froí thå floppy®  Iæ thió fails...
+
+     (2© Readó itó SCSÉ IÄ (0-8© froí thå IÄ Inpuô Register¬ anä either:
+
+     (3© Iæ thå board'ó IÄ ió 7¬ performó aî SCSÉ buó reseô anä theî attemptó 
+     tï booô froí SCSÉ devicå IÄ 0®  Iæ thió fails¬ returî tï steğ (1).
+                                  - oò -
+     (3© Iæ thå board'ó IÄ ió noô 7¬ doeó noô perforí aî SCSÉ buó reset®  
+     Attemptó tï booô froí SCSÉ devicå IÄ 7®  Iæ thió fails¬ returî tï steğ (1).
+
+     Thió booô algorithí provideó á meanó tï easilù establisè á master/slavå 
+hierarchy¬ wherå thå devicå whicè ió jumpereä tï IÄ · ió thå systeí master®  
+Iô musô bå responsiblå tï providå thå bootstrağ softwarå foò alì deviceó whicè 
+arå jumpereä tï addresseó otheò thaî 7®  Thió procesó ió verù straighô 
+forward» thå buó masteò simplù emulateó aî SCSÉ harä disë controlleò aó faò aó 
+the slave processor is concerned.
+
+
+C. Installation of Hard Disk Autoboot
+-------------------------------------
+
+     Iî keepinç witè thå generaì "philosophy¢ oæ SCSI¬ thå SCSÉ BOOÔ EPROÍ 
+doeó noô makå anù assumptionó abouô thå typå oæ disë controlleò iô ió bootinç 
+from¬ noò abouô anù characteristicó oæ thå harä disë drivå (i.e.¬ tracks¬ 
+heads¬ steğ rate¬ etc.)®  Foò thió reason¬ automatiã bootinç froí á harä disë 
+caî onlù bå donå when usinç SCSÉ controlleró whicè initializå themselveó 
+automaticallù oî power-up®  
+
+Š     Oæ thå controlleró supporteä bù thå AMPRÏ Harä Disë Software¬ thå 
+followinç maù bå useä foò automatiã harä disë booting:
+
+                    Adapteã ACB-400° anä ACB-500° serieó 
+                    Shugarô 1610-´ controller
+                    Xebeã OWÌ combinatioî drive/controller
+
+     Thå Xebeã 141° anä 1410A¬ anä thå DTÃ 510Á anä 510Â arå noô self-
+initializing®  Theså controlleró requirå thå additioî oæ installation-specific
+commandó iî eitheò thå SCSÉ BOOÔ EPROÍ oò thå booô strağ loadeò (containeä iî 
+thå HGEÎ utility)¬ iî ordeò tï initializå thå controlleò prioò tï drivå 
+access®  Hookó havå beeî provideä iî thå SCSÉ BOOÔ EPROÍ codå foò thió 
+purpose®  
+
+     Herå ió ho÷ tï preparå á Littlå Board-baseä systeí foò automatiã bootinç 
+froí á harä disk®  Replacå youò olä BOOÔ EPROÍ witè thå ne÷ SCSÉ BOOÔ EPROM¬ 
+and then perform the following steps: 
+
+(1© Hardwarå Setupº  Instalì youò system'ó hardwarå aó describeä iî Chapteò ² 
+oæ thå AMPRÏ Z8° Harä Disë Softwarå User'ó Manual®  Iî addition¬ foò harä disë 
+autoboot¬ SCSÉ ID'ó shoulä bå seô aó follows:
+
+     o  Initiatoò IÄ Jumperingº  Thå Littlå Board/PLUÓ ió thå SCSÉ 
+        "Initiator.¢  Jumpeò iô tï SCSÉ IÄ 7¬ aó showî iî Littlå Board/PLUÓ 
+        technicaì manual.
+
+     o  Targeô IÄ Jumperingº  Thå SCSÉ disë controlleò ió thå SCSÉ "Target.¢  
+        Jumpeò thå controlleò tï bå booteä froí aó SCSÉ IÄ 0¬ accordinç tï thå 
+        controller'ó installatioî manual®  Also¬ thå drivå tï bå booteä froí 
+        musô bå connecteä aó Logicaì Uniô Numbeò (LUN© 0.
+
+(2© Initiaì Softwarå Setupº  Instalì anä tesô thå standarä AMPRÏ Z8° Harä Disë 
+softwarå anä hardwarå aó describeä iî Chapteò ² oæ thå Harä Disë Softwarå 
+User'ó Manual®  Thió includes:
+
+     o  Running HFORMAT, to format the drive.
+
+     ï  Runninç HINIT¬ tï initializå youò system'ó BIOÓ.
+
+     o  Runninç SYSGEN¬ tï writå thå operatinç systeí tï thå firsô harä disë 
+        partition®  Thió ió "F¢ prioò tï runninç SWAP.
+
+     o  Runninç SWAP¬ tï re-assigî drivå letteró thå waù thaô yoõ wanô them®  
+        Bå surå yoõ havå assigneä drivå letteró sï thaô thå firsô harä disë 
+        partitioî ió no÷ drivå "A."
+     
+(3© Finaì Softwarå Installationº  Thió ió thå easù part®  Alì yoõ havå tï dï 
+no÷ ió ruî thå AMPRÏ HGEÎ utility¬ anä responä tï thå program'ó prompô witè á 
+"y.¢  That'ó alì therå ió tï it¡  Removå youò floppù disketteó froí youò 
+system¬ anä presó RESET®  Afteò á brieæ delaù (µ tï 1° seconds© tï allo÷ foò 
+floppù timeout¬ youò systeí shoulä booô directlù froí youò harä disk®  
+
+
+
+Š
+

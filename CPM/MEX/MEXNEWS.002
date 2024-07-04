@@ -1,0 +1,189 @@
+
+			MEX Newsletter #002
+
+Date:	  05-13-84
+From:     Ron Fowler
+MEX rev:  1.00
+
+This is the second in a series of (hopefully) informative notes for
+the MEX communications program.  These newsletters will provide bug fixes,
+tips, applications information, etc. for users of MEX.
+
+------------------------------------------------------------
+
+There are several flavors of overlay that will not work with MEX; the ones
+I am aware of so far are the DEC VTxx overlays and the Osborne overlays.
+The reason for this is the same reason that MEX doesn't work "out-of-the-box"
+(as mentioned in Newsletter #001).  Since this problem occurs before you
+get MEX running, the patch using the POKE command will not work (obviously,
+you can't execute commands if you can't bring MEX up in the first place).
+
+For this reason, I'm providing the fix for this problem in a HEX file for-
+mat; this patch may be installed in a working MEX (even a CLONEd version).
+It provides all of the fixes detailed in Newsletter #001, along with the
+DEC/Osborne fix.  In addition, it fixes another bug with Alternate Long
+Distance numbers (not the same bug detailed in 001) and brings your MEX
+revision level up to 1.00A (modifies the sign-on message).
+
+To install this patch, clip the following lines of HEX code out of this
+file and into a file named MEXFIX01.HEX.  Then issue the following command
+line (this assumes your existing mex is MEX10.COM, and outputs a new MEX
+called NEWMEX.COM):
+
+		MLOAD NEWMEX.COM=MEX10,MEXFIX01
+
+There is no harm in installing this patch even if you've already installed
+the patch in Newsletter #001.
+
+Here is the code that should be extracted into MEXFIX01.HEX:
+
+:100E6A00CDB314D83E0CEBCD0146EBC3DE123AD417
+:0F0E7A0052B7C4EA31F1F5E67F21DC52C3894358
+:0152D40000D9
+:0312DA00C36A0ED6
+:03438100C3780EF0
+:010ED70041D9
+:01130C0000E0
+:0000000000
+------------------------------------------------------------
+New overlay for MEX:
+
+I've re-written the old MDM overlay for the Godbout System Support I/Interfacer
+3/4 for enhanced use with MEX; the new file is called MXO-GB10.ASM, and sup-
+ports SET PORT as well as SET BAUD (you can change to any of 8 possible 
+Interfacer three/four ports as well as the System Support 1 serial port; you
+can also change the baud-rate in the same command line).
+
+I'm hoping the new Godbout overlay will spur the enhancement of many of the
+old MDM overlays; much more power is possible in the SET command using the new
+parsing features of the MEX service processor.
+
+------------------------------------------------------------
+
+Alternate Long Distance Service numbers (ALDS):
+
+The documentation for ALDS numbers is a bit terse; probably for good
+reason: they're pretty simple to use.  
+
+You may have two ALDS numbers defined; simply enter them as you would
+any other number, but give them a name of '>' or '<'; normal delay char-
+acters, passwords, etc may be included.  Then, if you have a number
+you'd like to route through your ALDS service, simply prefix it with
+the associated '>' or '<'.  An example should clarify this:
+
+You have MCI service, your password is 98765, and it takes 2-4 seconds
+to connect after the number is dialed.  You also have Sprint (you cover
+all your bases, don't you?), the password is 12345, and it sometimes
+takes 6 seconds to reach the number after it is dialed.  Finally, you
+have a Hayes Smartmodem; a comma in the dialing string is a 2-second
+pause (is it really? I don't have a Hayes, so let's pretend).
+
+In order to use both services, we'll put one number on the '>' key:
+
+	[MEX] A0>>PHONE >=555-9122,,98765         <<--- MCI
+
+(note the four second delay with the two commas, then the password)
+
+Now Sprint:
+
+	[MEX] A0>>PHONE <=555-8144,,,12345
+
+<longer delay, different password>.
+
+Now RBBS Rockhead is a long, long distance call; it's available only through
+Sprint (and, of course, Ma Bell). We decide that if we can't make it through
+Sprint, we don't want to call RBBS Rockhead.  Here's how we enter the number:
+
+	[MEX] A0>>PHONE ROCKHEAD=<202-555-1414
+
+Now RBBS Aristocrat is our favorite BBS; if Sprint is jammed up, we'd like
+the option of dialing it over (ugh) Ma Bell lines.  So we define it without
+an ALDS marker, like this:
+
+	[MEX] A0>>PHONE ARISTOCRAT=202-555-2222
+
+Now notice that we can still call Aristocrat through Sprint or MCI with:
+
+	[MEX] A0>>CALL <ARISTOCRAT		<<--- Sprint
+	[MEX] A0>>CALL >ARISTOCRAT		<<--- MCI
+
+But we must explicitly enter the ALDS symbol in the CALL command.
+
+Since Rockhead is defined with a leading '<', it will always go through
+MCI; we don't have to supply an ALDS symbol in the CALL command (we can
+switch to the other ALDS number, however, by specifying the other ALDS
+symbol in the CALL command; eg,"CALL >ROCKHEAD"  will switch to MCI even
+though we've defined Sprint as Rockhead's ALDS number).
+
+In short, the left or right arrow specification is treated as if its
+ALDS number were part of the number being dialed.
+
+------------------------------------------------------------
+
+New line-editing character:
+
+If you're an MDM7 user, you're probably used to using control-U
+to cancel a command line.  Not mentioned in the MEX documentation
+are the command-line editing characters, which are the same as
+MDM7, except that control-X is supported.  It works similarly to
+CP/M's control-X.
+
+------------------------------------------------------------
+For the adventurous:
+
+Several people have asked about the possibility of changing the command
+characters recognized in the terminal mode (especially since the MDM
+overlay supports the re-definition of these characters).  Actually, I
+had planned for this, but never found the time to test it.  You might
+try the procedure I'm about to describe.  I can't guarantee that it will
+work correctly, and don't yet have the time to support it if it doesn't,
+but you might like to give it a shot:
+
+At location 0D06H is a byte marked "reserved" in MEXPAT10; actually, 
+this is an overlay flag byte.  The low bit of this byte, when set to 1,
+should shift the command character set to that specified in the overlay.
+
+I can't guarantee that this will be supported in future releases of MEX ...
+
+
+------------------------------------------------------------
+
+There have been some queries regarding keystrings, and some problems re-
+ported in using them on RCPM systems.  I'd like to clarify their use a little.
+
+First, there is a variable that may be changed with the STAT command that
+directly affects keystrings: this varible is WTECHO.  When this switch-variable
+is turned ON, MEX will send each character, then wait for it to echo from
+the remote end.  If you're sending into a system that allows type-ahead
+(most time-share computers, Compuserve, Arpanet, some MP/M and TurboDOS
+systems, etc), it is best to turn this variable OFF; the keystring will be
+transmitted a lot faster.  If you're dealing with an RCPM system, however,
+you might well overrun the receiving end with the keystring (especially if
+you're transmitting into a BASIC program, such as RBBS). For such systems,
+you should turn WTECHO ON; MEX will then wait for each character to be
+echoed from the remote.
+
+The rest of this discussion addresses the same topic with respect to the
+SENDOUT command.
+
+WTECHO also affects the SENDOUT command in the same way; there is a dif-
+ference between SENDOUT and keystrings, however, that you must be aware of:
+SENDOUT tries its best to send the string correctly when WTECHO is on; if
+an echoed character is different than the transmitted character, SENDOUT
+will send a cancel character and try again (up to a retry-limit).
+
+The retry-limit and  the trigger and cancel characters are all STAT variables,
+allowing them to be changed with the STAT command.  The trigger-character in
+the distributed MEX is the right-arrow ('>'); this is most handy for RCPM
+systems (which prompt each command with a right-arrow).  If you want to use
+SENDOUT with non-CP/M systems (or with RCPM programs that use a different
+prompt), you'll need to change the trigger character.  For example, if you're
+sending commands to a remote PIP, you'd want to use PIP's asterisk ('*') as
+the trigger, so you'd do: STAT TRIGGER "*".  For sending commands to a Smart-
+modem (with the modem set to non-echo, which is the default for US Robotics),
+you'll want to set WTECHO to OFF and TRIGGER to 0.
+
+--------------< End of MEXNEWS.002 >------------------------
+
+
+

@@ -1,0 +1,183 @@
+THE $-PUB FEATURE OF NOVADOS
+============================
+
+$-Pub is a feature of NovaDOS which enables the declaration of a public file 
+by  naming convention.  It addresses problems created by later  versions  of 
+ZCPR  in accessing the $$$.SUB file and enables the definition of a "dialog" 
+file as distinct from a tool or a data file.  I shall begin with some  back-
+ground  information  and  proceed  to a definition and  discussion  of  this 
+feature in NovaDOS.
+
+The  design  of  the CP/M operating system provides for  a  segmentation  of 
+information  on  disk  into files which are categorized  for  organizational 
+purposes into "user areas". The original intent of the user area concept was 
+to  provide each "user" with his or her own work area which would  be  sepa-
+rated  and secure from the work areas of other users.  The concept of  "user 
+areas"  as  secure workspaces for different operators has largely fallen  by 
+the  wayside  and we now commonly refer to user areas  in  combination  with 
+drive letters as "directory areas", or simply "directories". A map of direc-
+tory  areas comprises a two dimensional grid (as opposed to a branching tree 
+for  MS-DOS) and it within this framework that CP/M programs read and  write 
+to disk files.
+
+From  a  functional point of view,  CP/M files are divided  into  two  broad 
+categories as tools and data.  As originally designed, CP/M made no distinc-
+tion  between the two,  a situation somewhat analagous to keeping your  pens 
+and your telephone in file folders in your file cabinet.  Access of tools to 
+data  was originally confined to other directory areas having the same  user 
+area  number.  This limitation required that one log into the directory con-
+taining  a  desired tool or it's data files before using the  tool.  As  the 
+"user  area" concept became obsolete and versions of ZCPR and tools  written 
+to take advantage of it began to proliferate,  it became possible to  access 
+data quite easily across directory area boundaries in all directions and the 
+concepts  of  path  and public files came into being.  Both  of  these  were 
+intended  to  generalize access to software tools within a system by  making 
+them easily available from numerous directory areas containing diverse data. 
+The tools, then, came "out of the file cabinet" (while still retaining their 
+old CP/M user numbers) while data files generally remained segregated within 
+the directory area grid. 
+
+This generalization further enhanced of the power of the computer to combine 
+tools  contained within a variety of directory areas to perform complex jobs 
+using a common set of data files. As the ability of tools work cooperatively 
+in  a common task increases,  the need for some way to allow these tools  to 
+communicate  with one another likewise increaces,  and thus a third form  of 
+information emerges which we may call dialog which is neither tool nor data. 
+A  variety  of methods have been developed to enable the passing  of  dialog 
+between  tools  using both disk files and  memory  storage.  ZCPR3  utilizes 
+external  File  Control Blocks,  a message buffer and other data  structures 
+which remain in memory and can be accessed by a variety of tools needing the 
+information  which they contain,  providing these tools are designed to take 
+advantage  of these data structures.  As yet,  no generalized and  generally 
+accepted method of passing dialog between tools has emerged within the  CP/M 
+development community. 
+
+The SUBMIT facility,  which has been  around since the beginning of CP/M, is 
+a means of bringing various tools into concert under the command of a script 
+processor which orchestrates a series of operations. If the tools themselves 
+could not engage in dialog, at least they had a superior handler which could 
+direct them.  Unlike EX, ZEX and other similar batch processors, SUBMIT uses 
+a  disk file to contain it's dialog (or rather monologue) information  which 
+is passed on to the tools under it's control. Under CP/M and early ZCPR this 
+dialog  file,  universally  named $$$.SUB was always created by  the  script 
+processor on the A drive in the user area currently being used for work, and 
+since  files  of  any sort were not generally accessible  across  user  area 
+boundaries,  the  entire  job mandated by the script processor had  to  take 
+place within the same user area. 
+
+As  software  developers became less concerned with  the  internal  security 
+features of the user area structure, this became a severe limitation, and in 
+an  attempt  to  solve  the problem,  the authors of ZCPR  vs.  3.3  made  a 
+discontinuous break with the CP/M standard and declared that henceforth  the 
+$$$.SUB  file  would be constrained by operating system requirements  to  be 
+created  and to reside in directory A0:  and that the system would locate it 
+and process it from within that directory regardless of the location of  the 
+tools and data currently in use. This enabled batch processing to take place 
+freely across user area boundaries, however the break with the CP/M standard 
+involved  left  a  number of excellent tools out on a bit of  a  limb.  Most 
+notable  among  these is Ashton-Tate's venerable dBase II  which  effects  a 
+chain  to  another  tool by creating a $$$.SUB file for  processing  by  the 
+Command Processor.  This file, in keeping with the old CP/M standard, always 
+exists  in the user area in which current work is taking place.  Other tools 
+(including  the Command Processor) which expect to find the $$$.SUB file  in 
+user  0  will fail to locate it and processing will  be  interrupted.  Other 
+tools  capable of aborting a  job by erasing  the $$$.SUB file  or which may
+merely make decisions based on its presence will encounter the same problem. 
+
+There are several points at which this problem can be addressed. In order of 
+preference they are:
+
+1.  In  the tool itself.  Tools such as the new SUBMIT for ZCPR observe  the 
+    new standard exclusively.  Unfortunately dBase II, as well as some newer 
+    programs,  still conform to the old standard and some provision must  be 
+    made for these excellent tools.  Patching is possible in some cases, but 
+    frequently involves indeterminate risks.
+    
+2.  In the DOS.  Identification of the $$$.SUB may take place in the DOS and 
+    passed  on to the Command Processor,  which may initiate  the  necessary 
+    search for the file. This is still time consuming if the location of the 
+    $$$.SUB  file is not provided fairly precisely to the Command Processor.  
+    Alternatively, the $$$.SUB file may be of such a nature that the context 
+    sensitivity  of the system with respect to it is limited and thus is  is 
+    easy to locate by other tools.   This is the nature of the $-Pub feature 
+    of NovaDOS which declares the $$$.SUB file to be public,  i.e.  indepen-
+    dent of user area boundaries.
+
+3.  In the Command Processor. Jay Sage, the author of ZCPR33 has made avail-
+    able alternative versions of his excellent ZCPR34 for use with dBase II. 
+    While this solves the problem for dBase and older programs which observe 
+    the  old  standard,  it involves the changing of operating  systems  for 
+    different  jobs which,  even under NZ-COM's excellent system management, 
+    is expensive in time.     
+
+The NovaDOS Solution
+====================
+
+NovaDOS  implements the $-Pub feature,  as mentioned above,  which is  quite 
+simple  in its concept.  All files whose file names begin with the character 
+'$' are made accessible to file open,  write,  read and erase requests  from 
+tools,  including  the Command Processor,  FROM WITHIN ANY USER AREA on  the 
+current  disk.  This  neatly  solves the problem of where the  $$$.SUB  file 
+should reside since,  as a public file,  it essentially belongs to ALL  user 
+areas. 
+
+A  very important bonus emerges from this feature which is in many ways  far 
+more  important than the solution of the $$$.SUB problem (which has  largely 
+been  rendered moot by the development of powerful batch processors such  as 
+ZEX).  The  $-Pub  feature of NovaDOS may be seen as a means of  defining  a 
+"dialog file" which can be used to pass information between CP/M tools, both 
+old  and  new,  in much the same manner as a UNIX pipe.  This is  a  concept 
+largely lacking from CP/M design considerations in the past.
+
+The idea of public files has been around for some time in recognition of the 
+fact  that tools frequntly need to be available to the system from  a  large 
+number of directory areas.  Public files have heretofore been defined in one 
+of two ways.
+
+1.  By setting an attribute bit in the directory entry for the file
+
+2.  By declaring an entire directory area to be public
+
+Both of these methods involve the use of special utilities or systems calls. 
+The $-Pub feature of NovaDOS,  however,  allows a file to be declared public 
+BY  NAMING  IT  SO,  and is thus available to any tool which is  capable  of 
+reading  or writing to a file having a selectable  filename.  This  includes 
+most  programs  doing file i/o,  both old and new.  If it is assumed that  a 
+system  must have a lower context sensitivity with respect to  dialog  files 
+than  with  respect  to data and tool files then $-Pub is a pointer  in  the 
+right direction in this regard.
+
+One  may,  for instance,  extract an address from a database in  a  database 
+directory area,  use it in a letter in a word processing directory area, use 
+it  to create an envelope in yet another user area and put it into a corres-
+pondence log in a fourth directory area. The address may be named $ADRS.TXT, 
+and  under $-Pub is available to tools operating within any directory  area. 
+There is no necessity to move, rename or copy the file.
+
+Summary
+=======
+
+I  suggest that the $-Pub feature of NovaDOS shows the way toward development 
+of a dialog system whereby software tools of  various  sorts  may  correspond 
+freely  with  one another.  Ideally, access to dialog files should be totally 
+free from constraints of context sensitivity, which means that the DOS should 
+maintain  a  search path across drive boundaries for those files which are so 
+defined.  In a DOS such as NovaDOS or ZSDOS which already maintains a  search 
+path,  this  would  require the maintenance of an additional path.  Given the 
+level of code optimization and featureitis currently prevalent  in  the  com- 
+mercial  CP/M  DOS  development  community  and  the  limitations on features 
+imposed by the current 3.5K limit, such a basic concept as  DOS  support  for 
+dialog  files  may  take  some time to take root.  I would urge developers of 
+future DOS's, however, to give some thought to  the  matters  raised  herein.  
+NovaDOS  has enjoyed some small degree of popularity with ZCPR33 and 34 users 
+largely because the introduction of a simple form of dialog file has solved a 
+minor  but  recalcitrant  problem with the $$$.SUB file.  Further thought and 
+development along these lines would seem to be in order.
+
+
+Lindsay Haisley
+14206 Spreading Oaks
+Leander, TX  78641
+(512) 259-1190  vox
+(512) 444-8691  Z-Node 77
+

@@ -1,0 +1,113 @@
+-X
+#
+--------------------    VEDIT  PLUS  EDIT  MENU    ---------------------------
+|									     |
+|									     |
+|			E>  Edit					     |
+|									     |
+|			P>  Format/print with VPRINT			     |
+|									     |
+|			R>  Format/print with ROFF4			     |
+|									     |
+|									     |
+|									     |
+|		X  EXIT		U  Utilities		H  Help		     |
+|									     |
+---------------  Z  ZCPR3 Command ----------- V  ZFILER ----------------------
+#
+EIF ~EX $PF;SETFILE 2 $PF;FI;VPLUS $PF
+R:4
+P:5
+U:2
+H:3
+Z!CLS;"ZCPR3 Command >"
+XSHCTRL P;PATH $$$$ ROOT:;SHFILE SH.VAR;CLS
+VZFILER "Disk/directory to examine >"
+#
+==========    W O R D    P R O C E S S I N G    U T I L I T I E S    =========
+
+
+	D  Show files in another disk or directory
+	U  Upload file to edit from another disk or directory
+	B  Back-up file at pointer to another disk or directory
+	E  Back up all edited files
+	K  Kill File  (delete from disk)
+	T  Type File  (text files only)
+	I  Initialize Okidata			S  Overlay SH shell
+	M  Change filename mask			L  Log in new disk/directory
+
+    R  Return to Vedit menu		Z  ZCPR3 Command	V  ZFILER
+#
+UMCOPY A:="Enter name of file to get >"
+KCLS;ECHO;ECHO;ECHO;ECHO;ECHO;ECHO DELETE $PF -- ARE YOU SURE?;IF IN;ERA $PF;FI
+T!CLS;IF $PT=FIN;ECHO NOT TEXT;ELSE;IF $PT=COM;ECHO NOT TEXT;ELSE;TYPE $PF;FI;FI
+IOKISET //;GETVAR INI Enter printer initialization or skip for default >;RESOLVE OKISET %INI
+BMCOPY "Enter destination directory >"=$PF
+EBACKUP "Enter extension (e.g., .RFF or .VPR) >" "Enter destination directory >"
+LSHCTRL P;"Enter directory to log in >";IF ~EX WP.VMN;GRAB TEXT:WP.VMN;FI;VMENU *.* WP
+MSETFILE 4 "Enter new mask >"
+D!CLS;XDIR "Enter drive and user of directory to show >"
+VZFILER
+SSH
+R:1
+Z!CLS;"ZCPR3 Command Line >"
+#
+------------------------------------------------------------------------------
+
+			VEDIT  HELP  MENU
+
+
+
+			F  Help for ROFF4
+
+			G  Help for GREP
+
+			R  Return to Vedit Menu
+#
+FHELP ROFF4
+GHELP GREP
+R:1
+#
+----------------------------------------------------------------------------
+
+		ROFF4 Formatting/Printing
+
+
+		F  Format to file
+
+		P  Print on printer
+
+		I  Initialize Okidata
+
+		V  Preview printer-formatted file
+
+		R  Return to Vedit Plus menu
+#
+FROFF4 A:ROFF-FIL.SET $PF >"Name of output file >"
+PCLS;SAK TURN PRINTER ON AND STRIKE ANY KEY;ROFF4 A:ROFF-OKI.SET $PF )
+ICLS;OKISET //;GETVAR OKINIT ENTER INITIALIZATION STRING >;RESOLVE OKISET %OKINIT
+VCLS;ROFF4 A:ROFF-FIL.SET $PF $PN.PVW;VPLUS $PN.PVW;ERA $PN.PVW
+R:1
+#
+----------------------------------------------------------------------------
+
+		VPRINT Formatting/Printing
+
+
+		F  Format to file
+
+		P  Print on printer
+
+		V  Preview printer-formatted file
+
+		I  Set Okidata initialization
+
+		R  Return to Vedit Plus menu
+#
+FREN VPRINI.INI=VPRINT.INI;REN VPRINT.INI=VPRINFIL.INI;VPRINT $PF D;REN VPRINFI.INI=VPRINT.INI;REN VPRINT.INI=VPRINI.INI
+PCLS;RESOLVE OKISET %OKINIT;VPRINT $PF
+VCLS;VPRINT $PF D;VPLUS $PN.DOC
+ICLS;SHVAR;SAK ANY KEY TO SEE INITIALIZATION COMMANDS;OKISET //;SAK STRIKE ANY KEY;GETVAR OKINIT ENTER INITIALIZATION STRING >
+R:1
+##
+

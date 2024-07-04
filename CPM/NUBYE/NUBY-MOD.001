@@ -1,0 +1,31 @@
+
+Note : This will be in the next NUBYE release [tmb]
+
+Date : 09/22/86
+From : Bob Clyne, CoSysop Royal Oak RCP/M (313) 759-6569
+Re   : NUBYE v1.01 modification
+
+   Many users routinely hit CR's when logging onto a system -- since
+NUBYE currently accepts a CR at the nulls question, this can cause
+those users to get the default nulls (and they may not have a chance
+to reset them without calling back).
+   Remove the code marked with "==>>" below and this will prevent
+any response other than numerical to the nulls question.
+
+;
+ASKNL0: LDA     NULTRY
+        CPI     12              ; Retry limit? (allow for noisy lines)
+        JZ      PREOFF          ; Yes, else continue
+        INR     A
+        STA     NULTRY          ; Increment counter and save it
+        LXI     H,NULMSG        ; Nulls message
+        CALL    PRINTB          ; Send it
+        CALL    MINPUT          ; Get value
+==>>    MVI     C,'0'           ; Default 0 nulls               <<== remove
+==>>    CPI     CR              ; Default ok?                   <<==   "
+==>>    JZ      $+14            ; Yes, so skip next 5 lines     <<==   "
+        MOV     C,A
+        CPI     '0'
+        JC      ASKNL0          ; Bad, retry
+
+** end of modification file **

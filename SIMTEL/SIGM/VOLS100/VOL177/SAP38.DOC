@@ -1,0 +1,79 @@
+Documentation for SAP38				El Paso TX 10/16/83
+
+The SAP program has been around for many years.  It is most useful in
+systems where the directory needs to be in alphabetical order, for
+example, when the CCP command "DIR" is used rather than an external
+directory program.  A sorted directory will also speed up operation
+of external directory programs, if those use an inferior sorting
+algorithm.  This applies especially to hard disks.
+
+SAP will sort all directory entries BY USER NUMBER in ascending order.
+Thus, all directory entries of files in user 0 will be placed on the disk
+in ascending order first, followed by all files of user 1, and so on.
+This feature makes the use of DU a bit more convenient, too.  While
+sorting, all flag bits are, or course, ignored.
+
+
+USE OF SAP38:
+
+1. log into the drive do be SAPed
+2. type the command SAP, prefixing it with it's location is needed.
+
+Example (drive B: is to be processed)
+
+A>B:
+B>A:SAP
+SORT AND PACK.....
+	...
+B>
+
+Doing this:
+
+A>SAP B:
+
+will usually also work, but the program may fail if drive B: is not logged,
+i.e.  if you pressed ^C before invoking SAP.
+Better to just use SAP from the drive to be processed, as in example 1.
+
+
+OPERATION OF SAP:
+
+When invoked, SAP reads the complete directory into RAM by use of direct
+BIOS calls.  All deleted entries (recognized by E5 as user number) are then
+purged from the directory and the the directory is filled with E5's.  Next,
+the directory is sorted and the resulting output is written back to disk.
+
+
+LIMITATIONS:
+
+SAP will not work under MP/M and CP/M version 3.x and will refuse to
+perform, aborting with an error message.  The effect of SAP on a timestamped
+directory would be, of course, catastrophic.  SAP could probably be patched
+to work under CP/M plus, provided timestamping or passwording of files
+is not used.
+
+
+IMPROVEMENTS OVER EARLIER VERSIONS:
+
+SAP will now always rewrite the directory, even if the directory was
+previously sorted.  This ensures that all deleted directory entries are
+purged.  The reason for this becomes apparent if you consider the following:
+
+Someone asks you for a number of public domain files which you copy onto
+a work disk and send him the disk.  First thing he does is use DU to look at
+the directory tracks.  There, he may find deleted entries of proprietary
+files that you ERAsed, but whose data is still untouched on the disk.
+Running SAP on the disk eliminates this danger, because no directory
+entries are left pointing to those files.
+
+Older versions of SAP (3.7 and earlier) were using a sort algorithm which
+took an undue amount of time to sort larger directories.  Version 3.8 uses
+a Shell-Metzner sort which is many times faster.  Under identical
+circumstances, sorting 512 directory entries with SAP37 and SAP38, the
+total time for SAP37 was 59 seconds, whereas SAP38 took 9 seconds, a 655%
+improvement.  SAP38 will usually take the same amount of time to sort,
+regardless of the state of the directory, while SAP37 was faster with
+sorted directories (9 sec versus 39 seconds for 85 directory entries).
+you consider the following:
+
+Someone asks you for a number 

@@ -1,0 +1,85 @@
+
+                           RBSPURGE.BAS
+
+      RBSPURGE is a bastardized version of Ron Fowler's RBSUTL22.BAS.
+Since I use the PURGE feature 90% of the time, and do it in a SUBMIT
+file, I took out all of the extraneous code, and 'hardwired' the
+options to purge with no renumber capability.  I have released the
+new program as PURGE.BAS.  On my system, the BBS program and utility
+files are on a floppy in the A: drive.  When purging, I move that
+disk to B: and insert a special disk in A.  That disk has the compiled
+version of RBSPURGE renamed to PURGE.COM.  I have included the submit
+file I use as an example.  Needles to say, this won't work the same if
+you are using it under the MBASIC interpreter. Feel free to change it
+to suit your needs.  The command syntax used here is:
+
+                     A>SUBMIT PURGE {today's date}
+
+in other words:
+
+                     A>SUBMIT PURGE 3/28/82
+
+      Since I use SD.COM to monitor the progress, (when I'm not away
+at the fridge) and XSUB hates SD (or vice versa), I did not use XSUB
+for the multiple PIPs. The reminders to 'SAVE' the 0K files on the B
+drive are optional.  If you leave the CALLERS, COMMENTS, AND SURVEY
+files out in the open, or you have them up on high non-public user
+areas,  just delete that garbage.
+
+      I pass this on to whomever wants it, it saves me from some VERY
+boring chores.
+
+                                        Wayne M. Hammerly --Sysop
+                                        Laurel (Md) RCPM/RBBS
+                                        (301) 953-3753
+
+
+
+;
+;           SUBMIT PROGRAM FOR BBS PURGE         WAYNE M. HAMMERLY
+;
+STAT B:*.BBS $$DIR
+STAT B:*, $$DIR
+SD B:
+PIP A:=B:MESSAGES[V]
+PIP A:=B:SUMMARY[V]
+PIP A:=B:COUNTERS[V]
+PURGE
+SD
+;                             WANT TO ABORT?
+;                             LAST CHANCE!!!
+SD B:
+ERA B:MESSAGES
+ERA B:SUMMARY
+ERA B:COUNTERS
+PIP B:=MESSAGES[V]
+PIP B:=SUMMARY[V]
+PIP B:=COUNTERS[V]
+REN $1.ARC=TODAY.ARC
+SD
+ERA MESSAGES.*
+ERA SUMMARY.*
+ERA COUNTERS.BAK
+PIP A:=B:CALLERS
+PIP A:=B:SURVEY.BBS
+PIP A:=B:COMMENTS
+REN $1.CAL=CALLERS
+REN $1.SUR=SURVEY.BBS
+REN $1.CMT=COMMENTS
+ERA B:CALLERS
+ERA B:COMMENTS
+ERA B:SURVEY.BBS
+SD
+STAT B:*, $$SYS
+STAT B:SURVEY.BBS $$SYS
+SD B:
+SD
+;
+;  REMEMBER TO:
+;               1. SAVE 0 CALLERS
+;               2. SAVE 0 COMMENTS
+;               3. SAVE 0 SURVEY.BBS
+;               4. STAT THE ABOVE FILES AS SYS
+;
+;                               DONE!!
+

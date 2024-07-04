@@ -1,0 +1,131 @@
+;
+; B3C-SS1.INS - Clock routine for the System Support 1	07/24/85
+;						-- by pst
+; 
+;	This clock routine needs:
+;		BCD2BIN	- no
+;		BIN2BCD - no
+;
+; 6/28/85 - Added hold support and also pokes RTCBUF with time.
+;						-- pst
+;
+;----------------------------------------------------------------
+;
+;	Note- This is an insert--not an overlay
+;
+	 IF	RTC
+SS1BASE	EQU	050H		; Base port for SS1
+CLKCMD	EQU	SS1BASE+10	; Clock command port
+CLKDATA	EQU	SS1BASE+11	; Clock data port
+CLKREAD	EQU	16		; Read command bit
+CLKHOLD	EQU	64		; Hold command bit
+;
+TIME:	LXI	H,RTCBUF	; Point to RTC buffer
+	MVI	C,5		; Set counter for hour tens
+	CALL	RDIGIT		; Get hour tens
+	CALL	SHFT4		; Save in buffer
+	CALL	MULT10		; Multiply by 10
+	MOV	B,A		; Save in B reg
+	CALL	RDIGIT		; Get hour units in A reg
+	CALL	ADDLOW		; Set BCD digit
+	ADD	B		; Add tens digit from B
+	STA	CCHOUR		; Store for later use
+;
+;	Minutes
+;
+	CALL	RDIGIT		; Get minute tens in A reg
+	CALL	SHFT4		; Save in buffer
+	CALL	MULT10		; Multiply by 10
+	MOV	B,A		; Save in B reg
+	CALL	RDIGIT		; Get minute units in A reg
+	CALL	ADDLOW		; Set BCD digit
+	ADD	B		; Add in minutes tens from B
+	STA	CCMIN		; Store for later use
+;
+;	Seconds
+;
+	CALL	RDIGIT		; Second tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Second units
+	CALL	ADDLOW
+;
+;	Year
+;
+	INX	H		; Skip over "19"
+	MVI	C,12		; Start with years tens
+	CALL	RDIGIT
+	CALL	SHFT4
+	CALL	RDIGIT		; Years units
+	CALL	ADDLOW
+;
+	CALL	RDIGIT		; Month tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Month units
+	CALL	ADDLOW
+;
+	CALL	RDIGIT		; Day tens
+	CALL	SHFT4
+	CALL	RDIGIT		; Day units
+	CALL	ADDLOW
+;
+	XRA	A
+	OUT	CLKCMD		; Turn off hold bit
+	RET
+;
+;	Read a digit
+;		Command in C
+;		Digit returned in A
+;		C is decremented
+;		Hold bit is set
+;
+RDIGIT:	MOV	A,C		; Get command byte
+	DCR	C		; Bump it for next operation
+	ORI	CLKREAD+CLKHOLD	; Add in read & hold bits
+	OUT	CLKCMD		; Output it
+	ANI	15		; Strip off any commands
+	CPI	5		; Was it hour tens digit?
+	IN	CLKDATA		; Get data
+	RNZ			; No, return
+	ANI	3		; Yes, so kill 24 hour bit
+	RET
+;
+;	Multiply register A by 10
+;	Destroys 'D'
+;
+MULT10:	ADD	A		; 2x
+	MOV	D,A
+	ADD	A		; 4x
+	ADD	A		; 8x
+	ADD	D		; 10x
+	RET
+;
+;	Shift A to high nibble
+;		Stores shifted value in 'M'
+;		Destroys 'E'
+;		A is left unchanged
+;
+SHFT4:	MOV	E,A
+	ANI	15		; Only handle lower 4 bits
+	RLC			; Shift A over 4 bits
+	RLC
+	RLC
+	RLC			
+	MOV	M,A		; Save it while we're at it
+	MOV	A,E
+	RET
+;
+;	Add in low BCD nibble
+;		Gets high nibble from M
+;		Stores new BCD byte in M
+;		Increments HL
+;		Destroyes 'E'
+;
+ADDLOW:	MOV	E,A
+	ANI	15		; Deal with low nibble only
+	ORA	M		; Add in high nibble from tens digit
+	MOV	M,A		; Save new BCD byte in buffer
+	INX	H		; Move on to next location
+	MOV	A,E
+	RET
+	 ENDIF			; RTC
+

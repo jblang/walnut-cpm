@@ -1,0 +1,189 @@
+                                                                 11 March 1985
+
+                                  Z-NEWS 107
+
+Z  TIPS:   POKE&GO1.DOC,   presently  on  Z-Nodes,   exhibits  unusually  high 
+creativity by its author, Bruce Morgen (Ivyland, Pennsylvania).  The Alias and 
+Zex  files  described by this DOC file indicates what can be done  using  vast 
+power  designed  into Z System  (neither CP/M nor MS-DOS have such power.)   A 
+little  thought  goes  a long way if concentrated to come  up  with  something 
+useful.   Idea  here is to change to-be-run program where and after it's  been 
+loaded.   Various  temporary  versions are created,  e.g.,  of  WordStar  with 
+different  default  settings,  by  an RCP (Resident  Command  Package)  poking 
+specific  addresses using different Alias files and a Zex  file.   Here's  how 
+Bruce described his inspiration:
+
+     "If  your  ZCPR3 system supports the GO command and you have an RCP  with 
+the  POKE command,  you can easily make extensive run-time modifications to  a 
+program.   The  terminal  session  below  is a  very  simple  example  of  the 
+technique.   The  entire process is an alias script,  ZEX is used to load  and 
+exit  WordStar,  the WordStar addresses for right margin and initial mode  are 
+poked  to  the  desired values and the now-modified WordStar is  run  with  an 
+optional  command  tail.   The regular RCP (without POKE) is loaded  on  exit. 
+Much more extensive changes could be made this way,  including some, like page 
+length  or different control strings for different printers,  which cannot  be 
+done  from the console once inside WordStar.   You can use WINSTALL to make  a 
+modified  copy of WordStar,  use DIFF or equivalent to find the poke locations 
+and  off you go-- 2k-bytes for the alias (1k-bytes if you have CMDRUN and  put 
+it  in  COMMAND.LBR),  2k-bytes  for WS35.ZEX--a  savings  of  14k-bytes  over 
+separate  versions of WordStar.   Additional aliases 'cost' only 1 to 2k-bytes 
+extra per WordStar version because only one ZEX file is needed.   If you don't 
+have ZCPR3 I/O redirection,  you can manipulate the IOBYTE with a poke, not to 
+mention  the  ZCPR3  external  Path and Wheel  Byte,  much  faster  than  with 
+utilities  (PATH or WHEEL)--clumsy technique for console input,  but fine  for 
+alias-controlled  routines.   Similar stuff can be done from a menu  shell  in 
+lieu  of  an  alias.   All  this assumes that WordStar  is  patched,  or  BDOS 
+modified,  so that WordStar can find its overlays properly if you want freedom 
+to wander around user areas.  Have fun--Bruce Morgen."
+
+A0:SYSTEM>ALIAS WSD
+
+ALIAS, Version 1.1
+ Alias Name: WSD     
+ Old Alias Command Line:
+  1 --> A0:;			|GO TO SYSTEM DIRECTORY
+  2 --> LDR SYS3.RCP;		|LOAD RCP THAT HAS THE POKE COMMAND
+  3 --> ZEX WS35;		|LOAD WORDSTAR & EXIT (SEE WS35.ZEX, BELOW)
+  4 --> POKE 036B 22;		|SET RIGHT MARGIN TO 35 (ACTUALLY 34 DECIMAL)
+  5 --> POKE 0378 00;		|SET INITIAL MODE TO DOCUMENT FROM NON-DOCUMENT
+  6 --> $D$U:;			|RESTORE ORIGINAL DIRECTORY
+  7 --> GO $1;			|RUN LOADED WORDSTAR WITH OPTIONAL FILENAME
+  8 --> A0:;			|BACK TO SYSTEM DIRECTORY ON EXIT
+  9 --> LDR SYS.RCP;		|LOAD REGULAR RCP
+ 10 --> $D$U:			|EXIT TO ORIGINAL DIRECTORY
+
+ Input Alias (RETURN to Abort)
+ --> 
+
+WSD  alias  listing cancelled by entering a  carriage  (cursor)  return.   The 
+contents of ZEX file used by WSD is shown by using the Type command:
+
+A0:SYSTEM>TYPE WS35.ZEX
+
+WS				|RUN WORDSTAR
+^.				|MAKE SURE ZEX LEAVES NO
+^#				|FOOTPRINTS (FOR NEATNESS' SAKE)
+X				|EXIT TO ALIAS STEP #4
+
+Either WSFIX.ASM or WSPAT-DM.ASM, on Z-Nodes, permit patching WordStar for use 
+in directories other than in User area where WS.COM and overlay files are.
+     Another  idea:   set-up  alias with loop-ZEX (GOTO) using REG command  to 
+"print a text file the number of times from-command-line declaration."
+     Chuck McManis,  Sunnyvale, California, has contributed a neat improvement 
+to  IF.COM permitting wildcard file matches,  and he added extensive  built-in 
+help.   Chuck  also  has some interesting nested alias examples  to  wet  your 
+appetite  for  setting  up  and maintaining a ZCPR3  Source  Code  Library  of 
+squeezed   files.    Alias  GET  and  PUT  uses  alias  EXTRACT  and   INSERT, 
+respectively.  Get IF12.DOC and IF12.MAC for further details.
+     Finally,  good neighbor-helper John Dunsmuir,  Scarborough,  Ontario, has 
+located and fixed a known bug in VFILER32, in the View command.  It's fixed as 
+Version 3.3.   John is presently completing addition of wild-card file tagging 
+and unsqueezing to program,  to be Version 3.4.   To most, these are welcomed. 
+Look  for it as you read this newsletter.   (Others,  namely Jay Sage,  Z-Node 
+Sysop,  and Bob Demron,  have greatly enhanced VFILER in parallel with  John's 
+effort;  our  task of combining all these improvements into one Version 3.5 is 
+challenging.   We  may choose to have two different versions,  each  following 
+independent paths; more about VFILER in a fortnight.)
+
+FLASH:   Famous  message  handling program added to  EI  product  line--METAL!  
+Written by Tim Gary (Los Altos, California), Metal provides lots of capability 
+with convenience,  over 20 commands.   Open and private message storage;  easy 
+and  quick  access to new messages not previously read;  catalog of  users  by 
+name, city and ID number; plus full statistics of file up/download by date and 
+user.   Metal presently mates with public domain telephone answerer,  BYE, and 
+soon with yet-to-be-shipped (vaporware) Term3.  More details of METAL is found 
+on page 2 of Newsletter 009, dated 12 November 1984.
+
+Z-Nodes  online  (or  soon  to be) include some big  storage  disks  and  high 
+population locations; but most importantly, these Sysops want to serve users:
+
+     1. Dave McCord - Fremont, CA - 415/489-9005
+     2. Al Hawley - Los Angeles, CA - 213/670-9465
+     3. Jay Sage - Newton Centre (Boston), MA - 617/965-7259
+     4. Don Buzzingham - College Station, TX - 409/845-8931
+     5. Ronnie Stone - Lisle (Chicago), IL
+     6. Andrew Hart - Palo Alto, CA
+     7. Tim Linehan - Olympia, WA - 206/357-7400
+     8. Thomas Hill - Anchorage, AK 
+     9. Larry Snyder - Winter Park (Orlando), FL - 305/677-8086
+     10. Rea Williams - Carson, CA - 714/855-0672
+     11. Mike Ward - Voorhees, NJ - 609/428-8864
+     12. Norm Gregory - Seattle, WA - 206/325-1325
+     13. Walt Jung - Baltimore, MD - 301/661-2175
+     14. Rich Rodeheaver - Reynoldsburg (Columbus), OH - 614/864-2673
+     15. Richard Jacobson - Chicago, IL - 312/649-1730
+     16. Jud Newell - Toronto, Ontario - 416/232-0442, 232-0269
+     17. Robert Tate - Altamonte Springs, FL - 305/831-6049
+     18. John Rovner - Union City, CA - 415/489-0388
+     19. Bob Finch - Glendale, CA - N6CXB 2 meter packet, 146.745 mc
+
+Certainly we find our node collection gratifying--future holds much excitement 
+from nets and nodes for us,  for our continent,  and our Earth.  We need total 
+of 40 Sysops worldwide for an effective network, have a ways to go.
+     Dave  McCord has been selected as Z-Node coordinator,  with Al Hawley  as 
+backup and Los Angeles connection to Bob Finch,  our ham radio packet  network 
+expert.    These  gentlemen  are  prepared  to  answer  your  questions  about 
+communications and about message systems.
+     Z-Nodes  contain  full  message  recording  subsystems,  ZCPR3  Core  and 
+Utilities  files  available for transfer using Christensen (XMODEM)  protocol; 
+plus  latest  Z-System  program bug fixes  and  selected  Echelon  promotional 
+material,  list  prices,  and  order forms.   Some Sysops have elected  to  be 
+downloaders  of  our proprietary software.   For those wishing to buy  Echelon 
+programs (Discat,  Z3-Dot-Com,  ZRDOS,  Z-Com,  Z-Tools, etc.) by downloading, 
+contact closest Z-Node for procedural details.  (Downloading from nodes solves 
+our massive disk format problem.)
+
+More  Benchmarks:   Comparing  16-bit multiply and 32-bit  result  from  Intel 
+document "iAPX 88 versus Zilog Z80 Benchmark Report--August 1980" with Hitachi 
+HD64180 similar operation indicates modern, superior 8-bit design.  Results:
+
+             8088 (5 mHz - 0 wait states)       = 40.8 microseconds
+             Z80B (6 mHz - 1 wait state)        = 302.0     "
+             HD64180 (6.114 mHz - 1 wait state) = 37.11     "
+
+Z80 is slow because it lacks hardware on-chip multiply.   For  tests,  HD64180
+used software routine to provide 16-bit multiply, but employed its internal 8-
+bit multiply instruction to get such quick results.  The different clock rates 
+and  wait  states of 8088 and HD64180 muddy final conclusions  about  absolute 
+quickness, but here we see 8-bit certainly holding its own!  Bench testing was 
+performed by Tom Cantrell of Microfuture, Fremont, California.
+
+Thanks  to  Don  Roth and Keith Houser of CP/M  SIG  Inc.  (Broomfield-Denver, 
+Colorado) for their considerable article writing, conducting of workshops, and 
+generally promoting Echelon and ZCPR3.   These educators are doing one Z of  a 
+job acting as catalyst to those wanting to learn.
+
+Solutions  versus Features:  From our beginning we have tried to indicate,  to 
+point  to solutions to your problems.   We could have just listed features  of 
+ZCPR3  and  ZRDOS,  Z System;  no,  we have produced a  continuous  stream  of 
+examples to show solutions to your problems.   Some we have received from you:  
+thanks!   What  other  solutions  have you come up with--don't be  bashful  or 
+delay, tell us!
+     Many have asked why we buck trends,  go not with IBM and PC-DOS and Unix, 
+the popular microcomputer fashion.   Well,  we are not of mass movements,  but 
+about fragments,  remnants!   Nonetheless we use only whole cloth,  usually in 
+dreadfully short supply;  most don't understand or appreciate what we do,  but 
+how they get upset.
+
+We welcome Crusader, activist label placed on us by some few (others have used 
+less flattering expressions).   You know, we don't go with flows, with crowds; 
+but  create intellectual turbulence and mental eddies.   We maneuver at  near-
+virgin fringes of human emotional exploration.  Join us!
+
+See you down the lines...
+				                                 Echelon, Inc.
+				                              101 First Street
+			                                  Los Altos, CA  94022
+				                       Telephone: 415/948-3820
+				      ZCPR3 BBS & Z-Node Central: 415/489-9005
+
+Trademarks:  Z80/800, Zilog; HD64180, Hitachi; 8088, Intel; Z-System, Z-Tools, 
+ZCPR3, ZRDOS, Z-Com, Z3-Dot-Com, Discat, Syslib3, Term3, Zas, Zlink, DSD, ZDM, 
+ITOZ,  Revas3,  Metal,  Lasting-Value Software,  Echelon and their  respective 
+owners  and authors;  PC-DOS,  IBM Corp.;  CP/M,  Digital Research;  WordStar, 
+MicroPro Int'l; Unix, AT&T.
+
+Z-News 107 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon, Inc.
+

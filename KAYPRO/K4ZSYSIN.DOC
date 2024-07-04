@@ -1,0 +1,661 @@
+	    ----------------------------------------------------
+	    INSTALLING ZCPR3 (c) AND ZRDOS (tm) ON A KAYPRO 4-84
+----------------------------------------------------------------
+
+
+
+
+	  /////////////////////////////////////////////////
+
+
+	  A DOCUMENT TO EASE AND EXPLAIN THE IMPLEMENTATION
+	  OF ZCPR3 AND THE NEW ZRDOS OPERATING SYSTEM ON
+	  KAYPRO 4-84 COMPUTERS.
+
+	  ZCPR3 IS NOT AN EASY THING TO INSTALL. CONSIDERABLE
+	  KNOWLEDGE IS REQUIRED. MANY FILES ARE NECESSARY.
+	  THERE IS MUCH READING TO BE DONE.
+
+	  THE INTENT HERE IS TO PROVIDE AN EASY TO FOLLOW
+	  INSTALLATION GUIDE FOR THE NOVICE LUCKY ENOUGH TO
+	  POSSESS ALL NECESSARY ZCPR3 FILES. A GENERAL
+	  FAMILIARITY WITH ZCPR3 IS ASSUMED.
+
+	  EXPERIENCED PROGRAMMERS WILL PROBABLY FIND THIS
+	  RESEARCH THE MOST USEFUL. IT DOCUMENTS THE CRITICAL
+	  MEMORY LOCATIONS AND THEIR MANIPULATION FOR THE
+	  SUCCESSFUL IMPLEMENTATION OF ZCPR3 ON THE KAYPRO 4-84.
+
+	  A PERFUNCTORY DESCRIPTION OF HOW TO INSTALL ECHELON
+	  INC's ZRDOS (CP/M BDOS REPLACEMENT) IS ALSO INCLUDED.
+
+	  ZRDOS IS A COMMERCIAL PRODUCT AND IS FAIRLY
+	  SIMPLE TO GET UP & RUNNING. SIGNIFICANTLY THOUGH,
+	  ZRDOS ISN'T NEARLY AS WORTHWHILE TO IMPLEMENT
+	  WITHOUT A CONCURRENT IMPLEMENTATION OF ZCPR3. A
+	  PROCEDURE OUTLINED HERE, STEP BY STEP.
+
+				    24 September 1985
+
+	  ////////////////////////////////////////////////////
+
+		       Peter O.E. Bekker, Jr.  New York City.
+			   - CompuServe: 74106,1430 -
+
+     /////////////////////////////////////////////////////////
+
+
+Acknowledgements:
+
+Patches for the Kaypro 4-84 BIOS listed below were
+developed by Barry Siegfried (K2MF), New York City, including
+the cold boot initialization patch which is based on previous
+work done for the installation of ZCPR2 on the Apple ][ series
+of computers by Mike Cohen.
+
+Here is what we will be installing:
+
+ 1. the CCP replacement
+ 2. the System Environment
+ 3. the System Flow Control Package
+ 4. the System Named Directory Package
+ 5. the System Resident Command Package
+ 6. the External Message Buffer
+ 7. the External File Control Block
+ 8. the Multiple Command Buffer
+ 9. the Shell Stack
+10. the External Stack
+11. the External Path
+12. the BIOS cold boot initialization patch
+
+The files required to do the installation are:
+
+System .COM files
+-----------------
+1. CPM63.COM  - DRI 63K CP/M System image (SYSGEN) for
+		Kaypro 4-84 series computers, version 2.20G
+		(You will create this file in a moment using
+		the CP/M utility called SYSGEN.COM.)
+2. SYSGEN.COM - Digital Research SYStem GENerating utility.
+3. DDT.COM    - Digital Research Dynamic Debugging Tool  - or -
+   ZDT.COM    - Public Domain Z80 Debugging Tool
+4. MAC.COM    - Digital Research Macro Assembler
+5. MLOAD.COM  - Public domain replacement for Digital Research LOAD.COM
+6. your program text editor, such as Wordstar.
+
+ZCPR3 Source files
+------------------
+1. ZCPR3.ASM  - the working code for the CCP replacement
+2. Z3BASE.LIB - Base address definition library for the ZCPR3 CCP
+		replacement and external packages
+3. Z3HDR.LIB  - Option selection library for the ZCPR3 CCP replacement
+4. SYSENV.ASM & SYSENV.LIB - ZCPR3 Environment Descriptors
+5. SYSFCP.ASM & SYSFCP.LIB - ZCPR3 Flow Control Package
+6. SYSNDR.ASM & SYSNDR.LIB - ZCPR3 Named Directory Package
+7. SYSRCP.ASM & SYSRCP.LIB - ZCPR3 Resident Command Package
+
+ZCPR3 Application programs
+--------------------------
+1. Z3INS.COM - ZCPR3 System Environment .COM file installer
+2. LDR.COM   - ZCPR3 External Package loader
+3. ALIAS.COM - ZCPR3 command .COM file creator
+
+
+THEORY OF OPERATION
+-------------------
+The DRI 63K CP/M System version 2.20G occupies the following
+addresses in the Kaypro 4-84 memory:
+
+CCP : E000 - E7FF (2k)	  BDOS: E800 - F5FF (3.5K)
+BIOS: F600 - F9FF
+CP/M application programs always protect the BDOS and BIOS sections of
+the CP/M System, because these are the parts which provide the Basic
+Disk Operating System and Hardware I/O services that these programs
+utilize to perform their functions.  The "JMP BDOS" instruction that
+resides at location 5 which is set up by the BIOS during the cold boot
+process provides a reliable means by which an application program can
+determine where the BDOS begins, and what address above which the pro-
+gram may not write into memory.
+
+If an additional patch could be made in the user's BIOS whereby a
+fake JMP instruction to a lower address in memory can be placed
+at location 5, and a JMP BDOS can be placed at that lower
+address, then all memory above the new lower address would be
+protected by application programs because these programs would
+"think" that the BDOS started at the lower address.  This is what
+we will do to fully implement ZCPR3 on the Kaypro 4-84.
+
+
+I - GENERATING CPM63.COM FROM SYSGEN
+    --------------------------------
+     We will preserve an image of the Kaypro's 63k CP/M operating
+     system (the one it came with) using the SYSGEN.COM utility
+     from the CP/M disk. SYSGEN is a program allowing the user
+     to move an operating system from one disk to another.
+     The operating system is located on the outer edge of each
+     disk - on tracks 0 and 1.
+
+1. Insert a disk in Drive A: containing SYSGEN.COM and your stock
+   Kaypro 63K CP/M System.  Then, insert a blank (but properly
+   formatted) disk into drive B:
+
+2. Run SYSGEN and at the "SOURCE DRIVE" prompt, press "A". This
+   informs SYSGEN that the operating system on Drive A: will be
+   considered the source for what follows:
+
+3. At the "DESTINATION DRIVE" prompt, which will appear next, hit
+   "RETURN." This will exit you from SYSGEN and bring you back to
+   CP/M's A0> prompt.
+
+4. At the A0> prompt, type A0>SAVE 36 B:CPM63.COM
+
+   In doing this, you preserve 36 pages of computer memory in a
+   file on Drive B: that is now called CPM63.COM. Those memory
+   pages contain an image of your stock CP/M operating system..
+   (and also a copy of SYSGEN.COM.)
+
+
+II - INSTALLING ZCPR3:
+     ----------------
+
+Prepare the following disks:
+
+Drive A: DDT.COM (or ZDT.COM), MAC.COM, MLOAD.COM, your text editor
+Drive B: (Disk 1) - ZCPR3.ASM, Z3BASE.LIB, Z3HDR.LIB
+
+Drive B: (Disk 2) - CPM63.COM, SYSENV.ASM, SYSENV.LIB, Z3INS.COM,
+		    LDR.COM, ALIAS.COM
+Drive B: (Disk 3) - SYSFCP.ASM, SYSFCP.LIB, SYSNDR.ASM, SYSNDR.LIB,
+		    SYSRCP.ASM, SYSRCP.LIB
+
+
+
+Disk 1 (Drive B:)
+-----------------
+1. Edit Z3BASE.LIB and put in the base addresses for your system com-
+   ponents as desired.	It is suggested that you use the values in the
+   following table, although they may be changed as desired.
+   When you finish editing Z3BASE.LIB, transfer a copy of it to
+   Disk 3, as it is needed to prepare the external packages of ZCPR3.
+
+
+MEMORY LOCATION   SIZE in (b)ytes & (K)ilobytes    Z3BASE.LIB
+---------------   ------------------------------   --------------------
+0040 - 0046	    7 b  External Search Path	   EXPATH   EQU  40H
+			 3 External Search Paths   EXPATHS  EQU  3
+004B		    1 b  Wheel Byte		   WHEEL    EQU  4BH
+D209 - D258	   80 b  External Message Buffer   Z3MSG    EQU  0D209H
+D25C - D27F	   36 b  Ext. File Control Block   EXTFCB   EQU  0D25CH
+D280 - D2FF	  128 b  Named Directory Package   Z3NDIR   EQU  0D280H
+			 7 Named Directories	   Z3NDIRS  EQU  7
+D300 - D3FF	  256 b  Multiple Command Buffer   Z3CL     EQU  0D300H
+			 251 Characters Maximum    Z3CLS    EQU  251
+D400 - D4BF	  192 b  Shell Stack		   SHSTK    EQU  0D400H
+			 6 Shell Stacks 	   SHSTKS   EQU  6
+			 1 Shell Stack = 32 bytes  SHSIZE   EQU  32
+D4D0 - D4FF	   48 b  External Stack 	   EXTSTK   EQU  0D4D0H
+D500 - D5FF	  256 b  Environment Descriptor    Z3ENV    EQU  0D500H
+			  2 128-byte blocks	   Z3ENVS   EQU  2
+D600 - D7FF	  512 b  Flow Control Package	   FCP	    EQU  0D600H
+			  4 128-byte blocks	   FCPS     EQU  4
+D800 - DFFF	    2 K  Resident Command Package  RCP	    EQU  0D800H
+			 16 128-byte blocks	   RCPS     EQU  16
+E000 - E7FF	    2 K  CCP			   CCP	    EQU  0E000H
+
+2. Edit Z3HDR.LIB and select the options you desire for your CCP.  It
+   is suggested that you turn on only the following CCP Resident Com-
+   mands:  GET, GO, JUMP, REN and SAVE.  GET, GO, JUMP and SAVE are
+   available only in the CCP.  Even though REN is available in the
+   External Resident Command Package, I elect to turn it on in the
+   CCP because it does not appreciably add to the amount of generated
+   code in the CCP while it saves very valuable space in the External
+   Resident Command Package by not turning it on there.
+
+
+3. Log into Drive B: and assemble ZCPR3.ASM using MAC:
+
+   B0>A:MAC ZCPR3 $PZ-S
+
+   Using the $PZ-S option of MAC will give you the fastest assembly
+   without generating a large .PRN file.  If the generated code in
+   your CCP is larger than 2K, an error message will print out at the
+   end of assembly.  When assembly is complete you will find ZCPR3.HEX
+   on Disk 1.
+
+4. Generate the binary code from the .HEX file using MLOAD:
+
+   B0>A:MLOAD ZCPR3
+
+   When the load is complete you will find ZCPR3.COM on Disk 1.
+
+5. REName ZCPR3.BIN=ZCPR3.COM  - and -	transfer a copy of ZCPR3.BIN
+   to Disk 2.
+
+
+Disk 2 (Drive B:)
+-----------------
+1. Edit SYSENV.LIB and put in your terminal control codes.  It is
+   suggested that you use the values in the following table for the
+   "videoable" Kaypro 4-84:
+
+envorg2:
+	DB	'KAYPRO 4-84	 '	;Name of Terminal
+	DB	05h			;*Cursor UP
+	DB	18h			;*Cursor DOWN
+	DB	04h			;*Cursor RIGHT
+	DB	13h			;*Cursor LEFT
+	DB	00			;CL Delay
+	DB	00			;CM Delay
+	DB	00			;CE Delay
+	DB	1Ah,0			;CL String
+	DB	1Bh,'=%+ %+ ',0 	;CM String
+	DB	18h,0			;CE String
+	DB	1Bh,'B0',1Bh,'B1',0	;SI String
+	DB	1Bh,'C1',1Bh,'C0',0	;SO String
+	DB	0			;TI String
+	DB	0			;TE String
+
+	ds	80H-($-envorg2) 	; make exactly 80H bytes long
+
+
+2. Log into Drive B: and assemble SYSENV.ASM using MAC:
+
+   B0>A:MAC SYSENV $PZ-S
+
+   When assembly is complete you will find SYSENV.HEX on Disk 2.
+
+3. Generate the binary code from the .HEX file using MLOAD:
+
+   B>A:MLOAD SYSENV
+
+   When the load is complete you will find SYSENV.COM on Disk 2.
+
+4. REName SYS.ENV=SYSENV.COM
+
+5. Read ZCPR3.BIN into your SYSGEN program using DDT (or ZDT):
+      - special note: Ideally, SYS.ENV should be loaded along
+	with ZCPR3.BIN. But I have been unable to locate space
+	in the Kaypro's memory to place the Environment.
+	That means SYS.ENV must be placed on each ZCPR3 disk.
+	It will be loaded automatically upon cold boot but
+	it remains a seperate file.
+
+B0>A:DDT (or ZDT) CPM63.COM
+
+* You will see the following:
+
+B0>A:DDT CPM63.COM
+DDT VERS 2.2
+NEXT  PC
+2500 0100
+-
+
+* The "-" is DDT"s (and ZDT's) prompt. Enter the following sequence
+of instructions:
+
+   /-----/---/------ Type-in all of this.
+-F0980,117F,0	    (initialize the CPR image area to 00)
+-IZCPR3.BIN	    (identify the binary CPR image)
+-R0880		    (read the binary CPR image into CPM63.COM
+		     at location 0980)
+-G0
+
+* A WARM BOOT will now occur, bringing you back to CP/M and the
+B0> prompt. Do this next:
+
+B0>SAVE 36 ZCPR3.COM
+* This combines the ZCPR3 system which you created above with
+  the stock CP/M system that previously had been combined into
+  SYSGEN.COM.
+
+  This new program - called ZCPR3.COM - will be the program you
+  use to put ZCPR3 onto the system tracks of whatever disks you
+  choose. Instructions for doing that are soon to come - but
+  first, some major adjustments must be made so that ZCPR3 will
+  operate correctly on the Kaypro 4-84:
+
+III - INSTALL BIOS COLD BOOT PATCHES
+      ------------------------------
+
+1.  Load ZCPR3.COM (the program you've just made) into DDT (or ZDT):
+
+    B0>A:DDT (or ZDT) ZCPR3.COM
+    DDT VERS 2.2
+    NEXT  PC
+    2500 0100
+    -
+
+2.  Define the External Search Path (which gets moved to 0040 in the
+    initialization patch):
+
+    -S0950  (You type S0950 at the "-" prompt, then enter only
+	    the last two numbers on each line in the following
+	    sequence. Make sure you get numbers identical to
+	    these as you proceed.
+
+	     /----------------------------- you type these
+    0950 00 24	($ = Current Drive) ------- what they control
+    0951 00 00	(User 0)
+    0952 00 01	(Drive A:)
+    0953 00 24	($ = Current User)
+    0954 00 01	(Drive A:)
+    0955 00 00	(User 0)
+    0956 00 00	(Terminator - 7 bytes total)
+    0957 00 .	<- that's a PERIOD. Type it and hit RETURN.)
+    -
+
+
+    The above represents 3 external search paths.  You may specify up
+    to 5 paths (2 byte pairs per path) in the space from 0950 thru
+    095A, however, you must also remember to change the EXPATHS equate
+    in Z3BASE.LIB.
+
+3.  Initialize the Wheel Byte (which gets moved to 004B in the
+    initialization patch):
+
+    -S095B --/----------------------------- you type these
+    095B 00 FF	(004B wheel byte set on)
+    095C 00 .	<- don't forget the PERIOD
+    -
+
+4.  Setup the Multiple Command Buffer and define the cold boot auto-
+    start command (which gets moved to D300 in the initialization
+    patch):
+
+    * (CONTINUE YOUR INPUT BELOW JUST AS YOU'VE DONE ABOVE. ENTER
+      EVERYTHING YOU SEE FOLLOWING THE "-" AND ONLY THE LAST 2
+      NUMBERS OR A "."	WHEN THERE'S NO "-")
+
+    -S0960
+    0960 00 04	(Address of first character in Mult. Comm. Buff. - LSB)
+    0961 00 D3	(Address of first character in Mult. Comm. Buff. - MSB)
+    0962 00 FB	(Max. # of chars. permitted in Mult. Comm. Buff. - 251)
+    0963 00 00	(Char. count in Mult. Comm. Buff. initialized to 00)
+    0964 00 .
+    -F0964,097E,20  (fill cold boot autostart command area with spaces
+		     - 27 bytes)
+    -S097F
+    097F 00 00	(Terminate cold boot autostart command area with 00 -
+    0980 00 .	 32 bytes total)
+    -
+
+5.  Create the initialization patch (runs at FA10):
+
+
+
+    -S0910
+    0910 00 01	(LXI B)
+    0911 00 F7	(3575 bytes to initialize)
+    0912 00 0D
+    0913 00 21	(LXI H)
+    0914 00 09	(D209 address to start initializing)
+    0915 00 D2
+    0916 00 36	(MVI M)
+    0917 00 00	(00)
+    0918 00 23	(INX H)
+    0919 00 0B	(DCX B)
+    091A 00 78	(MOV A,B)
+    091B 00 B1	(ORA C)
+    091C 00 20	(JRNZ)
+    091D 00 F8	(to 0916)
+    091E 00 01	(LXI B)
+    091F 00 0C	(12 bytes to move)
+    0920 00 00
+    0921 00 21	(LXI H)
+    0922 00 50	(FA50 address to move from)
+    0923 00 FA
+    0924 00 11	(LXI D)
+    0925 00 40	(0040 address to move to)
+    0926 00 00
+    0927 00 ED	(LDIR)
+    0928 00 B0	(move memory)
+    0929 00 01	(LXI B)
+    092A 00 20	(32 bytes to move)
+    092B 00 00
+    092C 00 21	(LXI H)
+    092D 00 60	(FA60 address to move from)
+    092E 00 FA
+    092F 00 11	(LXI D)
+    0930 00 00	(D300 address to move to)
+    0931 00 D3
+    0932 00 ED	(LDIR)
+    0933 00 B0	(move memory)
+    0934 00 21	(LXI H)
+    0935 00 4A	(F64A)
+    0936 00 F6
+    0937 00 C3	(JMP)
+    0938 00 BD	(F6BD)
+    0939 00 F6
+    093A 00 .
+    -
+
+6.  Create the routine which lowers the BDOS address (runs at FA3A).
+    Accumulator contains a JMP when this routine is called.
+
+    -S093A
+    093A 00 32	(STA)
+    093A 00 06	(D206 new lower BDOS address)
+    093B 00 D2
+    093C 00 21	(LXI H)
+    093D 00 06	(E806 real BDOS address)
+    093E 00 E8
+    093F 00 22	(SHLD)
+    0940 00 07	(D207 holds real BDOS address)
+    0941 00 D2
+    0942 00 21	(LXI H)
+    0943 00 06	(D206 new lower BDOS address)
+    0944 00 D2
+    0945 00 C9	(RET to caller which stores new lower BDOS address
+		 at location 6)
+    0946 00 .
+    -
+
+7.  Install cold start patches in BIOS:
+
+    * HERE, THE "A" COMMAND MEANS YOU WILL BE ENTERING
+      ACTUAL ASSEMBLY LANGUAGE INSTRUCTIONS. SO TYPE "JMP"
+      OR "CALL" WHERE INDICATED FOLLOWED BY THE 4 LETTER &
+      NUMBER COMBINATIONS WHICH REPRESENT MEMORY ADDRESSES.
+
+
+    -A203A ---------> read the above paragraph again if you're
+		      not sure what to type...
+	   /----/---> type these..
+    203A JMP FA10     (jumps to initialization routine)
+    203D .	      <--- don't forget the PERIOD.
+
+    -A2087
+    2087 CALL FA3A  (calls routine which lowers the BDOS address)
+    208A .
+    -
+
+
+8.  Patch warm start so new CPR is not disturbed by the BIOS:
+
+    -A2090
+    2090 JMP F722
+    2093 .
+    -F2093,20A1,0
+    -S210B
+    210B 32 00	(NOP)
+    210C 07 00	(NOP)
+    210D E0 00	(NOP)
+    210E    .
+    -F2273,22FF,0
+    -
+
+ 9. Exit DDT (or ZDT) and save patched ZCPR3.COM:
+
+    -G0  (return to CP/M)
+    B0>SAVE 36 ZCPR3.COM
+
+You now have a file that will generate ZCPR3 and place it in the
+operating system tracks of as many disks as you choose. Simply
+insert it into the A: drive, put the disk to which you wish to
+transfer the system in the B: drive, run ZCPR3.... answer it's
+questions and PRESTO - you're in business. Remember though, to
+"initialize" your memory with ZCPR, you must RESET the computer
+before inserting the ZCPR system disk. Once that is done, the
+Kaypro will "read-in" the ZCPR3 system just as it did your stock
+CP/M system.
+
+
+IV - INSTALL OTHER ZCPR3 FILES
+     -------------------------
+
+1. Install your Environment Descriptors into LDR.COM and ALIAS.COM
+   using Z3INS:
+
+   B0>Z3INS SYS.ENV LDR.COM  - and -  B0>Z3INS SYS.ENV ALIAS.COM
+
+   This procedure will be used from here on to install ZCPR3-specific
+   utility programs.  Once installed, they may be run freely on your
+   ZCPR3 System without re-installation.
+
+
+Disk 3 (Drive B:)
+-----------------
+1. Edit SYSFCP.LIB, SYSNDR.LIB and SYSRCP.LIB and select the options
+   you desire for your external Flow Control, Named Directory and Res-
+   ident Command Packages, respectively.  It is suggested that you
+   turn off the REN External Resident Command in SYSRCP.LIB.  You
+   might additionally need to turn off other options and commands in
+   order to get SYSRCP.ASM to assemble to within 2K of code.  It is
+   STRONGLY suggested that you DO NOT revise the External Resident
+   Command equates in Z3BASE.LIB in order to accommodate an External
+   Resident Command Package that is greater than 2K.
+
+2. Log into Drive B: and assemble SYSFCP.ASM, SYSNDR.ASM and
+   SYSRCP.ASM using MAC:
+
+   B>A:MAC SYSFCP $PZ-S  - and -  B>A:MAC SYSNDR $PZ-S	- and -
+   B>A:MAC SYSRCP $PZ-S
+
+   When all three assemblies are complete you will find SYSFCP.HEX,
+   SYSNDR.HEX and SYSRCP.HEX on Disk 3.
+
+3. Generate the binary code from the .HEX files using MLOAD:
+
+   B>A0:MLOAD SYSFCP  - and -  B>A0:MLOAD SYSNDR  - and -
+   B>A0:MLOAD SYSRCP
+
+   When all three loads are complete you will find SYSFCP.COM,
+   SYSNDR.COM and SYSRCP.COM on Disk 3.
+
+4. REName SYS.FCP=SYSFCP.COM  - and -  REName SYS.NDR=SYSNDR.COM
+   - and -  REName SYS.RCP=SYSRCP.COM
+
+ZCPR3.COM is now ready to generate new system disks.
+
+
+To generate a new system disk, A>ZCPR3 x:, where x is a valid drive
+with a formatted disk in it.  When you boot a ZCPR3 disk, SYS.ENV
+must be present. In the configuration you have just created, LDR
+will then automatically load the environment. After the disk has
+booted, you may load any or all of the external packages using LDR:
+
+A0>LDR SYS.FCP,SYS.NDR,SYS.RCP ... etc.
+
+These packages will load into their designated protected areas set
+aside by the ZCPR3 system and defined in SYS.ENV, and will not be
+overwritten by application programs.
+
+
+ZCPR3 is a flexible and much improved Console Command Processor over
+the stock Digital Research CCP which contains a variety of new funct-
+ions and commands, particularly if the external packages are loaded.
+In addition, there are many ZCPR3-specific programs which can now run
+on your Kaypro 4-84 system that offer very interesting video capabili-
+ties.  For more information about ZCPR3, write or call:
+
+			    Echelon, Inc.
+			    101 First St.
+			    Los Altos, CA 94022
+			    1-415-948-3820
+
+and order "ZCPR3 - The Manual" for $19.95.  This manual contains all
+the technical information about ZCPR3 theory, design, installation and
+usage.
+
+-----------------------------------------------------------------------
+ZCPR3 is not permanent! To get rid of it, simply RESET or POWER
+DOWN your machine. If you insert a "stock" CP/M disk into A:
+following either of those steps, you will be running Kaypro's
+"as delivered" CP/M operating system.
+
+Similarly, following a RESET or POWER-DOWN, placing a ZCPR3
+disk in A: will give you back the ZCPR3 system.
+
+
+					       ------------------
+					       ZRDOS INSTALLATION
+-----------------------------------------------------------------
+
+ZRDOS is NOT a public domain program. It is a commercial product
+written by Dennis Wright and available for sale through ECHELON
+INC. It has copyrights in the years 1984 and 1985 by Mr. Wright.
+
+ZRDOS replaces the BDOS portion of your CP/M system. When installed
+on your system, it becomes the ACTUAL OPERATING SYSTEM for your
+computer. Since ECHELON markets documentation for this product, I
+cannot extensively reveal those contents. Though I heartily recommend
+that you purchase and install ZRDOS - and use it in conjunction with
+the ZCPR3 system, also marketed by ECHELON though available in the
+Public Domain, particularly on Z-NODES.
+
+(By the way, when ZRDOS and ZCPR3 are combined, you can say your
+computer is running the Z-SYSTEM - not CP/M or CP/M augmented by
+ZCPR3.)
+
+Installation of ZRDOS is a snap compared to the installation of
+ZCPR3. Since you will have PURCHASED ZRDOS, you will have received
+an installation file called ZRD+INS.COM.
+You will also be in possession of the other program utilities
+which function under ZRDOS and enhance the operation of your
+system.
+
+I - TO INSTALL ZRDOS
+    ----------------
+
+    1. Run the ZRD+INS.COM file ->   A0>ZRD+INS
+
+    2. You will be asked for the location of your "Wheel Byte."
+       For the Kaypro 4-84, the answer is: 4B
+
+    3. You will then be asked for the address at which your
+       system's BDOS begins.  For the Kaypro 4-84, the answer
+       is: E800.
+
+    4. ZRD+INS.COM will now create a file called ZRDOS+.BIN,
+       which is simply a binary image of your ZRDOS replacement
+       assembled to run at the address you specified above, much
+       the same as ZCPR3.BIN was the binary image of your ZCPR3
+       CCP replacement (CPR).
+
+    5. You will now merge this file with your ZCPR3.COM file
+       using DDT or ZDT. This will provide you with a program
+       that will allow you to place a complete Z-SYSTEM on as
+       many disks as you wish, using the technique described
+       above for the ZCPR3 installation:
+
+A0>DDT (or ZDT) ZCPR3.COM
+DDT VERS 2.2
+NEXT  PC
+2500 0100
+-IZRDOS+.BIN
+-R1080
+
+-G0
+
+(YOUR MACHINE WILL NOW WARM BOOT AND THEN YOU TYPE:)
+
+A0>SAVE 36 ZSYSTEM.COM
+
+       And ZSYSTEM.COM is what you've been after. A completely
+       new operating system. It is functional, friendly and even
+       futuristic. It utilizes the extended instruction capability
+       of the Z80 microprocessor and has the utility of the ZCPR3
+       Console Command Processor Replacement.
+
+		    //// Peter O.E. Bekker, Jr. ///////
+

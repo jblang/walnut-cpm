@@ -1,0 +1,838 @@
+;
+					NULU 1.0 (10/01/84)
+
+-- Introduction --	-------------------- Commands --------------------
+ C - Credits		1 - Operation		5 - Commands (M,N,O,P,Q)
+ E - Error Messages	2 - Commands (A,B,C,D,E)     M - Menu
+ F - Filespecs		     A - Add Members	     N - Rename Members
+ I - Introduction	     B - Brief Mode	     O - Open Library
+ R - Redirection 	     C - Close Library	     P - Print Members
+       < Input		     D - Delete Members	     Q - Unsqueeze Members
+       > Output		     E - Extract Members
+			3 - Commands (F)	6 - Commands (R,T,U,V,X,Y)
+			     F - File Sweep	     R - Replace Members
+ 			4 - Commands (G,K,L)	     T - Replace/Add Members
+			     G - Get Filespec	     U - User/Drive Change
+			     K - Krunch Library	     V - View Members
+			     L - List Members	     X - Exit
+						     Y - Directory Display
+:C
+
+                        NULU Version 1.0
+                         as of 10/01/84
+
+NULU.COM  and  NULU.DOC  are  both  Copyright  1984,   by  SYSTEM 
+SOLUTIONS,  P.O.  Box 35972,  Dallas, TX  75235. Both may be used 
+freely  for  non-commercial purposes,  but neither may  be  sold, 
+included in a package for sale,  or used as an incentive to  buy, 
+by   any  person,   organization  or  corporation  without  prior 
+arrangement with the copyright holder,  SYSTEM SOLUTIONS,  or the 
+author  of this version,  Martin  Murray.   Furthermore,  neither 
+SYSTEM  SOLUTIONS nor Martin Murray will bear any  responsibility 
+for  losses  resulting  from the use or  inability  to  use  this 
+program.   NULU.COM may not be distributed without NULU.DOC,  nor 
+may the copyright messages be removed from either file nor caused 
+to not be displayed.
+
+
+
+                        ACKNOWLEDGEMENTS
+
+This  program  would not have been possible were it not  for  the 
+elegant work of Gary P. Novosielski and those others working with 
+the LU library structure.
+
+
+			REPORTING BUGS
+
+Please  report any bugs or problems to Martin  Murray,  P.O.  Box 
+35972, Dallas, Tx  75235 or call (214) 351-6117.
+
+:I
+                          INTRODUCTION
+
+NULU  is  offered  as a complete replacement for LU  and  LSWEEP.  
+Weighing  in  at 14k,  it includes nearly all  features  of  both 
+programs and then some.  It features:
+
+	Two operation modes with a full menu for each
+	Viewing  and printing of member files,  unsqueezing  when
+                necessary
+	Extraction of member files with an option to unsqueeze
+                where appropriate
+	Bigger libraries, up to 800 members or more depending on
+                available memory
+	Automatic member sorting, all members kept sorted at all
+                times
+	Faster reorganization
+	Enhanced error handling
+	Access to deleted members
+	Optional read only mode
+	General compatibility with LU and NSWEEP syntax
+
+
+                 DIFFERENCES BETWEEN NULU AND LU
+
+I  am aware of only one thing that LU does that NULU does not do.  
+LU  maintains  a  CRC for each member file and  for  the  library 
+directory  as a whole.   NULU doesn't do this at all.   In  fact, 
+NULU changes these CRC bytes to 00 as soon as it gets the chance.  
+In case you still want or need to run LU on a library modified by 
+NULU, LU will simply regard it as a library created by an earlier  
+LU version and will promptly set CRC's for the various members.
+
+
+
+:F
+                  AN ASIDE CONCERNING FILESPECS
+
+When  specifying  a  filespec,  wildcards  may  be  used  freely, 
+however,  unlike  most programs,  NULU doesn't insist that a  "." 
+separate  the  filename  from the  filetype.   For  example,  the 
+filespec  "**"  means the same thing as "*.*" to  NULU.   On  the 
+other hand,  the filespec "FRED.TXT" should be typed in just like 
+that.   "FREDTXT" would make NULU think that no filetype had been 
+specified.   The rule is simple: use a dot any time you like, but 
+it is only strictly necessary when it is needed for clarity.
+
+When  specifying  a  drive and/or user area the  syntax  is  very 
+liberal.    "A15:**"  means  the  same  as  "15/A:*.*",  as  does 
+"1A5:**".   The  colon is absolutely necessary.   If a  different 
+user area is desired for the default drive,  the drive  specifier 
+may  be  omitted,  as in "15:**",  just as the user area  may  be 
+omitted as in "A:**".
+
+
+
+If  a  drive/user  specification  is made,  but  no  filespec  is 
+indicated, a filespec of ????????.??? is generated.  Therefore to 
+indicate the default drive,  current user area, and a filespec of 
+????????.???, just type a colon by itself (e.g., ":") !
+
+
+:1
+                         NULU OPERATION
+
+NULU  may be invoked with or without a command tail.   A  command 
+tail can consist of any combination of valid NULU operators up to 
+128  characters  (the limit imposed by the  CCP.   Once  NULU  is 
+running, command lines can be as long as 254 characters.)
+
+As  in LU,  all NULU commands are preceded by a dash.   This is a 
+copy of the menu for the command mode of operation:
+
+         -A Add members             -B Brief toggle
+         -C Close the library       -D Delete members
+         -E Extract members         -F Filesweep mode
+         -G Get filespec            -K Krunch the library
+         -L List members            -M Menu
+         -N Rename members          -O Open a library
+         -P Print members           -Q Unsqueeze members
+         -R Replace members         -T Replace/Add members
+         -U Drive/User change       -V View members
+         -X Exit NULU               -Y Disk directory
+         -< Redirect input          -> Redirect output
+
+
+Commands  may  be strung together,  each terminated by  a  space.  
+They  are processed left to right.   All characters are converted 
+to upper case.
+
+The  default drive/user area are displayed along with the name of 
+the  current command mode each time the console is  prompted  for 
+input.
+
+The  commands  will  be explained in order  of  their  appearance 
+above.    All  items  in  [square  brackets]  indicate   optional 
+parameters.    Filespec   parameters  enclosed  in  (parenthesis) 
+indicate references to deleted member files.   Three dots ("...") 
+after a parameter indicate infinite repetition.
+
+:2
+
+-A       ADD MEMBERS
+         Syntax: -a filespec[ filespec...]
+
+         Use  this command to add files from disk to the  current 
+         library.   NULU will make a series of passes through the 
+         directory,  adding  files as it goes,  until the list of 
+         matching  files  is  exhausted.   If  matching  filename 
+         already exists as an active member in the  library,  its 
+         name will be displayed and the file will not be added.
+
+         In  all file addition and replacement operations,  if  a 
+         deleted  entry  of identical size can be  located,  that 
+         disk  space and directory entry will be used rather than 
+         allocating new space for the file.   This means that  it 
+         will  be  necessary  to reclaim wasted disk  space  less 
+         often.
+
+
+
+-B       BRIEF TOGGLE
+         Syntax: -b
+
+         This toggles the prompting mode.  The release version of 
+         NULU is setup to print the full name of the current mode 
+         for  a prompt,  as in "-ADD MEMBERS A0:>".   If BRIEF is 
+         turned on the user will simply see "-A A0:>".   NULU may 
+         be  permanently patched to default to BRIEF ON  or  OFF.  
+         See NULU MODIFICATION.
+
+
+
+-C       CLOSE THE LIBRARY
+         Syntax: -c
+
+         This  command  closes the current library,  writing  its 
+         directory  to disk if any changes have been made to  the 
+         directory.   The  library  directory  is  NEVER  written 
+         except when the library is closed,  so be sure to do it.  
+         If  you forget to do so and remove the disk,  NULU  will 
+         prompt  you  for  the  disk again and  will  attempt  to 
+         recover, but no guarantees!  
+
+         Some  other operations that cause the current library to 
+         be closed are:
+               -k, -o, -x
+
+
+
+-D       DELETE MEMBERS
+         Syntax: -d filespec[ filespec (filespec)...]
+
+         Member  files matching the given filespec will be  given 
+         deleted status in the library directory, except when the 
+         filespec  is  enclosed in  parenthesis.   In  that  case 
+         matching  deleted  members will be given active  status.  
+         That is,  they will be undeleted.   If the filename of a 
+         matching deleted member file already exists as an active 
+         member, the filename will be displayed and the file will 
+         not be undeleted.
+
+
+
+-E       EXTRACT MEMBERS
+         Syntax: -e filespec[=newfilespec filespec...]
+
+         Use  this  command to extract active member  files.   If 
+         extraction to the current drive/user area is desired, no 
+         further syntax is necessary.  To indicate another drive, 
+         however,   a   destination  filespec  may  be   included 
+         following an equals sign.  Example:
+
+         -e **=a5:
+
+         would extract all active members to drive A,  user  area 
+         5.   Files  may  be  renamed as well  as  redirected  by 
+         indicating  a  filespec along with,  or in place  of,  a 
+         drive user specification.  Examples:
+
+
+
+         1.  -e *asm=*bak
+         2.  -e *asm=5:*txt
+         3.  -e fred.txt=sam.txt jane.inf=c8:girls.dbf
+
+         The examples would produce the following results:
+
+         1.  Extract all files with a type of .ASM to the default 
+         drive/user renaming them with the filetype of .BAK.
+         2.  Extract all files of type .ASM to user area 5 of the 
+         default drive, renaming each with the .BAK filetype.
+         3.   Extract  the  member file FRED.TXT to  the  default 
+         drive/user  under the name of SAM.TXT,  and extract  the 
+         member file JANE.INF to user area 8 of drive C: with the 
+         filename GIRLS.DBF.
+
+         The  only  rule  to remember is that  if  a  destination 
+         filespec is entered it cannot be any less ambiguous than 
+         the  source filespec.   That is,  "*asm=*bak"  is  valid 
+         while "**=*bak" is not valid.
+:3
+
+-F       FILESWEEP MODE
+         Syntax: -f
+
+         This command places NULU in its second operational mode: 
+         the  filesweep  mode.   This  allows the  user  to  move 
+         through  the directory of active member files as if they 
+         were  individual files being examined by a program  like 
+         NSWEEP.    The  filesweep  mode's  command  list  is  as 
+         follows:
+
+         A Next member              B Previous member
+         C Close the library        D Delete member
+         E Extract member           L Log new library
+         P Print member             Q Unsqueeze member
+         R Rename member            U Drive/User change
+         V View member              W Wildcard rename
+         X Exit NULU                Y Disk directory
+         Z NULU command mode        ? Menu
+
+
+         Because of the extreme similarity between these commands 
+         and  the commands of NULU's command mode,  only a  short 
+         description of each command will be given.
+
+         A  --  Advance to next member
+               (spacebar, cr, or lf will produce the same result)
+         B  --  Back up to previous member
+         C  --  Close the current library
+         D  --  Delete current member file
+         E  --  Extract current member file
+               (prompt allows redirection)
+         L  --  Logon to new library
+               (closes the current library)
+         P  --  Dumps the current member file to LST:
+               (unsqueezes if needed)
+         Q  --  Extract  current  member  file,  unsqueezing  if 
+                    necessary
+               (prompt allows redirection)
+         R  --  Rename current member file
+
+
+
+         U  --  Change drive/user defaults
+               (returns file pointer to the top of the file list)
+         V  --  View current member file
+               (unsqueezes if needed)
+         W  --  Wildcard rename of members
+               (prompts for both oldname and newname)
+         X  --  Exit NULU
+               (closes all files)
+         Y  --  Get disk directory for default drive/user
+               (returns file pointer to the top of the file list)
+         Z  --  Return to NULU command mode
+               (current library remains open)
+         ?  --  Print the filesweep mode menu
+               (returns file pointer to the top of the file list)
+
+
+
+         If,  when  the  filesweep mode is entered,  or  after  a 
+         library  has  been  closed,   there  is  not  a  library 
+         currently open, the filesweep mode will prompt with:
+
+         No library open.
+
+         and will accept only the following commands:
+
+         L,U,X,Y,Z,?
+
+         Likewise,  if a library is open but only has a directory 
+         with no other active members, the message
+
+         No member files.
+
+         will be printed and only the commands listed above will 
+         be accepted.
+
+
+
+         During  the filesweep mode operation,  each file will be 
+         listed  in  the  order  in which  it  is  found  in  the 
+         directory,  along with the size in K that the file would 
+         occupy if it were extracted to the default drive.
+
+         If  the filesweep mode is terminated by a return to  the 
+         NULU  command  mode,  any commands that followed the  -F 
+         command  on  the  previous NULU  command  line  will  be 
+         executed.
+
+:4
+
+-G       GET FILESPEC
+         Syntax: -g filespec
+
+         NULU  will search for the filespec indicated.   If it is 
+         found,  processing  continues.   If  not,  the  user  is 
+         prompted  to insert the disk containing  that  filespec.  
+         The  drive is then reset and search again.   The program 
+         will  prompt  forever  until  it  receives  the   proper 
+         filespec or until a cntrl-c is entered,  forcing NULU to 
+         continue without the filespec being found.
+
+         This  command can be useful when attempting  to  control 
+         NULU  through  a submit utility like  DRI's  SUBMIT.COM.  
+         For example, one might type:
+
+         nulu -o a:asm -g b5:-work.005 -e **=b10: -g a0:-5.005 -x
+
+
+
+         After loading,  NULU would open a library called ASM.LBR 
+         on  drive A:  in the current user area.   Next it  would 
+         search  user area 5 of drive B:  for filespec  -WORK.005 
+         until  it  was  found.   Then all  active  member  files 
+         would  be  extracted  to  user  area  10  of  drive  B:.  
+         Finally, NULU would search user area 0 of drive A: for a 
+         filespec  called  -5.005 until found.  Then  NULU  would 
+         terminate.  Notice here that the ASM.LBR didn't have  to 
+         be  closed  before  the search for  the  final  filespec 
+         because   no  change  had  been  made  to  the   library 
+         directory.   If  a change had been made,  after the  new 
+         filespec had been loaded,  NULU would have demanded  the 
+         disk with ASM.LBR back so it could update the directory.  
+         Therefore   the  GET  operation  would  be   effectively 
+         negated.
+
+
+
+-K       KRUNCH THE LIBRARY
+         Syntax: -k[ <number of entries to allow]
+
+         Even  though all members are kept in alphabetical  order 
+         at all times, when a member is deleted the disk space it 
+         occupies  is not released to the operating system  until 
+         the KRUNCH command is executed.   KRUNCH consists of the 
+         following steps:
+
+         1.   The  library directory is re-sorted by sector index 
+         number,  that is, in the order in which the member files 
+         actually exist in the library.
+
+         2.  The library is closed.
+
+
+
+         3.   A  new library called WORKLBR.$$$ is opened in  the 
+         default  drive/user  area and the user  is  prompted  to 
+         input the number of files that the new library should be 
+         able to contain.   If the user wants just enough entries 
+         to contain the currently active members, the number 1 or 
+         any  number less than or equal to the current number  of 
+         active  entries  may  be  entered.    If  the   optional 
+         parameter  listed above is entered,  it will be used  as 
+         the  number of entries.   (The KRUNCH processed  may  be 
+         aborted  here by typing RETURN or 0.   Please note  that 
+         the  library  directory  counts as  an  entry  and  will 
+         automatically be accounted for by NULU.)
+
+         4.   Once WORKLBR.$$$ is opened, the active member files 
+         from the original library will be copied one by one into 
+         the  new  library.   The copy routine uses  a  recursive 
+         process to copy as many files at one time as possible.
+
+
+
+         5.   The  old  library  is deleted  and  WORKLBR.$$$  is 
+         renamed with the old library name.
+
+         Examples:
+         1.  -k
+         2.  -k <1
+         3.  -u b5: -k <63
+         4.  -u b5: -k <1 -u a0: -k <63
+
+         The above example would produce the following results:
+
+         1.   The  library  would  be  KRUNCHed  to  the  default 
+         drive/user  area.   The user would be prompted to  input 
+         the number of entries to allow.
+
+         2.   The  library  would  be  KRUNCHed  to  the  default 
+         drive/user  area with just enough entries to contain all 
+         currently active member files.
+
+
+         3.   The default drive/user area would be changed to B5: 
+         before  the  KRUNCH begins.   Then the library would  be 
+         KRUNCHed, allowing 63 entries.
+
+         4.   The default drive/user area would be changed to B5: 
+         before  the  KRUNCH begins.  The KRUNCH would  commence, 
+         allowing  only  enough  entries to  contain  all  active 
+         members.   The drive/user area would be changed to  A0:. 
+         Then  the library would be KRUNCHed again,  allowing  63 
+         entries.
+
+
+
+-L       LIST MEMBERS
+         Syntax: -l[ filespec]
+         Syntax: -l[ (filespec)]
+
+         Use  this  command to list the contents of  the  library 
+         directory.   Each  member filename will printed followed 
+         by  the starting relative sector number in  the  library 
+         file, the size of the member in sectors, and the size in 
+         K  that the file would occupy if it were to be extracted 
+         to the default drive/user area.  Finally, a recap of the 
+         size of all member files listed is printed,  along  with 
+         the number of sectors occupied by deleted files.
+
+
+
+         The  parameters listed above can be used to control  the 
+         selection of files for display.  Examples:
+
+         1.  -l
+         2.  -l **
+         3.  -l (**)
+         4.  -l *asm
+         5.  -l (fred.txt)
+
+         The above examples would produce the following results:
+
+         1.  All active member files listed.
+         2.  All active member files listed.
+         3.  All deleted member files listed.
+         4.  All  active  member files  matching the filespec  of 
+         ????????.ASM listed.
+         5.   All  deleted member files called  FRED.TXT  listed.  
+         (Note  that is IS possible to have more than one deleted 
+         file with the same name.)
+:5
+
+-M       MENU
+         Syntax: -m
+
+         Print the command mode menu.
+
+
+
+-N       RENAME MEMBERS
+         Syntax: -n oldfilespec=newfilespec[...]
+         Syntax: -n (oldfilespec)=newfilespec[...]
+
+         This  command is used to rename active or deleted member 
+         files.    Wildcards   are  fully  supported,   but   the 
+         newfilespec   can   be  no  less  ambiguous   than   the 
+         oldfilespec.    Deleted   members  may  be  renamed   by 
+         enclosing   the   oldfilespec   ONLY   in   parenthesis.  
+         Examples:
+
+         1.  -n *asm=*bak
+         2.  -n (fred.txt)=sam.txt
+         3.  -n **=**
+
+
+
+         The above examples would produce the following results:
+
+         1.    All   active   members   matching   the   filespec 
+         ????????.ASM would be renamed with a filetype of .BAK.
+
+         2.   The first deleted member file called FRED.TXT would 
+         be renamed to SAM.TXT.   All other members matching that 
+         filespec would be listed along with a message indicating 
+         that they could not be renamed.
+
+         3.  All active member files would be listed, each with a 
+         message  indicating  that  they  could  not  be  renamed 
+         because the name already exists.
+
+
+
+-O       OPEN A LIBRARY
+         Syntax: -o filename[ <number of entries to allow]
+
+         With the exception of the filesweep Logon command,  this 
+         command is the only method to open or create a  library.  
+         NULU  will search for the filename indicated.   If it is 
+         found, it will be opened and a message will be displayed 
+         indicating the size of the Data Transfer  Buffer.   This 
+         is  the number of sectors in memory that NULU will  have 
+         to use in extracting, adding or copying member files.
+
+         If the file is not found,  the user will be prompted for 
+         the  number of entries to allow in the new library.   If 
+         the optional parameter above is passed,  the number will 
+         be used to determine the directory size of the  library.  
+         All  directories can contain some multiple of 4 entries.  
+         All  numbers  input will be rounded up  to  the  nearest 
+         multiple  of  4.   Remember  that the  directory  itself 
+         counts  as  one entry and that NULU  will  automatically 
+         make space for it.
+
+
+         The filename passed must be unambiguous.
+
+         NOTE ON DIRECTORY SIZE:
+         Depending on available memory, libraries with as many as 
+         1250 entries (theoretically) can be opened.   But  watch 
+         the  Data  Transfer Buffer Size!   If it is less than  8 
+         sectors you will not be able to unsqueeze any files.
+
+
+
+-P       PRINT MEMBERS
+         Syntax: -p filespec[ filespec (filespec)...]
+
+         With  this command,  the ascii contents of member  files 
+         matching  the filespecs given will be dumped to the list 
+         device.   If the file is squeezed,  NULU will  unsqueeze 
+         it.   Deleted  members  may be listed by  enclosing  the 
+         appropriate filespec in parenthesis.
+
+
+
+-Q       UNSQUEEZE MEMBERS
+         Syntax: -q filespec[=newfilespec filespec...]
+
+         This command is identical in operation and syntax to the 
+         EXTRACT command, except that if the matching members are 
+         squeezed, they will be unsqueezed.
+
+:6
+
+-R       REPLACE MEMBERS
+         Syntax: -r filespec[ filespec...]
+
+         This command is identical in operation and syntax to the 
+         ADD command, except that matching files will be added to 
+         the  library ONLY if they already exist in the  library.  
+         They will be deleted, then the new files will be added.
+
+
+
+-T       REPLACE/ADD MEMBERS
+         Syntax: -t
+
+         This command is a combination of the ADD and the REPLACE 
+         commands.   If  the  files do not exist in the  library, 
+         they  will be added.   If they do exist,  they  will  be 
+         replaced.
+
+
+
+-U       DRIVE/USER CHANGE
+         Syntax: -u new drive/user
+
+         Use  this command to change the default drive/user area.  
+         A colon (":") must follow the drive/user spec.  Example:
+
+         -u a5:
+
+         would switch the default drive/user area to A5:.
+
+
+
+-V       VIEW MEMBERS
+         Syntax: -v filespec[ filespec (filespec)...]
+
+         This  command will list the ascii contents of all member 
+         files matching the given filespec to the console device.  
+         Deleted  members  may  be  indicated  by  enclosing  the 
+         filespec  in  parenthesis.   If  the  member  files  are 
+         squeezed,  they will be unsqueezed.   At each page, NULU 
+         will accept one  of the following commands:
+
+         1.  Cntrl-x to skip to the next member file
+         2.  Cntrl-c to abort further listing
+         3.  L to list one line
+         4.  CR, space, or LF to list another full page
+
+
+
+         At  the  end  of each member  file  the  message
+
+          "Press RETURN"
+
+         will  be  displayed and NULU will wait for  a  keystroke 
+         before moving to the next matching member file.
+
+
+
+-X       EXIT NULU
+         Syntax: -x[ "$$$.SUB command line"]
+
+         This  command will set a flag indicating that  when  the 
+         current  NULU  command line is  exhausted,  NULU  should 
+         terminate.  But the command is actually a toggle.  If it 
+         is  entered  twice  on a line the effect of  the  second 
+         issuance will be to negate the first.   If the  optional 
+         parameter is passed, it will be written to a file called 
+         $$$.SUB  on  drive A:  in the user area that was  active 
+         when NULU was first loaded.  The line will be encoded as 
+         a   SUBMIT  command  line  recognizable  by   the   CCP.  
+         Therefore, when NULU exits, the CCP will reach into that 
+         file and execute the line.   (CP/M Plus users take note:  
+         the  $$$.SUB file will be written to the drive that  was 
+         the   default   drive  when  NULU  was  first   loaded.)  
+         Examples:
+
+
+
+         1.  -x
+         2.  -x -x
+         3.  -x "nsweep b:"
+
+         The above examples would produce the following results:
+
+         1.  The  termination  flag  will be set  and  NULU  will 
+         terminate when the current command line is exhausted.
+         2.   The  termination flag is set and the  reset.   NULU 
+         does not terminate.
+         3.   The  termination  flag  is set and  a  file  called 
+         $$$.SUB  is  created on the appropriate drive  with  the 
+         command line "NSWEEP B:" encoded in it.
+
+
+
+-Y       DISK DIRECTORY
+         Syntax: -y[ filespec]
+
+         This  command  will print an unsorted directory  of  the 
+         disk  indicated by the parameter passed,  or a  complete 
+         directory if none is passed.  The scope of the directory 
+         may  be  limited by indicated the appropriate  ambiguous 
+         filespec.
+
+:R
+
+-<       REDIRECT INPUT
+         Syntax: -< filename
+
+         This  command  will  cause NULU  to  open  the  filename 
+         indicated  and begin accepting commands from it  instead 
+         of  receiving them from the console.   This type of file 
+         is,  in  effect,  a NULU command file.   Syntax  of  the 
+         commands  in this file is identical in every way to  the 
+         syntax used in normal NULU operation.  Each command line 
+         in  the file must be terminated by a CR,LF.   If another 
+         "-<"  command is encountered in the  file,  the  current 
+         command  file  will  be closed and the new  one  opened.  
+         After  the  commands  have  been  completely  processed, 
+         control  will be returned to the console.   All  command 
+         lines will be converted to upper case and echoed to  the 
+         console before processing.  Any commands appearing after 
+         a "-<" command will be ignored.
+
+         The filename passed must be unambiguous.
+
+
+->       REDIRECT OUTPUT
+         Syntax: -> filename
+         Syntax: ->
+
+         With the first form of this command, NULU output will be 
+         sent  to the filename indicated.   If the  file  already 
+         exists, it will be deleted.  All special characters that 
+         the  user  may have patched into NULU (see  below,  NULU 
+         MODIFICATION) will be sent to the file as well, with the 
+         exception  of  the EOF character,  26 (1ah).   The  only 
+         output  not echoed to the file will be output caused  by 
+         viewing or printing a member file.
+
+         The filename passed must be unambiguous.
+
+         Under  the  second  form of this  command,  the  current 
+         output file, if any will be closed.  When NULU is caused 
+         to  terminate,  the current output file is closed  along 
+         with the current library, if any.
+:E
+                         ERROR MESSAGES
+
+All NULU error messages are of the form:
+
+ERROR XX: Explanation
+
+where  "XX"  is some number from 0 to 255 and "Explanation" is  a 
+clue as to the nature of the error.  Each error message is listed 
+below,  along  with an explanation.   Suggestions about  ways  to 
+handle the error are given when appropriate.
+
+ERROR 63: ambiguity error
+Problem:       This means that you entered an ambiguous  filespec 
+               where an unambiguous filename was required.
+
+
+
+ERROR 68: disk full
+Problem:       The  library disk became full during file addition 
+               or  KRUNCHing  or  the  destination  disk  of   an 
+               extraction command became full.
+Solution:      If  the  error  occurred  during  KRUNCHing,  NULU 
+               should have recovered by itself, reopening the old 
+               library.   If it did not recover, then you removed 
+               the  original disk before the KRUNCH was  complete 
+               or a serious read error occured.
+
+               If  the  error occurs during file addition to  the 
+               library,  operation should not be impaired, but no 
+               files  that required additional disk space can  be 
+               added  to the library.   Note that deleted entries 
+               can still be overwritten by incoming files as long 
+               as  the file sizes match.   The original file that 
+               caused  the error will be recorded in the  library 
+               directory as a deleted entry.
+
+
+               If  the  error  occurs during file  extraction  or 
+               unsqueezing   the  destination  file  is   deleted 
+               because it is an incomplete file.   Extraction can 
+               continue as before.
+
+ERROR 73: invalid drive
+Problem:       An  invalid drive for your system was chosen  (see 
+               below,  NULU MODIFICATION) or a letter higher than 
+               "P" was indicated.
+Solution:      Choose another drive or re-patch NULU.
+
+ERROR 77: not enough memory
+Problem:       An  attempt  was  made to open a  library  with  a 
+               directory  too  large  to be  accounted  for  with 
+               available memory.
+Solution:      Open  the library on a computer with a larger  TPA 
+               and  reorganize  it  so it can be handled  by  the 
+               smaller system.
+
+
+
+ERROR 78: user cancel
+Problem:       No problem.   NULU is simply letting the user know 
+               why  an OPEN LIBRARY or KRUNCH operation has  been 
+               cancelled.
+
+ERROR 83: no directory space
+Problem:       An  attempt  was made to create a file on  a  disk 
+               with no free directory entries.
+
+ERROR 85: file not found
+Problem:       The  filespec indicated for some  operation  could 
+               not be located.
+
+ERROR 86: CP/M 2.x or higher required
+Problem:       An  attempt was made to run NULU on a system  with 
+               an CP/M version number of less than 2.0.
+
+
+
+ERROR 88: seek to unwritten sector
+Problem:       A  sector  required to gain access to  a  file  is 
+               indicated by CP/M to be unwritten.
+Solution:      The  library  directory  or  perhaps  the  library 
+               itself has become trashed at some point.  Deleting 
+               the  entry  and KRUNCHing will probably render  it 
+               harmless,  but  the  safest course to take  is  to 
+               obtain a fresh copy of the library.
+
+ERROR 100: bad library directory
+Problem:       The  file  specified  could not  be  opened  as  a 
+               library  file.
+Solution:      The  directory could be bad,  but most likely  the 
+               file  simply isn't a library.   Check it out  with 
+               some disk editor like SPZ or EDFILE.
+
+ERROR 115: bad syntax
+Problem:       Improper syntax was user to attempt some operation.
+
+
+
+ERROR 116: squeeze decode table
+Problem:       A  file has a squeeze decoding table,  but at some 
+               point the table is trashed or perhaps is  missing.  
+Solution:      None really; get a new copy of the file.
+
+ERROR XX: undefined
+Problem:       Unknown.
+Solution:      Write   down  all  information  presented  on  the 
+               terminal.   The number following the word ERROR is 
+               especially important.  Get the information to  me.  
+               Mail it or call and I will try to help.
+
+
+
+

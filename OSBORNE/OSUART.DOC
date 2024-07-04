@@ -1,0 +1,159 @@
+The Osborne I's uart is memory mapped in bank 2 at locations
+02A00H and 02A01H.  The traditional way of getting at the port
+was to have some assembly language code located above 04000H.
+This code normally takes the form of:
+
+	DI
+	OUT	00H
+
+To change back you have used the following:
+
+	OUT	01H
+	EI
+
+The uart is mapped with 02A00H as the status/control word and
+02A01H as the data word.  So to write some data to the data port
+of the uart, the following code would have been used:
+
+	DI
+	OUT	00H
+	STA	02A01H
+	OUT	01H
+	EI
+
+This is the new method that uses code that is already in the BIOS
+and the ROM.  What you have to do is set up somthing like the
+following code:
+
+;Output a control word to the 6850 chip
+
+CTLPOUT:
+	MOV	C,A		;Put the character in C
+	LXI	D,013CH
+	JMP	SWITCH
+
+;Input the status of the 6850 chip
+
+STATUS:	LXI	D,0181H
+	CALL	SWITCH
+	RET			;The status will be in A
+
+;Output a charater to the 232 port
+
+DTLPOUT:
+	MOV	C,A		;Put the charater in C
+	LXI	D,010FH
+	JMP	SWITCH
+
+;Input a character from the 232 port
+
+DTLPIN:	LXI	D,0115H
+	CALL	SWITCH
+	RET			;The character will be in A
+
+SWITCH:	LDA	SWITCH1+2
+	ORA	A
+	RZ			;Nont installed yet
+SWITCH1:
+	JMP	0036H		;The 00 is replaced by INIT
+
+;END OF CODE
+
+The code should be installed with the following code:
+
+INIT:	LDA	0002H		;High order bit of the BIOS addr
+	STA	SWITCH1+2
+	RET
+
+;END OF CODE
+
+When using this method of getting to the 6850 chip, you should
+always call the STATUS routine before calling DTLPIN because
+DTLPIN will wait for a character and if there is no character for
+a while, the program will be locked up.  The code that is used to
+mask off and check the status bits is still the best way of
+checking for Ready-for-the-next-character and Character-is-
+waiting.
+
+The data words are the usual ascii characters.  The data for the
+control word is in the first chart.  The status word definitions
+are in the second chart.
+
+In the following charts, CR0 is the least significant bit and CR7
+is the most significant bit.
+
+
+CR7		      FUNCTION
+
+ X		Is not used on the Osborne.
+
+CR6   CR5	      FUNCTION
+
+ 0     0	Enables the internal modem port on the Osborne.
+ 0     1      	Not used on the Osborne.
+ 1     0	This is the normal setting.
+ 1     1	Transmits a BREAK level on the data output.
+
+CR4  CR3  CR2	      FUNCTION
+
+ 0    0    0	7 Bits, Even parity, 2 Stop bits
+ 0    0    1	7 Bits,  Odd parity, 2 Stop bits
+ 0    1    0	7 Bits, Even parity, 1 Stop bit
+ 0    1    1	7 Bits,  Odd parity, 1 Stop bit
+ 1    0    0	8 Bits,   No parity, 2 Stop bits
+ 1    0    1    8 Bits,   No parity, 1 Stop bit
+ 1    1    0	8 Bits, Even parity, 1 Stop bit
+ 1    1    1	8 Bits,  Odd parity, 1 Stop bit
+
+CR1   CR0	      FUNCTION
+
+ 0     0	19,200 Baud
+ 0     1	  1200 Baud
+ 1     0	   300 Baud
+ 1     1	Master Reset
+
+A Master Reset (03H) must be written to the uart before a new
+setting is sent and as the first thing written to the uart after
+the program starts.  The 19,200 baud setting does not seem to
+work on the Osborne I.
+
+CR0
+ 0	Data not available
+ 1	Data available
+
+CR1
+ 0	Not ready for new data
+ 1	Ready for new data
+
+CR2
+ 0	Carrier present
+ 1	Carrier lost
+
+CR3
+ 0	Clear to send (hooked to the CTS line)
+ 1	Not clear to send
+
+CR4
+ 0	No framing error
+ 1	Framing error
+
+CR5
+ 0	No overrun error
+ 1	Overrun error
+
+CR6
+ 0	No parity error
+ 1	Parity error
+
+CR7
+ X	Not used on the Osborne I
+
+
+I hope that this code modification will make it easier for you to
+install a term program on your system.
+
+he Osborne I
+
+
+I hope that this code modification will make it easier for you to
+install a term program on 

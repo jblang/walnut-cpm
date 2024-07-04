@@ -1,0 +1,376 @@
+INTRODUCTION: THE LIBRARY CONCEPT
+LU Command Conventions
+SUMMARY OF LU OPERATIONS
+  Looking Over Existing Libraries: LDIR
+  Unpacking Entire Libraries: LUNLOAD
+  Selecting Libraries for Access: -O
+  Accessing Individual Members in Libraries: -L -E
+  Executing Programs in Libraries: LRUN
+  Building and Maintaining Libraries: -D -N -A -R
+  Finishing Up: -C -X
+HANDLING SPECIAL SITUATIONS
+  Insuring Enough Memory Capacity: -B
+  Changing Drives and Switching Disks -- Precautions: -U
+  Staying Out of Trouble: Error Recovery
+HOW LIBRARIES ARE ORGANIZED
+:LU 3.00c             NOTICE: Current Version Numbers          dh: 84-01-15
+                      ===============================
+
+     This material applies to version 3.00 of LU.COM.  Libraries created by 
+LU 3.00 can be read by all previous versions,  and vice versa,  but version 
+3.00 provides additional protection against undetected damage in files that 
+it creates and accesses.
+
+
+                Copyright 1982, 1983 by Gary P. Novosielski
+                           All rights reserved.
+
+     Permission is hereby granted to copy and distribute this work for  any 
+non-commercial  purpose.  Any use of this material for commercial advantage 
+without prior written consent of the copyright owner is prohibited.  Please   
+report  any  problems  and suggestions for enhancement to  the  author  via  
+CompuServe  CP-MIG or EMAIL posting to user number 70160,120;  or by  voice 
+phone to (201) 935-4087, evenings (eastern time) and weekends.
+
+     LU.HLP #3.00a first derived by Dennis E. Hamilton on 83-10-30.
+
+                                                     next: What is a Library?
+                     INTRODUCTION: THE LIBRARY CONCEPT
+                     =================================
+
+     Library  Utility  (LU)  is  a  system for  storing  several  files  as 
+components of one larger file.   The resulting library (.LBR) file has  its 
+own PRIVATE DIRECTORY.  
+
+     Library  files  provide an additional dimension  for  the  collection, 
+organization, and maintenance of your work.  And because of CP/M disk-usage 
+rules,  libraries  tend  to require less space than the same  files  stored 
+separately.  In addition, libraries release CP/M disk-directory entries for 
+other uses, especially when the library holds many tiny files.
+
+     The maximum number of components -- library MEMBERS -- to be contained 
+in  a library must be specified in advance.   But the limit can be  changed 
+later on when the library is re-organized.
+
+     Because  library members are tucked away within  other,  larger,  CP/M 
+files,  they  have to be extracted -- taken off the shelf -- in order to be 
+worked  on  or  used by typical programs.   The modifed  results  are  also 
+restored to the library by using LU.
+                                                  next: How LU Utilities Help
+     To  make it easy to keep executable routines in  libraries,  the  LRUN 
+utility is provided.  LRUN is a small program which will execute your .COM-
+file programs directly from the libraries which hold them.   With LRUN,  it 
+is  not  necessary  to extract a program into a separate disk  file  before 
+execution.  
+
+     Also, when material is packed in a library for convenient distribution 
+in one piece, there is another utility, LUNLOAD, which unpacks everything.
+
+     The basic library utility,  LU, lets you start new libraries and
+
+   * Add new members to any specified library as long as there is room
+   * Extract copies of any members for use outside of the library
+   * Delete and rename members, as needed
+   * Reorganize a library to change its capacity and recover deleted space.
+   * Produce a directory to any library's current content.
+
+     The utility LDIR allows inspection of a library's directory and  there 
+are  variants,   such  as  LRUNZ  and  LDIRZ,  that  support  the  extended 
+conventions  of ZCPR2.   There is a trend to have newer CP/M utilities also 
+accomodate .LBR files in their operation.
+                                                        next: Why (not) to LU
+ WHY USE LIBRARIES?
+   * Libraries make more compact use of disk capacity.
+   * Libraries  require  fewer  disk-directory  entries,  cutting  down  on 
+     clutter and releasing entries for other purposes.
+   * Libraries  aid  the transfer of software from  one system to  another.  
+     Only  one file is distributed,  reducing the chance of  omissions  and 
+     oversights.
+   * Libraries allow more flexible choice of file names,  since  uniqueness 
+     is important only within each separate library.
+
+ WHAT IS THE PRICE?
+   * Files  within a library are unavailable to "normal" programs.  A  file 
+     will usually have to be extracted from the library before its data can 
+     be used.
+   * When a library member is deleted,  space is not automatically released 
+     for re-use.   The library must be explicitly re-organized in order  to 
+     recover the directory entry and space of a deleted member.
+
+On  balance,  LU lends tremendous support for disciplined organization  and 
+maintenance of your programs and data.
+::LUCMD                   LU COMMAND CONVENTIONS
+                          ======================
+
+     LU is guided by a miniature language of COMMAND-STRING OPERATIONS.  If 
+you  are  unfamiliar with the notation and conventions of this tidy  little 
+language,  you  should  locate the file LUCMD.HLP and review it  using  the 
+command 
+
+               a>HELP LUCMD
+
+There you will find out about 
+
+     * Different ways of initiating LU and supplying command string
+     * General format of the command-string: use of spacing and line-breaks
+     * Notation for specifying operations
+     * Notation for selecting files
+     * LU place-keeping and default assumptions
+:                        SUMMARY OF LU OPERATIONS
+                         ========================
+
+OP OPERAND(S)       OPERATION
+
+-A file-spec ...    Add the selected files to the open library.
+-B s                Set the buffer size to s (1 to 255) records.
+-C                  Close any library that is presently open. 
+-D file-spec ...    Delete selected files in the open library.
+-E file-spec ...    Extract selected files from the open library.
+-L                  List a directory for the open library.
+-N new=old ...      Rename selected files in the open library.
+-O file-spec        Close any open library and open the specified one.
+                    If the library does not exist, one will be created.
+-R                  Re-organize the open library.
+-U [u/][d:]         Close, change to the given defaults, and reset the disk
+-X                  Exit from LU after the current line is processed.
+                    An empty command-stream line implies -X.
+
+In  a pinch,  you can ABORT processing with ^C at the input  prompt.   This 
+leaves the open library directory as it was at the end of the last -C,  -O, 
+-A, -R or -U operation.  Do -L and cleanup as needed, following with -R.
+::LDIR                LOOKING OVER EXISTING LIBRARIES
+                      ===============================
+
+     When all you want to do is find out,  or remind yourself, what is IN a 
+library,  the LDIR utility (and LDIRZ,  its ZCPR2 counterpart) are just the 
+ticket.
+
+     Typically,  LDIR lets you examine a library via a specification of the 
+form
+
+          d>LDIR library ...
+
+     where  library identifies the library that you want to know about
+
+     Command "d>LDIR COMMAND will,  with this convention,  show  everything 
+that is known about files in library COMMAND.LBR.  For specific information 
+about  the version of LDIR available on this system,  you should locate the 
+file LDIR.HLP for review via 
+
+               d>HELP LDIR
+::LUNLOAD               UNPACKING ENTIRE LIBRARIES
+                        ==========================
+
+     When  a library file is used as a "carton" for a group of files  being 
+distributed  together,  there is an easy way to make separate copies of its 
+entire content:
+
+               a>b:LUNLOAD c:library
+
+will, for example, "unpack" the files of c:library onto the a: disk.
+
+     Precise  operation  of  the  currently-supported  LUNLOAD  version  is 
+specified in the file LUNLOAD.HLP.  Locate that file and review it via
+
+               a>HELP LUNLOAD
+
+     Note that the functions of LUNLOAD can be obtained with LU, but not so 
+directly.   Also,  LUNLOAD may succeed where LU is unable to obtain  enough 
+storage for operation. 
+:                    SELECTING THE LIBRARY TO ACCESS
+                     ===============================              
+
+     Unless you are willing to use a library of name LIBRARY.LBR,  you need 
+to specify the actual library to use with an OPEN command-string sequence:
+
+
+               -O  library
+
+        * Any library file that is already open will be closed.
+
+        * The default u/,  d:,  and file type .LBR are used to complete the 
+          library filespec, as necessary.
+
+        * If  the  specified library exists,  it is opened for use  as  the 
+          current library.
+
+        * If  the  specified  library  does not exist,  a  NEW  LIBRARY  is 
+          created.   LU will request information from the console in  order 
+          to  allocate a library with sufficient capacity for the  intended 
+          members.   (Refer to the information on "Building and Maintaining 
+          Libraries" for further treatment of this case.)
+:                     ACCESSING MATERIAL IN LIBRARIES
+                      ===============================
+
+     In  addition to using an LDIR utility,  you can review the contents of 
+the currently-open library using the LU command-string
+
+          -L
+
+for "LISTING" the library directory while LU is operating.  
+
+     When you need to work with separate copies of members, the LU command-
+string
+          -E filespec ...
+
+"EXTRACTS"  copies  of those members selected by each  following  filespec.  
+Every  library member that matches a single filespec is copied.   The  copy 
+has the same filename as the original member.
+
+     WHERE  copies  go  is  determined by  the  u/d:  determined  for  each 
+filespec.  (Read-only files cannot be overwritten in this way, however.)
+
+                                    next: Understanding the Library Directory
+                         LIBRARY DIRECTORY ENTRIES
+
+     The  information presented in response to the -L operation consists of 
+the following:
+
+           filename for   each  current  member  (and  DIRECTORY  for   the 
+                    library's own directory space)
+
+              index of  the library record where the member starts  (needed 
+                    by the library utilities in finding the data)
+
+               size of the member in CP/M RECORDS (128-byte units).  Divide 
+                    by 8 for size in 1k units.
+ 
+                CRC a  special kind of check code carried for  each  member 
+                    and  used to help detect the presence of damage to  the 
+                    library
+
+     In  addition  to  this information  about  the  "active"  entries,  LU 
+indicates  how  many members can be added and how many deleted members  and 
+deleted records are cluttering the library.  (The waste for deleted members 
+is eliminated by reorganizing with -R.)
+::LRUN                EXECUTING PROGRAMS IN LIBRARIES
+                      ===============================
+
+     Usually,  library  data that is going to be used by a program must  be 
+extracted first.
+
+     But programs that are kept in libraries can be executed without having 
+to  be removed first.   This is accomplished by use of the LRUN utility  or 
+one  of  its kin.   For more information on the current  release  of  LRUN, 
+locate the file LRUN.HLP and review it by
+
+               a>HELP LRUN
+::LBRBUILD          BUILDING AND MAINTAINING LIBRARIES
+                    ==================================
+
+     With a set of well-organized libraries in hand, most access will be in 
+order  to  USE the material that the library contains.   LU  supports  this 
+effort as do the more-specialized utilities such as LDIR and LRUN.
+
+     But  LU is also designed to be used in constructing and modifying  new 
+libraries of your own material.  
+
+     Once you are comfortable with the general concepts of LBR-usage and LU 
+operation, the additional provisions for building libraries will be easy to 
+grasp.    The  file  LBRBUILD.HLP  describes  these  additional,   advanced 
+features.  You can review it with the command
+
+               a>HELP LBRBUILD
+:                              FINISHING UP
+                               ============
+
+     When operations on a library have been finished,  there are three ways 
+to move on.  Command-string
+
+            -C will  "CLOSE" any currently-open library,  if there is  one, 
+               making sure that all changes are reflected in its directory.  
+               There is now no current directory.
+
+            -X has  the same effect as -C,  followed by termination of  LU, 
+               UPON COMPLETION OF THE CURRENT COMMAND-STRING LINE
+
+     The  end  of  the command-string,  or the occurence of an  empty  line 
+within it, has the same effect as the -X operation.
+:                       HANDLING SPECIAL SITUATIONS
+                        ===========================
+
+     There are three areas where operation of LU can become tricky.  First, 
+it  is  possible  to  exceed the capacity of your  computer  in  trying  to 
+manipulate a library with allowance for a great number of members.   The LU 
+operation 
+               -B nn
+
+may be used to obtain relief in some cases.
+
+     Also, when it is necessary to change disks in the course of working on 
+a library, there are some special precautions involved.  The LU operation
+
+ 
+              -U [u/][d:]
+
+helps to reset things properly after changing disks, when possible at all.
+
+     Finally,  use  of .LBR files puts a lot of eggs in one basket.   There 
+are  some  useful  tips available for making sure that the  .LBR  does  not 
+go the way of Humpty Dumpty.
+::LBRSIZE             INSURING ENOUGH MEMORY CAPACITY
+                      ===============================
+
+     Besides the space taken for program and housekeeping during LU  opera-
+tion,  there  are two large data buffers:  one for DISK ACCESS and one  for 
+LIBRARY DIRECTORY.
+
+     If  your  CP/M system has a very large TPA (transient  program  area), 
+there  is  not  much to worry about.   But you should  still  review  the 
+capacity  rules   to  get a sense of the headroom available.
+
+Command string:               -B nn
+
+changes  the  disk-access  buffer  allocation to nn records  as  a  way  to 
+increase performance or to accomodate a larger directory instead.  Complete 
+details   about  this  and  related  adjustments  are  found  in  the  file 
+LBRSIZE.HLP.  You should review this file with command
+
+                         a>HELP LBRSIZE
+:                   CHANGING DRIVES AND SWITCHING DISKS
+
+     NEVER REMOVE OR CHANGE ANY DISK ON WHICH THERE IS AN OPEN LIBRARY.  LU 
+carries information about the library in computer memory.  This information 
+is not recorded on the disk until the last possible moment.   If you change 
+a  disk without giving LU a chance to bring the disk and memory  copies  of 
+data  into  agreement,  OPERATION WILL FAIL.   THERE IS THE POSSIBILITY  OF 
+DAMAGE TO MATERIAL RECORDED ON ONE OR MORE DISKS.
+
+     The  way to guarantee that all disks are in a "clean" condition is  to 
+CLOSE THE CURRENT LIBRARY with the -C operation.   (If you are all done, -X 
+does this too.)  You can now remove and replace disks as desired.
+
+     To continue (when there is no CON: redirection), try operation
+
+               -U filespec ...          
+
+to  "log"  into  the new u/ and d:  defaults  specified  in  the  following 
+filespec(s).   The  filespecs  should have only the u/ and  d:  fields,  as 
+needed.   IF CONDITIONS ARE SAFE for -U, LU will close any current library, 
+reset  the disk system,  and change the default parameters.   You  can  now 
+(re)-open the library to use next. 
+::LUTIPS          STAYING OUT OF TROUBLE: ERROR RECOVERY
+                  ======================================
+
+     When  you are building,  modifying,  and  re-organizing  libraries,  a 
+n
+umber of problems can "spoil" an entire library's worth of work.   Tips on 
+protecting your investment in library-stored material have been compiled in 
+the file LUTIPS.HLP.  The file can be reviewed, once located, using command
+
+               a>HELP LUTIPS
+::LBR                   HOW LIBRARIES ARE ORGANIZED
+                        ===========================
+
+     .LBR files are organized in a special format that is only intelligible 
+to  special-purpose  utilities  such  as  LU,  LDIR,  and  LRUN.   So  that 
+specialists  can incorporate .LBR access into other utilities,  the  format 
+rules  have been compiled in the file LBR.HLP.   If you have access to this 
+file, you can review it with the command
+
+                         a>HELP LBR
+:
+:
+:
+:    LU.HLP #3.00 was first created on 83-10-30 by Dennis E. Hamilton.
+

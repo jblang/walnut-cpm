@@ -1,0 +1,332 @@
+                                                                  30 June 1986
+                                  Z-NEWS 504
+
+Z  Tips.    File COMMAND.LBR is great place for keeping your  little-used  COM 
+files  (for speed, frequently-used ones are outside).  By putting  many  files 
+into one file you save disk space (on average, one-half allocation block  size 
+per file, i.e., 1k-byte if 2k-byte block) and directory entries (important  if 
+only  64 or 128 file entries permitted per disk).  But you soon forget  what's 
+in  the  LBR and using LU or NULU takes too much time to determine  only  file 
+names.  Solution: a neat little alias, we call it SEE, "ROOT:llf  ROOT:command 
+/ic"  quickly  displays files in COMMAND.LBR.  That's all there is  to  it--we 
+said neat!  SEE<cr>.  Shows files sorted, CRC and index values, sizes in  both 
+records  (128  bytes  per) and k-bytes rounded up to next  kilobyte.   LLF  is 
+ZCPR3's "list library files" utility.  See Z-News 305 for more details and for 
+other  such  utilities: LX, LGET, LHELP, all written by ZCPR3  author  Richard 
+Conn.
+     --------------------------------------------------------------------
+From Our Mail Box.   Ken Davidson (Micromint, Inc., 25 Terrace Drive,  Vernon, 
+CT 06066, 203/871-6170) supplies early indications of Borland's Turbo  Modula-
+II  speed.   Bench1 and Bench2--see Z-News 409 and 501--took only 164  and  96 
+seconds,  respectively, on SB180 HD64180 computer with no memory wait  states.
+Compare with Aztec C II and C/80 C Language, from Z-News 501, of 263 and  135, 
+and  135  and  74 seconds, respectively.  Assembler  for  Bench2,  using  same 
+computer, was 29 seconds.  Put into a table:
+
+          Micromint SB180 (6.144mHz 64180) RAM       Bench1  Bench2
+          Assembler (Syslib v3.6)                     n/a      29.3
+          Software Toolworks C/80 v3.0               135.4     74.3
+          Borland Turbo Modula-II (beta)             164.0     96.0
+          Manx Aztec C II v1.06                      263.0    135.0
+          BDS-C v1.5a                                268.0    194.4
+
+     Lachlan  Myers,  from Moonee Ponos, Victoria, Australia,  writes  of  "an 
+excellent  product."   Well, it turned out to be a  production  prototype  SBC 
+using  HD64180 and Z-System, designed and produced by our soon-to-be  OEM  and 
+Australian distributor, Microtrix.  SBC is STD-bus based and runs with two 1.2 
+megabyte  5.25"  floppies and 512k-bytes of RAM.  As long as the  $US/$A  rate 
+stays  as  is, it should be a winner down under.  If any of  you  Aussies  are 
+interested  in  such  a computer, contact Mr. Frank  Wrobel,  24  Bridge  St., 
+Eltham, Victoria, 3095, Australia.
+
+      "Hope is not a way out.  It is a way through."--Steven J. Daniels
+
+Amateur Z-User's Corner.   Z-News 401 shows a VMENU script useful for  program 
+development.   We  here extend it while making all  aspects,  hopefully,  work 
+correctly, plus add a writer's workbench and housekeeping section.  Files used 
+by menus are in BASE:A0> or ROOT:A15> directories, along command search  path, 
+or in "public" areas.
+
+#x
+ Arrow Keys move Pointer                   Use "+" and "-" if More Files
+
+                        +++ WRITER'S WORKBENCH +++
+
+     0 - WordStar        Edit using Document Mode        Newword - 1
+     2 - V-Spell      Spelling Check and Correction    Word Plus - 3
+     4 - Style                   Writing                 Grammar - 5
+     6 - StarIndex                                Communications - 7
+     8 - ASCII to WordStar   File Conversion   WordStar to ASCII - 9
+
+     N - Number of Words in File       Print File using PropStar - P
+     M - Menu                 Housekeeping                VFILER - W
+                                                  ^Q to change File Sort
+#
+0 $d$u:;PRIVATE:ws $pf
+1 $d$u:;BASE:nw $pf
+2 $d$u:;era vspell.mis;PRIVATE:vs $pf;if ex vspell.mis;era vspell.mis;  <<
+  era BASE:vspell.bak;BASE:nw $pf;fi
+3 a$u:;era $u:errwords.txt;PRIVATE:spell $d:$pf $slic;PRIVATE:review;if <<
+  ex $u:errwords.txt;PRIVATE:markfix $d:$pf $m#;$d:;BASE:nw $pf;else;$d:;fi
+4 a$u:;PRIVATE:cleanup $d:$pf $m#;$d:;BASE:nw $pf
+5 a$u:;PRIVATE:phrase $d:$pf passive.txt;$d:;BASE:nw $pf
+6 $d$u:;PRIVATE:starindx $pf
+7 MAIL:;ROOT:setfile 1 t3.mnu;ROOT:menu t3.mnu
+8 $d$u:;BASE:;txttows $pf
+9 $d$u:;BASE:;filtw $pf
+n $d$u:;BASE:;wc $pf
+p $d$u:;BASE:;ps $pf
+m:3
+w ROOT:vfiler $d$u:
+z!"$d$u:Command>"
+#x
+ Arrow Keys move Pointer                     Use "+" and "-" if More Files
+
+          +++ INTERACTIVE ASSEMBLY LANGUAGE DEVELOPMENT +++
+                                                  Current File is $f1
+     A - Assemble/Link/Load (ZAS/LINK)              
+     E - Edit $f1 (WordMaster)
+     R - Run $n1.COM
+     S - Set Current File to Edit/Assemble/Link/Load/Run (SETFILE) - S
+
+   Pointer File
+     1 - Edit (Newword)       Assemble/Link/Load Z80's (ZAS/ZLINK) - 2
+     3 - Assemble/Link/Load MAC'S (M80/L80)      ASM's (MAC/MLOAD) - 4
+     5 - Interactive (ZAS/ZLINK/WM)  Convert Intel to Zilog (ZCON) - 6
+     7 - Edit (LZED)                                  View (VTYPE) - 8
+     9 - Enter Library (NULU)                    Edit (WordMaster) - 0
+#
+a $d$u:;zas $n1;if er;sak /p2 errors in assembly--canceling;else;zlink <<
+  $d:$pn,a:grwlib/,a:grxlib/,a:vlib/,a:z3lib/,a:syslib/;era *.rel;fi
+s ROOT:setfile 1 "Enter file name (fn.ft) to edit/assemble/run -- "
+e $d$u:;PRIVATE:wm $f1
+r!$d$u:;$n1 "Trailing Parameters, if any (<cr> if none) -- "
+1 $d$u:;get 100 ROOT:nw.com;poke 74e ff;poke 787 ff;go $pf
+2 if12 $pt=z80;$d$u:;era $pn.bak;zas $pn;if ~er;zlink $d:$pn,          <<
+  a:grwlib/,a:grxlib/,a:vlib/,a:z3lib/,a:syslib/;era *.rel;else;       <<
+  sak /p2 errors;fi;else;sak /p2 not z80 type;fi
+3 if12 $pt=mac;$d$u:;era $pn.bak;m80 =$pn;sak /zp7 errors, cancel      <<
+  link (^C)?;l80 /p:100,$pn,a:vlib/s,a:z3lib/s,a:syslib/s,$pn/n/u/e;   <<
+  era $pn.rel;else;sak /p2 not mac type;fi
+4 if12 $pt=asm;$d$u:;era $pn.bak;mac $pn $$-spz;sak /zp7 errors,       <<
+  cancel load (^C)?;mload $pn;era $pn.hex;else;sak /p2 not asm file    <<
+  type;fi
+5 $d$u:;zas $pn;if er;sak /zp3 link cancelled;wm $pf;else;zlink        <<
+  $d:$pn,a:grwlib/,a:grxlib/,a:vlib/,a:z3lib/,a:syslib/;era $pn.rel;   <<
+  $pn;fi
+6 $d$u:;BASE:zcon $pf
+7 $d$u:;BASE:lzed $pf
+8 ROOT:vtype $pf
+9 if ex $d$u:$pn.lbr;$d$u:;nulu -o $pn -f;else;sak /p2 library cannot  <<
+  be found;fi
+0 $d$u:;PRIVATE:wm $pf
+z!"$d$u:Command>"
+#x
+ Arrow Keys move Pointer                    Use "+" and "-" if More Files
+
+                           +++ HOUSEKEEPING +++
+Pointer File
+ C - Copy to another Directory   (CP)    P - Print (to printer)   (PRINT)
+ E - Erase (delete)             (ERA)    R - Rename                 (REN)
+ N - Enter Library File        (NULU)    V - View (bidirectional) (VTYPE)
+
+System Functions                  
+ F - Files Capable of Being        1 - Sort and Pack Directory (CLEANDIR)
+     Recovered        (UNERASE)    2 - Disk Catalog Menu    (MENU/DISCAT) 
+ U - Unerase Files    (UNERASE)    3 - Enter SHOW System Utility   (SHOW)  
+ W - File Manipulator  (VFILER)
+#
+c cp "Copy to Directory (DU: or DIR:): "=$ d$u:$pf
+e echo $pf - Delete (Y/N)?  ;if in;era $d$u:$pf;fi
+p!poke fe37 "How many columns to print, in hex (50h=80, 64h=100)? ";   <<
+  ROOT:print $pf "Options (<cr>=default, e=exact): ";poke fe37 50
+r ren "New Name of File (no wild cards): "=$pf
+v ROOT:vtype $pf
+n if ex $d$u:$pn.lbr;$d$u:;nulu -o $pn -f;else;sak /p2 library cannot  <<
+  be found;fi
+f!ROOT:unerase *.* l
+u!ROOT:unerase "Name of File to Recover (wild cards okay): "
+w ROOT:vfiler $d$u:
+1 ROOT:cleandir $d:
+2 CAT:;ROOT:menu discat.mnu
+  CAT:catscan 'Define File Search Mask (e.g. *.doc): '
+3 ROOT:show
+z!"$d$u:Command>"
+##
+     Taking  tip from Newword handling of text, and also from VFILER,  Version 
+4.0,  all menu lines are in half-intensity; all command letters  and  numbers, 
+full.   You  may wish to have the program names also half-intensity,  but  not 
+parenthetical brackets--more distinctiveness that way.  Embed ^A (use ^PA with 
+NW, WS, and LZED; <esc>^A for WM) in menu to start half-intensity, ^B (^PB) to 
+stop.  Use up to 14 lines for displayed text; more causes internally generated 
+command line to lap into your text lines.  (VMENU uses four lines for  pointer 
+files,  one  for "more files" message, one for title banner, and  one  for  CL 
+prompt,  plus two for application program generated lines.  Allowing  a  blank 
+line  between  prompt  and  menu's last text line  results  in  total  10-line 
+overhead, leaving 14 for your menu screen.
+     Screen arrow points to Pointer File; Current File is name given to System 
+File, number one (1) in this case, the S command.  Use SHOW's number 4 command 
+to see the up-to-four System File assignments.  Study and modify menus to your 
+specific needs and liking.
+     Many  functions  are  handled from  WRITER'S  WORKBENCH  menu.   Document 
+editing,  printing,  word  count, file conversion,  spelling,  and  style  and 
+grammar  check.   Choice of using either Newword  or  WordStar  wordprocessor, 
+depending  on  your mood.  But much can be done to customize  menu,  improving 
+cosmetics, tailoring to your daily operations.
+     ASSEMBLY menu provides three major program development options.  1) Using 
+Pointer File with commands 2, 3, or 4 depending on whether using ZAS, M80,  or 
+MAC  assembler, 2) using ZAS and command 5 to automatically go from  assemble, 
+link, and run, or to edit if assembly errors occur, and 3) using Current  File 
+(System File 1 set with SETFILE using S command) and using commands A, E,  and 
+R  to assemble/link/load, edit, and then run program, a semi-automatic  inter-
+active  process.  Menu command 2 nearly fills command line (CL) buffer of  204 
+characters.   Remember,  each parameter takes up more space  than  in  script, 
+e.g., $pf can expand up to 12 characters of file name.  We used *.rel  instead 
+of $pn.rel to permit command 2 to function without overflowing CL buffer.   If 
+you  get a CL error message when executing a long script line, try  shortening 
+file name to be processed to less than 8 characters; or take out some unneces-
+sary script text.  We use Newword (non-document mode), WordMaster, and LZED as 
+program editors.
+     HOUSEKEEPING menu has features worth noting: 1) using POKE to change  the 
+SYS.ENV  segment area in memory.  Here we change Printer 0 (see CPSEL  command 
+detailed  in  ZCPR3: The Manual, pages 28 and 29) from its  default  line-wrap 
+value  to value specified at prompt.  Makes for quick printing of  files  with 
+long  lines  using PRINT, which uses SYS.ENV for wrap  column  value.   System 
+Environmental  Descriptor  (base  address here of FE00  hexadecimal,  hex  for 
+short) positive offset of 37 hex (number added to base) is for Printer 0;  3B, 
+Printer  1; 3F, 2; and 43, 3.  Use SHOW<cr> or Z3LOC Z<cr> to  determine  base 
+address  for  your system.  You can use POKE to change  many  default  values, 
+maximum drive and user area, CPU speed, CRT and Printer selection, etc.  Study 
+source  code  for your SYSENV.LIB file for more details.  ZCPR3:  The  Manual, 
+pages 300 to 304, also discusses this system segment.  And, 2) commands S  and 
+U using UNERASE utility program to list, to potentially recover erased  files.
+Notice  renaming  and erasing (you may wish to try GETVAR/RESOLVE  to  improve 
+this command--more on these Dreas Nielsen utilities next fortnight) of Pointer 
+File.  And Z command hidden from menu screen.
+     VMENU, Version 1.5 or later, is a wonder to behold going from one menu to 
+the  next--the main reason we added two menus, for writing  and  housekeeping.
+Visualize four lines, four columns, of files remaining stationary as displayed 
+menu  is  replaced with another, when you enter "." followed  by  ",".   Don't 
+forget you can use these keys instead of "<" and ">" to go from menu screen to 
+menu screen; thus, no shift key involved.
+     The VFILER CMD command line we use, 5, to enter writing and code develop-
+ment menus, called ASM/WRITING.VMN, is either:
+
+            5 ROOT:ldr WORK:sys-2.ndr;ASM:;ROOT:vmenu *.* asm.vmn
+or
+       5 ROOT:ldr LETTERS:sys-3.ndr;LETTERS:;ROOT:vmenu *.* writing.vmn
+
+depending  from which directory we use "5", i.e., which VFILER CMD file is  in 
+the  directory we are in.  (Notice script convention of directories  in  upper 
+case, commands in lower.)
+     Of  course,  you can enter menus from directory where  they  are  located 
+without using a VFILER CMD command.  Command path is searched for MNU and  VMN 
+file  type.  Our Assembly Language development area is B10: and is named  ASM.
+Our  CAT  directory is, by convention, drive/user area  A8:.   Writing  occurs 
+mainly  from B0: and C0:, the WORK: and LETTERS: directories.  Presently,  F0: 
+is our BACKUP: directory (floppy drive).
+     Study  Z-System  User's  Guide, Section 6.3.2, pages 6-12  to  6-16,  for 
+details  of  syntax and grammar of VMENU.  And ZCPR3: The Manual,  Chapter  5, 
+pages  133 to 147, covers MENU and VMENU uses and operations.  Study it  also!
+Learn meanings of #, ##, !, :, $, pf, pn, pt, fn (where n=1 to 4), nn, tn,  -, 
+x, c, d, and p.
+     You  find  these menus, with appropriately embedded  screen  highlighting 
+codes  fully in place, along with WC, FILTW, TWTTOWS, and more, as file  WORK-
+VMN.LBR on Z-Nodes.
+
+Z  Node  Activity.   More nodes online..."pvac" Z-Node #72 is  run  by  Harris 
+Edelman,  Venice,  CA 90291, 213/306-3611.  George Allen starts  up  #73  from 
+Ballwin, MO 63021, with RAS number of 314/394-6279.  E-Com Z-Node #74 is to be 
+run  by Nelson Lesmerises, Hookset, NH 03106.  And Mel Spencer  (CDR  Systems, 
+Heath)  runs Z-Node #75 in San Diego, CA 92138, 619/560-8929.  They  all  want 
+callers, well?  The beat goes on...  
+     Joseph  Wright  (San Jose, CA), Good-Neighbor Helper, author  of  Ampro's 
+floppy  disk BIOS, Micromint and Oneac's BIOSs, and Z3-Dot-Com and Z-Com,  has 
+produced  new  Z3INS, Version 1.4, and LDR, Version 1.5,  utilities  and  have 
+placed  them on Z-Node Central, 415/489-9005.  Path file search and more  name 
+flexibility  are features.  Serious Z-System users will want to get these  new 
+versions.
+
+       "Worry often gives a small thing a big shadow."--Swedish Proverb
+
+Lunch  Break.   Games soon offered...all run under ZCPR3  and  Z-System...take 
+full  advantage of operating system features.  Watch these lines  for  further 
+details.
+     Right in our backyard (El Dorado) lives BDS Corporation--they make  LASER 
+printers  that  act  like Diablo 630 daisy  wheels,  using  ubiquitous  Cannon 
+marking  engine.   Newword completely controls their  printer;  WordStar,  not 
+beyond controlling features of a standard 630.  Write or call them, 800  Maude 
+Ave.,  Mountain  View,  CA 94043, 415/964-2115.  Mr. Jeff  Holden,  BDS  Sales 
+Manager, can direct you to nearest dealer.  BDS sells not to end users.
+     Makings of a good advertisement.  Anatole France (novelist and  satirist, 
+1844-1924)  is quoted as saying, "It is human nature to think wisely  and  act 
+foolishly."   That may be true, but if you buy our products, you'll be  acting 
+as wisely as you think!
+     Our  Shipping and Handling (S&H) policy for overseas orders has  changed, 
+regrettably.  We must now charge actuals for mailing to Europe, Australia, and
+Asia.   Our cost has been two to three times the nominal $18.00 we  have  been 
+charging.   What  this means to most is no more prepayments with  checks  (see 
+next paragraph).  You can still use your credit card to place an order and you 
+will be charged actual postal costs plus $2.00 for our handling.
+     We  no longer accept checks drawn on other than USA and  Canadian  banks.
+Our  local  bank goes through too much trouble (and expense)  converting  such 
+checks  to  US dollars.  So please send only checks drawn on USA  or  Canadian 
+banks.   On the other hand, Visa and MasterCard numbers from any  country  are 
+acceptable.  Plastic over paper!
+     ====================================================================
+Of Cabbages and Kings.   You think we are overly critical of our industry, our 
+society,  its  work ethic and morality?  Yes, you do--admit it!  Our  view  of 
+conditions in beloved America: cradle to grave fundamental changes required if 
+we  are to avoid going way of British or ancient Roman Empire.   Attitudes  of 
+let-George-do-it, of wanting more for less--these do us in!  Parents, schools, 
+voters,  management, labor, capital, government, all require huge  changes  to 
+avoid  what living on borrowed time (and money) has done to our culture.  Now, 
+the  moment  of  truth!   We need to discover America; so  far  we  have  only 
+colonized  it--an act of violence.  One group conquering another, of bias  and 
+bigotry, of rape, waste and hatred.  Gone With Wind are the days--we are  both 
+happy  and sorry to say--of the cowboy (John Wayne, six-gun style) rescuing  a 
+damsel in distress.  Remember the Lone Ranger of Saturday matinee movies?   He 
+is  never  alone  but  always has Tonto (plus  Silver  and  Scout)  nearby,  a 
+partnership (a strategic alliance)...
+     Partnerships in business, in marriage, in living, in deep living,  that's 
+what  we  need.   Competition without combat,  friendly  competition,  between 
+partnerships!   Reduce quantity of adversary relationships to nil.  See  noble 
+goal mentally, group together to achieve it physically.
+     Think...of people-energy expended using hair grooming spray, both men and 
+women...effort  to produce the sticky stuff.  We individually work so hard  to 
+look  good  on the outside, while doing little for the  inside.   Vanity,  Oh!
+Vanity.   All is vanity.  Or is it?  Think of this people-energy  asserted  to 
+exit  uni-dimensional  living, to learn about Life...think!  We try,  we  try.
+See you down the lines...
+                                                                 Echelon, Inc.
+                                                       885 N. San Antonio Road
+	 	                                       Los Altos, CA 94022 USA
+					               Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+
+Trademarks:  TKBBS, SB180, COMM180, Micromint; PRO-180, MDC-1, Magnum Digital;
+XL-M180, Intelligent Computer Designs; ON!, ONFILE, Oneac; DT42, Deep  Thought 
+42, The SemiDisk,  SemiDisk Systems; HD64180/63484, Hitachi; NSC800, National; 
+Z80/180/280/800,  Zilog; Z-System, ZCPR3, ZRDOS, Z-Tools, Zas,  Zlink,  Z-Msg, 
+Term3,  Quick-Task, Lasting-Value Software, Echelon; CP/M,  Digital  Research; 
+Turbo  Modula-II,  Borland; LZED, Zivio; Word Plus,  Oasis  Systems;  V-Spell, 
+CompuView; WordMaster, WordStar, MicroPro; Newword, Newstar; SCSI/Plus, Little 
+Board, Bookshelf, Ampro Computers.
+
+
+                                                         eagle
+                *                                        here
+
+
+
+                               Z sets you FREE!
+
+
+
+                 *                                        *
+
+
+Z-News  504 is Copyright 1986 Echelon, Inc.  All Rights Reserved.   Permission 
+to   reprint, wholly or partially, automatically granted if source  credit  is 
+given to Echelon.
+

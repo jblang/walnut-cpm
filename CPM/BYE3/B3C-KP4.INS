@@ -1,0 +1,85 @@
+;
+; B3C-KP4.INS
+;  07/15/85	Clock insert for BYE335 and later
+;		and the KayPro 4-84
+;
+;	Note:	This is an insert, not an overlay.
+;
+;		Use the program TIME2.ASM or later, to initialize your clock
+;		with correct date/time prior to loading BYE.
+;
+;
+CENTURY	EQU	019H		; 19h = 19 bcd, reset this every 100 years
+CYEAR	EQU	085H		; 85h = 85 bcd, reset this every year
+RTCA	EQU	20H		; Clock address select reg
+RTCD	EQU	24H		; Clock data register
+RTCS	EQU	22H		; Clock status register
+REGEND	EQU	8		; Ending register count for time loop
+;
+;
+	 IF	RTC
+TIME:	MVI	A,0CFH		; Initial status setup byte
+	OUT	RTCS		; Set pio for mode 3 in/output
+	MVI	A,0E0H		; Low 5 bits output, top 3 input
+	OUT	RTCS		; Set pio in/out bits
+	MVI	A,03H		; Disable interrupts
+	OUT	RTCS		; Do it
+	MVI	A,14H		; Status reg addr
+	OUT	RTCA		; Select it
+	IN	RTCD		; Reset status bit
+;
+DOREAD:	LXI	H,LOCBUF	; Point to time save area
+	MVI	B,2		; Start with seconds
+;
+BURST:	MOV	A,B		; A is register we want to read
+	CPI	REGEND		; Gotten all we want?
+	JNC	ROLLCK		; Yes, done getting time
+	OUT	RTCA		; Select that register of clock
+	IN	RTCD		; Read the clock data
+	MOV	M,A		; Save in core
+	INX	H		; Next memory location
+	INR	B		; Next reg addr
+	JMP	BURST		; Go get more data
+;
+; See if the clock rolled over during the reads.
+;
+ROLLCK:	MVI	A,14H		; Status reg addr
+	OUT	RTCA		; Select it
+	IN	RTCD		; Get status
+	ORA	A		; Was clock roll?
+	JNZ	DOREAD		; Yes, go read again
+;
+; Format the date and time for bye's realtime clock buffer
+;
+	LDA	LOCBUF		; BCD seconds
+	STA	RTCBUF+2
+	LDA	LOCBUF+1	; BCD minutes
+	STA	RTCBUF+1
+	CALL	BCDBIN		; Convert to binary
+	STA	CCMIN		; For bye5
+	LDA	LOCBUF+2	; BCD hours
+	STA	RTCBUF
+	CALL	BCDBIN		; Convert to binary
+	STA	CCHOUR		; For bye5
+	LDA	LOCBUF+4	; BCD day of month
+	STA	RTCBUF+6
+	LDA	LOCBUF+5	; BCD month
+	STA	RTCBUF+5
+	MVI	A,CENTURY
+	STA	RTCBUF+3
+	MVI	A,CYEAR
+	STA	RTCBUF+4
+	RET			; All done
+;
+;
+LOCBUF:	DB	0		; Seconds
+	DB	0		; Minutes
+	DB	0		; Hours
+	DB	0		; Day of week (not used by us)
+	DB	0		; Day of month
+	DB	0		; Month of year
+	 ENDIF	;RTC
+;
+;	End of B3C-KP4.
+;----------------------------------------------------------------
+

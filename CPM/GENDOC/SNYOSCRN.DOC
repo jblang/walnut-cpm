@@ -1,0 +1,131 @@
+     					          June 12, 1985
+To:       All Sanyo 1200/1250 owners
+From:     E. Mark Kothe
+RE:       Sanyo inverse video
+
+     If  you are one of the proud owners of a Sanyo 8-bit machine 
+(probably  ALL Sanyo's) I really don't have to tell you that  the 
+documentation  for these machines leaves a little to be  desired.  
+Hopefully this document will help,  maybe it is common knowledge?   
+The  Sanyo  1200/1250 (maybe others?) has four possibilities  for 
+video character display:
+                         Standard 
+                          Inverse video 
+                           Underlined 
+                            Overlined 
+
+These  character  types may also be combined  for  other  effects 
+(except for inverse and standard)
+
+Here  is the description on how to use this feature in the  Sanyo 
+MBC-1200 series users guide escape code section (incidentally MBC 
+stands for.....ya ready ?... My Business Computer)  
+     
+If you have manual 9376411909401 on page R-17 you are greeted by:
+
+ESC   t        1B.74     Attribute Set   (Inverse,   underline 
+                                         Upperline)
+
+Now come on this is as CLEAR as possible, right?
+
+If  you happened to be blessed with manual 9376411909401A on page 
+R-18 they have expanded on the description to this:
+
+ESC t          1B.74     Attribute On/Off(only 33-line mode)
+(BIOS ver. 1.4
+or after)
+                         D7 ........... Fixed to 0
+                         D6 ........... Fixed to 0
+                         D5 ........... Fixed to 0
+                         D4 ........... Fixed to 0
+                         D3 ........... Overline
+                         D2 ........... Inverse
+                         D1 ........... Underline
+                         D0 ........... Fixed to 0
+
+
+What could be clearer,  EH? 
+
+Ok,  enough spouting off,  now I'll try for a translation on this
+What  I find you must do is this.   Say you wanted to  print  the 
+string  `I  love  my Sanyo' underlined.   You have  to  send  the 
+following sequence to be printed.
+
+          1BH,'t',2,'I love my Sanyo',1BH,'t',0      
+
+or in BASIC it would be
+
+PRINT CHR$(27);"t";CHR$(2);"I Love my Sanyo";CHR$(27);"t";CHR$(0)
+
+What this does is prepares for Underline video, prints the string 
+then  turns the underline feature OFF!   Otherwise the  following 
+characters would also be underlined.
+
+The  key  to  this whole escape sequence is  the  character  that 
+follows  the 1Bh,'t'.   This is how it works with  the  character 
+broken down into 8 bits.
+
+          n    n    n    n    o    i    u    n
+          o    o    o    o    v    n    n    o
+          t    t    t    t    e    v    d    t
+                              r    e    e    
+          u    u    u    u    l    r    r    u    
+          s    s    s    s    i    s    l    s
+          e    e    e    e    l    e    i    e
+          d    d    d    d    e         n    d
+                              e
+          |    |    |    |    |    |    |    |
+          v    v    v    v    v    v    v    v
+
+          0    0   0     0    0    0    0    0     <- Binary value
+
+If you set the underline bit you get underline 
+If you set the overline bit you get overline.
+If you set both you get both.
+
+But..
+If you set JUST the inverse bit you get inverse,  underline,  and 
+overline.
+ 
+Any   bits   set  with  the  inverse  bit  set   subtracts   that 
+feature  (actually  it provides you with a non inverse  under  or 
+overline)
+
+OK?  I included a short (and primative) program for you to run to 
+demonstrate.
+
+If  there are any questions or comments you can try leaving me  a 
+message on my system 313-465-9615   300/1200 baud  24 hours
+
+                              Thanks,  E. Mark Kothe
+
+VIDEOBIT.DOC
+
+
+
+
+10 PRINT CHR$(26):      'clear screen
+20 FOR X=0 TO 16 STEP 2
+30 PRINT CHR$(27);"t";CHR$(X);:'set the bits
+40 PRINT "  I Love my Sanyo   "
+50 PRINT CHR$(27);"t";CHR$(0): 'undo what we did
+60 NEXT X
+70 PRINT CHR$(27);"t";CHR$(4);
+80 PRINT "                            "
+90 PRINT "                            "
+100 PRINT " >> ";
+101 PRINT CHR$(27);"t";CHR$(0);
+102 PRINT " WATCH OUT WORDSTAR ";
+103 PRINT CHR$(27);"t";CHR$(4);
+104 PRINT " << "
+110 PRINT "                            "
+120 PRINT "                            "
+125 PRINT CHR$(27);"t";CHR$(0):    'all off
+
+
+
+
+
+ 
+
+               

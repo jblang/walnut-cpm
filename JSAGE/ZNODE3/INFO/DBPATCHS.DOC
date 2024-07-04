@@ -1,0 +1,167 @@
+                   Patch points in DBASE 2.41
+                                               Naj Najarian
+                                               Kempton, PA 19519
+                                               6 March 1989
+
+Before I came across Bruce Morgan's DBCLOCK routine to let DBASE 
+get the date from DateStamper, in fact, before I even ran 
+DateStamper, I used an alias to let DBASE get the date (but not 
+the time) from ZCPR, providing that I set the date at cold boot.
+
+Before I got ZSDOS, before I used DateStamper, before I had a 
+computer with a clock (!), I used to store the current date in 
+the registers for use by me or any other program I could get to 
+read them.  I'd set the date on power-up with a simple REG S1 
+06;REG S2 03;REG S3 89 (I couldn't use register #0, because other 
+programs take possession of it and store results there.  Other 
+programs require register #9.  Luckily progammers tend to leave 
+1-8 alone.  Please note that I also store the date in European 
+form. You may have to change the alias for your own preference.)  
+As Jay improved ARUNZ, I could make the system prompt me for the 
+date a little more politely.
+
+But I had to find a way to get the numbers from the registers and 
+into DBASE in a form it would understand.  I found where DBASE 
+stores the date ($44ff thru $4501) and could poke the date into 
+those places from the registers, but unless I ran a command file 
+from the commandline, DBASE would refuse to recognize that it 
+already knew the date.  I had to find a way to tell it NOT to ask 
+for the date.  
+
+So a little Z8E-ing, and I found out which bites to change (see 
+below for the disassembly).  My script simply converts the date 
+to hexadecimal form (thus the need for hard-coding the addresses 
+of the registers in memory), pokes those values into DBASE 
+the current date, and tells it skip over the routine to verify 
+the date.  Looks like this: 
+                                                             jump over the date-checking routine
+                               where dbase stores the date           |            
+               dbase renamed            |    date from registers in hex (DANGER! Hard-coded for my system)
+                        |               |      |                     |                                   
+                        V               V      V                     V
+DO=DBASE  get 100 a2:dbase241.com;poke 44ff $mhecb1 $mhecb2 $mhecb3;poke 491b c3 ff 49;go $1;
+
+And it works whether or not you give it a command file to run (cf 
+DBASE versus DBASE MAKORDER).  It's faster than DBCLOCK, and I 
+don't have to remember to insert the command into all my *.CMD 
+files.  It always runs.  Sole caveat: now that we have NZ-COM, 
+the address of the registers in memory could vary depending on 
+the system we running at the time of the call.
+
+
+While I'm at it, let me document a few other patch points in 
+DBASE 2.41, and I'll put out a query too: does anyone know of a 
+DBASE equivalent of WSBible or Ted Silvera's oft repeated 
+Profiles article?
+
+
+              PATCH BYTES IN DBASE.COM version 2.41
+
+0160   form of date: 
+       00 for American MM/DD/YY
+       FF for European DD/MM/YY
+
+015D   error correction
+       00 if you don't want chance to correct mistakes
+       FF if you want to be prompted for correction every time 
+          you enter an error
+
+30A0   name of alternate file when recording screen output to 
+       disk.  In the form THISFILE.TXT.  The dot twixt filename 
+       and extension is necessary
+
+44FF   day in hex if European, month if American
+
+4500   month in hex if European, day if American
+
+4501   hex for last two digits of year (e.g. 1989 would be $59)
+
+450B   logged drive (0=A, 1=B, etc.)
+
+4502   BELL (as adjusted by using SET BELL OFF)
+       00 for off
+       FF for on
+
+4505   CARRY (as adjusted by using SET CARRY OFF)
+       00 for off
+       FF for on
+
+4508   COLON (as adjusted by using SET COLON OFF)
+       00 for off
+       FF for on
+
+4509   CONFIRM (as adjusted by using SET CONFIRM OFF)
+       00 for off
+       FF for on
+
+442F   CONSOLE (as adjusted by using SET CONSOLE OFF)
+       00 for off
+       FF for on
+
+450A   DEBUG (as adjusted by using SET DEBUG OFF)
+       00 for off
+       FF for on
+
+450C   DELETE (as adjusted by using SET DELETED OFF)
+       00 for off
+       FF for on
+
+451F   ECHO (as adjusted by using SET ECHO OFF)
+       00 for off
+       FF for on
+
+452B   EJECT (as adjusted by using SET EJECT OFF)
+       00 for off
+       FF for on
+
+4521   ESCAPE (as adjusted by using SET ESCAPE OFF)
+       00 for off
+       FF for on
+
+4522   EXACT (as adjusted by using SET EXACT OFF)
+       00 for off
+       FF for on
+
+4526   INTENSITY (as adjusted by using SET INTENSITY OFF)
+       00 for off
+       FF for on
+
+4529   LINKAGE (as adjusted by using SET LINKAGE OFF)
+       00 for off
+       FF for on
+
+452E   TALK (as adjusted by using SET TALK OFF)
+       00 for off
+       FF for on
+
+; documentation on disassembled DBASE II 2.41 code
+; particularly the date startup operations and mods 
+; made to my daily use edition.  
+;
+; 17 May 1988
+;
+;
+491B 	xor   	a		; get a zero 
+				; it's this I changed to jp 49ff
+				; which avoids the user input altogether
+				; because I have ZCPR poke in the date
+				; before running dBase
+491C	ld	(44ff),a	; stick it in DD
+	ld	(4500),a	; null out MM
+	ld	(4501),a	; null out YY
+4925	ld	a,76		; ?
+	call 	3c0b		; ?? (is that called address right, too?)
+492A	ld	a,(0160)	; month first flag
+	or	a
+492E	jz	493a		; go there on American dating system
+4931	ld	h,4b48		; point to ' (DD/MM/YY) '
+4934	call	36c5		; print it
+4937	jp	4940
+493A	ld	h,4b56		; point to ' (MM/DD/YY) '
+493D	call	36c5		; print it
+4940	call	3a35		; get date from user
+4943	call	3a0f		; check it for unacceptable values
+4946	jz	49ff		; jump if date is ok
+4949	call	3899		; uh-oh, bad date
+
+

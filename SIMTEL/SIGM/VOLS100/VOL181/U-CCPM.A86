@@ -1,0 +1,285 @@
+;********************************************************
+;*							*
+;*			U.A86				*
+;*							*
+;*	   Selects user area and drive with one		*
+;*	   one command for CCP/M-86 and MP/M-86		*
+;*							*
+;********************************************************
+;
+;	By:	Bill Bolton
+;		Software Tools RCPM
+;		P.O. Box 357,
+;		Kenmore,
+;		QLD, 4069
+;
+; Software Tools RCPM uses CCITT V.21 standard, 300 bps modems
+; 
+; International		+61 7 378 9530
+; Australia		 (07) 378 9530
+;
+;
+;VERSION LIST, most recent version first
+;
+;29/Apr/84 Added version check, tightened code considerably
+;	   (isn't the 8086 instruction set wonderful when you
+;	   start to get the hang of it) and added "Theory of
+;	   operation section. Version 1.1    Bill Bolton
+;	
+;28/Apr/84 Initial implementation after the "penny dropped" on
+;	   how to modify the TMP process descriptor in an MP/M
+;	   environment!	Version 1.0	Bill Bolton	
+;
+;**************************************************
+;
+;IMPLEMENTATION NOTES
+;--------------------
+;
+;You should make this utility accessable from all drives and
+;all user areas by putting it on your SYSDISK and setting the
+;SYS and R/O attributes. You also have the option of restricting
+;the maximum user area and of setting the maximum drive number 
+;that the program will select.
+;
+;This program should be GENCMDed with the following command line
+;
+;	GENCMD U		(simple isn't it)
+;
+;THEORY OF OPERATION
+;-------------------
+;
+;As the significance of the extended BDOS functions in CCP/M-86 and
+;MP/M-86 are not always well understood by many (even those of us who
+;should know better) here is a description of the mechanisms that
+;caused this utility to be written and allow it to work.
+;
+;In a CCP/M-86 or MP/M-86 environment, the terminal message processor
+;is "normally" the owning process for all user processes. That is, the
+;TMP is like the CCP in a CP/M system and initiates all user programs
+;BUT as CCP/M and MP/M are multi-tasking environments the TMP only
+;temporarily passes control to the user process and expects to regain it
+;when the user process terminates. The only circumstances under which
+;this may not happen are if the user process itself initiates another
+;process with a higher priority than the TMP or if the user process
+;"chains" to another process.
+;
+;One characteristic of one process initiating another is that it
+;establishes a "parent/child" relationship. The child process
+;inherits its parent's drive and user number AND even if the
+;child process changes the drive and user number during execution,
+;when it terminates and control reverts to the parent, the parent's
+;drive and user number are reasserted.
+;
+;I have become used to using a utility which allows me to change
+;drive and user area simultaneously in an CP/M environment. I wanted
+;to have the convenience of this utility in CCP/M-86 and MP/M-86
+;environments. The challenge was to find a way that a child
+;process could alter its parents drive and user number so that when
+;control reverted to the parent, the parameters set by the child were
+;asserted.
+;
+;The solution lies with the process descriptor. The CCP/M-86 and MP/M-86
+;operating systems maintain a SYSTEM DATA AREA (or SYSDAT) which contains
+;PROCESS DESCRIPTORS for all current processes. One amongst other entries
+;in the process descriptor are the current drive and user number for that
+;process AND the process descriptor address or "offset" in the current
+;SYSDAT segment of the process's parent process. The operating system
+;provides a function call which will return the address of the process
+;descriptor for the current process. From that it is possible to determine
+;the location of the parent process and go in an modify the drive and user
+;numbers so that when control passes back to the parent process, the parent
+;asserts the drive and user numbers set by the child (which is exactly what
+;I wanted to do). 
+;
+;Note that this utility doesn't actually call the BDOS functions for
+;ssetting drive or user area....it doesn't need to. The operating
+;system will pick up the values from the parent process descriptor
+;and do all that tedious stuff for you when the parent process regains
+;control.
+;
+;Now all this works fine as long as you initiate U.CMD from the TMP, which is
+;normally what you would do. That makes the TMP the parent process. If,
+;however, you conspire to initiate U.CMD from some other process it will
+;simply change the drive and user area of that process, not the TMP!
+;Presumably the only reason you would do this is because you have "replaced"
+;the TMP with another command processor so the effect would still be the same.
+;Anyway the point is that the TMP drive and user area will only be changed if
+;the TMP is the parent process....so don't say you weren't warned.
+;
+;The utility is built using the "small" memory model and uses the 96 byte
+;stack provided by the operating system.
+;
+;					Bill Bolton, 29/Apr/84
+;
+;-----------------------------------------------------
+;This utility WILL NOT WORK with (single task) CP/M-86
+;-----------------------------------------------------
+;
+VERS	EQU	1	;Major version number
+REV	EQU	1	;Revision number
+;
+FALSE	EQU	0	;1=2
+TRUE	EQU	0FFFFH
+;
+FCB	EQU	5CH	;Default file control block in data segment
+;
+C_WRITESTR	EQU	9	;BDOS display string
+S_BDOSVER	EQU	12	;BDOS return version number
+PD_ADR		EQU     9CH	;BDOS return process descriptor address
+BDOS		EQU	224	;BDOS software interupt
+;
+TAB	EQU	9	;ASCII tab character
+LF	EQU	0AH	;ASCII line feed character
+CR	EQU	0DH	;ASCII carriage return character
+;
+PDISK   EQU     12H	;Offset to disk in process descriptor
+PUSER   EQU     13H	;Offset to user in process descriptor
+PARENT	EQU	1EH	;Offset to parent in process descriptor
+;
+MPM	EQU	11H	;MP/M-86
+MPMN	EQU	13H	;MP/M with networking (did it ever exist?)
+CCPM	EQU	14H	;CCP/M-86
+CCPMN	EQU	16H	;CCP/M with networking (DR/Net)
+;
+;Set maximum parameters
+;
+MAXUSER	EQU	15	;Maximum user area (in range 0-15)
+NUMDRVS	EQU	6	;Maximum drive number (in range 1-16)
+;
+	CSEG
+;
+START:
+	MOV	CX,S_BDOSVER		;Which OS are we under?
+	INT	BDOS
+	CMP	AH,MPM			;MP/M-86?
+	JZ	OK
+	CMP	AH,MPMN			;MP/M-86
+	JZ	OK
+	CMP	AH,CCPM			;CCP/M-86
+	JZ	OK
+	CMP	AH,CCPMN		;CCP/M-86
+	JZ	OK
+	JMP	VERSION
+;
+OK:
+	MOV	BX,FCB+1		;Point to 1st character of command
+	MOV	AL,[BX]
+	CMP	AL,' '			;Blank?
+	JNZ	DIGIT			;No, process it
+	JMP	USAGE			;Yes
+;
+DIGIT:
+	SUB	AL,'0'			;In range for user number
+	JAE	DIGIT1			;Yes
+	JMP	USAGE			;No, not digit or drive specifier
+;
+DIGIT1:
+	CMP	AL,10			;In range for user number?
+	JB	DIGIT2			;Yes
+	MOV	AL,[BX]			;No, get 1st char again
+	JMP	SETDRV
+;
+DIGIT2:
+	MOV	AH,AL			;Set high BCD byte
+	MOV	AL,[BX]+1		;Point to second character of command
+	CMP	AL,' '			;Single digit number?
+	JZ	SETUSR			;Yes
+	SUB	AL,'0'			;No, is it a digit?
+	JB	USAGE			;No, can't be disk specifier either
+	CMP	AL,10			;Yes, is it a disk specifier?
+	JNB	SETUSR			;Perhaps, leave until later
+	INC	BX			;Adjust pointer for two digits
+	AAD				;Make BCD in AX into binary in AL
+	MOV	AH,AL			;Prepare to enter SETUSR
+;
+SETUSR:
+	MOV	AL,AH
+	CMP	AL,MAXUSER+1		;In range?
+	JNB	USAGE			;No
+	MOV	Byte Ptr SUSER,AL	;Save for later
+;
+	INC	BX			;Point to next byte
+	MOV	AL,[BX]			;Fetch it
+	CMP	AL,' '			;More to do?
+	JZ	DO_IT			;No, just do it
+;
+SETDRV:
+	CMP	AL,'@'+1		;Valid drive specifier?
+	JB	USAGE			;No
+	AND	AL,5FH			;Yes, make it upper case
+	SUB	AL,'A'			;In BDOS range?
+	JNB	SETDRV1			;Yes
+	JMP	USAGE			;No
+
+SETDRV1:
+	CMP	AL,NUMDRVS		;In BIOS range?
+	JNAE	SETDRV2			;Yes
+	JMP	USAGE			;No, drive specified is too high
+
+SETDRV2:
+	MOV	Byte Ptr DRIVE,AL	;Save for later
+;
+;Set selected parameters
+;
+DO_IT:
+	PUSH	DS			;Save current data segment
+        MOV     CL,PD_ADR		;Get our process descriptor address
+        INT     BDOS
+        MOV     AX,ES			;Shuffle process descriptor segment
+        MOV     DS,AX			;DS set to process descriptor segment
+	POP	ES			;ES set to data segment
+        MOV     DI,BX			;DI set to process descriptor offset
+        ADD     DI,PARENT		;Point to parent process descriptor
+        MOV     BX,[DI]			;Get parent process descriptor offset
+        MOV     DI,BX			;Point to parent process descriptor
+        ADD     DI,PDISK		;Point to disk byte in parent
+        MOV     AL,ES:Byte Ptr DRIVE	;Get new disk
+	CMP	AL,TRUE			;Was a disk change requested?
+	JZ	DO_USER			;No
+        MOV     [DI],AL			;Yes, change it
+DO_USER:
+        INC     DI			;Point to user byte in parent
+        MOV     AL,ES:Byte Ptr SUSER	;Get new user
+	CMP	AL,TRUE			;Was a user change requested?
+	JZ	EXIT			;No
+        MOV     [DI],AL			;Yes, change it
+EXIT:
+	RETF				;We're off to see the wizard
+					;(far return to initiating process)
+;
+;Display a "Vesrion" message if the OS is wrong
+;
+VERSION:
+	MOV	DX,Offset V_MESSG
+	JMP	DISPLAY
+;
+;Display a "Usage" message if no parameters provided, or if illegal
+;
+USAGE:
+	MOV	DX,Offset U_MESSG
+DISPLAY:
+	MOV	CX,C_WRITESTR
+	INT	224
+	JMPS	EXIT
+
+	DSEG
+	ORG	100H			;Don't forget the base page
+;
+V_MESSG	DB	'Wrong Operating System!',CR,LF,LF
+	DB	'This program is ONLY for CCP/M-86 or MP/M-86',CR,LF
+	DB	'$'
+;
+U_MESSG	DB	'User and drive selector: U.CMD - Version '
+	DB	VERS+'0','.',REV+'0',CR,LF
+	DB	'For CCP/M-86 and MP/M-86 ONLY, by Bill Bolton',CR,LF,LF	
+	DB	'Usage:',CR,LF,LF
+ 	DB	TAB,'U 6B',TAB,'Selects user area 6 on drive B.',CR,LF,LF
+	DB	TAB,'U 11',TAB,'Selects user area 11 of the current drive.',CR,LF,LF
+	DB	TAB,'U B',TAB,'Selects drive B with the current user area.',CR,LF,LF
+	DB	'$'
+;
+DRIVE	DB	TRUE
+SUSER	DB	TRUE
+;
+	END
+

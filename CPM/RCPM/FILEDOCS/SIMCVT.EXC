@@ -1,0 +1,78 @@
+/* SIMCVT EXEC.  Version of 12 Dec 1989 */
+/* Removed references to NODESCR IDX */
+/* First line of preamble.  Version of 12 Dec 1989 */
+   current_preamble_date = '12 Dec 1989'
+   signal on ERROR; signal on NOVALUE; signal on SYNTAX; address COMMAND
+/* trace r */
+/* end of preamble */
+/* SIMCVT3 EXEC.  Version of 21 Nov 1989 */
+/* This software is provided free on an as-is basis. Use at your own   */
+/* risk.                                                               */
+/* Report problems to Peter Jones, UQAM, (514)-987-3542 (voice)        */
+/*                                       (514)-987-7098 (FAX)          */
+/*                                       MAINT@UQAM     (BITNET)       */
+/*                                                                     */
+/* Requires ARCUTIL MODULE, available from LISTSERV@RPIECS             */
+/*     e.g. TELL LISTSERV AT RPIECS GETND ARCUTIL PACKAGE              */
+/*                                                                     */
+/* end of preamble */
+/* Bombs if SIMIBM.ARC not present, or in wrong format */
+/* SIMCVTC EXEC.  Version of 2 Sep 1989 */
+/* Start from SIMIBM.ARC */
+   'ARCUTIL UNARC SIMIBM ARC (REPLACE EBCDIC MEMBER SIMIBM  IDX'
+/* Rewrite of SIMCVT.BAS in REXX */
+/* Read the file SIMIBM.IDX (from simtel20), and print a readable form */
+/* in  a file called SIMIBM.LST. */
+/* On CMS, ths filetype was changed to LISTING, to use carriage control */
+/* Check input file exists */
+   'ESTATE SIMIBM  IDX *'
+   signal off ERROR; 'FINIS  SIMIBM  IDX *'; signal on ERROR
+   'EXECIO 1 EMSG (STRING SIMCVT001I SIMIBM LISTING A is being generated.'
+   simeof = 0;
+   lastfs = ''; lastdir = ''
+   call simget
+/* Print heading on output file */
+   signal off ERROR; 'ERASE SIMIBM LISTING A'; signal on ERROR
+   write_output = 'EXECIO 1 DISKW SIMIBM LISTING A'
+   write_output '1 V 132 (STRING',
+      "1WSMR-SIMTEL20.ARMY.MIL PUBLIC DOMAIN LISTING AS OF" date('O')
+   call output "0NOTE: Type B is Binary; Type A is ASCII"
+   do while simeof = 0; call simprt; end
+   'EXECIO 1 EMSG (STRING SIMCVT002I SIMIBM LISTING A has been generated.'
+   'ERASE SIMIBM  IDX'
+   exit
+/* Supporting I/O routines */
+simprt:
+   if simfs^=lastfs | simdir^=lastdir then call newfsdir
+   if simbits=8 then simbits = 'B'; else simbits = 'A'
+   call output ' 'left(simflnm,14)||simbits||right(simlngth,7),
+      right(simdt,7) ' 'simdescr
+   lastfs = simfs; lastdir = simdir
+   if simeof = 0 then call simget
+   return
+newfsdir:
+   call output '0Directory' simfs||simdir
+   call output '  Filename   Type Length   Date    Description'
+   call output ' =============================================='
+   return
+output: procedure expose write_output
+   parse arg string
+   write_output '(STRING' string
+   return
+/* Routine for input */
+simget:
+   signal off ERROR
+      'EXECIO 1 DISKR' 'SIMIBM  IDX * (VAR SIMREC'
+   signal on ERROR
+   if rc = 0 then parse var simrec '"'simfs'","'simdir'","'simflnm'",',
+      simrev','simlngth','simbits','simdt',"'simdescr'"'
+   else simeof = 1
+   return
+/* first line of postamble */
+error: trace 'O'; rcsave = rc
+   parse source . . source_fn source_ft source_fm .
+   source_id = source_fn source_ft source_fm;
+   'EXECIO 1 EMSG(STRING INSRCB001T Unexpected return code' rc,
+      'in file named '''source_id''' near line' sigl'.'
+   address COMMAND 'DROPBUF'; exit rcsave
+/* end of postamble */

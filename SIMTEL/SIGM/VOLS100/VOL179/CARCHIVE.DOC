@@ -1,0 +1,151 @@
+ARCHIVE.DOC
+----------------------------------------------------------------
+
+
+	   Chris Kern
+	   201 I St., S.W., Apt. 839
+	   Washington, D.C. 20024
+
+
+
+This file accompanies ARCHIVE.C, my CP/M implementation of the
+archive program from "Software Tools," by Brian W. Kernighan and
+P.J. Plauger (also available as "Software Tools in Pascal,"
+which, like the original FORTRAN version, is published by
+Addison-Wesley).
+
+For those who don't have one or the other of the books, the
+syntax is:
+
+	archive -[option] archive_name filename1 filename2 ...
+
+and the legal options are:
+
+	-c  create an archive containing the named files
+	-u  update the archive with the named files
+	-d  delete the named files from an existing archive
+	-p  print the named files on the console
+	-x  extract the named files from the archive
+	-t  print the table of contents
+	-s  print an alphabetically sorted table of contents
+
+The -s option is an addition to those documented in Kernighan
+and Plauger.  If no file names are given, the specified
+operation (except -d) is performed on all the files in the
+archive.
+
+ARCHIVE combines a number of files into one big file and
+provides facilities for accessing, updating, deleting and adding
+to the components.  This method of archival storage saves disk
+space since CP/M allocates a minimum increment of disk storage
+for even the smallest files.  This increment, and the
+corresponding savings, vary with the disk capacity and the size
+of the files in the archive.  In general, the amount of space
+saved will be greater if the archive is composed of a lot of
+small files instead of a few big ones and if the disk storage
+devices are relatively high capacity.  On my double-sided,
+double-density 8" disks, for example, the minumum unit of
+storage is 2K.	ARCHIVE, by contrast, can allocate as little as
+one 128-byte sector of disk storage.
+
+But the real purpose of ARCHIVE is not to pack them in (other
+public domain programs, e.g. the SQUEEZER programs used on so
+many remote CP/M systems, are far more effective in that
+regard).  ARCHIVE's real strength is that it simplifies archival
+storage by collecting lots of files into a few general
+categories.  It helps hide the details of a database until they
+are really needed.
+
+The version of ARCHIVE that I am distributing contains some
+conditionally-compiled portions that support date and time
+stamping of files.  I have left these sections in the program
+for illustrative purposes only.  The program will compile
+without them unless you set the CLOCK define at the beginning of
+the source file to TRUE.  Users who have real-time system clocks
+can use them with ARCHIVE by providing four simple support
+routines:
+
+	rdtime()    reads the time into a data structure
+		    (_time) of the user's own design;
+
+	rddate()    reads the date into a similar structure
+		    (_date);
+
+	timestr()   converts the contents of the _time
+		    structure to an ASCII string;
+
+	datestr()   converts the _date to a string.
+
+The details of these routines, and the associated data
+structures, will of course be dependent on the precise clock
+facilities available on the host system.
+
+Together, ARCHIVE and the ubiquitous SQUEEZER programs provide a
+very convenient way to transfer a group of related files
+among CP/M systems.  First, squeeze the files.	Then combine
+them in an archive.  The archive of related files can be
+transmitted to another machine in a single file transfer.  This
+not only saves time; it also guarantees that all the files
+needed for a given purpose (e.g., all the source files making up
+a single program) will actually reach the recipient.  This will
+only work, however, if everyone is using the same archive
+program (or if the appropriate version of ARCHIVE.COM is
+transmitted along with a given archive).  For anyone who wants
+to use this procedure, I suggest keeping the header format just
+as it appears in my source code.  Date and time stamps obviously
+should not be present in any public access archive.
+
+
+
+----------------------------------------------------------------
+
+
+Dependencies:
+
+
+(1) ARCHIVE requires CP/M version 2.X, since it uses the random
+    file I/O system calls that are not available in earlier
+    versions.
+
+(2) ARCHIVE was compiled with version 2.6 of the BDS C Compiler
+    and linked to library routines that were included with that
+    release.
+
+(3) There is a bug in the rread() function in the standard
+    library distributed with BDS C version 2.6 which must be
+    fixed before ARCHIVE will work reliably.  Briefly, rread()
+    checks only for an error #1 condition (reading unwritten
+    data) after calling the system read-random-sector
+    primitive.	But if reading ends on an extent boundary,
+    error #4 (seek to unwritten extent) may be returned.  Both
+    must be trapped, since both indicate only that an end-of-
+    file condition has occurred.  The following change in the
+    file DEFF2A.CSM, which is included with the compiler, does
+    the trick:
+
+	r2a:	lhld	arg2
+		xchg
+		...
+		...
+		mvi	c,readr ;code for BDOS random read
+		push	d	;save so we can fudge, etc.
+		call	bdos	;we stop reading, etc.
+		pop	d	; obscure technical jargon
+		ora	a
+		jz	r4	;go to r4 if no problem
+		cpi	1
+		jz	r2b	;EOF
+	--------------------------------------------------------
+	|	cpi	4	;check for error 4, too        |
+	|	jz	r2b	;treat it the same as error 1  |
+	--------------------------------------------------------
+		mov	c,a	; put return error code, etc.
+		mvi	b,0
+		...
+		...
+
+(4) Note that the storage allocation globals in bdscio.h -- the
+    standard header file -- must be compiled since the program
+    uses alloc() to create a file I/O buffer.
+	But if reading ends on an extent boundary,
+    error #4 (seek to unwritten extent) may 

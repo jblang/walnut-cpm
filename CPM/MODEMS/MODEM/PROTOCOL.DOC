@@ -1,0 +1,455 @@
+                                PRIMER
+                                  on
+                         FILE TRANSFER METHODS
+
+                                  by
+
+                             Terry Smythe
+                           Sysop, Z-Node 40
+
+INTRODUCTION
+ 
+From time to time, many of us have had a need to transfer data from our
+own micro computer to another micro computer.  The 2 computers might be
+close together, or they may be across town or across the nation.  It's
+when they are not close together that problems occur because the
+telephone system becomes the link between the two computers, rather
+than a short piece of shielded wire.
+
+This "voice" telephone network is not "clean", and is a major source of
+aggravation and heartburn as it far too often adds extraneous
+characters commonly referred to as "line noise", to legitimate data as
+it moves through the wire.  The net effect is a document, file,
+program, etc., that is often made virtually unusable by the involuntary
+insertion of these additional characters.
+
+The problem has its origin with the historical development, around the
+turn of the century, of our nationwide telephone network.  Basically,
+solid copper connected telephones across town, across the nation,
+across the continent, and it had many mechanically actuated switches
+scattered along the way.  These switches and many line connections
+eventually wear out, provoking a progressive deterioration of network
+efficiency.
+
+Many of these switches and much of the wire passes near other
+electrical equipment throwing off magnetic fields which adds to
+unreliability because of the principle of induced current.  A magnetic
+field need only be brought near copper wire to "induce" a foreign
+current in it, in addition to legitimate data also passing through it
+at the same time.
+
+Until the late '40's, early 50's, there was no real concern because the
+network carried only "voice" signals.  The combination of the human
+ear, coupled to an discerning brain, had the wonderful natural ability
+to filter intelligent conversation.  What remained was simply thought
+of as "static", and largely ignored.
+
+
+CURRENT SITUATION
+ 
+These "voice" telephone circuits are still a major highway over which a
+huge amount of computerized data now flows.  Unfortunately, computers
+still lack the smarts inherent within a typical human brain, and have
+great difficulty sorting out the good from the bad in what is passing
+through the wire.  The ability to ignore the junk along the way is
+still an elusive goal.
+
+True, networks have been made much more reliable in recent years, with
+the development and implementation of microwave networks, fibre optics,
+electronic switches, etc.  Each in their own way contributing in some
+significant way to reducing the amount of "noise" passing through the
+network.
+
+Today, the network is no longer solid copper wire.  It is more likely a
+mix of solid copper wire, microwave transmission, and fibre optics.
+However, even in a contemporary system there are still elements of the
+old copper network with its increasingly unreliable mechanical
+switches, deteriorating connections, etc.
+
+The bottom line is that network quality is really a function of the
+weakest link between 2 points.  If your computer is connected into a
+computerized electronic switch you will enjoy relatively clean data
+transmission if you are connected to another computer which itself is
+connected into a computer switch, possibly the same one in the
+telephone company's local switching centre.
+
+However, if one of the computers is still hooked into an older
+mechanically switched centre, significant line noise is inevitable.
+Curiously, it can make itself known at one end, and not the other;
+where one user can be looking at an incredibly scrambled screen
+display, while the other user is looking at a spotless screen display,
+wondering what's going on.
+
+The net result here is a high probability that when data is sent
+through the wire in an uncontrolled single trip fashion, it will pick
+up line noise somewhere along the way.  In the case of conventional
+ASCII data (plain, readable text), the presence of a few extraneous
+characters is of no great consequence, relatively easy to detect, and
+fix with your favorite word processor or full screen editor.
+
+However, in the case of computer programs, the presence of a single
+extraneous character can make it totally unuseable.  Detection is
+almost impossible, certainly for the neophyte, and patching the fix is
+not a trivial task.  A considerable array of computer smarts is needed
+here, something that most users neither have nor want.
+
+ 
+ERROR DETECTION
+ 
+In the eyes (brain?) of the computer, characters introduced by line
+noise are every bit as legitimate as live data passing through
+simultaneously.  It would take extraordinary programming talent to
+develop a communications system capable of sorting out the good from
+the bad as it streams by.  The task is mind boggling, such that it
+simply is not done.
+
+However, error detection methods have been developed, are in place now,
+and are quite effective and reliable.  Fundamentally, they are all
+based upon the perception that if errors have been introduced enroute,
+then the file as received will be different from the file as
+transmitted.  They do not really care what the specific error is, only
+that an error of some kind has been detected.
+
+Most of these error detection methods are based upon some simple
+arithmetic formulae applied to the same file at both ends, and the
+results compared.  If the file as received has the same result as the
+file when sent, then it's reasonable to assume that the file has been
+transferred correctly.  If different, then the file must be sent
+through again, and again, until it does come through the wire clean and
+correct.
+
+Doing such a calculation on an entire file is very inefficient. You
+really should not have to find out after an hour's transmission that
+errors have crept in.  At this rate, it could take days to send a large
+file through the wire accurately.
+
+The simple fix is to break up the file into small blocks, typically 128
+bytes long.  This way, only those blocks where an error has been
+detected, need be re-transmitted again.  So, a file of say 1500 blocks
+might take about an hour to transmit cleanly.  Even on a noisy line, a
+maximum number of bad blocks likely would not exceed 30-50.  In this
+way, that portion of the file needing to be re-transmitted is reduced
+to a manageable level.
+
+ 
+ERROR DETECTION METHODS
+ 
+In August 1977, Ward Christensen, a pioneer in data communications,
+developed a method of file transmission with simultaneous error
+detection.  He simply called it MODEM2 (Release 2.0), but very quickly
+it became affectionately known as the "Christensen" protocol.
+
+In its simplest form, this original, somewhat primitive error detection
+scheme added up the values of all characters in the 128 byte data
+stream, and sent this value through the wire.  The receiver meanwhile
+was adding up the values of the characters as they arrived, and
+compared the result with the "CHECKSUM" value sent through by the
+sender.
+
+If these 2 numbers did not agree, the receiver sent through a code
+telling the sender to repeat the transmission of that bad block.  This
+process was repeated, if necessary, up to 10 times for a particular bad
+block.  Only when the 2 numbers were identical, did the receiver send
+through a code acknowledging correct block received.  The sender would
+then move on to the next block of 128 characters, repeating the process
+all over again.
+
+This early method of error detection was deliberately made super-
+simple, so that it could apply to a whole host of different machines,
+under an almost infinite array of data transmission conditions.
+However, because of its simplicity, it did let a few technically
+obscure errors sneak through.  Consequently, Ward Christensen and Chuck
+Forsberg collaborated in the development, and release in 1982, of the
+CRC (Cylic Redundancy Checking) error detection scheme which has
+remained in widespread use to this day.
+
+Because it guarantees a minimum level of error detection confidence of
+not less than 99.9969%, CRC is accepted as a reliable method of
+ensuring clean and accurate file transfer.  Most systems of file
+transfer now employ CRC, or a derivative of it, as their principal
+method of error detection.  Please note this is error detection, not
+error correction, a function still best left to human intelligence.
+
+Uncertain how or when, but this protocol became universally known as
+XMODEM.  The original CheckSum method was never abandoned, and to
+distinguish between them, they are universally known as:
+
+     XMODEM     - CheckSum protocol
+
+     XMODEM CRC - CRC protocol
+
+Where the CheckSum method simply added up the values of the characters
+in a 128 character block, the CRC method does sequential division on
+each character in the block, resulting in a significant improvement in
+error detection.  Looks something like this:
+
+                    Discard Quotient
+          _____________________________________
+Constant )    Character
+ 
+          Constant x Quotient
+          --------------------------------
+          Remainder + next character
+
+             Constant x Quotient
+             ---------------------------------
+             Remainder + next character
+
+                 etc
+
+                 Constant x Quotient
+                 ----------------------------------
+                  Remainder       <-- CRC Value
+
+     Note: Constant = (X+1)(X15+X+1)
+
+When there are no more characters for sequential division, the final
+remainder is the CRC value sent through by the sender.  The receiver
+applies the same calculation to the incoming characters, and compares
+the results with the incoming CRC value.   If equal, the block is
+acknowledged and the next block is allowed to come through.  Inequality
+would require re-transmission of the block, to a maximum of 10 times.
+If still unequal after 10 tries, the transmission will be automatically
+terminated.
+
+ 
+ENHANCED FILE TRANSFER METHODS
+ 
+With normal equipment upgrades, such as microwave and fibre optics,
+telephone companies around the world have progressively improved their
+abilities to transfer data more reliably over voice grade lines.  As
+line quality improves, line "noise" decreases, and data files may be
+successfully transferred with fewer "hits".   In fact, it is
+commonplace today to experience file transfers with no "hits" at all.
+
+This improvement in data transmission capability provoked a realization
+that the 128 character block size had become inefficient because of its
+associated overhead.  Furthermore, new methods of data transmission,
+such as DATAPAC, resulted in dramatically inefficient use of the
+telephone network. (e.g. a DATAPAC "packet" capable of carrying 1024
+characters was carrying only 128 characters!)
+
+To overcome this inefficiency, Chuck Forsberg developed the YMODEM
+protocol, where the block size was increased to 1024 characters.  In
+it, he inserted a rather nifty feature where the protocol would
+automatically step down to 128 character block size if line noise got
+so bad as to degrade elapsed file transmission time.  This auto step-
+down has been universally adopted at 3 consecutive "hits" (bad blocks).
+
+The YMODEM protocol has only a modest improvement in elapsed file
+transmission time over the conventional voice network.  However, it
+provided a dramatic improvement on the DATAPAC network by simply using
+the packet size more efficiently.
+
+Not satisfied with this improvement, Chuck Forsberg continued with his
+development activities and came up with YMODEM BATCH.  This allowed
+rapid transmission of a group of files sequentially, to reduce the
+overhead associated with keyboard entries to set up the communications
+programs at both ends with the transfer of each file.
+
+While YMODEM is referred to as a protocol, it really is a "method" of
+file transfer.  The CRC protocol is still in use at its heart, no
+matter if in 128 or 1024 character block size.
+
+Ever vigilant to technological developments, Chuck continued to
+perceive opportunities for further improvements and has recently
+developed and released to public domain a new file transfer protocol
+which he calls ZMODEM.  It is a new, sophisticated protocol aimed at
+efficient file transfer with time sharing systems, satellite relays,
+and wide area packet switching networks.
+
+ZMODEM will work only if both ends support this new protocol, but it
+has built into it a fall-back routine whereby it will automatically
+fall-back to YMODEM protocol, if ZMODEM is not supported at the other
+end.   It uses a "streaming" technique whereby data is flowing
+continuously, with simultaneous error detection in a moving window of
+up to 256 characters, depending on line quality, using the capabilities
+of the full duplex network.
+
+This is an oversimplified description of ZMODEM.  It is quite
+sophisticated, complex to learn and use, and not yet in widespread use.
+No attempt will be made here to describe this in anything other than
+this crude overview.  Those interested otherwise are encouraged to read
+Chuck Forsberg's paper on his ZMODEM protocol (ZMODEM.DOC).
+
+There are other protocols, some somewhat obscure, some very complex,
+and some proprietory.  For example, KERMIT, MNP, BLAST, BISYNC, SDLC,
+HDLC, X.25, X.PC, etc., which, with perhaps the exception of Kermit,
+are not in widespread use, tend to be tightly bound to the fortunes of
+their suppliers, and which the average users will not likely encounter.
+Suffice to note their presence so those interested may do additional
+research.
+
+ 
+BAUD RATES
+ 
+While not normally a function of file transfer methods, it does seem
+appropriate to briefly consider the speed at which data flows through
+the telephone wire.  BAUD is simply an international unit of
+measurement that has become synonymous with BPS (Bits Per Second).  The
+latter has come into popular useage, and tends to be a much more
+meaningful term.
+
+Most users will encounter modem/computer/communications system
+configurations using baud rates of 300 BPS, 1200 BPS, and 2400 BPS.
+Lower or higher baud rates are still extremely rare.  By a huge margin,
+the most popular is 1200 Bits Per Second, and is the one most
+frequently recommended, and at modest cost.  300 baud configurations
+should be avoided for they deliver data through the wire at painfully
+slow speeds.  In fact, 300 baud becomes cost prohibitive if employed
+over long distances.
+
+By way of comparison of how long it may take to transfer a file over
+the wire at various baud rates, consider the following example of a
+typical file taking 24 minutes to pass through the wire at 300 baud:
+
+     File transferred at 300 baud  - 24 minutes
+
+     Same file at 1200 baud        -  6 minutes
+
+     Same file at 2400 baud        -  3 minutes
+
+Modems capable of transferring files at baud rates higher than 2400 are
+available, but they are complex, expensive, and typically require the
+identical modem at both ends, because of the absence to date of
+consistent universal standards of methods of file transfer at 4800 and
+9600 baud.  These standards will ultimately emerge, but for the
+present, most users will likely choose to stay with proven techniques
+at baud rates of 2400 or 1200.
+
+COMMUNICATIONS TOOLS
+
+There is no shortage of software out there to achieve reliable data
+communications, using these protocols.  It ranges from costly dedicated
+utilities, such as for AES equipment, to low cost generic systems
+placed into the world of "ShareWare" software.  A few of the more
+prominent of these ShareWare products are:
+
+PROCOMM v. 2.42 - Excellent,  supports all protocols
+                  but ZMODEM
+
+QMODEM v 2.4    - Very good, supports most protocols.
+
+ZCOMM v 2.0     - Excellent,  but complex.  Supports
+                  all protocols discussed here.
+
+These are good, and they are cheap.  As with most ShareWare software
+products, prices in the $40 - $60 (U.S.) range are commonplace.  There
+are others, too many to discuss here.  See them out, do your homework,
+choose that which suits you best.
+
+ 
+SUMMARY
+ 
+Most users will be presented with the following optional methods of
+transfering files from one micro-computer to another:
+
+1. ASCII
+
+   Straight one way trip of data without any form of error detection in
+   place.  Highly vulnerable to data corruction by normal line noise
+   adding extraneous characters to the file.
+
+2. XMODEM
+
+   Very early method of file transfer, using primitive CheckSum
+   protocol, at a fixed 128 character block size.  Risk of a few
+   obscure errors slipping through.
+
+3. XMODEM CRC
+
+   Reliable method of file transfer using the CRC protocol at a fixed
+   128 character block size.  Not very efficient, but highly compatible
+   with most communications systems.
+
+4. YMODEM
+
+   Reliable method of file transfer using the CRC protocol at both 128
+   and 1024 character size blocks.  Reasonably efficient, and
+   reasonably compatible with many communications systems.
+
+5. YMODEM BATCH
+
+   Reliable method of file transfer using the CRC protocol at both 128
+   and 1024 character size blocks, with an added option of sending a
+   number of files in Batch mode.  Quite efficient, and marginally
+   compatible with a few communications systems.
+
+6. ZMODEM
+
+   Sophisticated, reliable, and efficient method of file transfer,
+   using a modified CRC protocol of up to 256 character block size with
+   auto step-down in accordance with line quality.  Marginally
+   compatibility with very few communications systems.  Currently
+   rarely found.
+
+ 
+TYPICAL APPLICATIONS
+ 
+1. Generic public domain software may be reliably transferred between 2
+   computers having incompatible disk formats.  If the 2 computers are
+   together in the same room, they may simply be connected together
+   through their serial ports, then 2 compatible communications systems
+   may then facilitate file transfer between the 2 at very high speeds
+   (baud rates).  Over distance, the same can be achieved with modems
+   at both ends, and "talking" over the voice telephone network at much
+   lower baud rates.  The CRC protocol virtually guarantees accurate
+   transfer.
+
+2. Text files, saved in ASCII form, may be transferred over the
+   telephone wires to most any location.  Typical application  might be
+   the content of a magazine article, or a book, where the author
+   finalizes content as to language and spelling, etc., and transmits
+   it to a printer.  While faithfully preserving content, the printer
+   sets it up as to publication format, type style, etc., and can go
+   directly to press.  A "proof" copy is not sent back to the author
+   for proofreading.  The CRC  protocol virtually guarantees error free
+   transfer, where ASCII would be a disaster.
+
+3. Business data, such as accounting, inventory, sales, etc.,  may be
+   reliably transferred, using the CRC protocol from a remote site, to
+   a central computer for consolidated processing.  Also possible to
+   set up this kind of file transfer as an automatic interrogation
+   during the middle of the night when rates are lowest.
+
+ 
+CONCLUSIONS
+ 
+There was a time (not so long ago) where it was considered quite
+inapproriate to use a computer to send files through the voice
+telephone network.  Between an absence of standards on file transfer
+protocols and line noise, received files were rendered almost totally
+useless.
+
+However, this is no longer true.  Reliable file transfer protocols are
+now in place, and files may now be transferred between micro-computers
+with a high degree of reliability.
+
+While this may mean reduced revenues for some industries, in particular
+the publishing industry where transcriptions (and related revenues) can
+now be a thing of the past, business and industry can look forward to
+substantial improvements in staff productivity and significant
+reductions in publishing costs, by the application of the "type-it-
+once" principle.
+
+In these tight money times, now is the time for business and industry
+to be creative in their use of micro-computers and data communications
+capability.
+
+Were it not for the vision and foresight of Ward Christensen and Chuck
+Forsberg, and others like them, these wonderful tools would be denied
+to us, and companion benefits unattainable.   What they have done is
+indeed very much appreciated today.  They are to be commended for their
+achievements.
+
+
+Terry Smythe
+Sysop, Z-Node 40
+55 Rowand Ave
+Winnipeg, Manitoba
+Canada   R3J 2N6
+(204) 832-3982 (Voice-res)
+(204) 832-4593 (Z-Node)
+(204) 945-6713
+15 Apr 87
+

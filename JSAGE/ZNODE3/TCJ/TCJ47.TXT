@@ -1,0 +1,589 @@
+                               Z-System Corner
+                                 by Jay Sage
+                        The Computer Journal, Issue 47
+                          Reproduced with permission
+                           of author and publisher
+
+Last time I presented an overview of the philosophy behind the design of the
+ZMATE macro text editor and wordprocessor. In particular, I described the
+approach that allows the user of the program to implement his/her own text
+processing functions and to bind them to arbitrary sequences of keystrokes. In
+other words, you can design your own wordprocessor!
+
+This time I am going to begin a description of the macro command language that
+ZMATE uses. For this column we will start with relatively simple macros; in
+future columns we'll begin to display some of the fancy things that ZMATE can
+do. Even if you don't own or use ZMATE (yet), I hope you will find it
+interesting to learn about this approach to the implementation of a text
+editor.
+
+For those of you who remember my promises from two issues back, I'm afraid
+that my computer has still not been restored to full operation since the hard
+disk drive gave me problems. I sent the drive out to be repaired, and the
+technicians could not find anything wrong with it. Since I did not want any
+data to be destroyed, they did not try reformatting it, but they told me that
+they had no trouble reading data from the tracks.
+
+I just have not had the time to reinstall that drive. For the moment I am
+still running on a replacement drive with only the most basic software (and I
+mean basic -- I don't even have BGii on it yet!). It may be that my house has
+been afflicted by malicious gremlins. My modem failed at about the same time
+as the hard disk. I finally negotiated with the manufacturer the terms under
+which I could return it for repair. Before doing so, however, I decided to
+give it one more try. It worked perfectly! Are there problems that go away
+when an instrument is powered down for a week or two that would not go away in
+one day?!
+
+During the time of these troubles, Murphy really had the upper hand. Although
+there were some files on the hard disk that I should have backed up but did
+not, there were some very important files related to these TCJ columns that I
+had backed up to a floppy. However, when the hard disk failed, the backup
+floppy vanished. Now, even after a month, it has still not turned up. If I'm
+lucky, the hard disk will work when I reinstall it, and the floppy will then
+reappear, in plain sight on my desk where I know I kept it. If all that
+happens in the next two months, I hope to have a further installment on my
+efforts to patch up MEX-Plus to add some new features and correct some bugs.
+Cross your fingers for me!
+
+Recapitulation
+
+I'd like to start the ZMATE discussion by reminding you of the four ways in
+which macro commands can be used, as described in my previous column.
+
+The most common way to execute a macro is by pressing one of the so-called
+instant-command editing keys, such as the keys that move the cursor left,
+right, up, and down by various amounts. These keys are bound to a set of ZMATE
+internal functions, most of which are implemented in the macro language. In
+the original PMATE editor, from which ZMATE was derived, these functions could
+not be changed; in ZMATE the user can patch in new macro functions for the
+internal commands. Source code is provided in the file INTMACRO.Z80, and it is
+a relatively simple procedure to edit it and patch it into the distribution
+version of ZMATE.COM.
+
+An additional set of macro functions can be defined in the "permanent macro
+area" or PMA. There, macro strings are associated with single-character names.
+These macros can be invoked by name using other commands in the macro
+language, and those with a specific range of names can be bound to keystroke
+sequences.
+
+Third, when the editor is in command mode, the user can enter a temporary
+macro sequence directly on the command line at the top of the screen. The
+user's command line is stored in a special text buffer called the command
+buffer.
+
+Finally, the contents of any of the ten numbered editing buffers can be
+interpreted as a macro sequence and executed. In other words, any of the
+auxiliary editing buffers can function like the command buffer.
+
+ZMATE Macro Commands
+
+Now let's look at some of the macro commands that ZMATE recognizes. We can't
+cover all of them this time. We will start with some of the simpler ones and
+then will cover a few of the more sophisticated ones. We will then look at
+some of ZMATE's built-in functions so you can see how macros are used to
+implement them.
+
+The ZMATE language is very compact to save space, typing, and time. Most of
+the commands use only a single letter; some are two characters; a few are
+three-characters long. To the extent possible, the letters for the commands
+are chosen to be mnemonic in some way. There is a bit of a learning curve, but
+it does not take too long to get the hang of them. I made a two-page crib
+sheet that I occasionally consult to remind myself of some of the more obscure
+ones.
+
+Cursor Motion
+
+The most basic commands are those that move the cursor around within the text
+in an editing buffer.
+
+There are four macros that move the cursor in units: 'M' moves by characters;
+'W', by words; 'P', by paragraphs; and 'L', by lines. It is pretty clear what
+a character is. The one thing that might not be obvious is that hard carriage
+returns are treated as a character in the text. The cursor can be positioned
+on one, and it can be deleted to close up two lines. ZMATE does not generally
+use linefeeds. Carriage returns in the editing buffer are converted to
+carriage-return/linefeed pairs when the file is written out to disk or
+printed.
+
+Words are contiguous groups of letters and numbers. Special characters -- such
+as periods, quotes, asterisks, dollar signs, etc. -- and control characters --
+including spaces, tabs, and carriage returns -- separate words. Paragraphs are
+terminated by hard carriage returns. ZMATE supports a mode, called "format
+mode," in which lines wrap automatically at the right margin as with
+wordprocessors. The apparent carriage returns at the ends of the wrapped lines
+are called soft carriage returns. The "P" macro ignores those carriage
+returns. When ZMATE is in format mode, the hard returns are visible as '<'
+characters in highlighted video.
+
+Each of these move-by-unit macros can take a signed numerical prefix. Such a
+prefix is one of the two ways arguments are passed to ZMATE commands. For the
+cursor-motion commands, if there is no prefix, "1" is assumed; if the prefix
+is simply "-", then "-1" is assumed.
+
+Positive prefixes move the cursor forward (to the right and down) in the text;
+negative prefixes move it back (left and up). For example, "3W" moves the
+cursor to the beginning of the third word after the one where the cursor is
+now, while "-2W" moves the cursor to the beginning of the second word before
+the one in which the cursor is presently located.
+
+A '0' prefix moves to the beginning of the current unit. For this purpose,
+word separator characters are considered to be a part of the word they follow.
+Suppose we have the text
+
+    ONE...TWO:;THREE
+
+with the cursor sitting on the 'W' in 'TWO'. "-W" will put the cursor on the
+'O' in 'ONE'; "0W" will put it on the 'T' in 'TWO'; and "W" will put it on the
+'T' in 'THREE'. Where would the cursor have ended up if it had started on
+either the colon or semicolon between 'TWO' and 'THREE'? Answer: in the same
+places. Those word-separator characters after 'TWO' are treated as if they
+were a part of the word they follow.
+
+What do you think "0M" does? Well, it does nothing to the cursor.
+Nevertheless, it is not at all a useless command. You see, the numerical
+prefix is not always given as a literal number. Sometimes it is a calculated
+quantity, as we will see later. If we compute how far we should move, and the
+answer is zero, the macro should work.
+
+There are a few absolute (unit-less) cursor motion macro commands. The command
+"A" moves the cursor to the first character in the edit buffer, while "Z"
+moves it just past the last character, namely to the place where the next
+character would be inserted. ZMATE supports virtual memory in its main editing
+buffer, called the 'T' or text buffer. Files that are too big to fit in memory
+are paged in and out, either manually or automatically, as desired. The macros
+"UA" and "UZ" go to the beginning and end of the entire file (think of 'U' as
+'UNLIMITED'). If required, the file will be paged from disk.
+
+The "QX" command is one of a whole family of "Q" commands, a couple of which
+we will see this time. It takes a numerical prefix and moves the cursor to
+that column in the current line. The columns are numbered beginning with '0'.
+As is frequently the case, an absent prefix is taken as "1". Not surprisingly,
+the prefix must be non-negative. What happens if you violate this restriction?
+Does your file get trashed and your whole disk wiped out? No, ZMATE tries to
+interpret the number as a positive number, which, of course, is larger than
+the maximum column allowed (typically 250). The result is a beep from the
+terminal and a strange positioning of the cursor.
+
+Perhaps this is a good time for a general comment about numbers in ZMATE.
+Numbers are stored as words (two bytes, or 16 bits). Such numbers can be
+interpreted either as positive numbers ranging from 0 to 65535 or as signed
+numbers with a positive range 0 to 32767 (7FFF hex) and a negative range from
+-1 (FFFF hex) to -32768 (8000 hex). Numbers are also used to represent Boolean
+logical values. False is represented by '0'; true, by '-1'. When a function
+only accepts Boolean values, then any number other than '0' is taken as true.
+
+The "Q-" macro determines whether ZMATE will display numbers as signed or
+unsigned. Following the Boolean convention, "0Q-" turns off the display of
+negative numbers, while "-1Q-" or just "Q-" turns them on. If you enter a
+number all by itself as an interactive command line macro, its value in the
+current display mode will be shown after the "arg=" status message on the top
+line of ZMATE's screen. If you enter
+
+        0Q- -1$$
+
+you will see "arg=65535" on the status line. If you enter
+
+        Q- -1$$
+
+you will see "arg=-1".
+
+Now lets see how some of ZMATE's built-in functions are defined. Look at Table
+1. Functions 3 and 6 are especially interesting. Macro commands can be
+combined by writing them in sequence with or without spaces or tabs between
+the individual commands. The spaces in the two examples above were put there
+only to make the commands easier for you to read; ZMATE can read them just as
+well without any spaces.
+
+Function 3 implements what an ordinary person would think of as "move back one
+word." If the cursor is currently somewhere other than the beginning of a
+word, then the cursor is supposed to move back to the beginning of the current
+word. If it is already at the beginning, then it should move back to the
+beginning of the previous word. As we noted earlier, "-W" would move back too
+far in the former case. Moving back one character and then to the beginning of
+the current word does the trick. See if you can figure out why -- and also why
+function 6 is implemented as it is.
+
+Text Deletion and Insertion
+
+There are only two deletion commands: "D" deletes characters; "K" deletes
+(kills) lines. They take a numerical prefix with the usual default values.
+Deletions to the right -- positive prefixes -- start with the character under
+the cursor. Deletions to the left --negative prefixes -- start with the
+character to the left of the one under the cursor. Thus, the command "K"
+deletes all characters on a line to the right of and including the cursor,
+while "0K" deletes all characters on a line to the left of the cursor. "0LK"
+deletes the entire current line. Line deletions to the right, by the way,
+include the carriage return at the end of the line.
+
+The basic insertion command is "I". It can be used in two forms. If it has a
+numerical prefix, then the character with that ASCII value is inserted before
+the character under the cursor, and the cursor remains on the character it was
+on before (i.e., after the new character).
+
+The prefix value is interpreted as a positive number modulo 256. This form of
+the insert command can be used to insert some characters that cannot be
+inserted by typing (e.g., characters with their high bit set) and some that
+cannot be inserted using the second form of the insert command that we will
+look at shortly (e.g., the escape character).
+
+Some character values (e.g., 0 and some special values that ZMATE uses for
+specially formatted text) cannot be used. Characters with the high bit set can
+be put into a file and can be written out to disk, but when such a file is
+read back in, the high bits will be filtered out.
+
+The second form of the "I" command illustrates the general syntax for string
+arguments in the macro language. These come after the macro command and are
+terminated or delimited by escape characters. The command
+
+       Istring of text$
+
+will insert the string of characters following the 'I' and up to the escape
+character, which is indicated here by the dollar sign. Some commands, as we
+will see shortly, take more than one string argument.
+
+Another type of insertion is replacement, which uses the "R" command. It is
+much like the "I" command except that the new characters replace those under
+the cursor and to the right. For example, "65R" changes the character under
+the cursor to an 'A' (ASCII value 65), and the command "Rtest$" replaces the
+character under the cursor with a 't', the next character with an 'e', and so
+on. The cursor ends up on the character after the last one replaced.
+
+The "\" command converts its numerical prefix into the text representation for
+the number and inserts it into the text before the cursor. Leading zeros are
+not included.
+
+It might be appropriate to mention at this point that ZMATE in not limited to
+working in decimal radix. There are macro commands to set a radix to values
+between 2 and 16. Decimal is standard and will be assumed in all our examples.
+However, the radix in which input numbers, such as command prefixes, are
+interpreted and the radix in which output numbers are displayed can be changed
+independently.
+
+For example, "8QI" sets the input radix to octal. "QI" (no prefix) will always
+set the radix back to decimal. This is awfully handy when you don't know what
+the current input radix is. After all, "10QI" leaves the radix unchanged. Do
+you understand why? "16QO" will set the output radix to hexadecimal, provided
+the input radix was decimal when this command was processed. If it was octal,
+the output radix would become 14, the octal value of '16'.
+
+I recommend a trick for entering constants so that expressions will not be
+misinterpreted if the radix is changed. We have been careful to implement all
+built-in functions using radix-invariant expressions. The special ZMATE
+operator double-quote converts the character following it to its ASCII
+numerical value. To set the output radix to hexadecimal, for example, we could
+use the command
+
+        "^PQO
+
+Here we use '^P' to represent control-P. ZMATE allows control characters to be
+entered by typing a caret followed by the letter. The older PMATE editor also
+displayed control characters this way, but ZMATE shows just the character in
+highlighted video. The value of control-P is always 16, no matter what the
+input radix is. If you cannot enter a single character with the desired value,
+you can use arithmetic to get the value. We could have written the above
+command as
+
+       ("Q-"A)QO
+
+or simply
+
+       "Q-"AQO
+
+since 'Q' is 16 characters higher than 'A'.
+
+Now back to insertion macros. There is one more. "QH" inserts a block of blank
+spaces (perhaps the 'H' stands for 'hole') in the text before the cursor. As
+usual, it takes a numeric prefix. The three commands below are all equivalent.
+
+       10QH
+       I          $
+       " I" I" I" I" I" I" I" I" I" I
+
+Besides being more compact, the "10QH" form will generally be faster. It tells
+ZMATE in advance how much space to open up, and the entire insertion, which
+may involve moving the text after the cursor, can be done in a single
+operation.
+
+Search and Search-and-Replace Macros
+
+ZMATE's string searching command illustrates a syntax in which a command takes
+both a numerical prefix argument and a string argument. The general form of
+the search command is "nSstring$". The numerical prefix can be positive or
+negative. With a positive value, the search is performed in the forward
+direction; with a negative value, the search moves back toward the beginning
+of the buffer.
+
+The number tells ZMATE the maximum number of lines to search through. The
+current line to the left of the cursor is line 0. The current line to the
+right of the cursor is line 1. Thus "0Stest$" will search for 'test' in the
+part of the current line to the left of the cursor. "-4Stest$" will search in
+the current line to the left of the cursor plus the four lines before that.
+"1Stest$" will search the remainder of the current line beginning at the
+cursor and working to the right.
+
+The default prefix values are different with the "S" command from what we have
+seen before. If just a sign is given without a number, then the entire
+remainder of the text buffer in the given direction will be searched. Thus a
+plus sign -- or no prefix at all -- defaults to the largest positive number
+(32767); a minus sign alone defaults to the largest negative number (-32768).
+
+A variant of the "S" command is "US" (unlimited search). Like the commands
+"UA" and "UZ", it will perform scrolling of a file to and from disk in order
+to search the entire file. The "US" command does not accept a numerical
+prefix; it would not make sense, since it searches the entire file. It does
+accept a sign to indicate the direction of the search.
+
+The search-and-replace, or change, commands "C" and "UC" are quite similar
+except that they take two string arguments. The first is the search target;
+the second is the text to replace the search target with. If I executed the
+command
+
+       -Ctest$examination$
+
+at this point in the text, the instance of 'test' three paragraphs back would
+be removed and replaced by 'examination'.
+
+Some special characters can be used in the search string in the "S" and "C"
+commands. A control-E represents any character ('E' as in 'EVERY'). Thus
+"Ste^Et$" would find either 'test' or 'text' (or lots of other things). A
+control-S ('S' as in 'SPACE') represents any white-space character, namely
+space and tab. Control-W represents any word-separation character, so that
+"Sa^Wb$" would find 'a-b' or 'a b' or 'a/b' (but not 'axb' or 'a//b', which
+has two word-spacing characters between the 'a' and the 'b').
+
+A control-N matches any character except the one that follows it ('N' as in
+'NOT'). "Ste^Nst$" will stop on 'text' and 'tent' but not on 'test'. Just in
+case you need to search for one of these special characters, control-L ('L' as
+in 'LITERAL') causes the character following it to be treated literally. Thus
+"S^L^N$" will search for a control-N, and "S^L$$" will search for an escape
+character.
+
+These special characters do not implement string searching as powerful as that
+in Unix GREP or in Bridger Mitchell's Jetfind, but they cover the most common
+situations. Other macro capabilities in ZMATE would make it possible to
+implement full GREP search rules, but such a macro would not be very fast.
+
+Variables
+
+A little earlier we alluded to the fact that ZMATE has numerical variables. It
+can perform arithmetic operations, bitwise Boolean operations, and logical
+comparisons with literal numbers and values of variables.
+
+Listing all the variables would take up too much room here, so I will describe
+just a few of them to give you some idea of the kind of information available
+to a ZMATE macro.
+
+Almost all ZMATE variables are represented by an '@' sign followed by a
+character that designates the variable name. None of them take any arguments,
+except for two that take a string argument.
+
+Some variables tell where the cursor is located. "@C" returns the number of
+the character (its position in the text) counting from the first character in
+the buffer. "@L" gives the absolute line number (i.e., counting from the
+beginning of the file, even if some of it has been scrolled out to disk) of
+the line containing the cursor. "@X" reports the column number.
+
+Some variables give information about the way the page is set up. "@Y" and
+"@W" give the left and right margins, respectively. "@Z" gives the column
+number of the next tab stop.
+
+One of the most important variable commands, if not the most important, is
+"@T". It returns the ASCII value of the character under the cursor.  This
+information is critical to intelligent text processing.
+
+There are also ten user variables numbered from 0 to 9. The "V" macro is used
+to set values into them, and the values can be retrieved by '@' followed by
+the variable name. Full memory access is provided by the variable "@@", which
+returns the contents of memory at the address stored in user variable 9. The
+macro "Q!" stores the value passed as a prefix into that address. Thus "@@" is
+the PEEK function and "Q!" is the POKE function. "@P" returns the absolute
+address where the character under the cursor is presently stored in memory.
+
+The macro command "Gprompt$" displays the prompt string on the command line
+and waits for the user to enter a keystroke. The macro "@K" ('K' as in
+'KEYSTROKE') then returns the ASCII value of the user's response. This
+provides the hook for interactive operation.
+
+As you can see, ZMATE gives you the basic tools for doing just about anything.
+It may take some effort, but there isn't much that is impossible. There are a
+few variables I can think of that are missing. For example, ZMATE can get a
+disk directory or ask if a file exists, but it cannot find out how much space
+is left on a disk (though it can find out how much memory is free). It also
+cannot determine the drive or user number it is logged into or that is
+associated with a file it is editing.
+
+Flow Control
+
+A programming language is pretty much useless if it has no way of making
+decisions. That's why the flow control package (FCP) is so important in the Z-
+System. We have already shown you the kind of information that is at ZMATE's
+disposal. Now we will show you how that information is used to make decisions.
+
+In one way or another ZMATE implements all the major flow control forms:
+repetition, if-then-else, do-until, and goto. Blocks of macro code are formed
+by enclosing them in matching pairs of either square or curly brackets. For
+most purposes, the two forms of bracket are equivalent.
+
+For the flow control formats, we will use 'n' and 'm' to represent macro
+expressions that return numerical values. A numerical value of '0' has a
+Boolean value of 'false', while a numerical value of '-1' has a Boolean value
+of 'true'. Three dots are used to indicate an arbitrary sequence of macro
+commands, which may, themselves, include flow-control constructs (nesting of
+flow control is allowed to 15 levels).
+
+The general form of the repetition macro is
+
+       n[...m]
+
+The value 'n' is the repeat count. In general, the macro commands inside the
+brackets will be repeated 'n' times. If 'n' is '0' or 'false', they will be
+skipped. If 'n' has the special value '-1', it will be interpreted as a
+Boolean, and the block will be executed only once. Other negative values will
+be interpreted as their corresponding positive values. If the prefix 'n' is
+omitted, the block will be repeated indefinitely (well, actually some 65534
+times, but who's counting).
+
+After each iteration of the block of macro commands and before going back to
+the beginning, the value of 'm' is checked. If its Boolean value is 0 (false),
+iteration continues; if it is nonzero (true), control passes over the ending
+bracket and continues with any following commands. Thus 'm' constitutes the
+'until' test for the DO-UNTIL construct.
+
+If the numerical/Boolean expression 'm' is omitted, then the value of the
+special ZMATE error flag is used. This flag can also be evaluated explicitly
+as "@E". Certain commands set and clear this flag. For example, a search
+command ("S") will set the error flag if it could not find the designated
+search string. A cursor motion command that tries to take the cursor beyond
+the bounds of the text will also set the flag.
+
+There are cases where iteration loops seem to terminate prematurely. This is
+usually because of the default use of the error flag as the 'until' test. One
+way to get around the problem is to end the block with the form '0]'. This
+ensures a false 'until' test and continued iteration.
+
+The general form above includes basic condition processing. Full if-then-else
+processing is implemented by the form
+
+       n[...][...]
+
+If 'n' is 'false' (i.e., has a value of zero), then the first block will be
+skipped and the second block executed. If 'n' is 'true' (in this context,
+nonzero), then the first block will be executed and the second block skipped.
+
+This form is identified by the touching closing and opening brackets. If you
+have two repeat blocks in a row, use '] [' with a space instead of '][' to
+prevent ZMATE from interpreting the macro as an IF-THEN-ELSE test.
+
+There are several special commands for terminating or moving around within an
+iteration block. The 'exit' macro "n_" will immediately exit the loop and
+continue after the next closing square bracket. The 'next' macro "n^" will
+immediately go back to the closest preceding opening square bracket and start
+a new iteration. This is the only case in which the kind of bracket makes a
+difference. Because of this difference, it is generally effective to use curly
+brackets for if-then-else tests and square brackets for iteration constructs.
+
+One extra word of caution. ZMATE is not smart enough to distinguish brackets
+in a string expressions from those used in flow control constructs. Be very
+careful whenever you have string expressions containing square or curly
+brackets; they may confuse flow control macros.
+
+ZMATE has a goto function. The syntax is "nJx", where 'x' is a single-
+character label (any character can be used). If 'n' is true, ZMATE will scan
+the macro from the beginning for a marker of the form ":x".
+
+Finally, if 'n' is 'true', the command "n%" will terminate execution of the
+entire macro and return control to any macro that called this one as a
+subroutine or to the user.
+
+Some Final Examples
+
+Table 2 shows some more examples of built-in functions. These macros use some
+of ZMATE's testing powers. Function 0 moves the cursor to the first character
+in the buffer unless it is already there, in which case it moves it to the
+bottom of the buffer. The expression "@C=0" performs a logical comparison of
+the value of '@C', the number of the character under the cursor, and 0. If the
+cursor is on the first character in the buffer (remember, numbering starts at
+0), then this expression will be Boolean 'true' (arithmetic -1), and the first
+macro block, "Z", will be performed. Otherwise the second block, "A", will be
+carried out.
+
+In looking at that macro just now, I realized that it could be shorted
+slightly to
+
+       @C{A}{Z}
+
+Here we treat "@C" as a Boolean value. If it is zero (we are at top of
+buffer), it will be interpreted as 'false' and "Z" will be executed. The
+version we used is easier to read but costs two extra characters.
+
+Function 24 moves the cursor left one character geometrically. The command "-
+M" moves the cursor back one character absolute, and will back up to the
+previous line if the cursor is presently at the beginning of a line. The
+geometric motion macros work on the column number. Function 24 first checks to
+see what column the cursor is in presently. If the column number is greater
+than 0 ("@X>0"), then the macro computes the column number one to the left
+("@X-1") and passes that value as a prefix argument to the command "QX".
+
+Function 38 is still more complicated. It toggles the case of the alphabetic
+character under the cursor. The macro has three independent parts, the first
+two of which are conditionally executed. The conditionals are complex
+expressions involving two parts combined by a Boolean operator.
+
+In the first one, @T>"@ tests to see whether the character under the cursor
+has an ASCII value greater than that of '@', which is one less than 'A'. If
+ZMATE had a greater-than-or-equal-to test, we could have written something
+like @T>="A, but this is not allowed. The second part, @T<"[, tests to see if
+the character is 'Z' or less. These two tests are combined by the Boolean
+'and' operator '&'. The result will be true if the character is an upper case
+letter.
+
+If the result is true, the value of the space character (32 decimal, but
+radix-invariant when expressed this way) is added to the current value to make
+the corresponding lower case character. This value then replaces the existing
+character. Finally, "%" is executed to terminate the macro.
+
+If the first conditional is false, the macro continues with the second one. It
+tests to see if the character is in the range 'a' to 'z'. If it is, 32 is
+subtracted from the present value to make the corresponding upper case
+character, which then replaces the existing character. Again, the macro is
+terminated with "%".
+
+If the character is not alphabetic at all, the macro continues with the final
+line. This simply moves the cursor to the next character without making any
+change.
+
+Next time we will continue the discussion of ZMATE's command language, and,
+with any luck, I will have recovered my MEX patches and will be able to
+present them as well.
+
+
+Table 1. Macros used to implement some ZMATE built-in
+cursor motion functions. The table lists the function
+number and describes what the function does. If the
+function has a standard binding, it is shown. A caret
+prefix indicates a control character.
+
+fn #          description              key       macro
+-----   ----------------------------   ---     -----------
+  1     to end of buffer                        Z
+  2     to previous char                ^G      -M
+  3     to previous word                ^O      -M0W
+  4     to next character               ^H      M
+  5     to next word                    ^P      W
+  6     up one line                     ^Y      -M0L
+
+Table 2. Macros used to implement some additional and more
+complex ZMATE built-in functions.
+
+fn #          description                    macro
+----  ----------------------------   ---------------------
+  0   toggle top/bottom of buffer    @C=0{Z}{A}
+ 24   character left geometric       @X>0{@X-1QX}
+ 38   toggle case of character       @T>"@&(@T<"[)'{@T+" R%}
+                                     @T>"`&(@T<"{)'{@T-" R%}
+                                     M
+
+[This article was originally published in issue 47 of The Computer Journal,
+P.O. Box 12, South Plainfield, NJ 07080-0012 and is reproduced with the
+permission of the author and the publisher.]
+

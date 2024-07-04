@@ -1,0 +1,1108 @@
+;
+; M8LIB	  -  Phone Number library edit utility for MDM8xx series 
+;	     Version 1.0  09-18-84
+;
+;	     This is a translation of CHGLIB22 to 8086 code
+;
+;======================================================================
+;	     To Assemble:
+;
+;				ASM86 M8LIB
+;
+;				GENCMD M8LIB 8080 CODE[M650]
+;
+;======================================================================
+;
+;
+;
+;		   SOURCE CODE
+;
+;    A universal number change program to work with all
+;    versions of MDM8xx that contain an internal telephone
+;    numbers list for use with the CAL and NUM functions.
+;
+;    This program will load specified MODEM file, allow 
+;    changes to library, and write to secondary file. 
+;
+; ========================================================
+;--------------
+;  Revisions  ;
+;--------------
+;
+; 09-18-84 - Translated to 8086 code and renamed M8LIB to work
+; Ver. 1.0   with MDM8xx series. Version Number now reflects
+;	     8086 revision levels thus CHGLIB vers 2.2 became
+;	     M8LIB Vers 1.0
+;
+;						Alex Soya
+;
+; 03-09-84 - Fixed bug in insert routine at label INEXIT (jump to
+; Ver. 2.1   POP H caused trouble). Minor mods. Sigi Kluger
+;
+; 02-28-84 - In continuing with my original modification to an auto-
+; Ver. 2.0   matic single program for all versions of MODEM7 and now
+;	     MDM7xx.  This version 2.0 will determine how large the
+;	     telephone list is and only allow the correct entries to
+;	     be made.  This eliminates the need to have to 'patch' a
+;	     program to make it work one way or another as was the
+;	     problem with versions of CHGLIB before 1.5.  Since this
+;	     new code was generated from Ver. 1.6 the new code that
+;	     was used in versions 1.7 and 1.8 does not appear in this
+;	     ASM file. An appology to revisors 1.8 and 1.7, I didn't 
+;	     find that a new version existed until this version was 
+;	     ready.  Since this revision is 'completely' automatic I
+;	     did select a new version number beginning with 2.0.  
+;	     Thanks to Charles Horn for assistance with the new code.
+;	      
+;			       Dennis Recla
+;				 (214) 681-4789 (300/1200)
+;
+;
+; 02-26-84 - Modified to work with PRE MDM722 by allowing '0' - '9'
+; ver 1.8    to be used as valid LIBRARY keys ONLY if wanted.
+;	     <ATOZ09> Byte 105H= 0 then A thru Z and 0 thru 9 valid.
+;			       = 1 then A thru X only.
+;	     Recompile NOT needed - just patch byte 105H and SAVE.
+;	   - added EQU's for Version and Modification numbers
+;			    (used in Sign-on)
+;	   - Made CKNUMB part of CKCHAR
+;	   - Removed UNBIAS and other such stuff where not needed.
+; 
+;				  Charlie Polete
+;				  c/o Flanders RCP/M
+;				  (201) 584-9227
+;
+; 02-19-84 - Added subroutines CKNUMB and UNBIAS and other such
+; Ver. 1.7   stuff, to permit the View, Delete, and Insert com-
+;	     mands to access the larger phone libraries used in
+;	     MDM722 and above.	CHGLIB now can handle 36 numbers,
+;	     listed A-Z and 0 - 9.
+;				      Robert Mornoney
+;				      c/o BHEC RCPM
+;				      (301) 661-2175
+;
+;
+; 08-10-83 - Pulled un-needed code, (READC). Added LIBLOW / 
+;	     LIBHI bytes up front for modifiable search range,
+;	     currently set for 30-40, the most practical limit 
+;	     to date. These bytes appear at 0103H-0104H in the 
+;	     memory loaded image so that they can be patched 
+;	     with DDT, SID, etc. Search is now in 1 byte increments
+;	     Pulled commented out code that I had left in, (sloppy,
+;	     sloppy, oops..)
+;
+;				Mark Pulver  -	(312) 789-0499
+;				     PMMI  24hrs / 7 days
+;
+;
+; 07/12/83 - Modifed program so it will automatically load
+;	     the modem program to be modified, and search
+;	     for the correct spacing between the Alphabetic
+;	     KEY characters.  This program looks for spacing
+;	     of 30, 32, and 34 characters.  At this point in
+;	     time this should take care of 95% of all the
+;	     various modem7 programs I have come accross.
+;	     
+;	     Dennis Recla   1-214-681-4789 (Data) 300/1200
+;
+;
+; 06/01/83 - Fixed bug in <I>nsert vs <W>rite, added "real"
+;	     case conversion routines.
+;				Mark Pulver  -	(312) 789-0499
+;				     PMMI  24hrs / 7 days
+;
+; 05/30/83 - Added LIBLEN equ, fixed <R>ead command, changed
+;	     msgs to lowercase, added <H>elp, and various
+;	     messages for clarity
+;				Mark Pulver
+;
+; 05/17/83 - Modified to work with mdm707
+;				Dave Holmes sysop 804-898-7493
+;
+; 02/23/83 - MODIFIED TO WORK WITH MODEM798 AND TO ACCEPT
+;	     LOWER CASE CONSOLE INPUT.
+;				Bruce R. Ratoff
+;
+; 01/??/82 - ORIGINAL VERSION
+;				Tony Ribeiro
+;			
+; ========================================================
+;
+LF	EQU	0AH
+CR	EQU	0DH
+;
+;
+; --------------------------------------------------------
+; System Equates
+;
+BOOT	EQU	0
+BDOS	EQU	BOOT+5
+SFCB1	EQU	BOOT+5CH
+SFCB2	EQU	BOOT+6CH
+TPA	EQU	BOOT+100H
+CONIN	EQU	1
+CONOT	EQU	2
+PLIST	EQU	5
+PRINTB	EQU	9
+RDCON	EQU	10
+CONST	EQU	11
+OPENF	EQU	15
+CLOSEF	EQU	16
+SRCHF	EQU	17
+DELF	EQU	19
+READF	EQU	20
+WRITEF	EQU	21
+MAKEF	EQU	22
+SETDMA	EQU	26
+;
+; ========================================================
+;
+;
+	ORG	TPA
+;
+	JMPS	START			; jump around data area
+;
+; The value of the following two bytes determine the low and hi
+; range of library length to be searched. LIBLOW is the start point
+; while LIBHI is the ending point. These can be patched with your
+; favorite debugger so that the file need not be re-assembled.
+;
+LIBLOW	DB	30			; 0103H
+LIBHI	DB	40			; 0104H
+;
+;
+;PROGRAM STARTS HERE
+;
+START:	MOV	AX,CS
+	MOV	SS,AX
+	MOV	SP,(Offset STACK)
+	XOR	AL,AL			;CLEAR CHGSW
+	MOV	Byte Ptr CHGSW,AL
+;
+;THIS ROUTINE MOVES SOURCE AND OUTPUT FCBS AND 
+;SETS BOTH CRS TO '0'
+;
+SAVFCB: MOV	BX,SFCB1		;SOURCE FCB
+	MOV	DX,(Offset FCB1)
+	CALL	MFCB
+	XOR	AL,AL
+	MOV	Byte Ptr FCB1+32,AL
+	MOV	BX,SFCB2		;OUTPUT FCB
+	MOV	DX,(Offset FCB2)
+	CALL	MFCB
+	XOR	AL,AL
+	MOV	Byte Ptr FCB2+32,AL
+;
+;DISPLAY SIGN ON MSG
+;
+	MOV	DX,(Offset MPROG)
+	CALL	PRTBUF
+;
+;CHECKS TO SEE THAT A SOURCE FILE IS CALLED
+;
+	MOV	BX,SFCB1+1
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JNZ	CKDF
+;
+;IF NOT, DISPLAYS ERROR MSG AND EXITS PROG
+;
+	MOV	DX,(Offset MCERR)
+	JMP	DOEXIT
+;
+;CHECKS TO SEE IT AN OUTPUT FILE IS CALLED
+;
+CKDF:	MOV	BX,SFCB2+1
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,' '
+	JNZ	CLRBUF
+;
+;IF NOT, DISPLAYS ERROR MSG AND EXITS PROG
+;
+	MOV	DX,(Offset MCERR)
+	JMP	DOEXIT
+;
+;THIS IS THE SUB-ROUTINE THAT MOVES FCBS
+;
+MFCB:	MOV	CL,16
+MFCB1:	MOV	AL,Byte Ptr [BX]
+	MOV	SI,DX
+	MOV	[SI],AL
+	LAHF
+	INC	DX
+	SAHF
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CL
+	JNZ	MFCB1
+	RET
+;
+;CLEARS 5000H BYTES OF RAM SO THAT NO GARBAGE APPEARS
+;IN NEW COM FILE THAT IS WRITTEN.
+;
+CLRBUF: MOV	DX,(Offset mclrng)
+	CALL	prtbuf
+	MOV	BX,(Offset BUF)
+	MOV	DX,6000H		; 24K
+CLR1:	MOV	Byte Ptr [BX],0
+	INC	BX
+	DEC	DX
+	MOV	AL,DH
+	OR	AL,DL
+	JNZ	CLR1
+;
+;OPENS SOURCE FILE, AND IF NOT FOUND, DISPLAYS
+;ERROR MSG.
+;
+OPNSF:	MOV	DX,(Offset FCB1)
+	MOV	CL,OPENF
+	INT	224
+	INC	AL
+	JNZ	SRCDF
+	MOV	DX,(Offset MUNSF)
+	JMP	DOEXIT
+;
+;CKS TO SEE IF OUTPUT FILE ALREADY EXISTS.IF IT DOES 
+;DISPLAYS ERROR MSG AND EXITS PROG.
+;
+SRCDF:	MOV	DX,(Offset FCB2)
+	MOV	CL,SRCHF
+	INT	224
+	INC	AL
+	JZ	DOREAD
+	MOV	DX,(Offset MUNDF)
+	JMP	DOEXIT
+;
+;DISPLAYS LOADING MSG AND LOADS SOURCE FILE
+;
+DOREAD: MOV	DX,(Offset MLOADF)
+	CALL	PRTBUF
+	CALL	RDFILE
+	JMPS	DOSRC
+;
+;LOADS SOURCE FILE(CURRENT MODEM7.COM PROG) AT 'BUF'
+;
+RDFILE: MOV	BX,(Offset BUF)		;START OF BUFFER RAM
+	MOV	Word Ptr DMADD,BX	;STORE BUFFER POINTER
+RDFIL1: PUSH	BX
+	POP	DX
+	MOV	CL,SETDMA
+	INT	224
+	MOV	DX,(Offset FCB1)
+	MOV	CL,READF
+	INT	224
+	OR	AL,AL
+	JZ	L_3
+	RET
+L_3:
+	MOV	BX,Word Ptr DMADD
+	MOV	DX,128
+	ADD	BX,DX
+	MOV	Word Ptr DMADD,BX
+	JMPS	RDFIL1
+;
+;THIS ROUTINE WILL DO AN AUTO SEARCH OF THE START OF
+;THE PHONE LIBRARY...IT LOOKS FOR THE ASCII CHARS
+;'A','B','C' WITH SPACINGS <LIBLOW> TO <LIBHI> BYTES
+;AS SHOWN IN THE VARIOUS VERSIONS OF THE MODEM7
+; 'NUMBLIB'.SEARCH IS DONE ON FIRST 4K BYTES ONLY
+;SEARCH LIMIT MONITORED BY 'SRCLMT' AND 'H' REGISTER.
+;
+DOSRC:	MOV	BX,(Offset BUF)		;START OF BUFFER RAM
+	MOV	AL,BH			;MONITOR LIMIT COUNT
+	ADD	AL,24			;SEARCH ONLY FIRST 6K
+	MOV	Byte Ptr SRCLMT,AL
+;
+;PROG LOOKS FOR FIRST LETTER IN SEQUENCE('A').
+;
+DOSRC1: MOV	Word Ptr LIBSTT,BX	;Store LIBSTT
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,'A'
+	JZ	CKB
+	INC	BX
+	MOV	AL,Byte Ptr SRCLMT
+	CMP	AL,BH
+	JNZ	DOSRC1
+;
+;SEARCH OF FIRST 4K BYTES DOESNT FIND LIBRARY SO
+;PROGRAM EXITS.
+;
+SRCEXT: MOV	DX,(Offset MDLNF)
+	JMP	DOEXIT
+;
+;'A' IS FOUND.PROG CKS FOR 'B' BEING IN RIGHT PLACE.
+;
+CKB:	MOV	Word Ptr LIBSTT,BX	; store new value of LIBSTT
+	MOV	CH,0
+	MOV	AL,Byte Ptr LIBLOW	; get low end of search range
+	MOV	CL,AL
+CKB1:	ADD	BX,CX
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,'B'
+	JZ	CKC
+	MOV	BX,Word Ptr LIBSTT	; get buffer address
+	LAHF				; bump count once
+	INC	CX
+	SAHF
+	MOV	AL,CL			; get current offset+1
+	LAHF				; save it
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,Byte Ptr LIBHI	; get hi end of search range
+	MOV	DH,AL			; setup for CMP
+	POP	AX			; restore current offset+1
+	XCHG	AL,AH
+	CMP	AL,DH			; We there yet?
+	JB	CKB1			; Nope...loop back
+;
+;'B' NOT FOUND IN <LIBLOW>-<LIBHI> BYTES FROM 'A' SO PROG BUMPS
+;POINTER BY ONE(1) AND STARTS SEARCH FOR 'A' AGAIN.
+;
+DONXT:	MOV	BX,Word Ptr LIBSTT
+	INC	BX
+	JMPS	DOSRC1
+;
+;'A' AND 'B' FOUND IN RIGHT PLACE.PROG NOW CKS PROPER BYTES
+;DOWN THE LINE FOR 'C'.
+;
+CKC:	ADD	BX,CX
+	MOV	AL,Byte Ptr [BX]
+	CMP	AL,'C'
+	JNZ	DONXT
+	MOV	BX,(Offset LIBLEN)	;H/L = Address to store
+	MOV	Byte Ptr [BX],CL		    ;Store spacing count
+;
+;LETTERS A,B,AND C FOUND IN PROPER SEQ AT CORRECT
+;LOCATION SO PROG DISPLAYS THAT LIBRARY IS FOUND
+;THEN DISPLAYS THE START ADDRESS IN HEX AND DISPS
+;WHAT IT THINKS IS THE DIAL LIBRARY.
+;
+DLFND:	CALL	DCRLF
+	MOV	DX,(Offset MDLFND)	; 'Found library at '
+	CALL	PRTBUF
+	CALL	DSPADR			; 'xxxxH'
+	MOV	DX,(Offset MLLEN)	; 'Library spacing is '
+	CALL	PRTBUF
+	MOV	AL,Byte Ptr LIBLEN	; <LIBLEN>
+	CALL	ADOUT
+	MOV	DX,(Offset MBYT)	; ' bytes'
+	CALL	PRTBUF
+	CALL	DSPLIB			; and the library
+;
+;PROG NOW ASKS USER IF THE DISPLAY LOOKS LIKE THE
+;PROPER START OF THE DIAL LIBRARY.IF USER ANSWERS
+;'Y' THEN PROG CONTINUES.IF  'N'  THEN	PROG GOES
+;BACK AND SEARCHES SOME MORE.
+;
+DLFND1: MOV	DX,(Offset MDLOK)
+	CALL	PRTBUF
+	CALL	CKCONS
+	CMP	AL,'Y'
+	JZ	DLFND2
+	CMP	AL,'N'
+	JNZ	DLFND1
+	JMPS	DONXT
+;
+;LIBRARY LOOKS OK,SO PROG CONTINUES HERE.
+;
+DLFND2: CALL	DCRLF
+;
+;PROG DISPLAYS COMMAND LINE AND PROMPTS USER FOR CMD.
+;THE D,I,AND V COMMANDS REQUIRE AND ARGUMENT WITH CMD.
+;THE D,AND I CMDS NEED A LETTER 'A' TO 'Z' or '0' to '9'.
+;THE V(VIEW) CMD NEEDS A LETTER AS ABOVE TO VIEW ONE
+;LINE OR A '?' TO VIEW ENTIRE LIBRARY.
+;THE OTHER CMDS REQUIRE NO ARGUMENT.
+;
+CMD:	CALL	DSPLIB
+CMD1:	MOV	DX,(Offset MCMD)
+	CALL	PRTBUF
+	CALL	CKCONS
+	CMP	AL,3			;IF CNTRL C THEN EXIT
+	JNZ	L_4	
+	JMP	EXIT
+L_4:
+	CMP	AL,'D'			;DELETE FUNCTION
+	JNZ	L_5	
+	JMP	DELETE
+L_5:
+	CMP	AL,'H'			; show help msg
+	JZ	shwhlp
+	CMP	AL,'I'			;INSERT FUNCTION
+	JNZ	L_6	
+	JMP	INS
+L_6:
+	CMP	AL,'P'			;PRINTS ENTIRE LIBRARY
+	JNZ	L_7	
+	JMP	PRTLIB
+L_7:
+	CMP	AL,'R'			;REREADS SOURCE FILE
+	JZ	REREAD
+	CMP	AL,'V'			;DISPS LINE/ENTIRE LIB
+	JNZ	L_8	
+	JMP	VIEW
+L_8:
+	CMP	AL,'W'			;WRITES OUTPUT FILE
+	JNZ	L_9	
+	JMP	WRTFIL
+L_9:
+;
+;IF PROPER SYNTAX NOT USED,DISPLAYS ERROR MSG
+;AND DISPLAYS CMD LINE AGAIN AND PROMPTS USER.
+;
+CMDERR: MOV	DX,(Offset MSYNER)	;SYNTAX ERROR MSG
+	CALL	PRTBUF
+	JMPS	CMD1
+;
+; Show help message
+;
+shwhlp: MOV	DX,(Offset hlpmsg)
+	CALL	prtbuf
+	JMPS	cmd1
+;
+;THIS ROUTINE WILL RELOAD THE SOURCE FILE
+;SO USER CAN START FROM SCRATCH AGAIN.
+;
+REREAD: CALL	dcrlf
+	MOV	DX,(Offset MLOADF)	;LOADING FILE MSG
+	CALL	PRTBUF
+	XOR	AL,AL			;CLEAR CHGSW
+	MOV	Byte Ptr CHGSW,AL
+;
+	MOV	CH,21			; thou shalt be sure that the FCB is clean
+	MOV	BX,(Offset fcb1)+12
+agn1:	MOV	Byte Ptr [BX],0
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	agn1
+;
+	MOV	DX,(Offset fcb1)	; and thou must open a book before reading it
+	MOV	CL,openf
+	INT	224
+	INC	AL
+	JNZ	c1
+;
+	MOV	DX,(Offset moerr)
+	JMP	doexit
+;
+c1:	CALL	RDFILE
+	JMP	CMD
+;
+;DISPLAYS THE ENTIRE LIBRARY ON CONSOLE.
+;
+DSPLIB: CALL	DCRLF
+	MOV	BX,Word Ptr LIBSTT
+DSPLB1: MOV	CL,1			; set 1st column
+DSPLB2: MOV	AL,Byte Ptr LIBLEN
+	MOV	CH,AL			; get length of entry
+	MOV	AL,Byte Ptr [BX]		    ; setup for test
+	CMP	AL,0			; end of lib?
+	JNZ	DSPLB3
+	RET				; yep...
+;
+DSPLB3: MOV	AL,Byte Ptr [BX]	; move character to memory
+	CALL	DISP			; show it
+	LAHF				; bump pointer
+	INC	BX
+	SAHF
+	DEC	CH			; bump counter
+	JNZ	DSPLB3			; if more, do it again...
+	DEC	CL			; bump column flag
+	JNZ	DSPLB4			; if second column
+	MOV	AL,' '			; 2 space delimeter
+	CALL	DISP
+	CALL	DISP
+	JMPS	DSPLB2			; show second column
+DSPLB4: CALL	DCRLF			; new line
+	JMPS	DSPLB1			; keep at it...
+;
+;SEND ONE CHARACTER TO CONSOLE THRU CP/M FACILITIES.
+;NOTE..IF DPSWP IS 'CONOT',CHAR SENT TO CONSOLE.
+;IF DPSWP IS 'PLIST' THEN CHAR SENT TO LIST DEVICE.
+;DPSWP IS SWITCHED TO 'PLIST' ON (P)'PRTLIB' CMD.
+;
+DISP:	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+DPSW:	MOV	CL,CONOT
+DPSWP	EQU	( OFFSET $ - 1)
+	MOV	DL,AL
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;
+;SEND CR,LF SEQUENCE TO CONSOLE OR LIST DEV.
+;
+DCRLF:	MOV	AL,CR
+	CALL	DISP
+	MOV	AL,LF
+	CALL	DISP
+	RET
+;
+;DOES A PRINT BUFFER USING CP/M FACILITIES.
+;
+PRTBUF: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CL,PRINTB
+	INT	224
+	POP	BX
+	POP	DX
+	POP	CX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	RET
+;
+;THIS ROUTINE READS THE CONSOLE BUFFER.
+;READ THE CP/M MANUALS FOR A GOOD DESCRIPTION
+;OF HOW IT WORKS.
+;NOTE THAT THE CONSOLE BUFFER IS STORED AT 'CONLIN',
+;THE SIZE OF THE BUFFER IS STORED AT 'CONSIZ',
+;AND THE MAX LENGTH OF BUFFER IS STORED AT 'CONBUF'.
+;
+MSUB1:	CALL	PRTBUF
+BLNKBF: MOV	BX,(Offset CONLIN)
+	MOV	AL,Byte Ptr LIBLEN	; buffer size
+	INC	AL
+	MOV	CL,AL
+BLNKB1: MOV	Byte Ptr [BX],0		; clear buffer
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CL
+	JNZ	BLNKB1
+	MOV	CL,RDCON		; do BDOS read
+	MOV	DX,(Offset CONBUF)
+	INT	224
+	MOV	DX,(Offset CONLIN)	; leave D pointing to first character
+	RET
+;
+;CKS CONSOLE FOR CHAR AND STORES IT 'A' REG.
+;
+CKCONS: MOV	CL,CONIN
+	INT	224
+	CMP	AL,61H			; convert lower case to upper case
+	JNB	L_11
+	RET
+L_11:
+	CMP	AL,7BH
+	JNAE	L_12
+	RET
+L_12:
+	AND	AL,5FH
+	RET
+;
+;'V' CMD BRANCHES HERE.IF ARGUMENT IS '?' THEN
+;PROG GOES TO 'VALL'(DISP ENTIRE LIBRARY).
+;ELSE ONLY ONE LINE IS DISPLAYED PER ARGUMENT.
+;
+VIEW:	CALL	CKCONS
+	CMP	AL,'?'
+	JZ	VALL
+	CALL	CKCHAR
+	JNB	L_13	
+	JMP	CMDERR
+L_13:
+	CALL	LINSEL
+	MOV	AL,Byte Ptr LIBLEN
+	MOV	CH,AL
+	CALL	DCRLF
+VONE1:	MOV	AL,Byte Ptr [BX]
+	CALL	DISP
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	VONE1
+	JMP	CMD1
+VALL:	CALL	DCRLF
+	CALL	DSPLIB
+	JMP	CMD1
+;
+;DELETES ONE LINE OF THE LIBRARY(DENOTED BY ARGUMENT).
+;
+DELETE: CALL	CKCONS
+	CMP	AL,3
+	JNZ	L_14	
+	JMP	CMD
+L_14:
+	CALL	CKCHAR
+	JNB	L_15	
+	JMP	CMDERR
+L_15:
+	CALL	LINSEL
+	LAHF
+	INC	BX
+	SAHF
+	LAHF
+	INC	BX
+	SAHF
+	MOV	AL,Byte Ptr LIBLEN
+	DEC	AL
+	DEC	AL
+	MOV	CH,AL
+	CALL	DCRLF
+DEL1:	MOV	Byte Ptr [BX],' '
+	LAHF
+	INC	BX
+	SAHF
+	DEC	CH
+	JNZ	DEL1
+DELX:	MOV	AL,1
+	MOV	Byte Ptr CHGSW,AL
+	JMP	CMD
+;
+;INSERTS ONE LINE INTO LIBRARY(DENOTED BY ARGUMENT)
+;IF A <CR> IS ENTERED AFTER THE 'I' CMD THEN THE
+;INSERT MODE IS ABORTED,ELSE THEN ARGUMENT MUST
+;BE A VALID CHAR 'A' TO 'Z' OR '0' to '9' or CONSOLE WILL
+;DISPLAY A SYNTAX ERROR AND RETURN TO CMD PROMPT.
+;THE VALID CHAR IS STORED IN 'LINCHR' FOR USE LATER.
+;
+INS:	CALL	CKCONS
+	CMP	AL,CR
+	JNZ	L_16	
+	JMP	INEXT1
+L_16:
+	CALL	CKCHAR
+	JNB	L_17	
+	JMP	CMDERR
+L_17:
+	MOV	Byte Ptr LINCHR,AL
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	CALL	DSPLIB
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	CALL	LINSEL			; @HL points to letter
+	LAHF				; point to delimiter
+	INC	BX
+	SAHF
+	LAHF				; point to blank space
+	INC	BX
+	SAHF
+	PUSH	BX			; save it
+;
+;'MADDBx' IS THE PROMPT LINE BUILT FOR INSERTING
+;
+INS1:	MOV	DX,(Offset MADDB1)	; "  Description"
+	CALL	PRTBUF
+;
+	MOV	AL,Byte Ptr LIBLEN	; (length of entry) - (message offset)
+	SUB	AL,27
+	MOV	CH,AL
+	MOV	AL,' '
+spac1:	CALL	disp			; print a space
+	DEC	CH			; decrement counter
+	JNZ	spac1			; if not done, then print another
+;
+	MOV	DX,(Offset maddb2)	; "1-xxx-xxx-xxxx  - Exactly "
+	CALL	prtbuf
+	MOV	AL,Byte Ptr LIBLEN	; offset for "A:"
+	SUB	AL,2
+	CALL	adout			; LIBLEN as decimal ASCII value
+	MOV	DX,(Offset maddb3)	; " Characters"
+	CALL	prtbuf
+;
+	MOV	AL,Byte Ptr LINCHR
+	CALL	DISP			; show lib letter
+	MOV	AL,':'
+	CALL	DISP			; show a delimiter
+	CALL	BLNKBF			; do BDOS conin, @DC points to buff
+	MOV	AL,Byte Ptr CONSIZ	; get # of characters
+	OR	AL,AL			; 0?
+	JZ	INEXIT			; exit if blank return
+	MOV	CH,AL			; correct # of characters?
+	MOV	AL,Byte Ptr LIBLEN
+	SUB	AL,2
+	CMP	AL,CH
+	JNZ	INS1			; nope, try again
+	POP	BX			; get lib entry pointer back
+	MOV	DX,(Offset CONLIN)	; point to inbuff
+INS2:	MOV	SI,DX			; get first character from buffer
+	MOV	AL,[SI]
+	MOV	Byte Ptr [BX],AL	; move it to library
+	LAHF				; bump inpointer
+	INC	DX
+	SAHF
+	LAHF				; bump outpointer
+	INC	BX
+	SAHF
+	DEC	CH			; bump counter
+	JNZ	INS2			; if not done, do more
+	JMP	DELX			; all done
+;
+;PROG COMES HERE IF ABORTING INSERT MODE.
+;
+INEXIT: POP	BX
+INEXT1: MOV	DX,(Offset MABINS)
+	CALL	PRTBUF
+	JMP	CMD1
+;
+;This routine first computes the address of the '0' library
+;entry if it were to exist.  This location is beyond the 'Z'
+;entry by the LIBLEN number of bytes, as already determined.
+;The character at the location is tested for a '0', and if it
+;is, proceeds t verify that the console entry is a valid letter
+;or number.  If the character is not a '0', only letter entries
+;are accepted.	In any case, the routine returns with CY set if
+;the entry is not acceptable.
+;
+;First we must compute the location for the hypothetical '0'.
+;
+CKCHAR: LAHF				;Save the input character
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	AL,Byte Ptr LIBLEN	;get the length of entries    
+	MOV	DL,AL			;get LIBLEN
+	MOV	DH,0			;....into DE
+	MOV	BX,0			;use HL to accumulate product of mult.
+	MOV	AL,26			;numeric offset value of '0'('A'=0,'Z'=25)
+	MOV	CH,8			;8-bit multiplier
+CKCHAR1:
+	SHL	BX,1			;\
+	ROL	AL,1			; \	     This section multiplies the
+	JNB	CKCHAR2			;  \	     LIBLEN value in DE bye the
+	ADD	BX,DX			;   |---     number 26 in A to get the
+CKCHAR2:				;  /	     offset from LIBSTT of the
+	DEC	CH			; /	     hypothetical '0'. The offset
+	JNZ	CKCHAR1			;/	     is now in HL
+	XCHG	BX,DX			;Move offset to DE
+	MOV	BX,Word Ptr LIBSTT	;get library start address
+	ADD	BX,DX			;add the offset
+	MOV	AL,Byte Ptr [BX]	;get the character there
+	CMP	AL,'0'			;is it '0' ?
+	JZ	CKCHAR4			;if so
+	POP	AX			;else - check only for alpha
+	XCHG	AL,AH
+CKCHAR3:
+	CMP	AL,'A'			;less than 'A' ?
+	JNB	L_18	
+	RET				;ret with CY set if not alpha
+L_18:
+	CMP	AL,'Z'+1		;greater than 'Z' ?
+	CMC				;set CY if so - else reset CY
+	RET
+CKCHAR4:
+	POP	AX			;get char back for number check
+	XCHG	AL,AH
+	CMP	AL,'0'			;less than '0'?
+	JNB	L_19	
+	RET				;error if so
+L_19:
+	CMP	AL,'9'+1		;no CY if greater than '9'
+	JNB	CKCHAR3			;so check for alpha
+	CMC				;else - reset CY, number OK
+	RET
+;
+;DISPLAYS START ADDRESS ON CONSOLE.
+;
+DSPADR: MOV	BX,Word Ptr LIBSTT
+	MOV	AL,BH
+	CALL	HEXASC
+	MOV	AL,BL
+	CALL	HEXASC
+	MOV	DX,(Offset MHEX)
+	CALL	PRTBUF
+	RET
+;
+;Decimal output routine, print @HL as ASCII digits
+;   entry at ADOUT will print @A
+;
+ADOUT:	MOV	BH,0			; clear @H
+	MOV	BL,AL			; @A to @L
+DECOUT: PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	MOV	CX,-10
+	MOV	DX,-1
+DECOU2: ADD	BX,CX
+	INC	DX
+	JB	DECOU2
+	MOV	CX,10
+	ADD	BX,CX
+	XCHG	BX,DX
+	MOV	AL,BH
+	OR	AL,BL
+	JZ	L_20	
+	CALL	DECOUT
+L_20:
+	MOV	AL,DL
+	ADD	AL,'0'
+	CALL	DISP
+	POP	BX
+	POP	DX
+	POP	CX
+	RET
+;
+;CONVERTS HEX BINARY NBR TO ASCII AND DISPS ON CONSOLE.
+;
+HEXASC: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	ROR	AL,1
+	ROR	AL,1
+	ROR	AL,1
+	ROR	AL,1
+	CALL	OUTHEX
+	POP	AX
+	XCHG	AL,AH
+OUTHEX: AND	AL,0FH
+	ADD	AL,90H
+	DAA
+	ADC	AL,40H
+	DAA
+	CALL	DISP
+	RET
+;
+;SELECTS LINE IN LIBRARY AS DENOTED BY A-Z ARGUMENT.
+;
+LINSEL: CMP	AL,'A'			;Alpha if no CY
+	JNB	LINSEL1			;so jump to original code
+	SUB	AL,30H			;else remove ASCII bias
+	ADD	AL,27			;equate '0' to 27, after 'Z'
+	JMPS	LINSEL2
+;
+LINSEL1:				;original code starts here
+	AND	AL,1FH			;Equate 'A' to 1
+;
+LINSEL2:
+	SUB	AL,1			;Make 'A' = 0, 'Z' = 26
+	MOV	BX,Word Ptr LIBLEN
+	MOV	DL,BL
+	MOV	DH,0
+	MOV	BX,0
+	MOV	CH,8
+LINSC1: SHL	BX,1
+	ROL	AL,1
+	JNB	LINSC2
+	LAHF
+	ADD	BX,DX
+	SAHF
+LINSC2: DEC	CH
+	JNZ	LINSC1
+	XCHG	BX,DX
+	MOV	BX,Word Ptr LIBSTT
+	LAHF
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	MOV	Word Ptr LINSTT,BX
+	RET
+;
+;WRITES OUTPUT FILE TO DISK STARTING FROM 'BUF'.
+;THESE ARE STANDARD ROUTINES,NOTHING FANCY HERE.
+;
+WRTFIL: MOV	DX,(Offset mwrtng)
+	CALL	prtbuf
+	MOV	DX,(Offset FCB2)
+	MOV	CL,MAKEF
+	INT	224
+	INC	AL
+	JNZ	DFOK
+	MOV	DX,(Offset MNOSPC)
+	CALL	PRTBUF
+	JMP	CMD1
+DFOK:	CALL	numrec
+	MOV	BX,(Offset BUF)
+WRTFL1: LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	MOV	Word Ptr DMADD,BX
+	PUSH	BX
+	POP	DX
+	MOV	CL,SETDMA
+	INT	224
+	MOV	DX,(Offset FCB2)
+	MOV	CL,WRITEF
+	INT	224
+	OR	AL,AL
+	JZ	WRTOK
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	MOV	DX,(Offset FCB2)
+	MOV	CL,CLOSEF
+	INT	224
+	MOV	DX,(Offset MDFULL)
+	JMP	DOEXIT
+WRTOK:	POP	AX
+	XCHG	AL,AH
+	DEC	AL
+	OR	AL,AL
+	JZ	WRDONE
+	MOV	BX,Word Ptr DMADD
+	MOV	DX,128
+	LAHF
+	ADD	BX,DX
+	RCR	SI,1
+	SAHF
+	RCL	SI,1
+	JMPS	WRTFL1
+WRDONE: MOV	DX,(Offset FCB2)
+	MOV	CL,CLOSEF
+	INT	224
+	MOV	DX,(Offset MSAVED)
+	JMPS	DOEXIT
+;
+;Calculate number of records to write returns
+; with @A=#records. Note that code is only good
+; for 255 records, (32K)
+;
+numrec: MOV	BX,Word Ptr dmadd
+	MOV	DX,-((Offset buf))
+	ADD	BX,DX
+	MOV	AL,BL
+	OR	AL,AL
+	RCL	AL,1
+	MOV	BL,BH
+	MOV	BH,0
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	SHL	BX,1
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	MOV	AL,0
+	ADC	AL,BL
+	RET
+;
+;PROG COMES HERE IF (P)'PRTLIB' CMD CALLED.
+;WHAT IT DOES IS CHANGE 'CONOT' TO 'LIST' AT DPSWP
+;AND CHANGES BACK TO 'CONOT' AT END OF PRINTOUT.
+;
+PRTLIB: MOV	AL,PLIST
+	MOV	CS:Byte Ptr .DPSWP,AL
+	CALL	DSPLIB
+	CALL	DCRLF
+	MOV	AL,CONOT
+	MOV	CS:Byte Ptr .DPSWP,AL
+	JMP	CMD1
+;
+;THESE CONTAIN THE EXIT ROUTINES.
+;IF NO INSERT OR DELETE HAS BEEN DONE,THEN 'CHGSW'
+;IS '0' AND THEN PROG EXITS.IF AN INSERT OR DELETE
+;HAS BEEN PERFORMED THEN 'CHGSW' WAS SET TO '1'
+;AND USER IS ASKED IF NEW FILE IS TO BE SAVED.
+;IF USER ANSWERS 'Y' THEN A 'WRTFIL' IS DONE AND
+;PROG IS EXITED.IF ANSWER IS 'N' THEN PROG EXITS
+;WITHOUT WRITING NEW FILE.
+;
+EXIT:	MOV	AL,Byte Ptr CHGSW
+	OR	AL,AL
+	JZ	DOEXT1
+EXIT1:	MOV	DX,(Offset MCKSAV)
+	CALL	PRTBUF
+	CALL	CKCONS
+	CMP	AL,'Y'
+	JNZ	L_21	
+	JMP	WRTFIL
+L_21:
+	CMP	AL,'N'
+	JNZ	EXIT1
+	JMPS	DOEXT2
+;
+DOEXIT: CALL	PRTBUF
+	JMPS	DOEXT2
+DOEXT1: MOV	DX,(Offset MNCHG)
+	CALL	PRTBUF
+DOEXT2: MOV	DX,(Offset MEXIT)
+	CALL	PRTBUF
+	MOV	CL,0
+	MOV	DL,0
+	INT	224
+;
+;
+;THE DATA AREA STORES ALL THE MESSAGES,AND ALL THE 
+;OTHER DATA USED BY THE PROG.
+;
+;DATA AREA
+;
+MPROG	DB	CR,LF,'M8LIB V 1.0 -  change Phone Number Library of MDM8xx series'
+	DB	CR,LF,'8086 Version by Alex Soya',CR,LF,'$'
+MCERR	DB	CR,LF,LF,'Syntax is :   M8LIB input.CMD output.CMD',CR,LF,LF
+	DB	'  Both filenames must be specified',CR,LF
+	DB	'  and <output> must be unique',CR,LF,'$'
+MUNSF	DB	7,CR,LF,LF,'Unable to open Source File$'
+MUNDF	DB	7,CR,LF,LF,'Output File Already Exists$'
+MNOSPC	DB	7,CR,LF,LF,'No Directory Space$'
+MCLRNG	DB	CR,LF,'Clearing file space, $'
+MLOADF	DB	'loading file...',CR,LF,'$'
+MEXIT	DB	CR,LF,'M8LIB done, rebooting$'
+MDLNF	DB	7,CR,LF,LF,'Dial Library not found in the first 6k Bytes$'
+MDLFND	DB	CR,LF,'Found dial Library at $'
+MLLEN	DB	CR,LF,'Library spacing is $'
+MBYT	DB	' bytes',CR,LF,'$'
+MDLOK	DB	CR,LF,'Does Library look okay? $'
+MCMD	DB	CR,LF,'<D>elete, <H>elp, <I>nsert, <P>rint, <R>ead,'
+	DB	' <V>iew, <W>rite $'
+hlpmsg	DB	CR,LF,LF,'  ++  Command Summary  ++',CR,LF,LF
+	DB	' Cmd   Syntax    Description',CR,LF
+	DB	'----- --------  -------------',CR,LF,LF
+	DB	'  D      D*       Delete specified entry from library',CR,LF
+	DB	'  H      H        Display this screen',CR,LF
+	DB	'  I      I*       Insert new text for specified entry',CR,LF
+	DB	'  P      P        Print full library on printer',CR,LF
+	DB	'  R      R        Re-Read library from source file',CR,LF
+	DB	'  V      V*       View specified entry on console',CR,LF
+	DB	'         V?       View entire library',CR,LF
+	DB	'  W      W        Write new COM file to disk',CR,LF,LF
+	DB	'  "*"  signifies one character,  A - Z or 0 to 9 which',CR,LF
+	DB	'       is the library entry you wish to work with',CR,LF,'$'
+MSYNER	DB	7,CR,LF,LF,'++ Syntax Error ++',CR,LF,'$'
+MABINS	DB	CR,LF,LF,'Aborting insert mode, no changes made$'
+MADDB1	DB	CR,LF,'  Description$'
+MADDB2	DB	'1-xxx-xxx-xxxx  - Exactly $'
+MADDB3	DB	' Characters',CR,LF,'$'
+MDFULL	DB	7,CR,LF,LF,'Disk Full$'
+MWRTNG	DB	CR,LF,LF,'Writing File...$'
+MSAVED	DB	CR,'File Written to Disk$'
+MOERR	DB	7,CR,LF,'Open error on <R>ead',CR,LF,'$'
+MNCHG	DB	CR,LF,LF,'No changes made to library$'
+MCKSAV	DB	CR,LF,LF,'Do you want to save new File (Y/N)? $'
+MHEX	DB	'H, (Absolute address)',CR,LF,'$'
+DMADD	DW	0
+LIBSTT	DW	0
+LINSTT	DW	0
+CHGSW	DB	0
+PRTSW	DB	0
+SRCLMT	DB	0
+LINCHR	DB	0
+CONBUF	DB	(Offset CONLEN)
+CONSIZ	RS	1
+CONLIN	RS	35
+CONLEN	EQU	(Offset $)-(Offset CONSIZ)
+KPCLR	DB	0
+FCB1	RS	36
+FCB2	RS	36
+LIBLEN	RS	1
+STKSPC	RS	40
+STACK	EQU	(Offset $)
+BUF	EQU	(Offset $)
+LDAREA	RS	6000H		; area to load CMD file
+;
+;
+	END
+

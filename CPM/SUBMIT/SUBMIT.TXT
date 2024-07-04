@@ -1,0 +1,58 @@
+SUBMISSION
+by Editor, Ann Arbor KUG, May 1987
+
+(Some interesting notes on SUBMIT)
+
+SUBMIT, the CP/M batch processor, can do some things that Digital
+Research never told you about.
+
+Just about everyone knows that SUBMIT will treat lines in the SUB
+file that begin with a semicolon (or one of a handful of other
+characters) as comments; but did you know that there is a better
+way to comment your more obscure SUB files?
+
+Normally, blank lines in a SUB file are a no-no.  SUBMIT will
+choke when it comes across a blank line, even if it occurs at the
+end of the file.  Well, it turns out that you can make use of
+this little "bug"!
+
+Actually, you can place whatever text that you wish at the
+beginning of you SUB file.  (There is an absolute limit on the
+amount, but you are not likely to reach it unless you get very
+wordy.  SUBMIT will let you know and not do anything drastic.). 
+No semicolons or other nonsense is necessary.  This is a good
+place to put a description of exactly what the SUB file does --
+in plain English.  The trick is to place a blank line right
+before the actual commands, and everything will work beautifully!
+
+This trick will NOT work with EX, GSUB, SuperSUB or other batch
+processors.  If you have used some of these other programs, you
+are probably wondering why anyone would want to use SUBMIT in the
+first place.  Well, SUBMIT is useful for loading memory resident
+programs (like LBRDISK and some of the keyboard enhancers) that
+locate themselves just below the CCP.  You just can't do this
+with EX and GSUB because they occupy the same space.
+
+For the technically curious:  All SUBMIT really does is create
+the file "$$$.SUB" on drive A.  When SUBMIT creates this file, it
+loads the commands in your file from the bottom up.  Thus, when
+it reaches the blank line that separates your opening text from
+the commands, it stops (chokes).  An error does not occur,
+however, and SUBMIT expires quietly with a warm boot.  At this
+point the CCP begins execution of the "$$$.SUB" file, working
+from the bottom (where your first command is) upward.  In this
+way, the temporary "$$$.SUB" is eroded until it is erased from
+the directory after the last command.
+
+If you wish to look at the "$$$.SUB" file you will have to be
+clever.  Since the file is created on drive A:, and the CCP will
+always execute it if possible after a warm or cold boot, this
+file can be elusive.  If you press reset during the execution of
+the file, the darned thing will just start up where it left off
+when CP/M comes back.  Also, if you do manage to capture the file
+(by copying it during the execution or some other trick) you will
+find that it seems to contain only one command -- the last one,
+and perhaps the remnants of some previous command.  Look at the
+file with CCT or some other program that will give you a hex and
+ASCII dump of the whole file.  You may find it interesting.
+

@@ -1,0 +1,139 @@
+
+Note : This modification (or similar) will be in the next NUBYE release [tmb]
+
+Date : 09/22/86
+From : Joe Earls  PC-FORUM  (404) 324-7391
+Re   : NUBYE v1.01 modification
+
+   Tom, the modification that I am providing here has been used on my
+PC-Forum BBS to solve a problem that I had with my terminal in blanking
+the screen between calls.  My terminal requires a particular character
+sequence for turning the screen off and another sequence for turning it
+back on again.  The problem I had with trying to use the existing CLRSCR
+feature is that CLRSCR does not send any sequence to turn the screen back
+on again.  It just assumes that the next characters sent to the screen will
+just appear.  For many terminals, that would be the case.  For those like
+mine and other complex terminals, it is not.
+
+   I have been using this modification with NUBYE101 without any problems.
+After again reviewing the modification, I believe that it would not adversely
+affect or be affected by features associated with any other equates.
+
+   Note: Modified/new code is designated by "==>>"
+
+ ------
+ Mod #1
+
+   At the top of NUBYE in the user-definable EQUates, you will place the
+the following lines -- just below the CLRSCR and CLRCH1-6 equates.
+
+==>> New code starts here
+;
+; Set CRTON to YES if your terminal requires a special string be sent
+; to turn your CRT on, following the CLRSCR sequence which turned it off.
+;
+CRTON   EQU     yes     ; Yes, your terminal requires a special screen-on
+                        ;   sequence following the CLRSCR sequence.
+;
+CRTON1  EQU     1BH     ; Six bytes allowed to turn your screen back on,
+CRTON2  EQU     'n'     ;   following the CLRSCR which turned it off.
+CRTON3  EQU     0       ;   All unused bytes must remain 0
+CRTON4  EQU     0
+CRTON5  EQU     0
+CRTON6  EQU     0
+;
+==>> end of new code
+
+ ------
+ Mod #2
+
+  Turn the screen on after receiving data from local console or modem.
+
+;
+RINGWT: CALL    CONSTAT
+        ORA     A
+        JZ      RINGW1
+;
+==>>     IF     CRTON
+==>>    LXI     H,SCRNON        ; revive the console screen
+==>>    CALL    PRINTL
+==>>     ENDIF
+;
+        CALL    VCONIN          ; Character typed
+        ANI     7FH             ; Strip parity bit
+        CPI     'C'-40H         ; CTL-C?
+        CZ      USRCHK          ; Check for exit
+
+ ------
+ Mod #3
+
+  Turn the screen on after entering the ANSWer routine.
+
+;
+; answer routine
+;
+ANSW:    IF     NOT CPM3
+        CALL    BDCHEK
+         ENDIF
+;
+         IF     MOTOR
+        CALL    DSKON           ; Turn on drives
+         ENDIF
+;
+==>>     IF     CRTON
+==>>    LXI     H,SCRNON        ; revive the console screen
+==>>    CALL    PRINTL
+==>>     ENDIF
+;
+
+ ------
+ Mod #3
+
+  Turn the screen on when exiting to CP/M, locally.
+
+;
+EXCPM:   IF     IMAT
+        CALL    IMQUIT          ; Send ATH1 or ATS0=0 depending on OFFHK
+         ENDIF
+;
+; This CALL to MDQUIT caused some modems trouble when OFFHK was YES.  While
+; many computer inserts just call IMQUIT from MDQUIT without doing anything,
+; some would drop DTR, then call IMQUIT -- this is what caused those folks'
+; modems to ignore the ATH1 command...  Hence, the above CALL directly to
+; IMQUIT solves everyone's problems.
+;
+         IF     NOT IMAT
+        CALL    MDQUIT          ; Drop DTR and send ATH1 or ATS0=0 to modem
+         ENDIF
+;
+         IF     MOTOR
+        CALL    DSKON           ; Turn on drives
+         ENDIF
+;
+==>>     IF     CRTON
+==>>    LXI     H,SCRNON        ; revive the console screen
+==>>    CALL    PRINTL
+==>>     ENDIF
+;
+        LHLD    REALBD+1        ; Get real bdos vector
+;
+
+ ------
+ Mod #4
+
+   Last code addition is at the end of NUBYE.
+
+;
+         IF     CLRSCR
+CLRSEQ: DB      CLRCH1,CLRCH2,CLRCH3,CLRCH4,CLRCH5,CLRCH6,0
+         ENDIF
+;
+==>> NEW code starts here
+         IF     CRTON
+SCRNON: DB      CRTON1,CRTON2,CRTON3,CRTON4,CRTON5,CRTON6,0
+         ENDIF
+==>> end of new code
+;
+
+** end of modification file **
+

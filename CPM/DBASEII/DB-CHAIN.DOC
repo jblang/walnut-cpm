@@ -1,0 +1,169 @@
+Date: Thursday, 22 August 1985
+From: Bruce Conroy <blc at JPL-VLSI.ARPA>
+To:   info-cpm at AMSAA.ARPA
+Re:   dBaseII machine language interface
+
+Here is a sample dBaseII file which loads and calls a machine
+language program.
+
+* dBase II file to read diskcat files into dBase format
+* 85.0212 BLC
+*--!---!---!---!
+* modified to load and use diread.z80
+* 85.0403 BLC
+* uses variable for catalog name, to allow several catalogs
+* 85.0405 BLC
+set delete on
+set talk off
+accept 'Date' to today
+set date to &today
+load diread
+accept 'Catalog to Use' to diskcat
+use &diskcat
+do while T
+text
+options are:
+   <D>isk ID order
+   <E>xtention order
+   <F>ull Printout
+   <N>ame order
+   <Q>ualified Printout
+   <S>earch for File
+   <U>pdate catalog
+endtext
+wait to command
+store !(command) to command
+if command='D'
+   index on disk:id+name+ext to disk
+endif
+if command='E'
+   index on ext+name+disk:id to ext
+endif
+if command='F'
+   store 'T' to qual
+   do printout
+endif
+if command='N'
+   index on name+ext+disk:id to name
+endif
+if command='Q'
+   accept 'Selection Function? ' to qual
+   store !(qual) to qual
+   do printout
+endif
+if command='S'
+   accept 'Search for? ' to qual
+   find &qual
+   disp
+endif
+if command='U'
+* directory read
+* 85.0403 BLC
+? 'Put new disk in B and press <return>'
+wait
+reset
+copy stru to dir
+use dir
+store 'UNKNOWN' to d:id
+store 'xxxxxxxxxxx' to entry
+set call to 41984
+call entry
+set call to 41987
+do while entry # 'NO DATA'
+   if $(entry,9,3)="DID"
+      store $(entry,1,8) to d:id
+   else
+      append blank
+      replace name with $(entry,1,8)
+      replace ext with $(entry,9,3)
+      replace cat:date with date()
+   endif
+   call entry
+enddo
+   if d:id = 'UNKNOWN'
+       ? 'No ID present'
+       use &diskcat
+   else
+      replace all disk:id with d:id
+      use &diskcat
+      delete all for disk:id=d:id
+      append from dir
+   endif
+enddo
+
+
+
+The machine language program is created by:
+
+; diread.z80
+; directory reading program to call from dBase
+; 85.0403 BLC
+;---!---!---!---!
+; buffer added
+; 85.0403 BLC
+    public one, two
+    cseg
+    .z80
+bdos    equ 5
+findf   equ 17  ;find first funct
+findn   equ 18  ;  "   next   "
+dmaf    equ 26
+one:    jp first    ;a400h=41984
+two:    jp next     :a403h=41987
+fcb:    db 2        ; code for drive B
+        db  "???????????"  ;for name and ext
+        ds  24,0    ;rest of fcb all zeroed
+psave:  dw 0        ;save the passed parameter
+empty:  db  "NO DATA    "
+buffer: ds  128     ;reserve a buffer
+first:  ld  c,findf
+        jp endup
+next:   ld  c,findn
+endup:  inc hl           ;skip the length byte of dBase string
+        ld  (psave),hl   ;save the address
+        push    bc       ;save the function
+        ld  de,buffer    ;set dma to buffer
+        ld  c,dmaf
+        call    bdos
+        pop bc           ; first or next back
+        ld  de,fcb
+        call bdos
+        cp 255            ;flag for no match
+        jp z,nomore
+                         ;A has directory code
+                         ;file name is at buffer+1+32*A
+        ld  hl,buffer+1
+        ld  de,32
+again:  and a            ;to set z flag
+        jp z,gotit
+        dec a
+        add hl,de
+        jp again
+gotit:  ld  de,(psave)   ;address of dBase string
+        ld  bc,11        ;length of name+extention
+        ldir             ;move it into the string
+        ret
+nomore: ld  hl,empty     ;no data message
+        ld  de,(psave)
+        ld  bc,11
+        ldir
+        ret
+        end
+
+
+
+After assembly, (with M80) the HEX file is created by linking 
+such that,the laod address is A400H (41984, above the limit of 
+memory used by dBase) as follows:
+
+L80 /PA400,DIREAD,DIREAD/X/N/E
+
+
+This is a pretty primative example, but it does exercise the
+dBase machine language interface functions.
+
+If anybody has any information regarding the defaults,
+I would also be interested.
+
+Bruce Conroy (BLC@JPL-VLSI.ARPA)
+

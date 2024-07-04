@@ -1,0 +1,140 @@
+
+
+The routine below is a modification for MBYE33 to allow using the
+AVATEX 300/1200 modem without needing remote input to set baud
+rate and begin the program. This is presented as a guideline only,
+as my MBYE33 has been heavily modified (including multiple users
+and wordwrap chat), but should work with any BYE. The AVATEX should
+be set to the "1200" mode of response codes. The rest is automatic.
+MBYE should be set to "NO" for all modem options, and S300 and
+S1200 should be "YES"
+
+RINGWT:
+;
+	CALL	VCONSTAT	;check if console key ready
+	ORA	A
+	JZ	RNGWT1		;nope, check for ring/carrier
+	CALL	VCONIN		;yep, get console key
+	ANI	7FH		;strip parity bit
+;
+	 IF	FKEYS
+	CPI	BELKEY		;bell key?
+	CZ	TOGBEL		;if so, toggle console bell on/off
+	CPI	CLRKEY		;clear screen char?
+	CZ	CLRSCRN		;if so clear the screen
+        CPI     27		;IF ESC, CHECK FOR EXIT
+	JZ	USRCHK
+	 ENDIF
+;
+C40:	CPI	'C'-40H		;CTL-C?
+	JZ	USRCHK		;check for exit
+;
+RNGWT1:
+;
+	CALL	MDINST		;See if a character is waiting
+	JZ	RINGWT		;Nope, go check other things
+	JMP	GCHA		;ok! get it!
+ANOT:	CALL	MDINST		;check for another 
+	JNZ	GCHA		;go get it
+	CALL	MDCARCK		;check for a carrier-if present,check buffer
+	JZ	ANOT		;no carrier, loop
+	LDA	TCHAR		;load the buffer
+	CPI	'T'		;is it a "T"? last thing from a 300 connect
+	JZ	ANT3		;then go answer as 300
+	CPI	'0'		;is it a "0"? Connect 1200
+	JZ	ANT12		;jump to 1200 connect
+	CALL	MDCARCK		;if a carrier,
+	JNZ	ANSWERA		;we missed - go do dumbmodem logon
+UNK:	XRA	A		;else clear the buffer
+	STA	TCHAR		;
+	JMP	RINGWT		;go wait again
+GCHA:	CALL	MDINP		;get the chaacter
+	CPI	'0'		;store it if a '0'
+	JZ	NGC		;
+	CPI	'T'		;store it if a "T"
+	JZ	NGC		;
+	CPI	'R'		;R means NO CARRIER or ERROR
+	JZ	UNK		;so go wait again
+	JMP	NGR		;none of above, so clear
+NGC:	STA	TCHAR		;store it in TCHAR buffer
+NGR:	XRA	A		;clear A
+	JMP	ANOT		;try for another
+ANT3:	CALL	SET300		;set port to 300
+	MVI	A,BP300		;store the baud pointer
+	STA	MSPEED
+	XRA	A		;clear A
+	JMP	ANSWER		;go load welcome, etc.
+ANT12:	CALL	SET1200		;set port to 1200
+	MVI	A,BP1200
+	STA	MSPEED
+	XRA	A
+	JMP	ANSWER		;go load welcome
+;
+;
+;
+;
+
+The following mods go in "ANSWER" right before ANSWERA - which is now
+set to perform only the answering after an error has occurred. This
+routine bypasses ANSWERA, which is not necessary if the above worked!
+
+;
+;
+	 IF	NOT (SMODEM OR SM1200)
+
+;
+	MVI	B,10
+	CALL	DELAY
+	CALL	FRSTCR		;check for initial carrier
+	JC	HANGUP2		;no carrier, forget it...
+	JMP	WELCOME
+;
+;
+ANSWERA:
+;
+	CALL	SET300		;set speed initially at 300
+	CALL	MDINP		;clear garbage characters
+	CALL	MDINP
+	CALL	FRSTCR		;check for carrier the first time
+	JC	HANGUP2		;wasn't a voice call
+	 ENDIF
+;
+;
+
+
+OTHER CHANGES:
+
+
+Add (in flag/msg areas near end of pgm)
+
+TCHAR:	DS	1	;Space for the character buffer 
+
+
+Add in HANGUP2 (above RINGWT)
+
+	XRA	A	
+	STA	TCHAR
+	CALL	SET1200	
+
+
+
+That's it! Should work in any BYE if placed in the proper loop of FKEYS
+and Modem response checking.
+
+Should also work with any 3/1200 modem that issues different responses
+for 300 and 1200 connect. Unfortunately, the VOLKS doesn't issue 
+dependable responses for 300 connect, but since it locks up every 10th
+call anyway, doubt if that's much of a problem!
+
+The above is being used on two of the AMY<>BBS systems, THE APARTMENT
+(904-737-6654) and HOTEL SORDID (904-777-3311), both running on TRS
+Model 4's with CP/M. 
+
+    Charles McHan
+    AMY  <>  BBS 
+    MULTI-SYSTEM
+   (904) 725-7461 
+   (904) 725-1226
+
+
+

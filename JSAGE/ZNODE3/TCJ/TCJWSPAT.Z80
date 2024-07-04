@@ -1,0 +1,343 @@
+; Program:	WordStar Shell Modification Patches
+; Author:	Jay Sage
+; Date:		August 7, 1988
+
+; Patches to make the WordStar Release 4 'R' command operate as a ZCPR2-type
+; shell.  Several routines in WS.COM and WS.OVR must be changed.
+;
+; 1. WordStar must be prevented from pushing its name onto the Z-System shell
+;    stack.  However, a flag that is used by the 'R' command to determine how
+;    to operate must be set as if WS4 had set itself up as a shell.
+;
+; 2. The popping of the shell stack when WS4 terminates must be disabled.
+;
+; 3. The user input to the prompt from the 'R' command must be handled
+;    differently.  A command to reinvoke WS4 must be appended to the user's
+;    input, and then any commands pending in the multiple command line buffer
+;    must be added as well.  The result is then placed into the command line
+;    buffer.  If overflow occurs, the user command is ignored, and an error
+;    message is displayed until a key is pressed.  The chaining command is of
+;    the form ";DUU:WSNAME ,".  The comma at the end of the command tail is
+;    used as a signal that WS4 was invoked as a ZCPR2 shell.
+;
+; 4. An optional patch can be included to defeat the use of the path for
+;    searching for the overlay files.  An internal path can be specified.
+
+;------------------------------------------------------------
+
+no	equ	0
+yes	equ	not no
+
+intpath	equ	yes		; Use internal path to find OVR files?
+
+morpat	equ	045bh		; Patch area
+namebuf	equ	morpat+128-16	; Keep program ";DUU:PROGNAME ,<0>"
+				; ..at end of patch area
+envoff	equ	0aa4h		; WordStar ENV offset routine
+zflag	equ	2200h		; Z-System running flag
+rcmdbuf	equ	1f38h		; Buffer for 'R' command input
+rcmd	equ	rcmdbuf+1	; Beginning of user's command line
+clrscr	equ	0386h		; Clear screen character sequence
+scrnfn	equ	17c7h		; Routine to perform screen functions
+conout	equ	0280h		; Routine to output character in A to console
+
+bell	equ	07		; Bell character
+
+;----------------------------------------------------------------------
+;
+;			PATCHES TO WS.OVR
+;
+;----------------------------------------------------------------------
+
+; Modifications to the code that pushes WordStar onto the shell stack.
+
+; This patch prevents the WordStar shell entry from being set up, but it
+; sets the flag in 2200h that makes WordStar think that it has set it up.
+; In this way, the 'R' command will work as it would with shells engaged.
+; The space is used to determine the command line needed to reinvoke
+; WordStar.  The ZCPR33 facility for returning the directory in which the
+; program was located is used to provide an explicit DU: prefix.  The
+; resulting command line is kept at the end of the user patch area.
+
+offset	defl	2380h		; Real address = address in overlay + offset
+
+	org	3cbfh		; Place to install patch
+
+	ld	e,24h		; Get pointer to XFCB
+	call	envoff		; HL -> XFCB
+
+	push	hl
+	ld	de,0dh		; Offset to user number where WS.COM found
+	add	hl,de
+	ld	b,(hl)		; User number to B
+	inc	hl
+	ld	a,(hl)		; Drive to A
+
+	add	a,'A'-1		; Convert drive to letter
+	ld	hl,namebuf	; Point to buffer at end of patch area
+	ld	(hl),';'	; Command separator
+	inc	hl
+	ld	(hl),a		; Store drive letter
+	inc	hl
+
+	ld	a,b		; Now work on user number
+	ld	c,'0'-1		; Tens value
+tens:
+	inc	c
+	sub	10
+	jr	nc,tens
+	add	10+'0'		; Convert units to ASCII
+	ld	(hl),c		; Stash tens digit
+	inc	hl
+	ld	(hl),a		; Stash units digit
+	inc	hl
+
+	ld	(hl),':'	; Insert colon
+	inc	hl
+
+	pop	de		; Get pointer to XFCB again
+	ld	b,8		; Maximum of 8 letters
+copyname:
+	inc	de		; Advance to next letter
+	ld	a,(de)
+	cp	' '
+	jr	z,copydone	; Quit at first space
+	ld	(hl),a
+	inc	hl
+	dec	b
+	jr	nz,copyname	; Quit after eight characters
+copydone:
+	ld	(hl),' '	; Put shell signal tail (a comma)
+	inc	hl
+	ld	(hl),','
+	inc	hl
+	ld	(hl),0		; Put in terminating null
+
+	ld	a,0ffh		; Fool WS into thinking shell installed
+	ld	(zflag),a
+	jp	60aah
+
+end1pat:
+endaddr	defl	60aah - offset
+free	defl	endaddr - end1pat
+	 if	$ gt endaddr
+	ERROR: Patch to shell installation at 3CBFh is too long
+	 endif
+
+;------------------------------------------------------------
+
+; This patch takes the user's response to the 'R' command, adds the command
+; to reinvoke WordStar, and appends any pending commands in the command line
+; buffer.  The result is written out to the command line buffer.  This
+; implements a ZCPR2-style shell for the 'R' command.
+
+; If the resulting command line is too long for the MCL, an error message is
+; displayed until a key is pressed, and then WS resumes as if no command line
+; had been entered.
+
+; The first part of this patch replaces code in WS.OVR.  There is not enough
+; space there for all the code, so it continues in the user patch area.
+
+offset	defl	-1e00h		; Real address = address in overlay - offset
+
+scratch	equ	0a000h		; Area to use as scratch buffer
+
+	org	67b2h		; Address in WS.OVR
+
+	ld	hl,rcmdbuf	; Point to 'R' command buffer
+	ld	c,(hl)		; Get length into BC
+	ld	b,0
+	inc	hl		; Point to user's command
+	ld	de,scratch	; Scratch buffer in RAM
+	ldir			; Copy user's command to buffer
+
+	ld	hl,namebuf	; Point to WS4 reinvocation command line
+	call	cpy2nul		; Copy through ending null
+	jp	morpat		; Continue in patch area
+
+end2pat:
+free	defl	67cbh - end2pat
+	 if	$ gt 67cbh
+	ERROR: Patch to command-line code at 67B2h is too long
+	 endif
+
+;----------------------------------------------------------------------
+;
+;			PATCHES TO WS.COM
+;
+;----------------------------------------------------------------------
+
+
+; This is the continuation of the patch in WS.OVR that inserts the user's
+; command line, together with the WS reinvocation command, into the multiple
+; command buffer.
+
+	org	morpat
+
+	push	de		; Save pointer to buffer
+	ld	e,18h		; Get pending commands from MCL
+	call	envoff
+	ld	e,(hl)		; Get pointer to next command into DE
+	inc	hl
+	ld	d,(hl)
+	ex	de,hl		; Switch into HL as source for copy
+	pop	de		; Destination pointer into buffer
+	call	cpy2nul		; Copy through ending null
+
+	ld	hl,clrscr	; Clear the screen
+	call	scrnfn
+
+	ld	e,18h		; Get MCL pointer
+	call	envoff		; HL -> MCL buffer, A = max characters
+
+	; Check length of new command
+
+	ld	de,scratch	; Point to new command line
+	ld	b,a		; Max length in B
+lenloop:
+	ld	a,(de)
+	or	a
+	jr	z,oklength
+	inc	de
+	djnz	lenloop
+
+	ld	de,errmsg	; Display error message
+	ld	c,9
+	call	0005h
+	call	sak		; Wait for key to be pressed
+	jp	7f4eh		; Pretend no user input
+
+oklength:
+	ld	de,4		; Offset to command line in buffer
+	ex	de,hl		; Reverse pointers
+	add	hl,de
+	ex	de,hl		; HL = MCL, DE = MCL+4
+	ld	(hl),e		; Set up pointer in MCL
+	inc	hl
+	ld	(hl),d
+	ld	hl,scratch	; Source for command line
+	call	cpy2nul		; Copy it in
+
+	jp	13f6h		; Chain to command line from WS
+
+errmsg:
+	db	bell,'MCL Ovfl - press any key...$'
+
+end3pat:
+free	defl	namebuf - end3pat
+	 if	$ gt namebuf
+	ERROR: Patch in MORPAT is too long
+	 endif
+
+;------------------------------------------------------------
+
+; This optional patch causes WS4 to use an internal path to locate
+; its overlay files.
+
+	 if	intpath
+
+	org	0f5fh		; This is where z3 path location is determined
+
+	call	setpath		; Call alternative routine
+	nop			; Must fill 5 bytes
+	nop
+
+	 endif	;intpath
+
+;------------------------------------------------------------
+
+
+; Modification to the termination routine that pops the shell stack.
+
+; This patch eliminates the popping of the shell stack on exit from
+; WordStar.  The space from the end of this patch to 13f6h is available
+; for other uses (40 bytes).
+
+	org	13ceh
+
+	jp	13f6h		; Exit routine
+
+
+; This routine copies the string pointed to by HL to the address pointed to by
+; DE until a null byte is encountered.  The null byte is copied as well.
+
+cpy2nul:
+	ld	a,(hl)		; Get source character
+	ld	(de),a		; Put into destination
+	or	a		; Check for null
+	ret	z		; If so, quit
+	inc	hl		; Bump up pointers
+	inc	de
+	jr	cpy2nul
+
+	
+; Alternative internal path routine
+
+	 if	intpath
+
+setpath:
+	ld	hl,path0	; Point to internal path size
+	ld	a,(hl)
+	inc	hl		; Point to actual path
+	or	a		; Set flags
+	ret
+
+path0:	db	2		; Allow up to two elements
+	db	2		; Drive (A=1)
+	db	4		; User
+	db	0,0		; Space for another entry
+	db	0		; Terminating null
+
+	 endif	;intpath
+
+end4pat:
+free	defl	13f6h - end4pat
+	 if	$ gt 13f6h
+	ERROR: Patch in shell popping code at 13CEh is too long
+	 endif
+
+;------------------------------------------------------------
+
+; Modification to initialization code where WS4 determines if it was
+; invoked as a shell.  We have defined a convention where a comma on
+; the end of the command line signals WS4 to display its shell-wait
+; message and wait for the user to press a key.
+
+	org	1a2fh
+
+	ld	hl,80h		; Point to command tail
+	ld	l,(hl)		; Get length into L
+	set	7,l		; In effect, add 80h
+	ld	a,(hl)		; Get last character
+	cp	','		; See if it is a comma
+	jr	nz,1a5fh	; Not a 'shell', so go on ahead
+
+	ld	(hl),' '	; Get rid of the comma
+
+	ld	de,1b10h	; Display 'shell wait' message
+	ld	c,9		; (note: message is trashed by other code and
+	call	0005		; ..cannot be called from elsewhere)
+	call	sak		; Wait for key to be pressed
+
+	jr	1a5fh		; Proceed normally
+
+sak:
+	ld	e,0ffh		; Poll console input status
+	ld	c,6
+	call	0005
+	or	a
+	jr	z,sak		; ..until a key is pressed
+
+	ld	e,0dh		; Echo carriage return
+	ld	c,6
+	jp	0005
+
+end5pat:
+free	defl	1a5fh - end5pat
+	 if	$ gt 1a5fh
+	ERROR: Patch to initialization code at 1A2Fh is too long
+	 endif
+
+
+	end
+                                                         

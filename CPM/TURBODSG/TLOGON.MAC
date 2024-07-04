@@ -1,0 +1,791 @@
+	title	"tShell logon module version 0.60"
+;
+;	(c) 1985 S. Kluger, All Rights Reserved.
+;	This is the logon module for tShell. It
+;	should be copied to 31A:WARMSTRT.AUT.
+;
+;	History:
+;	12/14/85	started, completed default logon code,
+;			completed userid/password entry routine.
+;	12/15/85	ready for extensive testing!
+;	12/20/85	added drive access display
+;	12/21/85	added priv level display
+;	12/22/85	added logoff before logon, made DELETED flag work
+;	01/01/86	changed for USRSUP
+;	01/04/86	started clock inop code
+;
+cr	equ	0dh
+lf	equ	0ah
+cfunc	equ	5
+tfunc	equ	50h
+jconv	equ	10958
+tries	equ	4		; up to 4 missed logons in a row
+wait	equ	60		; number of seconds to delay after n tries
+;
+.z80
+.request syslib
+;
+;	+----------------------+
+;	| data storage section |
+;	+----------------------+
+;
+	dseg
+;
+	INCLUDE	TSHELL.DEF
+;
+idfcb:	db	1,'TSHELL  IDS',0,0,0,0	; password file
+	ds	22
+logfcb:	db	1,'TSHELL  LOG',0,0,0,0	; activity log
+	ds	22
+crtfcb:	db	1,'TSHELL  CRT',0,0,0,0	; crt configuration file
+	ds	22
+lgofcb:	db	1,'TSHELL  SCR',0,0,0,0	; logo file
+	ds	22
+bulfcb:	db	1,'TSHELL  BUL',0,0,0,0	; bulletin file
+	ds	22
+;
+rqid:	db	'         '		; requested user id
+rqpw:	db	'         '		; requested password
+;
+idsize:	dw	0			; password file size (must be < 8M)
+;
+retry:	db	tries			; retry counter
+delay:	db	wait
+;
+inbuf1:	db	5
+	db	0
+hhmm:	db	'00:00'
+;
+inbuf:	db	8
+ccnt:	db	0
+;
+@dcfld::db	'00/00/00 at ',0
+mnon:	db	'nonprivileged',0
+msemi:	db	'restricted',0
+mfull:	db	'full access',0
+;
+bauds::	db	5,6,7,10,12,14,15,0ffh
+	ds	9
+;
+actlog:
+	db	1ah
+actid:	ds	8			; activity log user id
+actdt:	ds	4			;   date/time
+actst:	ds	2			;   station
+act01:	db	0			;   on/off/bad flag (1/0/FF)
+actdu:	ds	2			;   drive/user
+actbp:	ds	8			;   bad password given
+	db	1ah,1ah,1ah,1ah,1ah,1ah	; filler
+;
+mstrs:	db	0			; master date reset code (c9=ok)
+;
+id:	db	'.tShell.'
+offset:	db	0
+mstoff:	db	0
+;
+; default buffer. this buffer is overwritten as soon
+; as a valid password file is detected.
+;
+defbuf:	db	'UNLOGGED',2,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
+	db	'ABCDEFGHIJKLMNOP',1,1
+	ds	128-($-defbuf)		; reserve 128 bytes
+	ds	40			; stack space
+stack	equ	$
+;
+;	+------------------+
+;	| code begins here |
+;	+------------------+
+;
+	cseg
+;
+start:	jr	.skcls			; skip past cls code
+;
+defcls:	db	2,1bh,'E',0,0		; default clearscreen
+	'Copyright (c) 1985 S. Kluger. All Rights Reserved. '
+;
+.skcls:	ld	sp,stack		; set up local stack
+	ld	c,8			; set abort address
+	ld	de,abort		; point to any RET
+	call	tfunc
+	ld	de,80h
+	ld	hl,id
+	ld	bc,8
+	ldir
+	ld	bc,41
+	ld	l,0
+	call	tfunc
+	ld	(offset),a		; save offset
+	or	a
+	jp	z,fatal			; fatal error if no USR FCN
+	ld	bc,0fe29h		; now set reset time in master
+	ld	de,0
+	ld	l,0
+	call	tfunc
+	ld	(mstoff),a
+	call	resmt
+	ld	c,13			; set compatibility flags
+	ld	e,0f8h
+	call	tfunc
+	ld	bc,41			; log off tShell
+	ld	de,0ffffh
+	ld	l,2
+	call	getoff			; get usrsup offset
+	call	tfunc
+	ld	de,idfcb		; get password file
+	push	de
+	ld	c,35			; filesize function
+	call	cfunc
+	ld	hl,(idfcb+33)		; get size
+	ld	(idsize),hl		; save it
+	pop	de			; get fcb back
+	or	a
+	jp	nz,deflog		; default logon without any ado
+	ld	hl,defcls		; default clearscreen
+	call	crtctl
+	call	print##
+	cr,lf
+	'tShell (c) 1985 S. Kluger, All Rights Reserved.'
+	'            8-bit Station ',0
+	ld	c,12			; get network address
+	call	cfunc
+	ld	a,d
+	add	a,'A'
+	call	cout##
+	ld	a,'-'
+	call	cout##
+	ld	a,e
+	call	pafdc##
+	call	crlf##
+	ld	de,lgofcb
+	call	fi0$open##		; open for byte read
+	call	z,dsplgo		; display logo if found
+	ld	de,USERID		; set dma to password file template
+	ld	c,26
+	call	cfunc
+idloop:	ld	hl,actlog+1
+	ld	b,25
+.zal..:	ld	(hl),0
+	inc	hl
+	djnz	.zal..
+	call	print##			; now ask for userid
+	cr,lf
+	'Enter User ID  >',0
+	ld	hl,rqid
+	call	get8			; get up to 8 chars
+	call	print##			; now ask for password
+	cr,lf
+	'Enter Password >',0
+	ld	hl,rqpw
+	call	get8n			; get up to 8 chars without echo
+	ld	hl,rqid
+	ld	de,actid
+	ld	bc,8
+	ldir				; move name to log line
+	ld	de,idfcb
+	call	openf			; now open password file
+	ld	hl,(idsize)		; get filesize
+	ld	a,h
+	or	l			; if initially 0k file...
+	jp	z,errlog		;   then error
+.rpfl.:	dec	hl			; decrement file pointer
+	ld	(idfcb+33),hl		; set file pointer
+	ld	de,idfcb		; point to file
+	call	rdsec			; read a sector
+	jp	nz,errlog		; default logon if error
+	call	match			; try to match userid/password
+	ld	hl,(idfcb+33)		; get pointer
+	ld	a,h
+	or	l			; if not yet 0...
+	jr	nz,.rpfl.		;   ...then loop
+	ld	de,idfcb		; else close file
+	ld	c,16
+	call	cfunc
+	call	print##
+	cr,lf,7
+	'ERROR: invalid logon',cr,lf,0
+	ld	hl,rqpw
+	ld	de,actbp
+	ld	bc,8
+	ldir				; move bad password
+	ld	a,0ffh
+	ld	(act01),a		; set bad flag
+	call	applog			; append to log file
+	ld	a,(retry)
+	dec	a
+	ld	(retry),a
+	jp	nz,idloop
+	call	print##
+	cr,lf,lf
+	9,9,9,'*** SECURITY ACCESS VIOLATION ***',cr,lf,lf
+	'WAIT: [',0
+..try.:	ld	a,(delay)
+	dec	a
+	ld	(delay),a
+	jr	z,.kill
+	call	pa3dc##
+	call	print##
+	']',7,7,7,7,8,8,8,8,0
+	ld	c,2
+	ld	de,60			; 60 ticks
+	call	tfunc
+	jr	..try.
+;
+.kill:	ld	bc,41
+	ld	l,6
+	call	getoff
+	call	tfunc
+..inf:	call	cin##
+	jr	..inf
+;
+; attempt to match typed id/pw with the current sector
+; return only if no match
+;
+match:	call	decryp			; decrypt sector
+	ld	hl,USERID
+	ld	de,rqid
+	ld	b,8
+	call	compb##			; compare userid
+	ret	nz			; return if error
+	ld	hl,PASSWD
+	ld	de,rqpw
+	ld	b,8
+	call	compb##			; compare password
+	ret	nz			; return if error
+	ld	a,(LEVEL)		; get priv level
+	cp	0e5h			; deleted?
+	ret	z			;   yes, ignore
+	ld	hl,USERID
+	ld	de,defbuf		; move for update
+	ld	bc,128
+	ldir
+	ld	de,defbuf
+	ld	c,26
+	call	cfunc			; set dma
+	ld	c,10
+	call	tfunc			; get date/time
+	ld	(defbuf+(LASTON-USERID)),hl		; store date
+	ld	(defbuf+(LASTON+2-USERID)),de		; store time
+	ld	c,12			; get ckt/node
+	call	cfunc
+	ld	(defbuf+(LASTPR-USERID)),de		; store it
+	call	encryp			; encrypt
+	ld	de,idfcb
+	call	wrsec			; write sector back
+	ld	c,16
+	ld	de,idfcb
+	call	cfunc			; close
+;
+; housekeeping done, now transpose data to the
+; user data block and log him on
+;
+	ld	hl,USERID
+	ld	de,LCLID
+	ld	bc,8
+	ldir
+	ld	a,(LEVEL)
+	ld	(LCLLV),a
+	ld	a,(USRCOD)
+	ld	(LCLUSC),a
+	ld	hl,(DRVACC)
+	ld	(LCLDRA),hl
+	ld	hl,(USRACC)
+	ld	(LCLUSA),hl
+	ld	hl,(USRACC+2)
+	ld	(LCLUSA+2),hl
+	ld	hl,DREDEF
+	ld	de,LCLRDD
+	ld	bc,16
+	ldir
+	ld	a,0ffh
+	ld	(LCLLGD),a
+	ld	a,(SHRDRV)
+	ld	(LCLSHD),a
+	ld	hl,(DEFPRT)
+	ld	(LCLDPR),hl
+	ld	a,(SCREEN)
+	ld	(LCLSCM),a
+	ld	a,(INITUS)		; get initial user
+	ld	e,a			; put into e
+	ld	a,(INITDR)		; get initial drive
+	ld	d,a
+	ld	(actdu),de		; save in activity log
+	ld	a,1			; set on flag
+	ld	(act01),a
+	push	de
+	call	applog
+	pop	de
+	ld	a,(LEVEL)		; get acl
+	and	3
+	cp	2			; see if full
+	jr	nz,..nf.		;   no
+	ld	a,80h
+	or	e
+	ld	e,a
+..nf.:	ld	c,14
+	call	tfunc
+	inc	a			; see if t-logon ok
+	jp	z,log.er		;   no, error!!!
+	ld	de,LCLID		; set dma
+	ld	c,26
+	call	cfunc
+	ld	de,0ffffh		; set security
+	ld	bc,41
+	ld	l,1
+	call	getoff
+	call	tfunc			; attempt tShell logon
+	or	a
+	jp	nz,log.er		; error!
+	ld	a,(mstrs)		; see if master was date-reset
+	inc	a
+	jp	nz,..mrtk		;   yes, reset time ok
+	call	resmt			; else try now
+	inc	a
+	jp	nz,..mrtk
+	call	print##
+	cr,lf,lf
+	'Please enter:',cr,lf,0
+.date.:	call	print##
+	cr,'Date : [MM/DD/YY]',8,8,8,8,8,8,8,8,8,0
+	ld	hl,inbuf
+	call	bline##
+	cp	8
+	jr	nz,.date.
+	call	@udcvt##		; convert date
+	jr	c,.date.
+	ld	de,jconv
+	add	hl,de
+	push	hl			; save julian date
+	ld	a,' '
+	ld	(@dcfld+8),a
+	call	crlf##
+.time.:	call	print##
+	cr,'Time : [HH:MM]',8,8,8,8,8,8,0
+	ld	hl,inbuf1
+	call	bline##
+	cp	5
+	jr	nz,.time.
+	ld	hl,hhmm
+	call	eval10##
+	push	af
+	inc	hl
+	call	eval10##
+	pop	af
+	ld	d,a
+	pop	hl
+	ld	b,0
+	ld	c,9
+	call	tfunc
+	call	resmt
+..mrtk:	call	print##
+	cr,lf,lf
+	'Logged on ',0
+	ld	c,10
+	call	tfunc
+	call	time
+	ld	hl,(LASTON)
+	ld	a,h
+	or	l			; ever been on?
+	jr	z,.never		;   no, skip
+	call	print##
+	'.   Last on ',0
+	ld	de,(LASTON+2)
+	call	time
+	call	print##
+	' on terminal ',0
+	ld	hl,(LASTPR)
+	ld	a,'A'
+	add	a,h
+	call	cout##
+	ld	a,'-'
+	call	cout##
+	ld	a,l
+	call	pafdc##
+.never:	call	print##
+	cr,lf,lf
+	'Privilege level ',0
+	ld	a,(LEVEL)
+	and	3
+	add	a,'0'
+	call	cout##
+	call	print##
+	' (',0
+	ld	hl,mnon			; expect nonpriv
+	sub	30h
+	jr	z,..ppl
+	ld	hl,msemi
+	dec	a
+	jr	z,..ppl
+	ld	hl,mfull
+..ppl:	call	pstr##
+	call	print##
+	')',cr,lf
+	'Drive access: ',0
+	ld	de,80h			; set dma to 80h
+	ld	c,26
+	call	cfunc
+	ld	bc,41
+	ld	de,0ffffh
+	ld	l,10			; get dskast
+	call	getoff
+	call	tfunc
+	ld	hl,80h			; hl=pointer
+	ld	de,3			; de=increment
+	ld	b,16			; b =count
+	ld	c,0			; c =drive
+.ckdr.:	ld	a,(hl)			; get access byte
+	inc	a			; see if FF
+	jr	z,.ckna.		;   yes, no access
+	ld	a,'A'			; make drive letter
+	add	a,c
+	call	cout##			; print it
+.ckna.:	inc	c			; bump drive
+	add	hl,de			; point to next entry
+	djnz	.ckdr.			; and loop till done
+	call	crlf##
+	ld	de,(DEFPRM)		; get default printer stuff
+	ld	b,0ffh			; do not change spool drive
+	ld	c,27
+	call	tfunc
+	ld	a,(LEVEL)		; get access codes
+	and	80h			; see if menu
+	jp	nz,wrmxit		;   yes, exit with warmstart
+	ld	de,CMDLN		; point to command line
+	ld	a,(de)			; get count
+	or	a			; empty?
+	jr	z,.skc..		;   yes, skip
+	ld	c,18
+	call	tfunc
+.skc..:	jp	nwrmxt			; exit without warmstart
+;
+; default error logon (this should never happen, but...)
+;
+errlog:	call	print##
+	cr,lf,lf,7
+	'ERROR: munched password file? Call sysadmin.',cr,lf,lf,0
+	ld	a,30
+	ld	(deflog+3),a		; make logon user 30, nonpriv
+;
+; default logon, priv 0A:
+;
+deflog:	ld	c,14			; logon
+	ld	de,80h			; priv level 1
+	call	tfunc
+	inc	a			; test error
+	jp	z,log.er
+	ld	de,defbuf		; point to default buffer
+	ld	c,26
+	call	cfunc			; set dma
+	ld	bc,41			; log into tshell
+	ld	de,0ffffh
+	ld	l,1
+	call	getoff
+	call	tfunc
+	or	a
+	jp	nz,log.er
+	call	crlf##
+	rst	0
+;
+; subroutines
+;
+; display logo file
+;
+dsplgo:	call	f0$get##		; get a byte
+	jr	nz,.dslx		; eof maybe or some other error
+	and	7fh			; strip parity
+	cp	1ah			; eof?
+	jr	z,.dslx			;   yes
+	cp	7fh			; another way to mark eof
+	jr	z,.dslx			;   yes
+	call	cout##			; display character
+	jr	dsplgo			;   and loop
+;
+.dslx:	call	fi0$close##		; close file
+abort:	ret
+;
+; get up to 8 characters
+;
+get8n:	ld	d,1
+	jr	.g8.
+;
+get8:	ld	d,0
+.g8.:	call	.g8zl			; clear input line
+	ld	b,8			; set max count
+.g8l:	call	capin##			; get a character, capitalize
+	cp	' '+1			; check if space or less
+	jr	nc,.g8nc		;   no, continue
+	cp	8			; backspace?
+	jr	z,.g8bs
+	cp	7fh			; delete?
+	jr	z,.g8bs
+	cp	cr			; return?
+	jr	nz,.g8er		;   no, error
+	ld	a,8			; see if b=8
+	cp	b
+	ret	nz			; typed something (b<8)
+.g8er:	call	error
+	jr	.g8l
+;
+.g8nc:	bit	0,d			; see if echo on
+	call	z,cout##
+	ld	(hl),a
+	inc	hl
+	djnz	.g8l			; loop
+.g8wcr:	call	capin##			; wait for cr or bs
+	cp	cr
+	ret	z			; return if cr
+	cp	7fh
+	jr	z,.g8bs			; backspace if delete key
+	cp	8
+	jr	z,.g8bs
+	call	error
+	jr	.g8wcr
+;
+; process backspace
+;
+.g8bs:	ld	a,8			; see if b=8
+	cp	b
+	jr	z,.g8er			; can't backspace on blank line
+	inc	b			; increment counter
+	dec	hl			; decrement pointer
+	ld	(hl),' '		; blank out
+	bit	0,d			; test echo flag
+	jr	nz,.g8l			; loop back if echo off
+	call	print##			; else wipe out char on screen
+	8,' ',8,0
+	jr	.g8l
+;
+; zero input line
+;
+.g8zl:	push	hl
+	ld	b,8
+.g8zll:	ld	(hl),' '
+	inc	hl
+	djnz	.g8zll
+	pop	hl
+	ret
+;
+log.er:	ld	b,a
+	call	logerr			; display logon error message
+	inc	b
+	jr	z,l.ts.e
+	call	print##
+	'TurboDOS',0
+	jp	wrmxit			; exit with warmstrt on
+;
+l.ts.e:	call	print##
+	'tShell',0
+;
+; exit with warmstart enabled
+;
+wrmxit:	ld	e,0ffh
+	jr	exit
+;
+; exit with warmstart disabled
+;
+nwrmxt:	ld	e,0
+exit:	ld	c,17			; warmstart function
+	call	tfunc
+	call	print##
+	cr,lf,lf,0
+	ld	hl,USERID		; be sure to blank data area
+	ld	bc,stack-USERID
+.bldl:	ld	(hl),0
+	inc	hl
+	dec	bc
+	ld	a,b
+	or	c
+	jr	nz,.bldl
+	rst	0			; exit to tdos
+;
+logerr:	call	print##
+	cr,lf,lf
+	'ERROR: Cannot log on! Error source: ',0
+error:	ld	a,7			; sound bell
+	jp	cout##
+;
+; crt control routine
+; input: hl points to string <len><byt><byt>...
+; uses hl, af
+;
+crtctl:	ld	a,(hl)
+	or	a
+	ret	z			; return if null
+	push	bc
+	ld	b,a			; count to b
+.crctl:	inc	hl
+	ld	a,(hl)
+	call	cout##
+	djnz	.crctl
+	pop	bc
+	ret
+;
+; open file with lock
+;
+openf:	ld	hl,5			; point to shared flag
+	add	hl,de
+	ld	a,80h
+	or	(hl)
+	ld	(hl),a			; set shared flag
+	push	de
+	ld	c,15
+	call	cfunc
+	pop	de
+	ld	hl,32
+	add	hl,de
+	ld	(hl),0
+	or	a
+	ret	z			; file is now open
+	jr	openf			; else loop since we know file exists
+;
+; read a sector - enter with hl = sector, de = fcb
+;
+rdsec:	call	loksec			; lock sector
+	push	de
+	ld	c,33			; read
+	call	cfunc
+	or	a			; set error flag
+	jr	fresec			; free sector
+;
+; write a sector - enter with hl = sector, de=fcb
+;
+wrsec:	call	loksec			; lock sector
+	push	de			; save fcb
+	ld	c,34			; write
+	call	cfunc
+	or	a			; set error flag
+;
+; free current file sector
+;
+fresec:	pop	de
+	push	af
+	ld	c,43
+	call	cfunc
+	pop	af
+	ret
+;
+; lock current file sector
+;
+loksec:	push	de			; save fcb pointer
+	ld	c,42			; attempt lock
+	call	cfunc
+	pop	de
+	cp	8			; locked already?
+	jr	z,loksec		;   yes, loop
+	ret
+;
+; decrypt user block
+;
+decryp:	ld	hl,USERID
+	ret
+;
+; encrypt default buffer
+;
+encryp:	ld	hl,defbuf
+	ret
+;
+time:	push	de
+	ld	de,-jconv
+	add	hl,de
+	call	@dcvrt##
+	ld	hl,@dcfld
+	call	pstr##
+	pop	de
+	ld	a,d
+	call	..10
+	ld	a,':'
+	call	cout##
+	ld	a,e
+..10:	cp	10
+	jr	nc,..10.
+	push	af
+	ld	a,'0'
+	call	cout##
+	pop	af
+..10.:	jp	pafdc##
+;
+; append to activity log
+;
+applog:	ld	de,logfcb		; point to log
+	ld	c,35			; filesize
+	call	cfunc
+	or	a
+	ret	nz			; ignore file not found
+	ld	c,10
+	call	tfunc			; get date/time
+	ld	(actdt),hl
+	ld	(actdt+2),de
+	ld	c,12
+	call	cfunc			; get station
+	ld	(actst),de
+	ld	hl,(logfcb+33)
+	dec	hl
+	ld	(logfcb+33),hl		; decrement file pointer
+	ld	de,logfcb
+	call	openf			; open shared
+	ld	de,80h			; set defdma
+	ld	c,26
+	call	cfunc
+	ld	de,logfcb
+	call	rdsec			; read last sector
+	ld	hl,80h			; hl=pointer to def dma
+	ld	de,20h			; de=byte count
+..ckel:	ld	a,(hl)			; get byte
+	cp	0ffh			; endmark?
+	jr	z,.fe..			;   yes
+	add	hl,de
+	ld	a,l
+	or	a
+	jr	nz,..ckel		; try next entry
+	ld	hl,(logfcb+33)
+	inc	hl
+	ld	(logfcb+33),hl
+	ld	hl,80h			; set start of buffer
+	push	hl
+.zac.:	ld	(hl),0ffh		; blank buffer
+	inc	l
+	jr	nz,.zac.
+	pop	hl
+.fe..:	ld	de,actlog
+	ex	de,hl
+	ld	bc,32			; 32 bytes to be moved
+	ldir
+	ld	a,l			; see if end of buffer
+	or	a
+	jr	z,.eob.			; yes, skip
+	ld	(hl),0ffh		;   else set endmark
+.eob.:	ld	de,logfcb
+	call	wrsec			; write the sector
+	ld	de,logfcb
+	ld	c,16
+	jp	cfunc			; close and exit
+;
+getoff:	ld	a,(offset)
+	add	a,l
+	ld	l,a
+	ret
+;
+; reset master reset date/time
+;
+resmt::	ld	a,(offset)
+	add	a,16
+	ld	l,a
+	ld	bc,41
+	call	tfunc			; get master node
+	ex	de,hl
+	ld	a,(mstoff)
+	add	a,15
+	ld	l,a
+	ld	bc,0fe29h
+	call	tfunc
+	ld	(mstrs),a		; save master date set code
+	ret
+;
+fatal:	call	print##
+	cr,lf,lf,7
+	'ERROR: tShell not installed',cr,lf,lf,0
+	rst	0
+	end
+ dma
+	ld	de,20h			; de=byte count
+..ckel:	ld	a,(hl)			; get byte
+	cp	0f

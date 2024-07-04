@@ -1,0 +1,347 @@
+TITLE 'ZENITH 100 OVLY'
+; M8HZ.A86 -- Zenith 100 overlay file for MDM8xx.	09/28/84
+;
+; This overlay adapts the MDM8xx program to the 2661 EPCI  serial I/O
+; chip used in the Zenith 100 series.
+;
+; You will want to look this file over carefully. There are a number of
+; options that you can use to configure the program to suit your taste.
+;
+; Edit this file for your preferences then follow the "TO USE:" example
+; shown below.
+;
+;	TO USE: First edit this file to chose your options.
+;		Then assemble with ASM86.CMD or equivalent
+;		assembler.  Then use M8CNFG to overlay the
+;		the results of this program to the original
+;		MDM8xx.H86 file:
+;
+;			ASM86 M8HZ-1
+;			REN M8OVL.H86=M8HZ-1.H86
+;			M8CNFG
+;			GENCMD MDM 8080 CODE[MFF0]
+;
+;		 Now run MDM.  Have Fun
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 09/28/84 - Modified GP overlay for Z100	- Dennis Vallianos
+; 09/21/84 - Converted for use with MDM830	- Alex Soya
+; 01/10/83 - Original version for MDM701	- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+YES		EQU	0FFH
+NO		EQU	0
+;
+;
+BELL		EQU	07H	;bell
+CR		EQU	0DH	;carriage return
+ESC		EQU	1BH	;escape
+LF		EQU	0AH	;linefeed
+;
+;
+; Zenith 100 specific communications port data
+;
+MODDATP		EQU	0ECH	;modem data in port
+MODCTL1		EQU	0EDH	;modem control port
+MODCTL2		EQU	0EDH	;modem control port
+MODMODE		EQU	0EEH	;modem mode port
+MODCMD		EQU	0EFH	;modem command port
+;
+MODRCVB		EQU	2	;bit to test for receive
+MODRCVR		EQU	2	;value when ready
+MODSNDB		EQU	1	;bit to test for send
+MODSNDR		EQU	1	;value when ready
+;
+		ORG	100H
+		RS	3	;(for  "JMP   START" instruction)
+;
+; User options.
+; Change the clock speed to suit your system (defaults to 1200 baud).
+;
+;
+PMMIMODEM	DB	NO	;yes=PMMI S-100 Modem			103H
+AUTODIAL	DB	NO	;yes=HAYES-likem no=non-PMMI		104H
+TOUCHPULSE	DB	'T'	;T=touch, P=pulse (Smartmodem-only)	105H
+CLOCK		DB	49	;clock speed in MHz x10, 25.5 MHz max.	106H
+				;20=2 MHh, 37=3.68 MHz, 40=4 MHz, etc.
+MSPEED		DB	5	;0=110 1=300 2=450 3=600 4=710 5=1200	107H
+				;6=2400 7=4800 8=9600 9=19200 default
+BYTDLY		DB	5	;0=0 delay  1=10ms  5=50 ms - 9=90 ms	108H
+				;default time to send character in ter-
+				;minal mode file transfer for slow BBS.
+CRDLY		DB	5	;0=0 delay 1=100 ms 5=500 ms - 9=900 ms 109H
+				;default time for extra wait after CRLF
+				;in terminal mode file transfer
+NOOFCOL		DB	5	;number of DIR columns shown		10AH
+SETUPTST	DB	YES	;yes=user-added Setup routine		10BH
+SCRNTEST	DB	YES	;cursor control routine 		10CH
+RETRY		DB	NO	;yes=reset the error limit to try again 10DH
+				;no=abort after 10 consecutive errors
+BAKUPBYTE	DB	NO	;yes=change any file same name to .BAK	10EH
+CRCDFLT		DB	YES	;yes=default to CRC checking		10FH
+TOGGLECRC	DB	YES	;yes=allow toggling of CRC to Checksum	110H
+CONVRUB		DB	NO	;yes=convert rub to backspace		111H
+TOGGLELRUB	DB	YES	;yes=allow toggling of rub to backspace 112H
+ADDLF		DB	NO	;no=no LF after CR to send file in	113H
+				;terminal mode (added by remote echo)
+TOGGLELF	DB	YES	;yes=allow toggling of LF after CR	114H
+TRANLOGON	DB	YES	;yes=allow transmission of logon	115H
+				;write logon sequence at location LOGON
+RESERVED	DB	NO	;resevered for future release		116H
+LOCONEXTCHR	DB	NO	;yes=local command if EXTCHR precedes	117H
+				;no=external command if EXTCHR precedes
+TOGGLELOC	DB	YES	;yes=allow toggling of LOCONEXTCHR	118H
+LSTTST		DB	YES	;yes=printer available on printer port	119H
+XOFFTST		DB	NO	;yes=checks for XOFF from remote while	11AH
+				;sending a file in terminal mode
+XONWAIT		DB	NO	;yes=wait for XON after CR while	11BH
+				;sending a file in terminal mode
+TOGXOFF		DB	YES	;yes=allow toggling of XOFF checking	11CH
+IGNORCTL	DB	YES	;yes=CTL-chars above ^M not displayed	11DH
+EXTRA1		DB	0	;for future expansion			11EH
+EXITCHR		DB	'E'-40H	;^E = Exit to main menu 		11FH
+BRKCHR		DB	'B'-40H	;^B = Send 300 ms. break tone		120H
+NOCONNCT	DB	'N'-40H	;^N = Disconnect from the phone line	121H
+LOGCHR		DB	'L'-40H	;^L = Send logon			122H
+LSTCHR		DB	'P'-40H	;^P = Toggle printer			123H
+UNSAVE		DB	'R'-40H	;^R = Close input text buffer		124H
+TRANCHR		DB	'T'-40H	;^T = Transmit file to remote		125H
+SAVECHR		DB	'Y'-40H	;^Y = Open input text buffer		126H
+EXTCHR		DB	'\'-40H	;^\ = Send next character		127H
+;
+;
+;
+		RS	3		;				128H
+;
+IN_MODCTL1:	IN     AL,MODCTL1 ! RET	;in modem control port		12BH
+		DB     0,0,0,0,0,0,0	; spares
+;
+OUT_MODDATP:	OUT    MODDATP,AL ! RET	;out modem data port		135H
+		DB     0,0,0,0,0,0,0	; spares
+;
+IN_MODDATP:	IN     AL,MODDATP ! RET	;in modem data port		13FH
+		DB     0,0,0,0,0,0,0	; spares
+;
+ANI_MODRCVB:	AND    AL,MODRCVB ! RET	;bit to test for receive ready	149H
+;
+CPI_MODRCVR:	CMP    AL,MODRCVR ! RET	;value of rcv. bit when ready	14CH
+;
+ANI_MODSNDB:	AND    AL,MODSNDB ! RET	;bit to test for send ready	14FH
+
+CPI_MODSNDR:	CMP    AL,MODSNDR ! RET	;value of send bit when ready	152H
+;
+		RS     6		;				156H
+;
+OUT_MODCTL1:	OUT    MODCTL1,AL ! RET	;out modem control port #2	15BH
+;
+OUT_MODCTL2:	OUT    MODCTL2,AL ! RET	;out modem control port #1	15EH
+
+
+
+
+;
+;
+LOGONPTR	DW	(OFFSET	LOGON)	;for user message.		161H
+		RS	6		;				163H
+JMP_GOODBYE:	JMP GOODBYE		;				169H
+JMP_INITMOD:	JMP INITMOD		;go to user written routine	16CH
+		RET
+		NOP			;(by-passes PMMI routine)	170H
+		NOP
+		RET
+		NOP			;(by-passes PMMI routine)	173H
+		NOP
+		RET
+		NOP			;(by-passes PMMI routine)	176H
+		NOP
+;
+JMP_SETUPR:	JMP  SETUPR		;				178H
+JMP_SPCLMENU:	JMP  SPCLMENU		;				17BH
+JMP_SYSVER:	JMPS  SYSVER		;make sure this is SHORT Jump	17EH
+JMP_BREAK:	JMP  SENDBRK		;				180H
+
+;
+; Do not change the following sixteen lines.
+;
+JMP_ILPRT:	
+		RS	3		;				183H
+JMP_INBUF:
+		RS	3		;				186H
+JMP_INLNCOMP:
+		RS	3		;				189H
+JMP_INMODEM:
+		RS	3		;				18CH
+JMP_NXTSCRN:
+		RS	3		;				18FH
+JMP_TIMER:
+		RS	3		;				192H
+JMP_CTYPE:
+		RS	3		;				195H
+JMP_KEYIN:
+		RS	3		;				198H
+;
+;
+; Routine to clear to end of screen.  If using CLREOS and CLRSCRN, set
+; SCRNTEST to YES at 010AH (above).
+;
+CLREOS:	CALL	JMP_ILPRT		;				19BH
+	DB	ESC,'J',0,0,0		;				19EH
+	RET				;				1A3H
+;
+CLRSCRN:CALL	JMP_ILPRT		;				1A4H
+	DB	ESC,'E',0,0,0		;				1A7H
+	RET				;				1ACH
+;
+SYSVER:	CALL	JMP_ILPRT		;				1ADH
+	DB	'Version for Zenith 100 modem port J2'
+	DB	CR,LF,0
+	RET
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; NOTE:  You can change the SYSVER message to be longer or shorter.  The
+;	 end of your last routine should terminate by 0600H if using the
+;	 Hayes Smartmodem or by address 0C00H otherwise.
+;
+;-----------------------------------------------------------------------
+;
+; You can put in a message at this location which can be called up with
+; CTL-O if TRANLOGON has been set TRUE.  You can use several lines if
+; desired.  End with a 0.
+;
+LOGON	DB	'Hello out there!',CR,LF,0
+
+;.....
+;
+;
+; Send a break tone to reset some time-share computers, if desired.
+;
+SENDBRK:MOV	AL,1DH
+	JMP	GOODBYE1
+;.....
+;
+;
+; Routine here to put DTR low and disconnect modem.
+;
+GOODBYE:MOV	AL,0			;selecting chip forces DTR low
+;
+GOODBYE1:
+	OUT	MODCMD,AL
+	IN	AL,MODCMD
+	IN	AL,MODCMD
+	MOV	CH,3			;hold for 300 ms
+	CALL	JMP_TIMER
+	MOV	AL,37H			;reset to normal
+	OUT	MODCMD,AL
+	IN	AL,MODCMD	
+	IN	AL,MODCMD	
+	MOV	AL,0
+	RET
+;.....
+;
+;
+; The following routine initializes the 2661B I/O port.
+;
+INITMOD:MOV	AL,0			;select chip
+  	OUT	MODCMD,AL
+	IN	AL,MODCMD
+	IN	AL,MODCMD
+	MOV	AL,4EH			;async., 8 bits, 1 stop, no parity
+	OUT	MODMODE,AL
+	MOV	BL,BYTE PTR MSPEED	;get baud rate
+	DEC	BL			;adjust for table offset
+	XOR	BH,BH			;make 16 bit
+	MOV	AL,BYTE PTR BDTBL[BX]
+	OUT	MODMODE,AL		;set baud rate
+	MOV	AL,37H			;async, RTS, DTR, etc.
+  	OUT	MODCMD,AL
+	IN	AL,MODCMD
+	IN	AL,MODCMD
+	MOV	AL,0			;clear register
+	RET
+;.....
+;
+; Use the 'SET' command to select a desired baud rate.
+;
+SETUPR:	MOV	DX,OFFSET BAUDBUF
+	CALL	JMP_ILPRT
+	DB	'Input Baud Rate (300, 1200, 2400, 4800, 9600): ',0
+	CALL	JMP_INBUF		;get user's input
+	MOV	DX,(OFFSET BAUDBUF)+2
+	CALL	JMP_INLNCOMP		;compare BAUDBUF+2 with chars. below
+	DB	'300',0
+	JNB	OK300
+	CALL	JMP_INLNCOMP
+	DB	'1200',0
+	JNB	OK1200
+	CALL	JMP_INLNCOMP
+	DB	'2400',0
+	JNB	OK2400
+	CALL	JMP_INLNCOMP
+	DB	'4800',0
+	JNB	OK4800
+	CALL	JMP_INLNCOMP
+	DB	'9600',0
+	JNB	OK9600
+	CALL	JMP_ILPRT		;failed to match - tell operator
+	DB	'++ Incorrect entry ++',CR,LF,BELL,0
+	JMP	SETUPR			;try again
+;
+OK300:	MOV	AL,1
+	JMPS	LOADBD
+;
+OK1200:	MOV	AL,5
+	JMPS	LOADBD
+;
+OK2400:	MOV	AL,6
+	JMPS	LOADBD
+;
+OK4800:	MOV	AL,7
+	JMPS	LOADBD
+;
+OK9600:	MOV	AL,8
+	JMPS	LOADBD
+;
+OK19200:
+	MOV	AL,9
+;
+LOADBD:	MOV	BYTE PTR MSPEED,AL	;change so messages are ok
+	JMP	INITMOD			;reinitialize chip to new speed		
+;
+; TABLE OF BAUDRATE PARAMETERS
+;
+BD300	EQU	0F6H
+BD450	EQU	0			;450 bps NOT SUPPORTED
+BD600	EQU	0			;600 bps NOT SUPPORTED
+BD710	EQU	0			;710 bps NOT SUPPORTED
+BD1200	EQU	0F8H
+BD2400	EQU	0FBH
+BD4800	EQU	0FCH
+BD9600	EQU	0FDH
+BD19200	EQU	0FEH
+;
+BAUDBUF	DB	10,0
+	RS	10
+;
+; Pointer table
+;
+BDTBL	DB	BD300,BD450,BD600,BD710,BD1200,BD2400,BD4800,BD9600,BD19200
+;
+;
+; If using the Hayes Smartmodem this is unavailable without a special
+; change.
+;
+SPCLMENU:
+	RET
+;
+;
+; NOTE:  MUST TERMINATE PRIOR TO 0600H (with Smartmodem)
+;				 0C00H (without Smartmodem)
+;.....
+;
+	  END
+

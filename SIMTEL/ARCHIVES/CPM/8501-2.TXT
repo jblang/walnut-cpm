@@ -1,0 +1,371 @@
+31-Jan-85 10:13:54-MST,3611;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 10:13:42-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 11:06 EST
+Received: from usenet by BRL-TGR.ARPA id a006781; 31 Jan 85 10:47 EST
+From: Chuck McManis <cem%intelca.uucp@BRL-TGR.ARPA>
+Newsgroups: net.micro.cpm
+Subject: Turbo Design Flaw
+Message-ID: <504@intelca.UUCP>
+Date: 29 Jan 85 17:17:18 GMT
+Xref: seismo net.micro.cpm:3877
+To:       info-cpm@AMSAA.ARPA
+
+As some of you probably already know there is a major design flaw in
+Turbo PASCAL. Namely, THEY USE THE COMMAND LINE TO STORE DATA INTO!
+For those of you have tried to use the CP/M command tail with the
+statement 
+VAR CmdLine : String[127] absolute $80;
+Will probably notice that if your command line is more often than
+not completely munged when you try to read it. I have found that
+if the VERY FIRST thing your program does is copy the command line
+into a string variable with the loop
+FOR I := 1 to Mem[$80] do Cmdline[I] := Chr(Mem[$80+I]);
+CmdLine[0] := Mem[$80];
+The most you can get seems to be around 37 characters of the original
+command tail. The rest is corrupted(sp?) by Turbo's init procedure.
+
+  There is a solution however, or rather a hack, that will allow one
+the full use of the command tail. The procedure is as follows :
+
+  o Put the following code in the program at or before the point where
+    you will use the command line : 
+
+    Const 
+      Start_Address = $1FC9; { Declare the value from your system }
+    Var 
+      I       : Integer;
+      CmdLine : String[127]
+
+    For I := 1 to Mem[Start_Address] Do 
+      Cmdline[I] := Chr(Mem[Start_Address+I]);
+    CmdLine[0] := Chr(Mem[Start_Address]);
+
+  o Go into the Options menu, and set the mode to Com file. (Doesn't
+    make sense to have command line recognition when you are running
+    the code from memory.)
+
+  o Then set the start address from what it currently is to start_
+    address + 80h bytes. In my system the start address went from 
+    1FC9h to 2049h.
+
+  o "Q"uit the options menu and compile the program. When completed
+    the list of memory used should come up with 128 bytes free at the
+    beginning of your program.
+
+  o Now use DDT or SID or ZSID on the resultant .COM file. Note the
+    length of the file (so you can save it again later) and dump
+    at address 100H. There will be a jump at 100 to the start address
+    you adjusted above. After that will be a copyright message from
+    Borland, and some zeros until about address 170h. Do the following
+    commands in the debugger :
+    A>ZSID FOO.COM
+    ZSID .........
+    xxyy HHHH HHHH     <- The hex number xx is the number of pages you 
+    #a100                 need to save.
+    100 jp 130
+    103
+    #a130
+    130 ld hl,80
+    133 ld de,1fc9
+    136 ld bc,80
+    139 ldir
+    13B jp "start_Address"  ; use the address that the jump at 100 originally
+    13E                     ; pointed to.
+    #G0
+    A>Save zz FOO.COM  <- convert xx to decimal and use in place of zz.
+
+You now have a .COM file, that will first save the command tail before
+Turbo has a chance to Stomp on it. Argh! Why couldn't they design it
+correctly in the first place!
+
+--Chuck
+
+-- 
+                                            - - - D I S C L A I M E R - - - 
+{ihnp4,fortune}!dual\                     All opinions expressed herein are my
+        {qantel,idi}-> !intelca!cem       own and not those of my employer, my
+ {ucbvax,hao}!hplabs/                     friends, or my avocado plant. :-}
+31-Jan-85 10:14:36-MST,711;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 10:14:32-MST
+Received: From rand-unix.arpa.ARPA by AMSAA via smtp;  31 Jan 85 11:07 EST
+Received: by rand-unix.ARPA; Thu, 31 Jan 85 08:08:54 pst
+From: Henry Sowizral <henry@Rand-Unix.ARPA>
+Message-Id: <8501311608.AA14595@rand-unix.ARPA>
+Date: 31 Jan 85 08:08:51 PST (Thu)
+To: Keith Petersen <W8SDZ@simtel20.ARPA>
+Cc: Info-Cpm@Amsaa.ARPA, Info-Micro@Brl-Vgr.ARPA, henry@Rand-Unix.ARPA
+Subject: Re: ITS-binary files on SIMTEL20 - pro and con
+In-Reply-To: Your message of 31 Jan 1985  07:22 MST (Thu).
+	     <KPETERSEN.12083946839.BABYL@SIMTEL20.ARPA>
+
+
+
+I second the motion.
+
+				--- Henry
+31-Jan-85 11:48:47-MST,1110;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 11:48:38-MST
+Received: From apg-1.arpa.ARPA by AMSAA via smtp;  31 Jan 85 12:21 EST
+Date: 31 Jan 1985 12:23:26 EST (Thursday)
+From: Robert Bloom AMSTE-TOI 3775 <rbloom@Apg-1.ARPA>
+Subject: Attn NorthStar Horizon users
+To: info-cpm@Amsaa.ARPA
+
+Well, I did it.
+
+With surprisingly little effort I've replaced the one of the SSDD drives on my 
+horizon with two DSDD 96-tpi TEAC FD55F's - from 163k per drive to 784k per 
+drive in one evening.  Total cost $283.70.  (2 x $135 for the drives + $8.70 
+shipping + $5.00 for one 34-pin edge connector from Radio Shack.)  I even 
+managed to add in the archive BDOS patch, ZCPR2 with BIOS inits, and Plouffe's 
+2k block mods for the octal drives.
+
+I've written up exactly what I did in a message to NorthStar-Users and will 
+forward a copy to any that ask (it's some 24k long).  If response is good 
+enough (<4 requests) I'll also post directly to INFO-CPM.  It should end up in 
+the <cpm.nstar> directory at simtel20 eventually.
+
+bob bloom
+
+31-Jan-85 16:39:14-MST,818;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 16:39:04-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 18:08 EST
+Received: from usenet by BRL-TGR.ARPA id a017417; 31 Jan 85 17:47 EST
+From: Alan Rovner <alanr%tekigm.uucp@BRL-TGR.ARPA>
+Newsgroups: net.micro.cpm
+Subject: Help with installing ZCPR2 on Xerox 820-I
+Message-ID: <269@tekigm.UUCP>
+Date: 30 Jan 85 17:20:31 GMT
+Xref: seismo net.micro.cpm:3879
+To:       info-cpm@AMSAA.ARPA
+
+I have been having trouble installing ZCPR2 on my Xerox, specifically 
+with modifying the BIOS the take care of the various buffers, etc.
+Does anyone have ZCPR2 running on the Xerox, and if so could I get a
+copy of your BIOS or suggestions on buffer assignment.
+
+Thanks,
+Al Rovner
+     
+31-Jan-85 17:11:35-MST,642;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 17:11:31-MST
+Received: From mit-mc.arpa.ARPA by AMSAA via smtp;  31 Jan 85 18:31 EST
+Date: Thu 31 Jan 85 18:34:03-EST
+From: Mark Becker <Cent.Mbeck%MIT-OZ@MIT-MC.ARPA>
+Subject: Wanted: "p" - C preprocessor
+To: Info-CPM@AMSAA.ARPA
+
+Hello Netland -
+
+     In Dr. Dobb's Journal of July '84, there was an article about and
+listing of a preprocessor written for Small C.
+
+     Before I go and type it in, does anyone already have it on-line?
+
+     Your help is appreciated.
+
+Mark Becker
+Cent.Mbeck%Mit-Oz@Mit-Mc
+-------
+
+31-Jan-85 17:13:45-MST,2011;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 17:13:37-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 18:38 EST
+Received: from usenet by BRL-TGR.ARPA id a017947; 31 Jan 85 17:59 EST
+From: haddock%waltz.uucp@BRL-TGR.ARPA
+Newsgroups: net.micro.cpm
+Subject: Re: Any Libraries for AY3-8910?
+Message-ID: <31600001@waltz.UUCP>
+Date: 28 Jan 85 21:31:00 GMT
+Nf-ID: #R:brl-tgr:-766000:waltz:31600001:000:1377
+Nf-From: waltz!haddock    Jan 28 15:31:00 1985
+Xref: seismo net.micro.cpm:3880
+To:       info-cpm@AMSAA.ARPA
+
+
+/**** waltz:net.micro.cpm / brl-tgr!MNeary.es /  2:36 pm  Jan 23, 1985 ****/
+
+	>Is there a library of stimuli that I can feed to the General Instruments
+	>AY3-8910 chip to create special sound effects and/or music?  I just
+	>acquired some old game boards using this chip, and I figured that I
+	>should endeavor to avoid re-inventing the wheel while I try to justify
+	>this purchase.
+
+Mike
+	You may want to try and get some old issues of the 99'er
+magazine.  You ask WHY?  Because the TI 99/4a used TI's 76498a
+sound chip which worked *similarly* to the GI AY3-8910/2.  Obviously
+the values will be different but it's the general scheme (timings and
+frequencies) of how the sounds are produced that will allow you to
+re-create them on the different sound chip and maybe learn how to
+create your own.  Also, several years ago Steve Ciarcia had a column
+(in BYTE, naturally) devoted to the GI sound maker and you may be able
+to use some of his examples.  Nonetheless, please let me know of any
+libraries or further examples you may come across.  Thanks,
+
+================================================================
+			   _____
+	-Rusty-		|\/   o \    o
+			|   (  -<  O o	   Where's the fish?
+			|/\__V__/
+
+ARPA:	Haddock%Waltz%TI-CSL@CSNet-Relay
+	Rusty@Maryland (forwarded to CSNet address)
+CSNet:	Haddock@TI-CSL
+USENET:	{convex!smu, ut-sally, texsun, rice} ! waltz ! haddock
+31-Jan-85 17:37:52-MST,680;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 17:37:44-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 18:38 EST
+Received: from usenet by BRL-TGR.ARPA id a018098; 31 Jan 85 18:02 EST
+From: Donald Graft <dag%tellab2.uucp@BRL-TGR.ARPA>
+Newsgroups: net.micro.cpm
+Subject: Re: Need HELP with SUBMIT
+Message-ID: <213@tellab2.UUCP>
+Date: 30 Jan 85 00:11:31 GMT
+Xref: seismo net.micro.cpm:3881
+To:       info-cpm@AMSAA.ARPA
+
+Please note that the currently shipped version of MicroShell supports
+shell programming through variables, conditionals, and user input.  It is
+vastly superior to clip.
+31-Jan-85 18:11:01-MST,1410;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 18:10:55-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 19:21 EST
+Received: from usenet by BRL-TGR.ARPA id a020025; 31 Jan 85 19:01 EST
+From: Ruben Ramirez-Mitchell <ruben%ut-ngp.uucp@BRL-TGR.ARPA>
+Newsgroups: net.micro.cpm
+Subject: Microshell
+Message-ID: <1261@ut-ngp.UUCP>
+Date: 31 Jan 85 20:54:40 GMT
+Xref: seismo net.micro.cpm:3882
+To:       info-cpm@AMSAA.ARPA
+
+
+ You can get Microshell from 
+    New Generation Systems, INC
+    1800 MIchael Faraday Drive, Suite 206
+    Reston, Virginia, 22090
+    (703) 471-5598
+
+ I would also check Microtools, and MicroTree. I just bought MicroTree from
+ them (ls, cd, pwd, tree, mv, cp, rm, mkdir, rmdir) and it works very well
+ (it maps user areas to dnamed directories). I run all three programs under
+  MPM-816, but I have also used Microshell and Microtools under CP/M-80, and
+  CP/M-816.
+ Note that they do not support Microshell under MPM , some things do not work
+ well in this environment ( no line editor for example, and script files
+ which cross user and drive boundaries don't work well).
+
+                      Ruben Mitchell
+                      Cell Research Inst.
+                      University of Texas
+                      Austin, Texas, 78712
+                      ruben@ut-ngp.arpa
+ 
+31-Jan-85 19:49:14-MST,780;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 19:49:10-MST
+Received: From usc-eclb.arpa.ARPA by AMSAA via smtp;  31 Jan 85 21:24 EST
+Date: 31 Jan 1985 1821-PST
+From: LHILL@USC-ECLB.ARPA
+Subject: Z150 and 8" drives ??
+To:   info-ibmpc@Usc-Isib.ARPA
+cc:   info-micro@Brl.ARPA, info-cpm@Amsaa.ARPA, lhill@Usc-Eclb.ARPA
+
+   I have taken the big step from 8 to 16 bits with my recent order of
+a Z-150. What I don't want to do is give up my dual DDDS 8" drives. The
+local Heath folks don't admit to being able to interface 8" drives, which
+I take as simple nonsense. Can someone point me to a solution. With all
+those IBM systems out there, shurly someone has an 8" controller.
+				Lem  (lhill at eclb)
+-------
+31-Jan-85 21:21:31-MST,2753;000000000000
+Return-Path: <info-cpm-request@AMSAA.ARPA>
+Received: from AMSAA by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 21:21:22-MST
+Received: From brl-tgr.arpa.ARPA by AMSAA via smtp;  31 Jan 85 22:52 EST
+Received: from usenet by BRL-TGR.ARPA id a024167; 31 Jan 85 22:41 EST
+From: Tim Maroney <tim@CMU-CS-K.ARPA>
+Newsgroups: net.micro,net.micro.cpm
+Subject: SuperBrain External Bus Info Wanted
+Message-ID: <236@cmu-cs-k.ARPA>
+Date: 1 Feb 85 01:52:36 GMT
+Xref: seismo net.micro:9739 net.micro.cpm:3885
+To:       info-cpm@AMSAA.ARPA
+
+Last year, I bought a military surplus Intertec SuperBrain for use as an
+intelligent terminal.  However, it is far more versatile than that, which
+has led me to want to attach some outher devices to it.  There used to exist
+a beast known as a SuperBrain S-100 bus adaptor.  This fits onto the
+internal 40-pin Z-80 bus connector, and provides an S-100 bus interface.
+
+My question: Does anyone know where I could pick up the S-100 bus adaptor?
+Alternately, how hard would it be to interface devices directly to the
+40-pin connector?
+
+Please keep in mind that I am a hardware cretin who writes device drivers
+for a living (strange but true).  This would be essentially a "first
+project" as far as the hardware is concerned, but supporting software is not
+a problem.
+
+The pin connections to the internal Z/80 bus are shown below:
+
+PIN	SIGNAL	DESCRIPTION
+	NAME
+---------------------------
+1		SPARE
+2	SYSRES*	System Reset Output, Low during Power Up Initialize or
+			Reset Depressed
+3		SPARE
+4	A10	Address Output
+5	A12	Address Output
+6	A13	Address Output
+7	A15	Address Output
+8	GND	Signal Ground
+9	A11	Address Output
+10	A14	Address Output
+11	A8	Address Output
+12	OUT*	Peripheral Write Strobe Output
+13	WR*	Memory Write Strobe Output
+14		SPARE
+15	RD*	Memory Read Strobe Output
+16		SPARE
+17	A9	Address Output
+18	D4	Bidirectional Data Bus
+19	IN*	Peripheral Read Strobe Output
+20	D7	Bidirectional Data Bus
+21		SPARE
+22	D1	Bidirectional Data Bus
+23		SPARE
+24	D6	Bidirectional Data Bus
+25	A0	Address Output
+26	D3	Bidirectional Data Bus
+27	A1	Address Output
+28	D5	Bidirectional Data Bus
+29	GND	Signal Ground
+30	D0	Bidirectional Data Bus
+31	A4	Address Output
+32	D2	Bidirectional Data Bus
+33		SPARE
+34	A3	Address Output
+35	A5	Address Output
+36	A7	Address Output
+37	GND	Signal Ground
+38	A6	Address Output
+39	+5V	5 Volt Output
+40	A2	Address Output
+-=-
+Tim Maroney, Carnegie-Mellon University Computation Center
+ARPA:	Tim.Maroney@CMU-CS-K	uucp:	seismo!cmu-cs-k!tim
+CompuServe:	74176,1360	audio:	shout "Hey, Tim!"
+
+"Remember all ye that existence is pure joy; that all the sorrows are
+but as shadows; they pass & are done; but there is that which remains."
+Liber AL, II:9.

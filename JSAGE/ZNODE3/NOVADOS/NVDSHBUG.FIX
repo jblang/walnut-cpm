@@ -1,0 +1,39 @@
+NovaDOS Function 6 bug and fix
+
+Novados Release H has a minor bug in fn 6 when obtaining direct console 
+input.  The NovaDOS console status does a one character lookahead to check 
+for ^S/^C during extended console output.  This character should be detected 
+by the next console status call (either internal or external) and returned 
+by the next call for character input.  While fns 1 and 10 work quite 
+correctly in this regard, fn 6 bypasses the buffered character, leaving it 
+stored until flushed by either fn 1 or 10.  This problem surfaced with Rob 
+Friefeld's excellent LSH command line editor which uses fn 6 for command 
+line input.  Characters typed during program loads or command processor 
+operation were reappearing in mysterious places other than on the LSH 
+command line!
+
+The fix, in NVDS-1.Z80, is easy, and involves no increase in code size. At 
+the label dcio:, the corrected code should read as follows:
+
+;
+;
+; Corrected code:			Corrected from:
+;
+dcio:	inc	e
+	jr	z,dcio0
+	inc	e
+	jp	nz,conout
+	call	const
+	jr	exit
+dcio0:	call	gconst	 		; call const
+	or	a
+	ret	z
+	call	getch			; call conin
+	jr	exit
+
+A copy of the corrected code module is on Z-node 77, (512) 444-8691.  
+Please leave comments or bug reports for me on the RBBS section.
+   
+                                     Lindsay Haisley
+
+

@@ -1,0 +1,183 @@
+                        Library Shell (LSH) Proposal
+                                  Jay Sage
+                              January 2, 1987
+
+
+This document is a proposal and preliminary specification for a library 
+shell program whose purpose is to simplify operations performed with files 
+in libraries.  It has been given the tentative name LSH.  As usual, I 
+eagerly solicit comments from the user community about this proposal.  If 
+you have any suggestions to offer, I can be contacted directly by mail, 
+voice phone, or modem as follows:
+
+        Jay Sage                        voice phone: 617-965-3552
+        1435 Centre Street              z-node #3:   617-965-7259
+        Newton Centre, MA 02159         (please do not confuse the numbers!)
+
+I also try to log into the Ladera Z-Node #2 in Los Angeles and the Lilliput 
+Z-Nodes in Chicago fairly often.  In addition, other sysops who have PC-
+Pursuit service may be willing to forward comments to me.
+
+
+                              Program Overview
+                              ----------------
+
+
+In order to afford virtually limitless flexibility to the user, the program 
+would work with a user-written script file LSH.CMD that combines the alias 
+script expansion feature of the ARUNZ script file ALIAS.CMD with the menu 
+(help) display of the VFILER/ZFILER macro files VFILER.CMD/ZFILER.CMD.
+
+The program would have two logical sections, one that would come into play 
+when the shell program is invoked by the user and one that would come into 
+play whenever the shell is invoked automatically by the command processor.  
+Each of these sections is described below.
+
+
+                             Manual Invocation
+                             -----------------
+
+
+1.  Syntax:     LSH DIR:UFN.LBR         run shell on designated library
+                LSH DIR:UFN             run shell on library DIR:UFN.LBR
+
+    Any invocation that does not match one of these forms (e.g., no file 
+    name, an ambiguous file name, an explicit type other than LBR, or more 
+    than one parameter on the line) would cause an abort with a display of a 
+    built-in syntax help screen.
+
+2.  If the invocation has a valid form, then the program would build a shell 
+    stack entry in the following way:
+
+    a.  The first bytes of the shell stack entry (bytes 00-08h) would 
+        contain the name of the shell from the external file control block 
+        (or the default name LSH) padded with spaces and followed by a null.  
+        This is the only part of the shell stack entry that is interpreted 
+        as a command line by the command processor.  All other information 
+        needed by the shell will be coded into the part of the shell stack 
+        after the null, where it can be kept in any convenient form, 
+        including binary.  No DU: or DIR: prefix is put before the shell 
+        name in order to avoid any problems in systems that do not allow 
+        either (or both) of these forms.  Consequently, the shell program 
+        must be accessible along the path.
+
+    b.  The name (only) of the requested library (8 characters) will be 
+        saved in the shell stack entry (bytes 09-10h).
+
+    c.  The drive and user numbers for the directory containing the 
+        requested library would be stored as a binary word (bytes 11-12h) in 
+        the format used by LOGUD and similar subroutines in SYSLIB.  The 
+        parsing required to get this information and to enforce security is 
+        handled entirely by the command processor when it builds the default 
+        file control block.  The shell just has to pick up the values from 
+        the default file control block and store them.
+
+    d.  Any other configuration information that is to be preserved from one 
+        execution of the shell to the next can be saved using the remaining 
+        bytes in the stack entry (13-1fh, typically, are available).  I 
+        cannot think of any such information now, but I am sure that will 
+        change.
+
+3.  The code would verify the presence of an available shell stack entry 
+    with adequate capacity for the required information.  If the necessary 
+    support is not present, the program will abort with an appropriate error 
+    message.
+
+4.  Next, the program would check for any pending commands in the command 
+    line buffer.  If there are any, control would be returned to the command 
+    processor.  Otherwise, control would be passed to the shell part of the 
+    program as described below.
+
+
+                              Shell Invocation
+                              ----------------
+
+
+When the program has been invoked as a shell by the command processor, the 
+following actions should be taken:
+
+1.  Record the current directory (DU$ORIG as in VFILER/ZFILER) so that it 
+    can be restored on exit.  If one wants to be sure to return to the very 
+    original directory, no matter what other directories may have been 
+    logged in as the result of commands passed through the shell, one could 
+    keep this original DU in the shell stack entry.
+
+2.  Open the LSH.CMD file containing the command-line scripts to be 
+    generated by LSH.  A configuration flag can determine whether this file 
+    is searched for along the entire path or only in the root directory.  If 
+    the file is not found, the program would abort (remove its shell stack 
+    entry) with an error message.
+
+3.  Get the directory of the requested library from the shell stack entry 
+    and log it in.
+
+4.  Get the library name from the shell stack entry, construct a file 
+    control block, and try to open the file.  If the library is not found, 
+    abort the shell (remove the stack entry) and give an error message.
+
+5.  Get the directory of the library and display it.  If the file is not a 
+    valid library or if TPA overflow occurs when trying to form the 
+    directory, abort with an error message.  (I think that the directory 
+    should be redisplayed every time control returns to the shell, since 
+    that is what most users I have observed do with LUX.  As with ZLUX25 the 
+    code for the directory display should, in the interest of speed, be part 
+    of LSH.  Directories that are too large to fit in a single screen would 
+    have to be paged.)
+
+6.  A command prompt would be displayed for the user.  One line would 
+    identify LSH (or whatever it is called) and indicate that one can exit 
+    by typing control-c or get help by typing '?' (or '/').  The next line 
+    (possibly after one blank line) would be a prompt for a command.  The 
+    screen might have the following appearance:
+
+                [ LSH Active: ^c=abort ?=help ]
+                DU|DIR:LIBNAME.LBR>
+
+    The DU would be included if allowed by the DUOK flag in the environment 
+    descriptor, and the named directory (DIR) would be included if there is 
+    a name associated with the directory.
+
+7.  A command from the user would then be processed as follows:
+
+    a.  If the command starts with a control-c character, then the shell 
+        would be aborted.  The shell stack entry would be popped off the 
+        stack and an exit message displayed.
+
+    b.  If the command starts with a '?' character (or '/' character), the 
+        user-written menu section of the LSH.CMD file would be displayed (as 
+        with VFILER/ZFILER) to provide help to the user.
+
+    c.  If the command line includes any other verb, that verb would be 
+        searched for in the LSH.CMD file in the same way that ARUNZ scans 
+        the ALIAS.CMD file.  That is, each line in the file (up to the 
+        menu) can have alternative matching verbs connected by equal signs, 
+        and each verb can be ambiguous.  There could also be a default verb 
+        that would match any command from the user.  Parameters would be 
+        parsed in the same way as with ARUNZ.
+
+    d.  There would be a few differences between the ALIAS.CMD and LSH.CMD 
+        scripts.  First, with LSH there would be parameters to represent the 
+        name of the currently selected library file and its directory (name, 
+        drive, and user).  To facilitate changing to another library, there 
+        would be a special character ('!' for example) that would indicate 
+        that a new library should be selected.  Thus, for example, there 
+        could be a line in the LSH.CMD file
+
+                LSH=LUX=ZLUX ! $1
+
+        On encountering the '!' symbol at the beginning of the script, LSH 
+        would pop the shell stack entry, parse the first token into the 
+        first default file control block, and then transfer control to the 
+        part of LSH normally run when a user invokes LSH manually.  This 
+        would be equivalent, therefore, to the script
+
+                LSH=LUX=ZLUX shctrl pop;lsh $1
+
+        but would not require loading any programs from disk.
+
+    e.  If the verb is found in the LSH.CMD file, then the script is 
+        expanded and passed to the multiple command line buffer.  If it is 
+        not found, then the user's command is passed as entered to the 
+        command line buffer (if the implementor wants to defeat this, all he 
+        has to do is include a default script in the LSH.CMD file).
+                                                   

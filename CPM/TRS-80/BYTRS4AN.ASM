@@ -1,0 +1,185 @@
+;******************************************************************************
+;        TRS-80 Model 4 RS-232 routines
+;        Version 1.0 for TRS-80 Mod 1 by John A. McKown
+;                     Revised for mod4 by Ed Richter
+;These routines will allow the easy patching of BYEII
+;for any type of MODEM/serial port combination. Certain
+;routines must return status flags, so please be care-
+;ful to set the flags as directed.
+;
+;This version is for the TRS-80 Model 4 RS-232 port
+;hooked up to an external modem.
+;
+;Modification History
+;
+;07/14/84: Added Anchor equate to use Signalman Mark XII. This requires
+;          the updated BY2+SMAN.ASM overlay also. This code will also
+;          work with the Smartmodem or any external modem. To use the
+;          Smartmodem set the equate SMODEM in BYEII to true. To use
+;          the Anchor the SMODEM equate in BYEII and the ANCHOR equate 
+;	   here must be true. Will work with any external "DUMB" modem 
+;	   with these equates set false.
+;                                                           <epr>
+;
+;01/01/84: Added MDQUIT routine and modified for the TRS-80 Mod IV. 
+;                                                           <epr> 
+;
+;10/01/83: Routines added, no fuss, mess, or frills
+;
+;******************************************************************************
+;
+;Option to use with 300/1200 SmartModem
+;If YES, also append BY2+SMDM.ASM just after this code.
+;
+ANCHOR  EQU	TRUE	;TRUE IF USING ANCHOR SIGNALMAN MARK XII
+MSPORT	EQU	0E8H	;OUT MASTER RESET UART/IN MODEM STATUS PORT
+BPORT	EQU	0E9H	;BAUD RATE PORT
+USPORT	EQU	0EAH	;UART STATUS PORT
+DPORT	EQU	0EBH	;DATA PORT
+;
+MDINIT	EQU	$+OFFSET
+	MVI	A,0FFH
+	OUT	MSPORT		;RESET MODEM (DATA IRRELEVANT)
+	CALL	MDHANG		;TURN-OFF DTR, HANG-UP, SET 300 BAUD
+	IF 	NOT ANCHOR	;ANCHOR DOESN'T NEED THIS DELAY
+	PUSH	B
+	MVI	B,150	;15 SECOND DELAY
+;
+OFFTI	EQU	$+OFFSET
+	CALL	DELAY	;0.1 SECOND DELAY
+	DCR	B
+	JNZ	OFFTI
+	POP	B
+	ENDIF	;NOT ANCHOR
+;...	
+	MVI	A,0ECH		;TURN ON UART 8,NO,1,DTR,RTS
+	OUT	USPORT		;SET UART
+	IF	SMODEM		;IF USING 300/1200 SMARTMODEM
+	CALL	SMINIT
+	ENDIF	;SMODEM
+	RET
+;
+;CHECK TO SEE IF PHONE IS RINGING
+;
+MDRING	EQU	$+OFFSET
+	IN	MSPORT
+	CMA			;INVERT THE RESPONSE.
+	ANI	10H		;RING INDIC ON?
+	RET			;YES
+;
+;RESET MODEM TO DEFAULT (300,8,NO,1,DTR ON)
+;
+MDQUIT  EQU     $+OFFSET
+	CALL	MDANSW		;SET 300 BAUD
+        MVI     A,02H   	;RESET UART ENABLE
+        OUT     MSPORT
+        MVI     A,0ECH   	;SET MODEM TO STANDARD DEFAULT VALUE
+        OUT     USPORT
+        RET
+;
+;HANGUP PHONE BY TURNING OFF DTR
+;
+MDHANG	EQU	$+OFFSET
+	MVI	A,0FFH		;TURN OFF DTR & RTS (BITS 0 & 1 TRUE)
+	OUT	USPORT
+;
+;THE FOLLOWING ROUTINE WILL RESET THE UART TO 300 BAUD
+;AND ALLOW THE MODEM TO ANSWER THE PHONE WHEN DTR IS SET
+;
+MDANSW	EQU	$+OFFSET
+	CALL	SET300		;SET 300 BAUD
+	IN	DPORT		;CLEAR OUT GARBAGE
+	IN	DPORT		;DITTO
+	RET
+;
+;THE FOLLOWING ROUTINE CHECKS TO MAKE SURE WE STILL
+;HAVE CARRIER. IF THERE IS NO CARRIER, IT WILL RETURN
+;WITH THE ZERO FLAG SET.
+;
+MDCARCK	EQU	$+OFFSET
+	IN	MSPORT		;GET MODEM STATUS
+	CMA			;INVERT THE RESPONSE
+	ANI	20H		;CHECK CARRIER
+	RET			;RETURN
+;
+;THE FOLLOWING ROUTINE DETERMINES IF THERE IS A CHARACTER WAITING
+;TO BE RECEIVED. IF NO CHARACTER IS WAITING, THE ZERO FLAG WILL BE SET,
+;OTHERWISE, 255 WILL BE RETURNED IN REGINSTER A.
+;
+MDINST	EQU	$+OFFSET
+	IN	USPORT		;CHECK UART
+	ANI	80H		;ANY DATA
+	RZ			;NO, RETURN
+	ORI	0FFH		;SET PROPER DATA
+	RET
+;
+;THE FOLLOWING IS A ROUTINE THAT WILL INPUT ONE
+;CHARACTER FROM THE MODEM PORT. IF THERE IS NOTHING
+;THERE, IT WILL RETURN THE PREVIOUS CHARACTER RECEIVED.
+;THEREFORE, USE MDINST ROUTINE TO TEST FOR A CHARACTER
+;BEING AVAILABLE
+;
+MDINP	EQU	$+OFFSET
+	IN	DPORT
+	ANI	7FH
+	RET
+;
+;THE FOLLOWING IS A ROUTINE TO DETERMINE IF THE TRANSMIT
+;BUFFER IS EMPTY. IF IT IS, IT WILL RETURN WITH THE ZERO
+;FLAG CLEAR. IF THE TRANSMITTER IS BUSY, THEN IT WILL
+;RETURN WITH THE ZERO FLAG SET.
+;
+MDOUTST  EQU     $+OFFSET
+         IN      USPORT
+         ANI     40H           	;EMPTY
+         RET
+;
+;THE FOLLOWING IS A ROUTINE THAT WILL OUTPUT ONE CHARACTER
+;IN REGISTER A TO THE MODEM. REMEMBER THAT IS REGISTER  
+;A NOT REGISTER C.
+; *** USE MDOUTST FIRST TO SEE IF BUFFER IS EMPTY *** 
+;
+MDOUTP  EQU      $+OFFSET
+        OUT      DPORT
+        RET
+;
+;THESE NEXT ROUTINES SET THE PROPER BAUD RATES FOR THE
+;MODEM. IF YOU DO NOT SUPPORT THE PARTICULAR RATE, THEN
+;SIMPLY PUT THE LABEL IN FRONT OF THE SETINV ROUTINE.
+;IF THE BAUD RATE CHANGE WAS SUCCESSFUL, MAKE SURE THE
+;ZERO FLAG IS SET.
+;
+;SET UP FOR 300 BAUD
+;
+SET300  EQU     $+OFFSET
+        MVI     A,55H
+        OUT     BPORT         	;SET 300 BAUD
+        XRA     A             	;ZERO THE A REG
+        RET
+;
+SET1200  EQU    $+OFFSET
+         MVI    A,77H
+         OUT    BPORT
+         XRA    A
+         RET
+;
+;THE FOLLOWING ROUTINE RETURNS A 255 BECAUSE 
+;THE SERIAL PORT OR THE MODEM CAN'T HANDLE THE BAUD RATE.
+;
+SET110   EQU     $+OFFSET
+SET450   EQU     $+OFFSET
+SET600   EQU     $+OFFSET
+SET710   EQU     $+OFFSET
+SETINV   EQU     $+OFFSET
+         ORI     0FFH
+         RET
+;OK, THAT'S ALL OF THE MODEM DEPENDANT ROUTINES THAT
+;BYEII USES, SO IF YOU PATCH THIS FILE INTO YOUR COPY
+;OF BYEII, THEN IT SHOULD WORK OUT WELL.
+;
+;                    Ed Richter
+;
+;         END BY2-TRS4  (BUT NOT THE PROGRAM)
+;
+;******************************************************************************
+;<NOTE>  INSERT BY2+SMDM.ASM AFTER THIS STATEMENT IF NEEDED

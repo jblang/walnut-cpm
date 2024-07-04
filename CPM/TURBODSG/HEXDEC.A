@@ -1,0 +1,52 @@
+;HEX TO DEC ROUTINE FOR 8086/88
+;
+; INPUT:  DX=HEX, [BX]=BUFFER
+; OUTPUT: [BX]=DECIMAL, CX,AL DESTROYED
+;
+	MODULE	"HEXDEC"
+;
+	LOC	Code#
+;
+HEXDEC::
+	MOV	LEAD,=0
+	MOV     CX,=-10000
+        CALL    MAKDEC
+        MOV     CX,=-1000
+        CALL    MAKDEC
+        MOV     CX,=-100
+        CALL    MAKDEC
+        MOV     CX,=-10
+        CALL    MAKDEC
+        MOV     CX,=-1
+        CALL    MAKDEC
+        RET
+;
+MAKDEC: MOV     AH,=-1
+        PUSH    BX
+MDECLP: PUSH    DX
+        INC     AH
+        ADD     DX,CX
+        JNC     DECD
+        POP     BX
+        JMPS    MDECLP
+;
+DECD:   POP     DX
+        POP     BX
+	OR	AH,AH
+	JNZ	__S
+	CMP	LEAD,=0
+	JNZ	__S
+	RET
+;
+__S:    MOV     AL,='0'
+        ADD     AL,AH
+        MOV     [BX],AL
+        INC     BX
+	MOV	LEAD,AL
+        RET
+;
+	LOC	Data#
+;
+LEAD:	BYTE	0
+;
+	END

@@ -1,0 +1,1494 @@
+TITLE		'CRCK.A86 Version 6.3'
+;
+;	A file CRC checking and generating utility for CP/M-86,
+;	MP/M-86 and Concurrent PCDOS
+;
+;	This version by	Bill Bolton,
+;			Software Tools RCPM,
+;			P.O. Box 357,
+;			Kenmore,
+;			Queensland, 4069
+;			Australia
+;
+;International 61-7-378-9530+
+;Domestic      (07) 378-9530	300 bps CCITT V.21 Standard
+;
+;
+;	This is a fairly literal translation by XLT86,
+;	most of the hard work in preparing the 16 bit version
+;	was done at the 8 bit code level before presenting to
+;	XLT86. From even a cursory examination I can see quite
+;	a lot of code that could be made much more efficent by
+;	using new 8086 instructions to replace the mechanical
+;	translations from 8080 instructions that XLT86 performs.
+;	However the program works as it is, which is what I was
+;	after, so its up to someone else to make it "elegent"
+;	in 8086 code terms. Bill Bolton
+;
+;	*********** NOTE WELL ************
+;
+;	This version uses the "old" CRC polynomial code as
+;	incorrectly described in EDN all those years back
+;	and generates the same CRCKs as most other CRC programs,
+;	including the CRC options in YAM, MODEM and MEX. I have
+;	incremented the version number to 6 to get away from
+;	the "new" CRC polynomial version of CRCK which, although
+;	a technically correct implementation of the polynomial,
+;	produces entirely different CRC values than those found in
+;	the CRCKLIST, CRCKFILE and -CATALOG files on most public
+;	domain disks. Even though the "old" polynomial code doesn't
+;	implement the polynomial correctly, it still works just as
+;	effectively as the correct polynomial for the purposes of
+;	identifying the integrity of files on a disk.
+;
+;	Assemble this program with ASM86
+;
+;	GENCMD CRC7 
+;
+;
+;CREDITS
+;
+;	The 8 bit version of the program was originally
+;	conceived by Keith Petersen, W8SDZ, to whom all
+;	glory and honour.
+;
+;The CYCLIC-REDUNDANCY-CHECK number used is based on the
+;CCITT standard polynominal:
+;
+;   X^16 + X^15 + X^13 + X^7 + X^4 + X^2 + X + 1
+;
+;	(well almost, see comments above)
+;
+;Useful for checking accuracy of file transfers.
+;More accurate than a simple checksum.
+;
+;This utility will optionally will write an output file to the
+;default drive, listing the CRC's of all files checked in a
+;single session. See CRCBUILD.A86 for a companion utility which
+;will build -CATALOG files with embedded CRCs which can be
+;checked with this CRC.CMD utility.
+;
+;COMMANDS:   CRCK [drive:]<filename.filetype> [F]
+;
+;Examples:
+;	CRCK MYFILE.ASM	;CHECK ONLY MYFILE.ASM
+;	CRCK *.ASM	;CHECK ALL .ASM FILES
+;	CRCK *.* F	;CHECK ALL FILES, MAKE FILE OF RESULTS
+;			; WITH NAME F.CRC
+;	CRCK		;Will attempt to find CRCKLIST.???
+;			; or CRCKFILE.??? or -CATALOG.???	
+;			; and try to match recorded CRC values
+;			; in that file with values calculated
+;			; on the fly for files on the disk. 
+;
+;
+;VERSION LIST, most recent version first
+;
+;30/Oct/84 Added CLOSE to file read routines, as Concurrent DOS
+;          was reporting "Too many Files Open" error when CRCing
+;	   disks with lots of directory entries. Made the same
+;	   changes to the 8 bit versions.
+;	   CP/M-86/Concurrent version 6.4. Bill Bolton
+;	
+;10/Oct/84 Fixed CP/M-86 version to also work with Concurrent PCDOS,
+;	   and MP/M-86. The "?" in the OPEN function calls was
+;	   upsetting them. CP/M-86/Concurrent version 6.3. Bill Bolton
+;
+;09/Oct/84 XLT86 translation of 8 bit source code version, massaged
+;	   by hand to make it assemble with ASM86 for CP/M-86.
+;   	   CP/M-86 version 6.2. Bill Bolton
+;
+;07/Oct/84 Tightened 8 bit disassembly considerably and moved all
+;	   the data together preparatory to XLT86ing for CP/M-86.
+;	   CP/M-80 version 6.2. Bill Bolton
+;
+;04/Oct/84 Disassembled CRC version 5.0 as distributed for some years
+;	   on SIG/M disks, but no source has even been available from
+;	   SIG/M. This version checks the -CATALOG files built with
+;	   CRCBUILD as well as CRCKLIST and CRCKFILE. Obviously used
+;	   SEQIO macros for much of the file I/O but as the aim is
+;	   translation to CP/M-86 I left the macros expanded. Lifted
+;	   recognisable bits of code (like MFNAME) from other sources
+;	   to get comments. Version number 6.1. 
+;	   Bill Bolton, Software Tools RCPM, Brisbane Australia
+;
+;
+BDOS	EQU	224
+;
+RDCON	EQU	1		;BDOS console input
+WRCON	EQU	2		;BDOS console output
+PRINT	EQU	9		;BDOS display string
+CSTAT	EQU	11		;BDOS console status
+OPEN	EQU	15		;BDOS file open
+CLOSE	EQU	16		;BDOS file close
+SRCHF	EQU	17		;BDOS search for first
+SRCHN	EQU	18		;BDOS search for next
+DELETE	EQU	19		;BDOS delete file
+READ	EQU	20		;BDOS read file
+WRITE	EQU	21		;BDOS write file
+MAKE	EQU	22		;BDOS create file
+RENAME	EQU	23		;BDOS rename existing file
+SETDMA	EQU	26		;BDOS set transfer address
+;
+FCB	EQU	5CH		;Default file control block
+FCBEXT	EQU	FCB+12
+FCB2	EQU	FCB+16
+FCBRNO	EQU	7CH
+SECTBUFF EQU	80H		;Defualt transfer buffer
+;
+TAB	EQU	09H		;ASCII modulo 8 tab
+ALF	EQU	0AH		;ASCII line feed
+ACR	EQU	0DH		;ASCII carriage returnq
+EOF	EQU	1AH		;CP/M end of file marker
+;
+BUFSIZE	EQU	4000H		;File buffers
+;
+M	EQU	Byte Ptr 0[BX]	;XLT86 strikes again
+;
+	CSEG
+;
+START:
+	MOV	AX,DS
+	MOV	SS,AX
+	MOV	SP,(Offset STACK)	;start local stack
+	CALL	CRLF
+	MOV	DX,(Offset SIGNON)	;Tell them who we are
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr .FCB+1	;Point to file name
+	CMP	AL,' '			;Is it there?
+	JZ	CONTINUE
+	JMP	FILE@OUT@CHECK		;Yes
+;
+CONTINUE:
+	MOV	DX,(Offset SRCH@LIST)	;Searching for CRCKLIST.??? file
+	CALL	DISPLAY
+	CALL	OPENCRCFILE
+	JZ	PROCESSIT
+	MOV	DX,(Offset SRCH@FILE)
+	CALL	DISPLAY			;Searching for CRCKFILE.??? file
+	MOV	DX,(Offset FCBCRCFILE)+1
+	MOV	BX,(Offset FIRST@TRY)
+	MOV	CX,11
+	CALL	MOVER
+	CALL	OPENCRCFILE
+	JZ	PROCESSIT
+	JMP	CATCHECK
+;
+PROCESSIT:
+	MOV	SP,(Offset STACK)	;Reinitialise stack
+	CALL	FINDCRC
+	JZ	PROCESS2
+	JMP	ABEXT2
+;
+PROCESS2:
+	MOV	DX,(Offset ARROW)
+	MOV	BX,(Offset BUFFER)
+	MOV	CX,11
+	CALL	COMPARE
+	JNZ	NONSENSE
+	CALL	ISNAME
+	JNZ	NONSENSE
+	MOV	DX,(Offset EQUALS)
+	MOV	CL,31
+	CALL	COMPARE
+	JNZ	NONSENSE
+	CALL	STORECRC
+	JNZ	NONSENSE
+	MOV	BX,(Offset BUFFER)+11
+	CALL	SHOWNAME
+	JMPS	PROCESSIT
+;
+NONSENSE:
+	CALL	NOPARSE
+	JMPS	PROCESSIT
+;
+READFILE:
+	MOV	BX,Word Ptr CRCFILELEN
+	XCHG	BX,DX
+	MOV	BX,Word Ptr CRCFILEPTR
+	MOV	AL,BL
+	SUB	AL,DL
+	MOV	AL,BH
+	SBB	AL,DH
+	JB	READABYTE
+	MOV	BX,0
+	MOV	Word Ptr CRCFILEPTR,BX
+READLOOP:
+	XCHG	BX,DX
+	MOV	BX,Word Ptr CRCFILELEN
+	MOV	AL,DL
+	SUB	AL,BL
+	MOV	AL,DH
+	SBB	AL,BH
+	JNB	READASEC
+	MOV	BX,Word Ptr CRCFILEADR
+	ADD	BX,DX
+	XCHG	BX,DX
+	MOV	CL,SETDMA
+	INT	BDOS
+	MOV	DX,(Offset FCBCRCFILE)
+	MOV	CL,READ
+	INT	BDOS
+	OR	AL,AL
+	JNZ	LASTREAD
+	MOV	DX,SECTBUFF
+	MOV	BX,Word Ptr CRCFILEPTR
+	ADD	BX,DX
+	MOV	Word Ptr CRCFILEPTR,BX
+	JMPS	READLOOP
+;
+LASTREAD:
+	MOV	BX,Word Ptr CRCFILEPTR
+	MOV	Word Ptr CRCFILELEN,BX
+READASEC:
+	MOV	DX,SECTBUFF
+	MOV	CL,SETDMA
+	INT	BDOS
+	MOV	BX,0
+	MOV	Word Ptr CRCFILEPTR,BX
+READABYTE:
+	XCHG	BX,DX
+	MOV	BX,Word Ptr CRCFILEADR
+	ADD	BX,DX
+	XCHG	BX,DX
+	MOV	BX,Word Ptr CRCFILELEN
+	MOV	AL,BL
+	OR	AL,BH
+	MOV	AL,EOF
+	JNZ	READBYTE1
+	RET
+;
+READBYTE1:
+	MOV	SI,DX
+	MOV	AL,[SI]
+	MOV	BX,Word Ptr CRCFILEPTR
+	LAHF
+	INC	BX
+	SAHF
+	MOV	Word Ptr CRCFILEPTR,BX
+	RET
+;
+OPENCRCFILE:
+	XOR	AL,AL
+	MOV	Byte Ptr FCBCRCFILE+12,AL
+	MOV	Byte Ptr FCBCRCFILE+32,AL
+	MOV	BX,BUFSIZE
+	MOV	Word Ptr CRCFILELEN,BX
+	MOV	Word Ptr CRCFILEPTR,BX
+	MOV	BX,(Offset FCBCRCFILE)	;CCP/M doesn't like "?" in
+	MOV	DX,(Offset FCB)		; OPEN function calls, so 
+	MOV	CX,12			; since we already have
+	CALL	MOVER			; MFNAME in the code, use it to 
+	CALL	MFNAME			; get a definitive filename
+	JB	OPENFAIL		; to attempt an open. Only
+	MOV	BX,(Offset FCB)		; the first matching name is
+	MOV	DX,(Offset FCBCRCFILE)	; tried for an open, but this is all
+	MOV	CX,12			; the orginal code achieved anyway.
+	CALL	MOVER			
+	MOV	CL,OPEN
+	MOV	DX,(Offset FCBCRCFILE)
+	INT	BDOS
+	INC	AL
+	JNZ	FILEMATCH
+OPENFAIL:
+	MOV	CL,PRINT
+	MOV	DX,(Offset NOFILECRC)
+	INT	BDOS
+	JMP	FILERR
+;
+FILEMATCH:
+	MOV	BX,(Offset FCBCRCFILE)+1
+	MOV	DX,(Offset BUFFER)
+	MOV	CX,8
+	CALL	MOVER
+	MOV	AL,'.'
+	MOV	SI,DX
+	MOV	[SI],AL
+	INC	DX
+	MOV	CX,3
+	CALL	MOVER
+	XOR	AL,AL
+	MOV	SI,DX
+	MOV	[SI],AL
+	MOV	DX,(Offset CHECKING)	;Show which file we are checking
+	CALL	DISPLAY
+	MOV	BX,(Offset BUFFER)
+MATCHLOOP:
+	MOV	AL,M
+	OR	AL,AL
+	JZ	MATCHINIT
+	CALL	TYPER
+	INC	BX
+	JMPS	MATCHLOOP
+;
+MATCHINIT:
+	CALL	CRLF
+	CALL	CRLF
+	XOR	AL,AL
+	MOV	Byte Ptr MATCHNO,AL
+	MOV	Byte Ptr NOMATCH,AL
+	MOV	Byte Ptr FAILED,AL
+	MOV	Byte Ptr FILES,AL
+	RET
+;
+FINDCRC:
+	MOV	BX,(Offset BUFFER)
+	MOV	AL,0
+	MOV	Byte Ptr CURSOR,AL	;Reset cursor counter to start of line
+FINDCRC1:
+	PUSH	BX
+	CALL	READFILE
+	POP	BX
+	CMP	AL,EOF
+	JNZ	FINDCRC2
+	MOV	AL,Byte Ptr CURSOR
+	OR	AL,AL
+	JNZ	FINDDONE
+	MOV	AL,Byte Ptr CRCENTRY
+	OR	AL,AL
+	JNZ	FINDCRC1A
+	JMP	DONEIT
+;
+FINDCRC1A:
+	MOV	DX,(Offset NOFIND)	;File not found
+	CALL	DISPLAY
+	MOV	AL,EOF
+	OR	AL,AL
+	RET
+;
+FINDCRC2:
+	AND	AL,07FH			;Make sure its ASCII
+	CMP	AL,ACR			;End of line?
+	JZ	ENDOFLINE		;Yes
+	CMP	AL,ALF			;End of line?
+	JZ	ENDOFLINE		;Yes
+	MOV	M,AL			;No
+	INC	BX
+	MOV	AL,Byte Ptr CURSOR	;Bump cursor pointer
+	INC	AL
+	MOV	Byte Ptr CURSOR,AL
+	CMP	AL,80			;End of line?
+	JB	FINDCRC1		;No
+ENDOFLINE:
+	MOV	AL,Byte Ptr CURSOR
+	OR	AL,AL
+	JZ	FINDCRC
+FINDDONE:
+	MOV	M,0
+	XOR	AL,AL
+	RET
+;
+NOPARSE:
+	MOV	DX,(Offset CANTPARSE)	;Cant parse string
+	CALL	DISPLAY
+	MOV	BX,(Offset BUFFER)
+PARSELOOP:
+	MOV	AL,M
+	OR	AL,AL
+	JZ	SHOWERR
+	CALL	TYPER
+	INC	BX
+	JMPS	PARSELOOP
+;
+SHOWERR:
+	CALL	CRLF
+	MOV	BX,(Offset BUFFER)
+	INC	CH
+	DEC	CH
+	JZ	SHOWERR3
+SHOWERR1:
+	MOV	AL,TAB
+	CMP	AL,M
+	JZ	SHOWERR2
+	MOV	M,' '
+SHOWERR2:
+	INC	BX
+	DEC	CH
+	JNZ	SHOWERR1
+SHOWERR3:
+	MOV	M,'^'
+	INC	BX
+	MOV	M,0
+	MOV	BX,(Offset BUFFER)
+SHOWERR4:
+	MOV	AL,M
+	OR	AL,AL
+	JZ	RECORDERR
+	CALL	TYPER
+	INC	BX
+	JMPS	SHOWERR4
+;
+RECORDERR:
+	MOV	BX,(Offset FAILED)
+	INC	M
+	CALL	CRLF
+	RET
+;
+COMPARE:
+	MOV	SI,DX
+	MOV	AL,[SI]
+	CMP	AL,M
+	JZ	COMPARE1
+	RET
+;
+COMPARE1:
+	INC	BX
+	INC	DX
+	INC	CH
+	MOV	AL,CH
+	CMP	AL,CL
+	JNZ	COMPARE2
+	RET
+;
+COMPARE2:
+	JMPS	COMPARE
+;
+SHOWNAME:
+	PUSH	BX
+	MOV	DX,FCB+1
+	MOV	CX,8
+	CALL	MOVER
+	INC	BX
+	MOV	CX,3
+	MOV	DX,FCB+9
+	CALL	MOVER
+	XOR	AL,AL
+	MOV	M,AL
+	POP	BX
+SHOWLOOP:
+	MOV	AL,M
+	OR	AL,AL
+	JZ	SHOWDONE
+	CALL	TYPER
+	INC	BX
+	JMPS	SHOWLOOP
+;
+SHOWDONE:
+	MOV	AL,1
+	MOV	Byte Ptr MFFLG1,AL
+	MOV	DX,(Offset DASH)	;Display delimiter
+	CALL	DISPLAY
+	CALL	MFNAME
+	JNB	TRYMATCH
+	MOV	DX,(Offset NOFIND2)
+	CALL	DISPLAY
+	MOV	BX,(Offset FILES)
+	INC	M
+	XOR	AL,AL
+	INC	AL
+	RET
+;
+TRYMATCH:
+	MOV	AL,1
+	MOV	Byte Ptr MATCHFLG,AL	;We found some filenames to check
+	CALL	OPENIT
+	JZ	TRYMATCH1
+	RET
+;
+TRYMATCH1:
+	MOV	AL,Byte Ptr OLDCRC+1
+	MOV	CH,AL
+	MOV	AL,Byte Ptr REM
+	CMP	AL,CH
+	JNZ	MISMATCH
+	MOV	AL,Byte Ptr OLDCRC
+	MOV	CH,AL
+	MOV	AL,Byte Ptr REM+1
+	CMP	AL,CH
+	JNZ	MISMATCH
+	MOV	DX,(Offset MATCHMSG)	;**Match**
+	CALL	DISPLAY
+	XOR	AL,AL
+	MOV	Byte Ptr CRCENTRY,AL
+	MOV	BX,(Offset MATCHNO)
+	INC	M
+	XOR	AL,AL
+	RET
+;
+MISMATCH:
+	MOV	DX,(Offset ISWAS)	; <--is, was -->
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr OLDCRC
+	CALL	HEXO
+	MOV	AL,' '
+	CALL	TYPER
+	MOV	AL,Byte Ptr OLDCRC+1
+	CALL	HEXO
+	CALL	CRLF
+	XOR	AL,AL
+	MOV	Byte Ptr CRCENTRY,AL
+	MOV	BX,(Offset NOMATCH)
+	INC	M
+	XOR	AL,AL
+	INC	AL
+	RET
+;
+STORECRC:
+	CALL	HEXBIN
+	JZ	STORECRC0
+	RET
+;
+STORECRC0:
+	MOV	Byte Ptr OLDCRC,AL
+	MOV	AL,M
+	INC	BX
+	CMP	AL,' '
+	JZ	STORECRC1
+	MOV	DX,(Offset NOTSPACE)	;No space between CRC values
+	CALL	DISPLAY
+	XOR	AL,AL
+	INC	AL
+	RET
+;
+STORECRC1:
+	CALL	HEXBIN
+	JZ	STORECRC2
+	RET
+;
+STORECRC2:
+	MOV	Byte Ptr OLDCRC+1,AL
+	MOV	CH,AL
+	XOR	AL,AL
+	RET
+;
+CATCHECK:
+	MOV	DX,(Offset SRCH@CAT)	;Searching -CATALOG file
+	CALL	DISPLAY
+	MOV	DX,(Offset FCBCRCFILE)+1
+	MOV	BX,(Offset CATALOG)
+	MOV	CX,11
+	CALL	MOVER
+	CALL	OPENCRCFILE
+	JZ	PARSELINE
+	JMP	ABEXT2
+;
+PARSELINE:
+	CALL	FINDCRC
+	JZ	PARSE2
+	JMP	ABEXT2
+;
+PARSE2:
+	MOV	CH,0
+	MOV	BX,(Offset BUFFER)	;Point to catalog entry
+	CALL	THREENUM		;Check for 3 digit volume number
+	JNZ	TRYAGAIN
+	MOV	AL,'.'			;Followed by separator
+	CMP	AL,M
+	JNZ	TRYAGAIN
+	LAHF
+	INC	BX
+	SAHF
+	INC	CH
+	CALL	TWONUM			;Check for 2 digit entry number
+	JNZ	TRYAGAIN
+	CALL	ISWHITE			;Skip over white space
+	JNZ	TRYAGAIN
+	CALL	ISNAME			;Check for valid file name
+	JNZ	TRYAGAIN
+	CALL	ISWHITE			;Skip over white space
+	JNZ	NOGOOD
+	CALL	ISNUM			;Check for first digit of filesize
+	JNZ	NOGOOD
+SKIP:
+	CALL	ISNUM
+	JZ	SKIP
+	CMP	AL,'K'			;Filesize ends in K
+	JNZ	NOGOOD
+	CALL	ISWHITE			;Skip over white space
+	JNZ	NOGOOD
+	CALL	STORECRC		;Now we should be at the CRC
+	JNZ	NOGOOD
+	MOV	BX,Word Ptr POINTER
+	CALL	SHOWNAME
+	JMPS	PARSELINE
+;
+TRYAGAIN:
+	MOV	AL,Byte Ptr CRCENTRY
+	OR	AL,AL
+	JNZ	PARSELINE
+NOGOOD:
+	CALL	NOPARSE
+	JMP	PARSELINE
+;
+ISNAME:
+	MOV	Word Ptr POINTER,BX
+	CALL	ISALPHA			;Check first character
+	JZ	ISNAME0
+	RET
+;
+ISNAME0:
+	MOV	CL,7			;7 left in rest of filename
+ISNAME1:
+	CALL	ISALPHA
+	JZ	ISNAME2
+	CMP	AL,' '			;Maybe padded with spaces?
+	JZ	ISNAME2
+	RET
+;
+ISNAME2:
+	DEC	CL			;Done?
+	JNZ	ISNAME1			;No
+	MOV	AL,M			;Yes
+	INC	BX
+	INC	CH
+	CMP	AL,'.'			;Valid separator?
+	JZ	ISNAME3
+	RET
+;
+ISNAME3:
+	MOV	CL,3			;3 in filetype
+ISNAME4:
+	CALL	ISALPHA
+	JZ	ISNAME5
+	CMP	AL,' '			;Padded with spaces
+	JZ	ISNAME5
+	RET
+;
+ISNAME5:
+	DEC	CL			;Done?
+	JNZ	ISNAME4			;No
+	RET				;Yes
+;
+ISWHITE:
+	MOV	AL,M
+	CMP	AL,' '			;Space?
+	JZ	WHITELOOP		;Yes, check some more
+	CMP	AL,TAB			;No, maybe a TAB?
+	JZ	WHITELOOP
+	RET				;No, something else
+;
+WHITELOOP:
+	INC	BX			;Point to next char
+	INC	CH
+	MOV	AL,M
+	CMP	AL,' '			;Space?
+	JZ	WHITELOOP		;Yes, check some more
+	CMP	AL,TAB			;No, maybe a TAB? 
+	JZ	WHITELOOP		;Yes, check some more
+	CMP	AL,AL			;No, something else
+	RET
+;
+THREENUM:
+	CALL	TWONUM
+	JZ	THREENUM1
+	RET
+;
+THREENUM1:
+	CALL	ISNUM
+	JNZ	THREENUM2
+	RET
+;
+THREENUM2:
+	CMP	AL,'.'
+	JZ	THREENUM3
+	RET
+;
+THREENUM3:
+	DEC	BX
+	DEC	CH
+	CMP	AL,AL
+	RET
+;
+TWONUM:
+	CALL	ISNUM
+	JZ	ISNUM
+	RET
+;
+ISNUM:
+	MOV	AL,M
+	INC	BX
+	INC	CH
+	CMP	AL,'0'
+	JB	NOTNUM
+	CMP	AL,'9'+1
+	JNB	NOTNUM
+	CMP	AL,AL
+	RET
+;
+NOTNUM:
+	CMP	AL,'0'
+	RET
+;
+ISALPHA:
+	MOV	AL,M
+	INC	BX
+	INC	CH
+	CMP	AL,' '+1
+	JB	ALPHA1
+	CMP	AL,07FH
+	JNB	ALPHA1
+	CMP	AL,AL
+	RET
+;
+ALPHA1:
+	CMP	AL,'A'
+	RET
+;
+HEXBIN:
+	CALL	MAKEBIN
+	JZ	HEXBIN1
+	RET
+;
+HEXBIN1:
+	ROL	AL,1
+	ROL	AL,1
+	ROL	AL,1
+	ROL	AL,1
+	MOV	CL,AL
+	CALL	MAKEBIN
+	JZ	HEXBIN2
+	RET
+;
+HEXBIN2:
+	MOV	CH,AL
+	MOV	AL,CL
+	OR	AL,CH
+	CMP	AL,AL
+	RET
+;
+MAKEBIN:
+	MOV	AL,M
+	INC	BX
+	INC	CH
+	CMP	AL,'0'
+	JB	MAKEBIN2
+	SUB	AL,'0'
+	CMP	AL,10
+	JB	MAKEBIN1
+	AND	AL,1FH
+	SUB	AL,7H
+	CMP	AL,10
+	JB	MAKEBIN2
+	CMP	AL,16
+	JNB	MAKEBIN2
+MAKEBIN1:
+	CMP	AL,AL			;Return zero flag not set
+	RET
+;
+MAKEBIN2:
+	OR	AL,AL			;Return zero flag set
+	RET
+;
+FILE@OUT@CHECK:
+	MOV	AL,Byte Ptr .FCB2+1	;Point to possible file write command
+	MOV	Byte Ptr FFLAG,AL	;Save as a flag
+	CMP	AL,'F'			;Is it the correct one?
+	JZ	FILE@OUT@CHK
+	JMP	AGAIN			;Yes
+
+FILE@OUT@CHK:
+	JMP	MAKEOUTFILE		;No
+;
+PUTCRCFILE:
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	MOV	BX,Word Ptr OUTFILELEN
+	XCHG	BX,DX
+	MOV	BX,Word Ptr OUTFILEPTR
+	MOV	AL,BL
+	SUB	AL,DL
+	MOV	AL,BH
+	SBB	AL,DH
+	JB	WRITEABYTE
+	MOV	BX,0
+	MOV	Word Ptr OUTFILEPTR,BX
+PUTCRCLOOP:
+	XCHG	BX,DX
+	MOV	BX,Word Ptr OUTFILELEN
+	MOV	AL,DL
+	SUB	AL,BL
+	MOV	AL,DH
+	SBB	AL,BH
+	JNB	STARTASEC
+	MOV	BX,Word Ptr OUTFILEADR
+	ADD	BX,DX
+	XCHG	BX,DX
+	MOV	CL,SETDMA
+	INT	BDOS
+	MOV	DX,(Offset FCBOUTFILE)
+	MOV	CL,WRITE
+	INT	BDOS
+	OR	AL,AL
+	JNZ	FULLDISK
+	MOV	DX,SECTBUFF
+	MOV	BX,Word Ptr OUTFILEPTR
+	ADD	BX,DX
+	MOV	Word Ptr OUTFILEPTR,BX
+	JMPS	PUTCRCLOOP
+;
+FULLDISK:
+	MOV	CL,PRINT
+	MOV	DX,(Offset DISKFULL)
+	INT	BDOS
+	POP	AX
+	XCHG	AL,AH
+	JMP	FILERR
+;
+STARTASEC:
+	MOV	DX,SECTBUFF
+	MOV	CL,SETDMA
+	INT	BDOS
+	MOV	BX,0
+	MOV	Word Ptr OUTFILEPTR,BX
+WRITEABYTE:
+	XCHG	BX,DX
+	MOV	BX,Word Ptr OUTFILEADR
+	ADD	BX,DX
+	XCHG	BX,DX
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	MOV	SI,DX
+	MOV	[SI],AL
+	MOV	BX,Word Ptr OUTFILEPTR
+	LAHF
+	INC	BX
+	SAHF
+	MOV	Word Ptr OUTFILEPTR,BX
+	RET
+;
+MAKEOUTFILE:
+	XOR	AL,AL
+	MOV	Byte Ptr FCBOUTFILE+12,AL
+	MOV	Byte Ptr FCBOUTFILE+32,AL
+	MOV	BX,BUFSIZE
+	MOV	Word Ptr OUTFILELEN,BX
+	MOV	BX,0
+	MOV	Word Ptr OUTFILEPTR,BX
+	MOV	CL,DELETE
+	MOV	DX,(Offset FCBOUTFILE)
+	INT	BDOS
+	MOV	CL,MAKE
+	MOV	DX,(Offset FCBOUTFILE)
+	INT	BDOS
+	INC	AL
+	JNZ	AGAIN
+	MOV	CL,PRINT
+	MOV	DX,(Offset NODIRSPACE)
+	INT	BDOS
+	JMP	FILERR
+;
+AGAIN:
+	MOV	SP,(Offset STACK)	;Reinit stack pointer
+	MOV	AL,0
+	MOV	Byte Ptr MATCHFLG,AL
+	CALL	MFNAME
+	JNAE	AGAIN1
+	JMP	DOFILECRC
+;
+AGAIN1:
+	MOV	AL,Byte Ptr MFFLG1
+	OR	AL,AL
+	JZ	DONE
+	MOV	DX,(Offset NOFIND3)
+	MOV	CL,PRINT
+	INT	BDOS
+	JMP	ABEXT2
+;
+DONE:
+	MOV	AL,Byte Ptr FFLAG
+	CMP	AL,'F'
+	JNZ	DONEIT
+CLEANUP:
+	MOV	BX,Word Ptr OUTFILEPTR
+	MOV	AL,BL
+	AND	AL,07FH
+	JNZ	CLOSEIT
+	MOV	Word Ptr OUTFILELEN,BX
+CLOSEIT:				;Close CRCKLIST.$$$
+	MOV	AL,EOF
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	CALL	PUTCRCFILE
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JNZ	CLEANUP
+	MOV	CL,CLOSE
+	MOV	DX,(Offset FCBOUTFILE)
+	INT	BDOS
+	INC	AL
+	JNZ	ERASEIT
+	MOV	CL,PRINT
+	MOV	DX,(Offset CANTCLOSE)
+	INT	BDOS
+	JMPS	ERASEIT
+;
+ERASEIT:				;Erase any existing CRCKLIST.CRC file
+	MOV	CL,DELETE
+	MOV	DX,(Offset FCBFINAL)
+	INT	BDOS
+	MOV	BX,(Offset FCBOUTFILE)
+	MOV	DX,(Offset FCBFINAL)
+	PUSH	BX
+	MOV	CX,16
+	ADD	BX,CX
+RENLOOP:
+	MOV	SI,DX
+	MOV	AL,[SI]
+	MOV	M,AL
+	INC	DX
+	INC	BX
+	DEC	CL
+	JNZ	RENLOOP
+	POP	DX
+	MOV	CL,RENAME		;Rename CRCKLIST.$$$ to CRCKLIST.CRC
+	INT	BDOS
+DONEIT:
+	MOV	DX,(Offset FINITO)
+	JMP	SIGNOFF
+;
+DOFILECRC:
+	MOV	BX,FCB+9
+	CALL	TSTBAD
+	JNZ	DOFILECRC1
+	JMP	AGAIN
+;
+DOFILECRC1:
+	MOV	BX,FCB+1
+	MOV	DX,(Offset FNAME)
+	MOV	CX,8
+	CALL	MOVER
+	MOV	BX,FCB+9
+	MOV	DX,(Offset FNAME)+9
+	MOV	CX,3
+	CALL	MOVER
+	MOV	DX,(Offset ACRALF)
+	CALL	DISPLAY
+	CALL	OPENIT
+	JNZ	DOFILECRC3
+	JMP	AGAIN
+;
+DOFILECRC3:
+	JMP	ABEXT2
+;
+OPENIT:
+	MOV	DX,FCB
+	MOV	CL,OPEN
+	INT	BDOS
+	INC	AL
+	JNZ	RDINIT
+	MOV	DX,(Offset BADOPEN)
+	CALL	DISPLAY
+	XOR	AL,AL
+	INC	AL
+	RET
+;
+RDINIT:
+	MOV	BX,0
+	MOV	Word Ptr REM,BX
+	MOV	BX,256			;100H
+	MOV	Word Ptr BUFAD,BX
+READIT:
+	MOV	BX,Word Ptr BUFAD
+	MOV	AL,BH			;Time to read?
+	CMP	AL,0
+	JZ	NORD			;No
+	MOV	CL,CSTAT		;Check for operator abort
+	INT	BDOS
+	OR	AL,AL
+	JZ	READ2			;Nothing from operator
+	MOV	CL,RDCON
+	INT	BDOS
+	CMP	AL,'C' - 40H		;Control-C ?
+	JNZ	READ2
+	JMP	ABEXT2
+;
+READ2:
+	MOV	DX,FCB
+	MOV	CL,READ			;Read another sector of file
+	INT	BDOS
+	OR	AL,AL			;Check return code
+	JNZ	FINISH
+	MOV	BX,SECTBUFF
+NORD:
+	MOV	AL,M			;Get a character
+	MOV	Byte Ptr MESS,AL	;Save for DIVP
+	INC	BX
+	MOV	Word Ptr BUFAD,BX	;Update buffer address
+	CALL	DIVP			;Calculate new CRC
+	JMPS	READIT			;Read some more characters
+;
+FINISH:
+	CMP	AL,1			;Normal end of file?
+	JZ	FINISH1			;Yes
+	CALL	CLOSER
+	JMP	FILERR			;No, it was a read error
+
+FINISH1:
+	MOV	AL,Byte Ptr REM+1	;Get MSP of CRC
+	CALL	HEXO			;Display it
+	MOV	AL,' '
+	CALL	TYPER
+	MOV	AL,Byte Ptr REM		;Get LSP of CRC
+	CALL	HEXO			;Display it
+	CALL	CLOSER
+	XOR	AL,AL
+	RET
+;
+FILERR:
+	MOV	DX,(Offset READERR)
+	CALL	DISPLAY
+	XOR	AL,AL
+	INC	AL
+	RET
+;
+CLOSER:
+	MOV	DX,FCB
+	MOV	CL,CLOSE
+	INT	BDOS
+	RET
+;
+;---------------------------------------------
+;An 808& routine for generating a CYCLIC-
+;REDUNDANCY-CHECK.  Character leaes that
+;character in location REM.  By Fred Gutman.
+;From 'EDN' magazine, June 5, 1979 issue, page 84.
+;
+DIVP:
+	MOV	BX,Word Ptr REM		;GET REMAINDER
+	MOV	AL,BH
+	AND	AL,128			;Q-BIT MASK
+	LAHF				;SAVE STATUS
+	XCHG	AL,AH
+	PUSH	AX
+	SHL	BX,1			;2 X R(X)
+	MOV	AL,Byte Ptr MESS	;MESSAGE BIT IN LSB
+	ADD	AL,BL
+	MOV	BL,AL
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JZ	QB2			;IF Q-BIT IS ZERO
+;
+QB:
+	MOV	AL,BH
+	XOR	AL,0A0H			;MS HALF OF GEN. POLY
+	MOV	BH,AL
+	MOV	AL,BL
+	XOR	AL,97H			;LS HALF OF GEN. POLY
+	MOV	BL,AL
+;
+QB2:
+	MOV	Word Ptr REM,BX
+	RET
+;
+;--------------------------------------------
+;
+;Hex output
+;
+HEXO:
+	LAHF				;SAVE FOR RIGHT DIGIT
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	RCR	AL,1			;RIGHT..
+	RCR	AL,1			;..JUSTIFY..
+	RCR	AL,1			;..LEFT..
+	RCR	AL,1			;..DIGIT..
+	CALL	NIBBL			;PRINT LEFT DIGIT
+	POP	AX			;RESTORE RIGHT
+	XCHG	AL,AH
+;
+NIBBL:
+	AND	AL,0FH			;ISOLATE DIGIT
+	CMP	AL,10			;IS IS <10?
+	JB	NOTALPHA		;YES, NOT ALPHA
+	ADD	AL,7			;ADD ALPHA BIAS
+;
+NOTALPHA:
+	ADD	AL,'0'			;MAKE PRINTABLE
+	JMPS	TYPER			;PRINT IT, THEN RETURN
+;
+DISPLAY:
+	PUSH	BX
+	XCHG	BX,DX
+ILPLP:
+	MOV	AL,M
+	CALL	TYPER
+	INC	BX
+	MOV	AL,M
+	OR	AL,AL
+	JNZ	ILPLP
+	POP	BX
+	RET
+;
+CRLF:
+	MOV	AL,ACR
+	CALL	TYPER
+	MOV	AL,ALF
+TYPER:
+	PUSH	CX
+	PUSH	DX
+	PUSH	BX
+	AND	AL,07FH			;ASCII mask
+	MOV	DL,AL
+	PUSH	DX
+	CALL	WRFLAG			;Write to file if needed
+	POP	DX
+	MOV	CL,WRCON
+	INT	BDOS
+	POP	BX
+	POP	DX
+	POP	CX
+	RET
+;
+WRFLAG:
+	MOV	AL,Byte Ptr FFLAG
+	CMP	AL,'F'			;Write to file?
+	JZ	WRFLAG1
+	RET				;No
+;
+WRFLAG1:
+	MOV	AL,DL			;Yes
+	CALL	PUTCRCFILE
+	RET
+;
+;
+;Multi-file access subroutine.  Allows processing
+;of multiple files (i.e. *.ASM) from disk.  This
+;routine builds the proper name in the FCB each
+;time it is called. Carry is set if no more names
+;can be found. The routine is commented in Pseudo
+;code, each Pseudo code statement is in <<...>>
+;
+MFNAME:				;<<init DMA addr and FCB>>
+	MOV	CL,SETDMA
+	MOV	DX,SECTBUFF
+	INT	BDOS
+	XOR	AL,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	MOV	Byte Ptr .FCBRNO,AL
+;<<if first time>>
+	MOV	AL,Byte Ptr MFFLG1
+	OR	AL,AL
+	JZ	MFN01
+;<<save the requested name>>
+;Save orig request
+	MOV	BX,FCB
+	MOV	DX,(Offset MFREQ)
+	MOV	CX,12
+	CALL	MOVER
+	MOV	AL,Byte Ptr .FCB
+	MOV	Byte Ptr MFCUR,AL	;SAVE DISK IN CURR FCB
+;<<SRCHF requested name>>
+	MOV	BX,(Offset MFREQ)
+	MOV	DX,FCB
+	MOV	CX,12
+	CALL	MOVER
+	MOV	CL,SRCHF
+	MOV	DX,FCB
+	INT	BDOS
+;<<else>>
+	JMPS	MFN02
+;
+MFN01:					;<<SRCHF current name>>
+	MOV	BX,(Offset MFCUR)
+	MOV	DX,FCB
+	MOV	CX,12
+	CALL	MOVER
+	MOV	CL,SRCHF
+	MOV	DX,FCB
+	INT	BDOS
+;<<SRCHN requested name>>
+	MOV	BX,(Offset MFREQ)
+	MOV	DX,FCB
+	MOV	CX,12
+	CALL	MOVER
+	MOV	CL,SRCHN
+	MOV	DX,FCB
+	INT	BDOS
+;<<endif>>
+MFN02:					;<<return carry if not found>>
+	INC	AL
+	STC
+	JNZ	MFN03
+	RET
+;
+;<<move name found to current name>>
+MFN03:
+	DEC	AL
+	AND	AL,3
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,AL
+	ADD	AL,81H
+	MOV	BL,AL
+	MOV	BH,0
+	PUSH	BX			;SAVE NAME POINTER
+	MOV	DX,(Offset MFCUR)+1
+	MOV	CX,11
+	CALL	MOVER
+;<<move name found to FCB>>
+	POP	BX
+	MOV	DX,FCB+1
+	MOV	CX,11
+	CALL	MOVER
+;<<setup FCB>>
+	XOR	AL,AL
+	MOV	Byte Ptr .FCBEXT,AL
+	MOV	Byte Ptr .FCBRNO,AL
+	MOV	Byte Ptr MFFLG1,AL	;TURN OFF 1ST TIME SW
+;<<return>>
+	RET
+;
+TSTBAD:
+	CALL	TESTIT			;Check first one for $
+	JZ	TSTBAD1
+	RET
+;
+TSTBAD1:
+	CALL	TESTIT			;Check second on
+	JZ	TESTIT
+	RET
+;
+TESTIT:					;Fall through to test third
+	MOV	AL,M
+	AND	AL,07FH
+	CMP	AL,'$'
+	LAHF
+	INC	BX
+	SAHF
+	RET
+;
+MOVER:
+	MOV	AL,M
+	MOV	SI,DX
+	MOV	[SI],AL
+	INC	BX
+	INC	DX
+	DEC	CX
+	MOV	AL,CH
+	OR	AL,CL
+	JNZ	MOVER
+	RET
+;
+ABEXT2:
+	MOV	AL,Byte Ptr FFLAG
+	CMP	AL,'F'			;Writing to file?
+	JNZ	ABEXT3			;No
+ABEXT2A:				;Close incomplete file
+	MOV	BX,Word Ptr OUTFILEPTR
+	MOV	AL,BL
+	AND	AL,07FH
+	JNZ	ABEXT2B
+	MOV	Word Ptr OUTFILELEN,BX
+ABEXT2B:
+	MOV	AL,EOF
+	LAHF
+	XCHG	AL,AH
+	PUSH	AX
+	XCHG	AL,AH
+	CALL	PUTCRCFILE
+	POP	AX
+	XCHG	AL,AH
+	SAHF
+	JNZ	ABEXT2A
+	MOV	CL,CLOSE
+	MOV	DX,(Offset FCBOUTFILE)
+	INT	BDOS
+	INC	AL
+	JNZ	ABEXT2C
+	MOV	CL,PRINT
+	MOV	DX,(Offset ABTEXT)
+	INT	BDOS
+	JMPS	ABEXT2C
+;
+ABEXT2C:
+	MOV	CL,DELETE
+	MOV	DX,(Offset FCBOUTFILE)
+	INT	BDOS
+ABEXT3:
+	MOV	DX,(Offset ABORT)
+SIGNOFF:
+	MOV	CL,PRINT
+	INT	BDOS
+	MOV	AL,Byte Ptr MATCHFLG
+	OR	AL,AL
+	JZ	EXIT
+	XOR	AL,AL
+	MOV	Byte Ptr FFLAG,AL
+	CALL	CRLF
+	MOV	DX,(Offset CRCMATCH)
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr MATCHNO
+	CALL	DECIMAL
+	MOV	AL,Byte Ptr NOMATCH
+	OR	AL,AL
+	JZ	PARSE
+	CALL	CRLF
+	MOV	DX,(Offset CRCNOMATCH)
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr NOMATCH
+	CALL	DECIMAL
+PARSE:
+	MOV	AL,Byte Ptr FAILED
+	OR	AL,AL
+	JZ	NOTFOUND
+	CALL	CRLF
+	MOV	DX,(Offset BADPARSE)
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr FAILED
+	CALL	DECIMAL
+NOTFOUND:
+	MOV	AL,Byte Ptr FILES
+	OR	AL,AL
+	JZ	EXIT
+	CALL	CRLF
+	MOV	DX,(Offset QTYNOFIND)
+	CALL	DISPLAY
+	MOV	AL,Byte Ptr FILES
+	CALL	DECIMAL
+EXIT:
+	MOV	CX,0
+	MOV	DX,0
+	INT	BDOS		;We're off to see the wizard...
+;
+DECIMAL:
+	MOV	DL,0
+	MOV	CH,064H
+	CALL	DEC1
+	MOV	CH,10
+	CALL	DEC1
+	ADD	AL,'0'
+	JMP	TYPER
+;
+DEC1:
+	MOV	CL,0FFH
+DEC2:
+	INC	CL
+	SUB	AL,CH
+	JNB	DEC2
+	ADD	AL,CH
+	MOV	DH,AL
+	MOV	AL,CL
+	OR	AL,DL
+	JZ	DEC3
+	OR	AL,'0'
+	CALL	TYPER
+	MOV	DL,'0'
+DEC3:
+	MOV	AL,DH
+	RET
+;
+	DSEG
+;
+	ORG	100H
+;
+FIRST@TRY	DB	'CRCKFILE???',0
+;
+SIGNON		DB	'CRC, CP/M-86 Ver 6.4, 30/Oct/84, Bill Bolton',ACR,ALF
+		DB	'CTL-S pauses, CTL-C aborts',ACR,ALF,0
+;
+SRCH@LIST	DB	'++Searching for CRCKLIST file++',0
+;
+SRCH@FILE	DB	'Now searching for "CRCKFILE" file++',0
+;
+NOFILECRC	DB	ACR,ALF
+		DB	'NO FILECRC FILE$'
+;
+CHECKING	DB	TAB,'Checking with file - ',0
+;
+NOFIND		DB	'***No CRC Files found***$',0
+;
+CANTPARSE	DB	'Can not parse string',ACR,ALF,0
+;
+DASH		DB	' - ',0
+;
+NOFIND2		DB	'File not found',ACR,ALF,0
+;
+MATCHMSG	DB	' *Match*',ACR,ALF,0
+;
+ISWAS		DB	' <-- is, was --> ',0
+;
+NOTSPACE	DB	'Not a space between CRC values',0
+;
+SRCH@CAT	DB	'++ Now searching for "-CATALOG" file++',0
+;
+DISKFULL	DB	ACR,ALF
+		DB	'DISK FULL: CRCFILE$'
+;
+NODIRSPACE	DB	ACR,ALF
+		DB	'NO DIR SPACE: CRCFILE$'
+;
+NOFIND3		DB	'++FILE NOT FOUND++$'
+;
+CANTCLOSE	DB	ACR,ALF
+		DB	'CANNOT CLOSE CRCFILE$'
+;
+FINITO		DB	ACR,ALF
+		DB	'DONE$'
+;
+ACRALF		DB	ACR,ALF
+ARROW		DB	'--> FILE:  '
+FNAME		DB	'XXXXXXXX.XXX'
+EQUALS		DB	TAB,TAB,'CRC = ',0
+;
+BADOPEN		DB	'++OPEN FAILED++',0
+;
+READERR		DB	TAB,TAB,'++FILE READ ERROR++',ACR,ALF,0
+;
+ABTEXT		DB	ACR,ALF
+		DB	'CANNOT CLOSE CRCFILE$'
+;
+ABORT		DB	ACR,ALF,ACR,ALF
+		DB	'++ABORTED++$'
+;
+CRCMATCH	DB	'Quantity of file CRC that matched - ',0
+;
+CRCNOMATCH	DB	'Quantity of file CRC that did not match - ',0
+;
+BADPARSE	DB	'Quantity of lines failed parse test - ',0
+;
+QTYNOFIND	DB	'Quantity of file(s) not found - ',0
+;
+FCBCRCFILE	DB	0,'CRCKLIST???',0
+		DB	0,'CRCKFILE???',0
+		RS	7
+CRCFILEADR	DW	(Offset CRCFILEBUF)
+CRCFILELEN	DW	BUFSIZE
+CRCFILEPTR	RS	2
+;
+FCBOUTFILE	DB	0,'CRCKLIST$$$'
+		DB	0
+		RS	20
+OUTFILEADR	DW	(Offset OUTFILEBUF)
+OUTFILELEN	DW	BUFSIZE
+OUTFILEPTR	RS	2
+;
+CATALOG		DB	'-CATALOG???',0
+;
+FCBFINAL	DB	0,'CRCKLISTCRC',0
+		RS	20
+;
+POINTER		RS	2
+MATCHNO		RS	1
+NOMATCH		RS	1
+FAILED		RS	1
+FILES		RS	1
+FFLAG		RS	1
+REM		RS	2
+OLDCRC		RS	2
+MESS		RS	1
+MFFLG1		DB	1
+CRCENTRY	DW	1
+MFREQ		RS	12
+MFCUR		RS	12
+MATCHFLG	RS	1
+BUFAD		RS	2
+CURSOR		RS	2
+BUFFER		RB	80
+;
+		RB	96
+STACK		DB	0
+;
+CRCFILEBUF	RB	BUFSIZE
+OUTFILEBUF	RB	BUFSIZE
+;
+	END
+

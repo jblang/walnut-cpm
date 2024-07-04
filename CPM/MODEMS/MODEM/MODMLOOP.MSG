@@ -1,0 +1,72 @@
+
+Date: Thursday, 30 May 1985
+From: Minh N. Hoang
+Re:   212/224's Remote digital loopback mechanism
+
+Recent messages indicated that quite a few modems are getting into
+remote digital loops inadvertently so I poked around to find out how
+the modems intentionally get into this.  The following comes from
+CCITT V.22bis recommendation which specifies the 2400/1200 bps modem.
+Except for the answer back tone, the 1200 mode is 212-compatible,
+including the loop.
+
+For reference, modem A is the instigator and modem B the one that
+loops back data. (All the modems that see data echoed back are
+instigators.) Here it goes:
+
+*** Entering remote loopback ***
+
+When modem A is instructed to instigate a remote loop, it shall
+transmit an initiation signal of unscrambled binary one at the current
+operating speed.  (If you happen to listen to this, you'd hear a tone
+instead of the usual hiss-like noise.)
+
+Modem B shall detect 154 - 231 ms. of the initiation signal, and then
+transmit to modem A scrambled alternating binary 1 and 0. (And your
+modem faithfully passes this to your terminal - hence the UUUUs).
+
+Modem A shall detect 231 - 308 ms. of scrambled reversals, cease
+transmission of the initiation signal, and then transmit scrambled
+binary 1.
+
+Modem B shall detect the loss of initiation signal and activate the
+loopback.  (Now, everything modem A transmits will be "echoed").
+
+Modem A after receiving 231 - 308 ms. of scrambled binary 1 (which it
+sent), shall indicate to the terminal that it may begin sending test
+messages.  (Modem A will now send terminal's data as usual so you can
+see all you type).
+
+*** Exiting remote loopback ***
+
+When modem A is instructed to terminate the remote loop, the line
+signal shall be suppressed for 77 +- 10 ms, after which transmission
+shall be restored. (A very short simulated carrier loss).
+
+Modem B detects the loss of signal in 40 - 65 and its reappearance
+within 155 +- 50 ms, after which modem B returns to normal operation.
+(For most modems, carrier loss of >300 ms may cause disconnect).
+
+*** -+- ***
+
+Thus, if you're inadvertently dumped into this loop and your modem
+doesn't have a remote loop switch, it's kinda tough to get out without
+losing the connection.
+
+How does your modem initiate this loop?  (It's usually not modem B's
+fault.)  A common cause is called scrambler lock-up.  These modems use
+a scrambler of the form D_tx[n] = D_in[n] .XOR. D_tx[n-14] .XOR.
+D_tx[n-17] and transmit the scrambled output.  If the scrambler's
+delay line happens to be filled with 1's, then the modem effectively
+sends unscrambled 1's, the initiation signal.  The other modem
+responds with UUUUs. You type a few characters in panic and end the
+lock-up.  The other modem senses the end of the initiation signal and
+voila... you're looping.
+
+To prevent this, once the scrambler outputs 64 consecutive 1's, it
+should invert the next input bit.  Sometimes, the modem doesn't
+incorporate this detector-inverter because the situation is relatively
+rare, supposedly.
+
+Cheers,
+

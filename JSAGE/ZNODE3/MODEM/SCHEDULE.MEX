@@ -1,0 +1,67 @@
+screen off;stat silent on;screen on
+.
+. SCHEDULE.MEX
+. This MEX script prompts for a time to execute a command.  While
+. WAIT STRING could be used to do effectively the same thing, no
+. processing can be done during the waiting period with WAIT STRING.
+. This script illustrates a technique useable for updating the display
+. (in this case, just the time of day) during the wait period.  It
+. also illustrates programmatic access of the time of day (note that
+. it requires a real-time clock, which is available in MSDOS systems
+. and MEX-PC, but not necessarily in all CP/M systems and MexPlus).
+.
+. Written by Ron Fowler, NightOwl Software, Inc.   06-12-1986
+.
+Cls
+Box 0,0,10,79
+@ 3,27;Start rev;say " M E X   S C H E D U L E R ";End rev
+@ 5,5 Say " This script will execute a MEX command at a scheduled time."
+Start brite
+@ 6,5 Say " NOTE: you must use military standard time! "
+@ 7,5 Say "      That means 1:55 pm is 13:55 and 12:05 am is 00:05."
+Gosub TIMEBOX
+@ 9,5 Say " Enter a command to be executed: "
+Accept a
+@ 9,5 Say "                                                                 "
+Gosub TIMEBOX
+@ 9,5 Say " Enter hours: "
+Input
+%x=value
+@ 9,5 Say "                     "
+Gosub TIMEBOX
+@ 9,5 Say " Enter minutes: "
+Input
+@ 9,5 Say "                     "
+%y=value
+@ 9,5 Say " Waiting for ",%x,":",%y
+Gosub TIMEBOX
+@ 9,22
+Label WTIME
+Sleep 5
+Gosub TIMEBOX
+@ 9,22
+Gosub GETTIME
+If %h<>%x Then Goto WTIME;.jump if not correct hour
+If %m<%y Then  Goto WTIME;.jump if < correct minute
+@12,0
+{a}
+stop
+.
+Proc TIMEBOX
+  @1,57
+  Gosub GETTIME
+  Start Rev
+  Say " Current time: "
+  Say %h,":",%m
+  End Rev
+Endp
+Proc GETTIME			;.get time into %h (hrs) and %m (minutes)
+   Screen Off			;.read time into VALUE
+      Time
+   Screen On
+   %h=value/256			;. %H=hours
+   And 255			;. isolate minutes in VALUE
+   %m=value			;. %M=minutes
+Endp
+ime
+   Scree

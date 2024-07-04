@@ -1,0 +1,407 @@
+
+
+
+                                   MEGAlink
+                           A File Transfer Protocol
+
+
+                                Specifications
+
+
+                               By: Paul Meiners
+
+
+                             P&M Software Company
+                             9350 Country Creek #30
+                             Houston, Texas 77036
+
+                                April 18, 1987
+
+
+Acknowledgements
+----------------
+I would like to acknowledge the work of those who have done this before me.
+First, Chuck Forsburg, for his never ending quest for speed and reliability.
+Second, Ward Christensen, whose ideas are the genesis of this whole branch
+of file transfer technology.  Third, Peter Boswell, for showing me the way
+to a network friendly protocol.  Last, Tom Jennings, for the work he did
+on Fido and the Telink protocol, which introduced the "link" style header
+record, now used by all "link" type protocols.
+
+For those that are not aware, these pioneers are responsible for the following
+work:
+
+   Ward Christensen ______________ Xmodem.
+   Tom Jennings __________________ Fido, Telink.
+   Chuck Forsburg ________________ Ymodem, Ymodem Batch, Zmodem.
+   Peter Boswell _________________ WXmodem.
+
+
+
+Why Another Protocol?
+---------------------
+In many respects, the design of a protocol has become a discussion between
+the above mentioned pioneers, each building on the work of the other.  Each
+has perceived a weakness in the protocols that have gone before and sought
+to improve the art.  And that is the most elegant reason for a new protocol,
+to advance the art.
+
+I won't bother with a discussion of the merits of Xmodem.  Others have done
+that far better than I could.  Let me address the more modern variations.
+These are my opinions, based on experience and reading the literature.
+
+   Zmodem  - The ideal protocol.  Highly reliable and fast.  Only failing
+             is that the cost of implementation is high.
+
+   Ymodem  - Very fast, but not network friendly.  Also leaves something
+             to be desired on the reliability front.  Error correction is
+             slow.
+
+   WXmodem - Fast and network friendly.  However, several questions exist
+             with regard to reliability.
+
+So, it our goal to design and implement a protocol that meets or exceeds
+the following criteria:
+
+   1.  Fast.  Efficency must exceed 95% on average basis.
+   2.  Reliable.  Known defects in prior protocols must be corrected.
+   3.  Inexpensive.  Implementation cost must be low.
+
+
+
+How Do We Do It?
+----------------
+Let us address these issues in reverse sequence.
+
+    COST OF IMPLEMENTATION
+    ----------------------
+    By closely modeling the protocol after Xmodem, we hope to reduce cost
+    of implementation.  This may be a vain effort, because implementation
+    of any high performance protocol requires a certain degree of complexity.
+
+    RELIABILITY
+    -----------
+    To improve the reliability of the protocol, we have choosen to use the
+    new CRC-32 technology.  The algorithm for this procedure will be given
+    later in this document.  Also, the Ack/Nak packets will be composed of
+    3 bytes, as was done in the SEAlink protocol.  Like WXmodem we will
+    honor all network XOFF signals at the transmitter end.
+
+    SPEED
+    -----
+    Several things are going to be done to improve speed.  First, the block
+    size will be increased from 128 to 512 bytes.  This reduces the number
+    of envelope characters.  Like Zmodem, MEGAlink will be a full streaming
+    protocol, thus eliminating the turn-around time involved with Xmodem
+    and Ymodem.
+
+
+
+Some definitions
+----------------
+
+     Description             Character           Decimal     Control Char
+     -----------             ---------           -------     ------------
+     XON ................... DC1 ............... 17 ............ ^Q
+     XOFF .................. DC3 ............... 19 ............ ^S
+     Acknowledge ........... ACK ............... 6 ............. ^F
+     Negative Acknowledge .. NAK ............... 21 ............ ^U
+     End of File ........... EOT ............... 4 ............. ^D
+     Start of Header ....... SOH ............... 1 ............. ^A
+     MegaLink Block Id ..... EM ................ 25 ............ ^Y
+     Request Status ........ RS ................ 30 ............ ^^
+     Cancel ................ CAN ............... 24 ............ ^X
+     Synchronize ........... SYN ............... 22 ............ ^V
+     Data Link Escape ...... DLE ............... 16 ............ ^P
+     CP/M EOF .............. SUB ............... 26 ............ ^Z
+
+
+
+Receiver discipline
+-------------------
+The receive side of a MEGAlink transfer has three possible packets it can
+use.  Each is three characters in length as follows:
+
+      Byte No.          Content
+      --------          -------
+         1              Ack/Nak/'C'.  No other character may appear.
+         2              Packet number.  0 thru 255.
+         3              Complement of packet number, i.e. (Pkt# XOR 255).
+
+The 'C' packet is sent only at the start of each file transfer.  It is sent
+by the receiver at 5 second intervals, until the transmitter begins.  After
+that it is not used again until the next file is begun, or the next session
+is begun, if only 1 file is transmitted.
+
+The Nak packet is used to request the retransmission of the specified packet.
+
+The Ack packet is used to indicate the highest packet received without error.
+
+Normally, the receiver remains quiet.  The only time packets are required of
+the receiver are at the beginning of the transfer, as outlined below, and upon
+receipt of an RS character, the Request Status character.  The receiver must
+respond to the RS character with an Ack packet, reflecting the highest block
+received in without error.  Of course, the receiver should send a Nak packet
+whenever a block is received with an error condition.
+
+Note, that to maintain network friendliness, no packet may contain a XON or
+XOFF character.  These characters must be sent as two characters, first a
+DLE, followed by the folded XON or XOFF.  Characters are folded by XOR'ing
+them with decimal 64.  This scheme requires that the DLE character is
+escaped and folded in the same manner.
+
+
+Transmitter discipline
+----------------------
+The transmitter can do four different things:
+
+    1)  Send a header block.  Contains file name and other information
+        about the file.
+
+    2)  Send a data block.  A data block contains 512 bytes of data.
+
+    3)  Send an RS character, forces receiver to Ack the highest packet
+        he has received without error.
+
+    4)  Send an EOT character, signals end-of-file to the receiver.
+
+
+Data blocks are sent without pause.  The transmitter should have enough
+buffers to cover the turn-around delay, so that any block the receiver
+may Nak will still be available in memory for retransmission.
+
+Note, that to maintain network friendliness, no packet may contain a XON or
+XOFF character.  These characters must be sent as two characters, first a
+DLE, followed by the folded XON or XOFF.  Characters are folded by XOR'ing
+them with decimal 64.  This scheme requires that the DLE character is
+escaped and folded in the same manner.
+
+
+Typical transmit/receive dialog:
+--------------------------------
+
+Transmitter                           Receiver     Description
+-----------                           --------     -----------
+                                      C   00 FF    opening Nak.
+
+SOH 00 FF  header[128]  CRC CRC                    header block sent,
+                                                   using CRC-16.
+
+                                      ACK 00 FF    Ack of header block.
+
+EM  01 FE  data[512]  CRC CRC CRC CRC              file transmitted in one
+EM  02 FD  data[512]  CRC CRC CRC CRC              or more data blocks,
+EM  03 FC  data[512]  CRC CRC CRC CRC              using CRC-32.
+EM  04 FB  data[512]  CRC CRC CRC CRC
+
+RS                                                 transmit requests status.
+
+                                      ACK 04 FB    receive replies to RS.
+
+EOT                                                end-of-file sent.
+
+                                      ACK 04 FB    Ack sent for end-of-file.
+
+                                      C   00 FF    opening Nak.
+
+EOT                                                end-of-batch sent.
+
+                                      ACK 04 FB    Ack sent for end-of-batch.
+
+
+If necessary, the last data block can be padded with CP/M EOF characters.
+
+Note: all CRC bytes are transmitted from high to low order, NOT in the
+      more usual byte-reversed format.
+
+At the end of the transaction, the "opening Nak" is repeated by the receiver.
+This is to allow for batch transmission, if more than one file were to be sent
+the transmitter would pick-up and start by sending the next header block and
+the transaction would continue from that point as shown.
+
+The format of the header block conforms to the standard "link" format.
+Established by Tom Jennings when he designed the Telink protocol, also
+used by the SEAlink protocol.
+
+     Byte Offset     Length       Content
+     -----------     ------       -------
+          0             4         Original file length. Integer in byte
+                                  reversed format.
+
+          4             4         Date and time file was last mofified, in
+                                  seconds since 1979.  Same format DOS uses
+                                  in the directory entry.
+
+          8            17         Original file name, as a null terminated
+                                  string.
+
+         25            15         Name of transmitting program, as a null
+                                  terminated string.
+
+         40            88         Null filler and expansion area.
+
+
+CRC Calculator
+--------------
+The following routines demonstrate the technique used to calculate CRC's,
+both 16 & 32 bit varieties, used in MEGAlink.  The code is written in
+Turbo PASCAL.
+
+   {  Global Variables  }
+
+   TYPE
+      ARRAY512       = RECORD
+                          Len        : INTEGER;
+                          LongString : ARRAY[1..512] OF CHAR;
+                       END;
+      STRING128      = STRING[128];
+   VAR
+      crc_input      : INTEGER;        { 2 byte integer format }
+      crc_reg_lo     : INTEGER;
+      crc_reg_hi     : INTEGER;
+
+   PROCEDURE
+      ccitt_crc16_calc;                {  CRC-16  }
+   BEGIN
+      inline( $8B/$1E/crc_reg_hi );    {        mov     bx,crc_reg_hi    }
+      inline( $B9/>$08 );              {        mov     cx,8             }
+      inline( $A1/crc_input );         {        mov     ax,crc_input     }
+      inline( $D0/$D0 );               {  u1:   rcl     al,1             }
+      inline( $D1/$D3 );               {        rcl     bx,1             }
+      inline( $73/$04 );               {        jnc     u2               }
+      inline( $81/$F3/$1021 );         {        xor     bx,1021h         }
+      inline( $E2/$F4 );               {  u2:   loop    u1               }
+      inline( $89/$1E/crc_reg_hi );    {        mov     crc_reg_hi,bx    }
+   END;
+
+   PROCEDURE
+      ccitt_crc32_calc;                {  CRC-32  }
+   BEGIN
+      inline( $8B/$1E/crc_reg_lo );    {       mov     bx,crc_reg_lo     }
+      inline( $8B/$16/crc_reg_hi );    {       mov     dx,crc_reg_hi     }
+      inline( $B9/>$08 );              {       mov     cx,8              }
+      inline( $A1/crc_input );         {       mov     ax,crc_input      }
+      inline( $D0/$D8 );               {  u1:  rcr     al,1              }
+      inline( $D1/$DA );               {       rcr     dx,1              }
+      inline( $D1/$DB );               {       rcr     bx,1              }
+      inline( $73/$08 );               {       jnc     u2                }
+      inline( $81/$F3/$8320 );         {       xor     bx,8320h          }
+      inline( $81/$F2/$EDB8 );         {       xor     dx,EDB8h          }
+      inline( $E2/$EE );               {  u2:  loop    u1                }
+      inline( $89/$1E/crc_reg_lo );    {       mov     crc_reg_lo,bx     }
+      inline( $89/$16/crc_reg_hi );    {       mov     crc_reg_hi,dx     }
+   END;
+
+   PROCEDURE
+      calc_crc32(VAR cs : ARRAY512);
+   VAR
+      i  : INTEGER;
+   BEGIN
+   (*
+        Note: this routine calculates a 32 bit CRC based on the CCITT
+              polynomial.  The result is stored in the crc register,
+              variables crc_reg_hi & crc_reg_lo.
+   *)
+      crc_reg_hi:=0;
+      crc_reg_lo:=0;
+      WITH cs DO BEGIN
+         FOR i:=1 TO Len DO BEGIN
+            crc_input:=ORD(LongString[i]);
+            ccitt_crc32_calc;
+         END;
+      END;
+      crc_input:=0;
+      ccitt_crc32_calc;
+      ccitt_crc32_calc;
+      ccitt_crc32_calc;
+      ccitt_crc32_calc;
+   END;
+
+   PROCEDURE
+      calc_crc16(VAR cs : STRING128);
+   VAR
+      i  : INTEGER;
+   BEGIN
+   (*
+        Note: this routine calculates a 16 bit CRC based on the CCITT
+              polynomial.  The result is stored in the crc register,
+              variable crc_reg_hi.
+   *)
+      crc_reg_hi:=0;
+      crc_reg_lo:=0;
+      FOR i:=1 TO Length(cs) DO BEGIN
+         crc_input:=ORD(cs[i]);
+         ccitt_crc16_calc;
+      END;
+      crc_input:=0;
+      ccitt_crc16_calc;
+      ccitt_crc16_calc;
+   END;
+
+
+
+
+Buffer Management
+-----------------
+It is the responsibility of the transmitter to have enough buffer space
+to cover the Nak turn-around time at a particular baud rate.  Otherwise,
+in full stream mode, the receiver may Nak for a block that is not available.
+For example, at 2400 baud, assuming a turn-around delay of 6 seconds, the
+transmitter should have at least room for 4 blocks in his buffer area.  This
+in my opinion, would be cutting it TOO CLOSE, I would recommend a margin of
+at least 2 times or more.  In GT PowerComm, the first program to implement
+MEGAlink, we have a ring buffer of 16 blocks.  This is very easy to use,
+because the the Nak'ed block numbers can be AND'ed with $0F to produce the
+buffer number.  At 2400 baud, 16 blocks in the buffer amounts to more than
+30 seconds.  This gives the receive side ample time to turn-around any Nak.
+
+Notice that at higher baud rates, the time margin shrinks.  For example,
+at 9600 baud, the time margin for 16 blocks shrinks to about 7 seconds.
+This would probably be fine for a direct connect, but would not be good
+over a network such as PC Pursuit.  (This is not very important now, PC
+Pursuit is barely scratching the surface of 2400 baud at this time, 4/20/87.)
+At these higher baud rates, the transmitter must use flow control techniques to
+insure that an adequate time margin is maintained.  This can be done by issuing
+an RS, Request Status, command to the receive side.  The receiver should reply
+with an Ack packet indicating the last good packet received.  The transmitter
+should wait for reception of this Ack prior to continuing the dialog.  In
+effect this is a self-imposed flow control.  The transmitter must be smart
+enough to recognize the need for such, based on the baud rate and available
+buffer space.  Theoretically, if enough buffer space was available to the
+transmitter, it could continue to stream at any baud rate.
+
+
+Error Corrections Procedure
+---------------------------
+When the receiver detects an error, it must immediately send a Nak packet
+with the offending packet # within.  Then the receiver dumps the contents
+of the serial port input buffer and wait for the requested packet.  The
+transmitter will not usually be able to respond immediately, so the receiver
+must expect packets with higher than expected packet #'s, until the requested
+packet arrives.  These extra packets should be disgarded without comment by
+receiver.
+
+The transmitter, upon receipt of a Nak, will immediately dump the contents of
+the serial port output buffer and resend the requested packet.  Once the
+retransmission starts, the transmitter will not expect any further comment
+from receiver until another error is encountered.
+
+The question of how to handle packets arriving from the sender that are them-
+selves in error has not been addressed.  It is true however, that the trans-
+mitter will respond to any Nak.  If the transmitter fails to get a good Nak
+the receiver will continue to Nak, until the requested block is received.
+This procedure works in practice, however there may well be a more elegant
+solution.  For example, the transmitter, upon receipt of a faulty Nak, could
+simply wait for the receiver to resend the Nak.  Of course, the transmitter
+could also send an RS, request status, command to the receiver, which could
+be interpreted in a Nakking situation as a "nak" to the "nak".  This should
+cause the receiver to resend the Nak.
+
+GT implements the "resend-and-see" approach, this is the most direct and
+usually the best.  Even if the Nak is faulty, GT will choose from the 16
+buffers and send a block.  If the block is too high or too low, the receiver
+will Nak again.  This type of dialog usually leads to a resolution of the
+error condition, on all but the worst lines.  Naturally, even the best
+protocols fail on the worst lines!
+
+

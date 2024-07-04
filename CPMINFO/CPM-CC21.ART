@@ -1,0 +1,225 @@
+
+==============================================================================
+[ THE KAY*FOG RBBS | Filename=CPM-CC21.ART | posted 07/05/86 | 223 lines 11k ]
+
+          The CP/M Connection                   Originally published in    
+                  by                               Computer Currents       
+             Ted Silveira                         5720 Hollis Street     
+  (copyright and all rights reserved)            Emeryville, CA  94608     
+
+                              February 25, 1986
+                              MORE ON MODEMMAIL
+
+     Last issue, I gave you an overview of ModemMail, a versatile new 
+communications program.  This time I want to take a look at the heart of 
+ModemMail, its programming language, to give you an idea of what it can 
+do.  If you think that only MS-DOS programs like Microsoft Access can 
+handle fancy "script" files, you're wrong.
+
+[ModemMail Takes Command]
+
+     The ModemMail language is very flexible for a piece of software 
+that's not sold strictly as a programming language.  You can do almost 
+anything you can do in a language like BASIC:  you can read and write to 
+the screen, modem, or printer; you can assign strings or numeric values 
+to variables; you can read variables from disk files; you can use an IF-
+ELSE type of branching logic to control program flow; you can set up 
+program loops with counters you can increment or decrement; you can peek 
+and poke directly into the computer's memory.  And of course you can do 
+a whole range of things you'd expect from a communications program:  set 
+the modem speed, dial and redial a phone number, drop in and out of 
+terminal mode, save a terminal session into a disk file, transmit files 
+with the XMODEM protocol, and so forth.
+
+     This programming language can be used in two ways--you can enter 
+commands directly at the ModemMail command prompt, or you can put the 
+commands in a command file (a mini-program, rather like a dBase II CMD 
+file or a SUBMIT file).  If you have a command file on your ModemMail 
+disk, you can execute it simply by typing its name at the ModemMail 
+command prompt, just as if it were a built-in command.  Essentially, 
+this feature means that ModemMail has an _extensible_ programming 
+language--you can add new commands to it at any time.  You can also 
+"nest" command files by calling one from inside another.  
+
+[A Sample Command File]
+
+     ModemMail comes with a number of ready-made command files.  Most of 
+these are part of a sample working bulletin board system, but you also 
+get some nice examples of automatic log-on files for MCI Mail and Dow 
+Jones News Service.  So suppose you want to call MCI Mail--what do you 
+do?
+
+     The first step is to enter the command [CALL MCI] at the ModemMail 
+command prompt.  The command [CALL] is itself a command file.  This 
+command file will search the default phone directory (named PHONE.LST) 
+for an entry beginning with the letters MCI. When it finds it, it will 
+read the entire entry, which in this case is [MCI : 1-800-323-0905 
+MCI.LGI].  The CALL command file will locate the phone number, dial it, 
+and (if it gets a carrier tone and makes connection) trigger a new 
+command file named MCI.LGI, which will take over the job of logging in 
+to MCI.
+
+     In Figure 1, you'll find a listing of the command file MCI.LGI.  
+You'll notice that the commands are not too far from English; if you 
+know BASIC, you can probably puzzle it out on your own.  Here's how it 
+works:
+
+     Lines 1 and 2, which begin with semicolons (;), are comment lines, 
+meant solely as explanatory notes to any human reading the file.  
+ModemMail ignores lines beginning with semicolons.
+
+     Line 3 sends the message (or string, as it's usually called) 
+enclosed in quotes to the console, better known as the screen.  The 
+string consists of a carriage return/linefeed combination (represented 
+by \N), the words "Logging in to MCI Mail . . .", and another carriage 
+return/linefeed.
+
+     Line 4 assigns the variable Y a value of 3.  This variable is going 
+to be used in just a second to count the number of trips through a loop.  
+ModemMail lets you use up to 26 variables (A-Z) at once.
+
+     Line 5 begins with a colon (:), which identifies the word that 
+follows (LOOP) as a label.  Once you have established a label, you can 
+jump directly to it from any other spot in the command file just by 
+using its name.
+
+     Lines 6, 7, and 8 are taken as a single line and a single command 
+by ModemMail, because they are welded together with the [&-] characters.  
+The first part of this command--[MODEM "\R"]--sends a carriage return 
+(\R) out through the modem to the computer on the other end of the phone 
+line.  The next part--[IF MODEM "your user name:" LOGIN]--tells 
+ModemMail to wait for the string "your user name:" (which is a prompt 
+from MCI Mail) to come in through the modem from the MCI Mail computer.  
+If the string does come in, ModemMail jumps directly to the label LOGIN.  
+But if ModemMail doesn't get the proper string within five seconds--
+[TIMEOUT 5S]--it moves on to the line directly following.
+
+     Line 9--[DECREMENT Y]--is executed only if ModemMail didn't receive 
+the proper string within five seconds.  This command simply subtracts 1 
+from the value of the variable Y (which started out as 3, you'll 
+remember).  
+
+     Line 10 tests to see if the variable Y is still greater than zero.  
+If it is, the command file jumps back to the label LOOP, sends out 
+another carriage return, and looks for the MCI Mail prompt again.  The 
+original value of Y gives ModemMail three tries to get the proper 
+response.  If it fails, and Y becomes equal to zero, then the command 
+file moves on to the next line.
+
+     Line 11--[GOTO BYEBYE]--is executed only if ModemMail has tried 
+three times and failed to get a valid prompt from MCI Mail.  If that 
+happens, ModemMail jumps to the label BYEBYE and executes the commands 
+it finds there.
+
+     Line 12 is another label, [LOGIN].  ModemMail jumps here if it gets 
+a successful response in line 7.
+
+     Lines 13, 14, and 15 are read as one line and one command by 
+ModemMail, because they are linked together with the [&-] characters.  
+The first part--[MODEM "TSILVEIRA\R"]--sends the string "TSILVEIRA" (my 
+user name on MCI Mail) out through the modem followed by a carriage 
+return.  This string is an answer to MCI Mail's prompt "your user name:" 
+received earlier.  Once you've logged on with your user name, MCI Mail 
+asks for your password, so the second part of this command--[IF MODEM 
+"Password:"]--tells ModemMail to wait for the string "Password:" to come 
+in through the modem (from the MCI Mail computer).  The third part of 
+the command--[TIMEOUT 10S BYEBYE]--tells ModemMail to wait 10 seconds 
+for this string to arrive.  If the string isn't received within 10 
+seconds, ModemMail will jump to the label BYEBYE.  If the string _is_ 
+received, ModemMail moves on to line 16.
+
+     Notice that this command is almost the same as the command at lines 
+6, 7, and 8, with one exception.  The command at lines 6, 7, and 8 is 
+set up so that if successful, ModemMail jumps to the label LOGIN, and if 
+unsuccessful, it executes the following line.  But this command at lines 
+13, 14, and 15 is set up to do the opposite--if unsuccessful, it jumps 
+to the label BYEBYE, and if successful, it moves on to the next line.
+
+     Line 16 sends the string "MYPASSWD" out through the modem in 
+response to MCI Mail's "Password:" prompt.  (You didn't think I was 
+going to put my real password in there, did you?)  The log-on to MCI 
+Mail should now be complete.
+
+     Line 17--[LET Y = ""]--just cleans up by clearing out the variable 
+Y (in case it gets used later).
+
+     Line 18 ends the command file, setting a success flag and returning 
+either to the ModemMail command prompt or to the command file that 
+called it.  The success flag can be read by other commands and command 
+files so that they can adjust their actions to the results of the log-on 
+attempt.
+
+     Line 19 is the label BYEBYE, where ModemMail goes if it fails to 
+make a proper connection with MCI Mail.
+
+     Line 20 rings the bell and prints the string "Log-in failed." on 
+the screen, followed by a carriage return/linefeed.
+
+     Line 21 sends the string "+++" to the modem.  This string, for 
+Hayes-compatible modems, gets the modem's attention and prepares it to 
+receive a command.
+
+     Line 22 tells ModemMail to wait three seconds without doing 
+anything (so the modem can get ready for its command).
+
+     Line 23 sends the string "ATH" to the modem, followed by a carriage 
+return.  This string will cause a Hayes-compatible modem to hang up the 
+phone.
+
+     Line 24 ends the command file and returns to the command prompt or 
+calling command file with the failure flag set.   
+
+     This particular command file is only a simple example of 
+ModemMail's programming language, but I hope it has given you an idea of 
+how flexible ModemMail is.  I don't know of any CP/M communications 
+program that can match this kind of command file operation.
+
+     If you want to see a ModemMail bulletin board in action, call 
+408/336-8080.  The computer is not turned on until the modem makes a 
+connection, so it takes about 30 seconds after you connect before the 
+bulletin board appears.  The log-on has several long pauses, so don't 
+panic--just wait.
+
+     For more information on ModemMail, contact:
+
+AutoSoft Incorporated
+166 Santa Clara Avenue
+Oakland, CA  94610
+415/658-2881
+
+[Figure 1 -- ModemMail Command File]
+
+; This is the beginning of the MCI.LGI log-in
+; command file.  
+CONSOLE "\NLogging in to MCI Mail ...\N"
+LET Y=3
+:LOOP
+MODEM "\R" &-
+IF MODEM "your user name:" LOGIN &-
+TIMEOUT 5S
+DECREMENT Y
+IF VAR Y>0 LOOP
+GOTO BYEBYE
+:LOGIN
+MODEM "TSILVEIRA\R" &-
+IF MODEM "Password:" &-
+TIMEOUT 10S BYEBYE
+MODEM "MYPASSWD\R"
+LET Y = ""
+END SUCCESS
+:BYEBYE
+BELL "Log-in failed.\n"
+MODEM "\+\+\+"
+WAIT 3S
+MODEM "ATH\R"
+END FAILURE
+
+------------------------------------------------------------------------------
+      Ted Silveira is a freelance writer and contributing editor to several
+   computer-oriented publications.  He appreciates suggestions or feedback
+   and can be reached through the KAY*FOG RBBS (415)285-2687 and CompuServe
+   (72135,1447) or by mail to 2756 Mattison Lane, Santa Cruz, CA 95065.
+
+-------------------------  End of CPM-CC21.ART Text  -------------------------
+
+  

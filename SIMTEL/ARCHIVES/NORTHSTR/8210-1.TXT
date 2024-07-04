@@ -1,0 +1,223 @@
+16-Oct-82 00:36:00,4615;000000000000
+Date: 16 October 1982 02:36-EDT
+From: Frank J. Wancho <FJW at MIT-MC>
+Subject:  80 TRK Mod and "N" drives
+To: NORTHSTAR-USERS at MIT-MC, INFO-CPM at BRL
+
+    I have followed the directions given below for the 80 track mod and
+    all seems to work!
+
+--Frank
+--------------------
+
+El Paso, Tx, 14-Oct-82
+
+The following is a description on how to use full 80 track
+capabilities of disk drives like the TANDON TM 100-2 on a North Star
+CP/M system using North Star CP/M 2.2 Release 1.1.0.  The
+modifications worked when I checked it out initially, but only
+constant use of the 80-track system will reveal any bugs.  Therefore,
+I can assume no liabilities whatsoever, nor guarantee that the mod
+will work for your particular system in any way.
+
+If you are NOT using dual sided drives capable of stepping 40 tracks
+per side, or if you are NOT using North Star's CP/M rel. 1.1.0 QD,
+then it is time for you to hit Control-C, otherwise read on.
+
+The following steps will guide you through the modification:
+
+1.  Prepare a SYSGEN image of the system you are currently using and
+    name it SYS70.COM.
+
+2.  Load SYS70.COM using  A>DDT SYS70.COM.
+
+3.  With the "S" command in DDT make the following changes:
+
+-S2C05
+2C05 22 27 <= change max front side track from 34 to 39 (decimal)
+2C06 ?? .
+-S2C0B
+2C0B 23 28 <= change max number of tracks/side from 35 to 40 (decimal)
+2C0C ?? .
+-S3013
+3013 A9 C2 <= change disk length (max CP/M sector)
+3013 ?? .
+-^C
+A>SAVE 70 SYS80.COM
+
+4.  Execute the file SYS80.COM and put the modified system on drive
+    A:, then cold-boot.  Your CP/M is now set up to utilize all 80
+    tracks on a 48 TPI DSDD drive.  Please note than NO conversion is
+    needed to use all 160 Tracks on a 96 TPI drive (such as TM 100-4).
+
+5.  >>>>> IMPORTANT <<<<<
+    You are now accessing uninitialized areas of a diskette.  You will
+    have to convert all your diskettes from 70- to 80 tracks!  To do
+    this, you will have to transfer the contents of one DSDD disk to
+    two SSDD disks using the 70 TRACK SYSTEM, and then copy the files
+    back to a freshly formatted disk using the 80 TRACK SYSTEM.  While
+    this may be somewhat confusing and quite time-consuming, I think
+    it is worth doing, since you get an extra 50k per diskette for
+    your efforts.  The tradeoff is incompatibility of DSDD diskettes
+    with others.  To remedy that, either exchange only SS disks, or
+    reformat them when necessary.
+
+To further test this modification, I will soon convert all disks on
+the B: drive of the El Paso RCPM to 80 tracks.
+
+						Happy hacking!
+
+
+Oh, and many thanks to whoever enabled me to do this by providing me
+with some insight into the workings of the BIOS.....
+
+
+El Paso, Tx, 14-Oct-82
+
+This file contains information on how to convert North Star's
+FORMAT.COM to format 80 track drives.  As with NS80TRK.MOD, these
+modification are tested but can NOT BE GUARANTEED TO WORK FOR YOU!
+
+1.  Modification of FORMAT.COM (for N* CP/M 2.2 rel 1.1.0. ONLY!!!)
+for use with a modified CP/M BIOS which allows 80 track drives:
+
+This is the sequence of commands to do it:
+
+A>DDT FORMAT.COM
+....
+-S1EB
+01EB 45 4F  <= change max track from 69 to 79
+01EC ?? .
+-S72E
+072E 37 38  <= change display so it says "... 80 tracks..."
+072F ?? .
+-^C
+A>SAVE 9 FORMAT80.COM
+
+This completes the conversion.  Note that FORMAT will still correctly
+format single-sided diskettes.
+
+
+2.  North Star has an undocumented feature in rel. 1.1.0.  This
+    feature is the so-called "Nine"-drives.  That means that N* CP/M
+    2.2, rel 1.1.0.  is able to control 96 TPI drives.  I have not
+    been able to check this out, but see no reason why it shouldn't
+    work.  You HAVE TO designate a 96 TPI drive as such and will not
+    be able to use any other than a 96 TPI diskette on it.  To do
+    this, answer the DRIVE-question in CPMGEN with a "N" instead of
+    "D" or "Q".  (You can't fool the system - have to have a real 96
+    TPI dual sided drive!)
+
+    In order to format a diskette in "N"-format, you have to modify
+    FORMAT.COM.  FORMAT.COM is already prepared to handle N-drives.
+    It will even offer this function if you respond with "9" when
+    asked for the disk format.  However, it's internal workings
+    require your response to be "N", which is normally rejected.  To
+    make it accept "N" instead of "9" and be able to format N-drives,
+    use DDT to change byte 01F9H from 39H to 4EH.  Then you'll be able
+    to use FORMAT.COM with 96 TPI drives.
+
+						Again,
+							Happy hacking!
+17-Oct-82 02:19:00,3449;000000000000
+Date: 17 October 1982 04:19-EDT
+From: Greg Heise <AUTHOR at MIT-MC>
+To: NORTHSTAR-USERS at MIT-MC
+
+     More notes from North Star land...
+
+     1.  There are three 74LS123s on the double density 
+controller board.  Two of them (5A and 1B) are used in the 
+density detection circuitry.  It turns out that some 123's aren't 
+fast enuf for the circuit.  In order to insure operation, these 
+MUST be either: a straight TI, a National with a star after the 
+date code, or a Signetics with an "A" suffix.  If you're not 
+having trouble now, it's probably not worth bothering, but if you 
+start getting bizarre errors and disk-related system hangs, look 
+here first.  I first heard about this in March of '80, but since 
+I am still seeing Horizons with this bug, I suspect every one 
+will eventually fail.
+     
+     2.  There is a modification to Advantages to improve 
+grounding ON THE AC LINE.  N* suggests that it be done on ALL
+Advantages immediately.  The mod requires a fix kit from N*.  
+It's free.
+
+     3.  N* has released their version of a solution to the 
+HD18/parallel printer problem (it's in rel 1.1.0 of CP/M).  I can 
+upload if anyone cares.  N* CP/M supports both the 5 meg and the 
+18 meg hard disk standard, but not both at the same time (someone 
+asked).
+
+     4.  There is a problem with certain Advantage monitor boards 
+which have a slow-blowing capacitor.  If this one goes, it chain 
+reacts through the monitor board, giving you the classic mushroom 
+cloud.  To see if you have this problem, turn the screen control 
+knob on the back of the ADV up full.  If there is a bright 
+vertical band about a third of the way from the left screen 
+border, CALL N* AND HAVE THEM CHECK YOUR SERIAL NUMBER!  
+Unfortunately, I don't have this field notice in front of me, so 
+I can't tell you what range the serial numbers fall into.
+
+     5.  N* has released a new rev of their applications software 
+timesharing system.  As near as I can tell, the only substantive 
+change is that the spooler works now.
+
+     6.  As some of you may know, the 1.1.0 release of CP/M 
+supports the new double-track-density drives.  If you have the 
+new drives you have to change one byte in the FORMAT program to 
+get 784K free space on one 5 inch drive.
+
+     7.  Rumor has it that BSG (who wrote NorthWord) wrote 
+NorthWord II but N* bounced it (3 times, yet!) so BSG got sick of 
+trying to please Chuck Grant and decided to throw it out in the 
+market themselves.  So BSG has now given us "WordWizard."  Some 
+of us ancient ones may remember WordWizard as the name of a 
+particular program that was put out by Processor Technology 
+(makers of the Sol) before their confusing demise -- and yes, 
+it's the same people: when N* first introduced NorthWord, I 
+called it WordWizard to their faces and they changed the subject 
+REAL FAST.  The new incarnation of NorthWord/WordWizard/NorthWord 
+II (call it what you will) runs only on Advantages, and has most 
+of the limitations of NorthWord, but it spools, uses printers 
+
+more intelligently, and makes very good use of the Advantage 
+graphics.  There is also a spreadsheet available now, and 
+something called InfoManager II is obliquely referred to.  I 
+haven't used it, but here nevertheless I make An Opinion: don't 
+bother -- accept the awful command set of The Final Word or 
+(worse) WierdStar, and count your blessings.
+
+     -- Greg
+19-Oct-82 14:52:00,677;000000000000
+Date: 19 Oct 1982 1652-EDT
+From: ELIOT at MIT-DMS (Eliot Scott Ramey)
+To: fjw at MIT-MC
+Cc: info-cpm at BRL, northstar-users at MIT-MC
+Subject: A better way to 80 tracks
+Message-id: <[MIT-DMS].246812>
+
+	I passed Sigi Kluger's NS80TRK.MOD file on to Bob Plouffe.
+After looking at it he quickly saw a need for compatibility with
+70 tracks.  He therefore has a file that will easily enable one
+to patch his NS BIOS for handling BOTH 70 and 80 tracks.  I will talk
+to Bob and see how he wants to go about getting it to MIT.
+(I still have to ask him about a bug I am encountering with
+ ZCPR/NZCPR, so right now it works for standard CCP only)
+
+					-Eliot at Mit-DM
+19-Oct-82 18:47:00,571;000000000000
+Date: 19 Oct 1982 2047-EDT
+From: ELIOT at MIT-DMS (Eliot Scott Ramey)
+To: fjw at MIT-MC
+Cc: northstar-users at MIT-MC, info-cpm at BRL
+Subject: Plouffe's 80 trk mod
+Message-id: <[MIT-DMS].246841>
+
+	After pointing out my previously stated problem to RLP, he
+promptly found the error and now has his 80 trk mod set up so there
+is no dependence on CCP.  I assume when he has completed it all, he
+will upload the file so all N* users can benefit from it.  Remember,
+with this you don't have to have 2 copies of CPM, one for each config.
+
+						-Eliot at Mit-DM

@@ -1,0 +1,164 @@
+; B5KP-1.INS  -  Kaypro insert for BYE5  -  07/17/85
+;
+;	       Z80-SIO and 8116 baudrate generator
+;			  by Irv Hoff
+;
+;
+;	    Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written for use with BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+PORT	EQU	04H		; Data port
+MDCTL1	EQU	PORT+2		; Modem control port
+BRPORT	EQU	00H		; Baud rate generator port
+;
+MDRCV	EQU	1		; Modem receive ready bit
+MDSND	EQU	4		; Modem send ready bit
+MDDCD	EQU	8		; Data carrier detect
+;
+;
+; Divisors for the 8116 baudrate generator
+;
+BD300	EQU	5		; 300 baud
+BD1200	EQU	7		; 1200 bps
+BD2400	EQU	10		; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	MDDCD		; Check for carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Setup to write register 0
+	OUT	MDCTL1
+	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+;
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,44H		; Set 16x, 1 stop bit, no parity
+	OUT	MDCTL1
+;
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; 8 bits, Rx enable
+	OUT	MDCTL1
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; DTR off
+	OUT	MDCTL1
+;
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore 'BC'
+;
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0E8H		; Turn DTR back on
+	OUT	MDCTL1
+;
+	 IF	IMODEM		; If using an intellegent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.  If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	MDRCV		; Got a character
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Get status
+	ANI	MDSND		; Ready for a character?
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Turn off DTR until next time
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; The following routine sets the baud rate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BD1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,BD2400
+;
+;
+; Sets the baudrate
+;
+SETBAUD:OUT	BRPORT
+	XRA	A		; Say baudrate is ok
+	RET
+;.....
+;
+;			       end
+------------------------------------------------------------------------
+

@@ -1,0 +1,179 @@
+
+; B5MD-1.INS - BYE5 insert for Sanyo 1000/1100/1200/1250 - 09/29/85
+;
+;		8251A and no baudrate generator
+;
+; Pin 8 (DCD) from the modem must be connected to the USART's DSR input,
+; usually Pin 6.
+;
+;	     Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 02/07/86  Added Sayno 1100 as an option	- Irv Hoff
+; 09/29/85  Original version for BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+NO	EQU	0
+YES	EQU	NOT NO
+;
+;
+MBC1000	EQU	NO
+MBC1100 EQU	YES
+MBC1200 EQU	NO
+;
+;
+	 IF	MBC1000
+PORT	EQU	0FEH		; Data port
+	 ENDIF
+;
+	 IF	MBC1100
+PORT	EQU	0DCH		; Data port
+	 ENDIF
+;
+	 IF	MBC1200
+PORT	EQU	0ECH		; Data port
+	 ENDIF
+;
+;
+;The following define the port address to use
+;
+MDCTL1	EQU	PORT+1		; Status/control port
+;
+;
+; NOTE: The DIP switches must be set for 1200 bps for this to work
+; this to work.
+;	
+BPORT	EQU	MDCTL1		; Baud rate port=8251 control
+;
+;
+;-----------------------------------------------------------------------
+;
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Get status
+	ANI	80H		; Check DSR bit for a carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	MDCTL1		; Causing hangup
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finnished
+	POP	B		; Restore BC
+	MVI	A,17H		; Assert DTR so that modem
+	OUT	MDCTL1		; Can answer phone
+	XCHG			; Small delay
+	XCHG			; Small delay
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	02H		; Check the receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; We have a character
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1
+	ANI	01H		; Check the transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Tell smartmodem to quit
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; Turn off DTR
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;		     Start of rev 1.x speeds
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET2400	EQU	$		; Only supports 300/1200
+;
+SETINV:	ORI	0FFH		; Make sure zero flag not set
+	RET
+;.....
+;
+;
+SET300:	MVI	B,BD300
+	JMP	SETBAUD
+;
+SET1200:MVI	B,BD1200
+;
+SETBAUD:MVI	A,47H		; Reset, enable Rx, DTR, Tx
+	OUT	MDCTL1		; Rx,Tx enabled
+	XCHG			; Small delay
+	XCHG			; Small delay
+	MOV	A,B		; Recover Baud Rate Word
+	OUT	BPORT
+	XCHG			; Small delay
+	XCHG			; Small delay
+	MVI	A,17H		; ERR reset, DTR, Rx, Tx all on
+	OUT	MDCTL1
+	XCHG			; Small delay
+	XCHG			; Small delay
+	XRA	A		; Say rate OK
+	RET
+;.....
+;
+;
+; Values to switch the 8251 between x16 and x64 for rev 1.x boards
+;
+BD300	EQU	4FH		; 300 baud
+BD1200	EQU	4EH		; 1200 bps
+;
+;
+;			       end
+;------------------------------------------------------
+

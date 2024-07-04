@@ -1,0 +1,750 @@
+; DUT - Disk Utility for TurboDOS
+; 11/29/85 by ESKAY
+; All Lefts Reversed
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+cfunc	equ	5
+tfunc	equ	50h
+;
+.z80
+.request syslib
+;
+	cseg
+;
+start:	jr	begin
+;
+cls:	db	1bh,'E',0,0,0,0		; clear screen
+curpos:	db	1bh,'F',0,0,0,0		; cursor pos
+xory:	db	0			; 0=xy, nz=yx
+coffs:	db	32			; cursor offset
+;
+begin:	ld	sp,stack		; set up local stack
+	ld	c,25
+	call	bdos##
+	ld	(curdsk),a
+	call	clrscr			; clear the screen
+	ld	bc,9*256+0		; line 9 col 0
+	call	gotoxy
+	call	print##			; display banner
+	cr,lf
+	9,9,'+--------------------------------------------+',cr,lf
+	9,9,'| DUT vers 1.50     11/29/85      (c)  ESKAY |',cr,lf
+	9,9,'| Disk editor for TurboDOS - Type H for HELP |',cr,lf
+	9,9,'+--------------------------------------------+',cr,lf,lf,0
+	ld	c,12			; get priv level
+	call	tfunc
+	bit	7,b
+	jr	nz,.isp			; continue if privileged
+	call	print##
+	cr,lf,7
+	'ERROR: non-privileged logon',cr,lf,0
+	di
+	halt				; crash slave on the poor sucker
+;
+.isp:	call	opnnew			; open new $.DSK
+loop:	call	disdrv			; display drive
+	ld	bc,22*256+27		; line 22 column 27
+	call	gotoxy
+	call	print##
+	'Enter command (H=HELP)  [_]',8,8,0
+	call	capin##			; get command character
+	call	cout##			; echo it
+	call	clrerr			; clear error line
+	call	getca			; get command address
+	jr	nz,.bcmd		; skip if bad command
+	jp	(hl)
+;
+.bcmd:	ld	bc,23*256+29
+	call	gotoxy
+	call	print##
+	'Invalid command - H=HELP',7,0
+	jr	loop
+;
+; read next record
+;
+nxtrec:	call	incgrp			; increment group
+	jp	.ggrp.
+;
+; read previous record
+;
+prvrec:	call	decgrp
+	jp	.ggrp.
+;
+incgrp:	ld	hl,(curgrp)
+	ld	a,(grpsz)
+	ld	b,a
+	ld	a,(cursec)
+	inc	a
+	cp	b
+	jr	nz,.igrn.
+	ld	de,(maxgrp)
+	call	comphd##
+	inc	hl
+	jr	nz,..ngrz
+	ld	hl,0
+..ngrz:	xor	a
+	ld	(curgrp),hl
+.igrn.:	ld	(cursec),a
+	ret
+;
+decgrp:	ld	hl,(curgrp)
+	ld	a,(cursec)
+	dec	a
+	jp	p,.dgrn.
+	ld	a,h
+	or	l
+	dec	hl
+	jr	nz,.dgr1.
+	ld	hl,(maxgrp)
+.dgr1.:	ld	(curgrp),hl
+	ld	a,(grpsz)
+	dec	a
+.dgrn.:	ld	(cursec),a
+	ret	
+;
+; help
+;
+help:	call	clrscr
+	call	print##
+	'DUT vers 1.40 (c) 1985 ESKAY',cr,lf,lf
+	'Command list (see manual for details):',cr,lf,lf,lf
+	9,'D  - (re)display current buffer',cr,lf
+	9,'F  - Find the start of a file',cr,lf
+	9,'G  - Goto group address',cr,lf
+	9,'>  - next group (also .)',cr,lf
+	9,'<  - previous group (also ,)',cr,lf
+	9,'Q  - exit to TurboDOS',cr,lf
+	9,'+  - increment current sector and display (also =)',cr,lf
+	9,'-  - decrement current sector and display',cr,lf
+	9,'!  - step to first data group',cr,lf
+	9,'? or H = this list',cr,lf,0
+	ld	bc,22*256+27
+	call	gotoxy
+	call	print##
+	'Press any key to continue',0
+	call	cin##
+	call	clrscr
+	jp	loop
+;
+; go to group
+;
+.gthi:	ld	bc,23*256+20
+	call	gotoxy
+	call	print##
+	'ERROR: too high!',7,0
+;
+goto:	ld	bc,22*256+10		; row 16 col 10
+	call	gotoxy
+	call	print##
+	'Enter GROUP NUMBER (0000..',0
+	ld	hl,(maxgrp)
+	dec	hl
+	call	phl4hc##
+	call	print##
+	') in hex : [____]',8,8,8,8,8,0
+	call	bbline##
+	or	a
+	jr	z,.gotx.		; aborted
+	call	eval16##
+	ld	hl,(maxgrp)
+	call	comphd##		; too high?
+	jr	c,.gthi			; too high!
+grpntr:	ld	(curgrp),de
+	ex	de,hl
+	xor	a
+	ld	(cursec),a
+ggdis1:	call	clcgrp
+	ld	(dskfcb+35),a
+	ld	(dskfcb+33),hl
+.ggdis:	ld	de,dskfcb
+	ld	c,33
+	call	bdos##
+result::nop				; check rr result
+	jp	disbuf
+;
+.gotx.:	ld	bc,22*256+0
+	call	gotoxy
+	call	clreol
+	call	clrerr
+	jp	loop
+;
+; find a file
+;
+filfnd:	ld	bc,22*256+20
+	call	gotoxy
+	call	print##
+	'Enter filename to be found : ',0
+	ld	a,1
+	call	bbline##
+	or	a
+	jr	z,.filx.		; abort
+	ld	de,5ch			; point to fcb area
+	call	fname##			; parse file name
+	ld	a,c			; get specified user
+	cp	0ffh			; none?
+	jr	z,..nus.		;   skip if no user
+	ld	e,c
+	ld	c,32
+	call	bdos##
+..nus.:	ld	de,fndbuf		; set up temporary dma
+	ld	c,26
+	call	bdos##
+	ld	de,5ch
+	ld	c,17			; search first
+	call	bdos##
+	push	af
+	ld	de,80h
+	ld	c,26
+	call	bdos##
+	pop	af
+	inc	a
+	jr	nz,..ff..		; found file
+	call	print##
+	'FILE NOT FOUND - press any key       ',7,0
+	call	cin##
+	jr	.filx.
+;
+..ff..:	ld	de,fndbuf
+	ld	hl,-16
+	ld	bc,32
+..fl..:	add	hl,bc
+	dec	a
+	jr	nz,..fl..
+	add	hl,de
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	jp	grpntr
+;
+.filx.:	ld	bc,22*256+0
+	call	gotoxy
+	call	clreol
+	jp	loop
+;
+; go to next group
+;
+nxtgrp:	ld	hl,(curgrp)
+	inc	hl
+	ld	(curgrp),hl
+	push	hl
+	dec	hl
+	ld	de,(maxgrp)
+	or	a
+	sbc	hl,de
+	ld	a,h
+	or	l
+	pop	hl
+	jr	nz,.ggrp.
+	ld	hl,0
+	ld	(curgrp),hl
+.ggrp.::	call	clcgrp			; calc sector from group
+	ld	(dskfcb+35),a
+	ld	b,a
+	ld	a,(cursec)
+	ld	e,a
+	ld	d,0
+	add	hl,de
+	ld	(dskfcb+33),hl
+	ld	a,b
+	jr	nc,..novf
+	inc	a
+..novf:	ld	(dskfcb+35),a
+	jp	.ggdis			; set file pointer and display
+;
+prvgrp:	ld	hl,(curgrp)
+	ld	a,h
+	or	l
+	jr	nz,.pg.
+	ld	hl,(maxgrp)
+	jr	.pg1.
+;
+.pg.:	dec	hl
+.pg1.:	ld	(curgrp),hl
+	jr	.ggrp.
+;
+; step to first data group
+;
+frstdt:	ld	hl,(dirsiz)
+	ld	(curgrp),hl
+	xor	a
+	ld	(cursec),a
+	ld	(dskfcb+35),a
+	call	clcgrp
+	ld	(dskfcb+33),hl
+	jp	.ggdis
+;
+; edit command
+;
+edit:	ld	a,(dison)
+	dec	a
+	jr	z,.eact.
+	ld	a,7
+	call	cout##
+	jp	loop
+;
+.eact.:	ld	bc,3*256+6		; beginning of field
+	ld	(editpt),bc
+edlp:	ld	bc,(editpt)
+	call	gotoxy
+	call	capin##
+	cp	3			; exit
+	jp	z,loop
+	cp	'E'-40h			; ^E = up
+	jr	z,.edup.
+	cp	'X'-40h			; ^X = down
+	jr	z,.eddn.
+	cp	'S'-40h			; ^S = left
+	jr	z,.edlf.
+	cp	'D'-40h			; ^D = right
+	jr	z,.edrt.
+	cp	27h			; check '
+	jp	z,.edasc		; edit ascii
+	call	nybble			; see if nybble
+	jp	nc,.edda.		; it is, edit data
+	ld	a,7
+	call	cout##
+	jr	edlp
+;
+.edup.:	ld	a,(editpt+1)		; get row
+	dec	a
+	cp	2
+	jr	nz,.esnt.
+	ld	a,10			; set bottom
+.esnt.:	ld	(editpt+1),a
+	jr	edlp
+;
+.eddn.:	ld	a,(editpt+1)
+	inc	a
+	cp	11
+	jr	nz,.esnt.
+	ld	a,3
+	jr	.esnt.
+;
+.edlf.:	ld	a,(editpt)
+	sub	3
+	cp	3
+	jr	nz,.eslt.
+	ld	a,51
+.eslt.:	ld	(editpt),a
+	jp	edlp
+;
+.edrt.:	ld	a,(editpt)
+	add	a,3
+	cp	54
+	jr	nz,.eslt.
+	ld	a,6
+	jr	.eslt.
+;
+.edasc:	call	cin##			; get ascii character
+	call	pa2hc##
+	jr	..asci
+;
+.edda.:	call	hexo			; display high nybble
+	cp	'A'
+	jr	c,...x
+	sub	7
+...x:	and	0fh
+	rla
+	rla
+	rla
+	rla
+	ld	b,a			; save it
+.ede..:	call	capin##
+	call	nybble
+	jr	c,.ede..
+	call	hexo
+	cp	'A'
+	jr	c,...y
+	sub	7
+...y:	and	0fh
+	or	b			; a has byte now
+..asci:	push	af
+	call	calcbp			; calculate buffer pointer
+	pop	af
+	ld	(hl),a
+	ld	a,l
+	and	0fh
+	add	a,55
+	ld	bc,(editpt)
+	ld	c,a
+	call	gotoxy
+	ld	a,(hl)
+	and	7fh
+	cp	7fh
+	jr	z,.ed...
+	cp	' '
+	jr	nc,.edn..
+	cp	7fh
+.ed...:	ld	a,'.'
+.edn..:	call	cout##
+	jp	.edrt.			; go to next hex on same line
+;
+; write buffer
+;
+write:	ld	de,dskfcb
+	ld	c,34
+	call	bdos##
+	jp	loop
+;
+; advance and display directory buffer
+;
+advdir:
+
+
+
+
+;
+; display buffer command
+;
+disbuf:	call	clrscr
+	ld	a,1
+	ld	(dison),a
+	call	print##
+	'RELATIVE SECTOR : ',0
+	ld	hl,(dskfcb+33)
+	inc	hl
+	ld	a,(dskfcb+35)
+	ld	e,a
+	call	p24b
+	ld	bc,0*256+25
+	call	gotoxy
+	call	print##
+	' OF ',0
+	ld	hl,(maxrec)
+	inc	hl
+	ld	a,(maxrec+2)
+	ld	e,a
+	call	p24b
+	ld	bc,0*256+38
+	call	gotoxy
+	call	print##
+	'GROUP:SECTOR : ',0
+	ld	hl,(curgrp)
+	call	phl4hc##
+	ld	a,':'
+	call	cout##
+	ld	a,(cursec)
+	call	pa2hc##
+	call	disdrv			; display drive
+	call	dispbf			; display buffer contents
+	jp	loop			; and go back for next command
+;
+quit:	call	clrscr
+	ld	bc,23*256+0
+	call	gotoxy
+	rst	0
+;
+; subroutines
+;
+; calculate buffer from screen address
+;
+calcbp::
+	ld	hl,(editpt)
+	ld	a,l			; get column
+	ld	b,0
+	sub	6
+.div3.:	inc	b
+	sub	3
+	jr	nc,.div3.
+	ld	l,b
+	ld	a,h
+	ld	h,0
+	sub	3
+	rla
+	rla
+	rla
+	rla
+	add	a,7fh
+	add	a,l
+	ld	l,a
+	ret
+;
+; test a if valid nybble
+;
+nybble:	cp	'0'
+	ret	c
+	cp	'F'+1
+	ccf
+	ret	c
+	cp	'9'+1
+	ccf
+	ret	nc
+	sub	7
+	cp	'9'+1
+	ret
+;
+; hex out
+;
+hexo:	cp	'9'+1
+	jp	c,cout##
+	add	a,7
+	jp	cout##
+;
+; calc sector from group
+;
+clcgrp::
+	ld	a,(grpmul)
+	ld	b,a
+	xor	a
+.ggrm.:	rl	l
+	rl	h
+	rla
+	djnz	.ggrm.
+	ret
+;
+; open $.DSK, $.DIR
+;
+opnnew:	ld	de,dskfcb
+	call	initfcb##
+	ld	c,35			; get file size
+	call	bdos##
+	ld	hl,(dskfcb+33)
+	ld	a,(dskfcb+35)
+	dec	hl
+	ld	(maxrec),hl
+	ld	(maxrec+2),a
+	call	f$open##
+	ld	de,80h
+	ld	c,26
+	call	bdos##
+	ld	de,dskfcb
+	ld	hl,0
+	ld	(dskfcb+32),hl
+	ld	(dskfcb+34),hl
+	call	f$read##
+	ld	c,19
+	ld	a,(curdsk)
+	ld	e,a
+	call	tfunc
+	dec	hl
+	ld	(maxgrp),hl
+	and	0fh
+	ld	(grpmul),a
+	sub	2
+	ld	b,a
+	ld	a,4
+.sla.:	or	a
+	rla
+	djnz	.sla.
+	ld	(grpsz),a
+	ld	a,c
+	ld	(dirsiz),a
+	ret
+;
+; display drive
+;
+disdrv:	ld	bc,0*256+70
+	call	gotoxy
+	call	print##
+	'DRIVE ',0
+	ld	a,(curdsk)
+	add	a,'A'
+	call	cout##
+	ld	a,':'
+	jp	cout##
+;
+; display buffer on screen (80H)
+;
+dispbf:	ld	de,0
+	ld	bc,3*256+0		; row 3 col 0
+disobf:	call	gotoxy
+	add	hl,de
+	ld	hl,80h			; point to buffer
+.disl.:	push	hl			; save hl
+	ld	b,16			; display 16 hex bytes
+	push	hl
+	res	7,l
+	ld	h,0
+	call	phl4hc##		; display relative address
+	pop	hl
+	call	space2			; 2 spaces
+.h16l.:	ld	a,(hl)			; get byte
+	call	pa2hc##			; print hex
+	call	space
+	inc	hl
+	djnz	.h16l.			; complete 16 bytes
+	pop	hl			; get addr back
+	ld	b,16			; 16 bytes again
+	call	space
+.a16l.:	ld	a,(hl)			; get byte
+	and	7fh			; strip hi bit
+	cp	7fh
+	jr	z,.a16..
+	cp	' '			; dot if control
+	jr	nc,.a16n.
+.a16..:	ld	a,'.'
+.a16n.:	call	cout##
+	inc	hl
+	djnz	.a16l.			; loop until done
+	call	crlf##			; new line
+	ld	a,l			; get low byte of buffer addr
+	or	a			; zero?
+	ret	z			;   yes, done
+	jr	.disl.			;     else do next line
+;
+; get command address or NZ
+;
+getca:	ld	hl,cmdtbl
+	ld	b,a
+.gca.:	ld	a,(hl)
+	or	a
+	jr	z,.gcx.
+	cp	b
+	jr	z,.gcg.
+	inc	hl
+	inc	hl
+	inc	hl
+	jr	.gca.
+;
+.gcg.:	inc	hl
+	ld	a,(hl)
+	inc	hl
+	ld	h,(hl)
+	ld	l,a
+	xor	a
+	ret
+;
+.gcx.:	dec	a
+	ret
+;
+clrerr:	push	af
+	push	bc
+	ld	bc,23*256+0		; row 23 col 0
+	call	gotoxy
+	pop	bc
+	pop	af
+;
+clreol:	push	af
+	push	bc
+	ld	b,79
+	ld	a,' '
+.clel.:	call	cout##
+	djnz	.clel.
+	pop	bc
+	pop	af
+	ret
+;
+space2:	call	space
+space:	ld	a,' '
+	jp	cout##
+;
+; position cursor. b=x, c=y
+;
+gotoxy:	push	hl
+	ld	hl,curpos
+	call	pstrg
+	ld	a,(xory)		; check xy or yx
+	or	a			; if zero, then xy
+	jr	z,..xy
+	ld	a,b
+	ld	b,c
+	ld	c,a			; exchange b and c
+..xy:	ld	a,(coffs)		; get cursor offset
+	push	af			; save for next
+	add	a,b
+	call	cout##
+	pop	af
+	add	a,c
+	call	cout##
+	pop	hl
+	ret
+;
+clrscr:	push	hl
+	ld	hl,cls
+	call	pstrg
+	pop	hl
+	ret
+;
+pstrg:	ld	a,(hl)
+	or	a
+	ret	z
+	call	cout##
+	inc	hl
+	jr	pstrg
+;
+p24b:	ld	ix,n24b
+	push	ix
+	ld	b,12
+	xor	a
+.p24l:	ld	(ix+0),a
+	inc	ix
+	djnz	.p24l
+	pop	ix
+	ld	a,3
+	call	hxdc24##
+	ld	hl,n24b
+	jp	pstr##
+;
+	dseg
+;
+; command table
+;
+cmdtbl:	db	'Q'			; exit
+	dw	quit
+	db	'D'			; display buffer
+	dw	disbuf
+	db	'+'			; next record
+	dw	nxtrec
+	db	'='
+	dw	nxtrec
+	db	'-'			; previous record
+	dw	prvrec
+	db	'H'
+	dw	help
+	db	'?'
+	dw	help
+	db	'G'			; go to group
+	dw	goto
+	db	'F'			; find file
+	dw	filfnd
+	db	'<'			; previous group
+	dw	prvgrp
+	db	'>'			; next group
+	dw	nxtgrp
+	db	','
+	dw	prvgrp
+	db	'.'
+	dw	nxtgrp
+	db	'!'			; first data grp
+	dw	frstdt
+	db	'E'			; edit
+	dw	edit
+	db	'W'			; write
+	dw	write
+	db	0
+;
+curdsk:	db	0
+dirsiz:	dw	0
+maxrec:	ds	3
+curgrp:	dw	0
+cursec:	db	0
+maxgrp:	dw	0
+grpsz:	db	0
+grpmul:	db	0
+;
+n24b:	db	0,0,0,0,0,0,0,0,0,0,0,0
+;
+dison:	db	0
+editpt:	dw	0
+;
+dskfcb:	db	0,'$       DSK',0,0,0,0
+	ds	24
+;
+fndbuf:	ds	128
+	ds	100
+stack	equ	$
+	end
+ld	a,(hl)
+	or	a
+	ret	z
+	call	cout##
+	inc	hl
+	jr	pstrg
+;
+p24b:	ld	ix,n24b
+	push	ix
+	ld	b,12
+	xor	a
+.p24l:	ld	(ix+0),

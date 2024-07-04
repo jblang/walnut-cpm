@@ -1,0 +1,66 @@
+Batch protocol for MODEM7 and XMODEM multi-file transfer
+
+Each must specify batch since different treatment of ACK
+as first character of "block" is needed.
+
+CAN character is frequently tested for and interpreted as cancel everything
+1 sec timeout on characters usually
+
+CHECKSUM used on filename sequence even if CRC to be used in file transfer
+
+on error during filename sequence, both return to beginning
+	sender returns to NAK wait
+	and receiver returns to NAK send
+
+Time sequence of transfer:
+SENDER					RECEIVER
+
+waits for NAK with 80 sec timeout
+clear checksum
+					NAK  at 10 sec interval 'til ACK or CAN
+ACK					
+					waits for filename chars 1 sec timeout
+					on error goes to above NAK
+Loop 11 times (though filename buffer
+	allows more)
+
+	(Strip parity bit)
+	send next filename character
+	(in CP/M FCB form, no dot,
+	blank filled, last 3 bytes
+	are type)
+	add to checksum
+	await ACK 1 second timeout
+					add to checksum
+					ACK
+End Loop
+
+EOF (CTRL-Z)
+add to checksum
+					add to checksum
+					send Checksum byte
+					await ACK
+					(note: if receives noise here,
+					one end may proceed to
+					normal file transfer, and other to
+					restart filename and hang)
+verifies checksum
+OKNMCH (ACK) or BDNMCH ("u")
+
+		Normal file transfer starts
+					NAK or "C"
+SOH   start of block
+.
+.
+.
+EOT   end of file
+					ACK
+
+
+expects NAK to start next filename
+					NAK
+ACK  set up receiver for filename
+EOT  as first char of filename 
+	terminates batch transfer
+	(possibly as ANY character
+	of filename)

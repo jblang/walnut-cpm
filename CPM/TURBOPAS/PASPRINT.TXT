@@ -1,0 +1,77 @@
+TURBO PASCAL CORNER ............................................... Rick Ryall
+
+     For those of you who program in Pascal, this column will be dedicated to
+sharing some things that I have discovered in the course of using Borland's
+excellent implementation of that language.  I will try to cover both CP/M and
+MS-DOS versions, to keep almost everybody happy.
+
+     This month's installment deals with avoiding the problem that occurs when
+an attempt is made to send a character to a printer that is not connected to
+the computer, which hangs up the system until the printer is connected or the
+computer is reset.  It would be nice to test the printer port before sending a
+character out to see if the printer is ready to receive one.  Fortunately,
+there is a way to do just this.
+
+FUNCTION PrinterReady : boolean;                 FUNCTION PrinterReady : boolean;
+type RegisterRecord =                            const
+  record case integer of                           Status = 14;
+    1:(AX,BX,CX,DX,BP,SI,DI,ES,Flags:integer);   begin { PrinterReady, CP/M version }
+    2:(AL,AH,BL,BH,CL,CH,DL,DH: byte);             PrinterReady:= ( Bios(Status)=255 );
+  end;                                           end;  { PrinterReady }
+var
+  Status : byte;
+  Registers : RegisterRecord;
+
+begin { PrinterReady, MS-DOS version }
+  { initialize registers }
+  fillchar( Registers,sizeof( Registers ),0 );
+  with Registers do
+  begin
+    AH:= $01;                { code for reset printer }
+    DL:= $00;                { printer number, 0= COM1 }
+    intr( $17, Registers );  { reset printer port }
+    AH:= $02;                { code for get printer status }
+    DL:= $00;                { printer number }
+    intr( $17, Registers );  { get printer status }
+    Status:= AH;
+  end;
+  PrinterReady:= not Odd( Status shr 4 );
+end;  { PrinterReady }
+
+
+     The CP/M version is fairly straightforward and shouldn't require too much
+explanation.
+
+     There are two things worth noting in the MS-DOS example above:  1).  The
+printer port must be reset before the status byte is returned correctly (they
+don't tell you this in the reference manuals)  2).  The type declaration could
+be a global declaration instead of a local one, since the register type is
+used for all interrupts and function calls in the MS-DOS version of Turbo
+Pascal.
+
+     Below is an example of how this function might be used to prevent hanging
+up a program if someone has neglected to connect or turn on their printer.
+That's it for this month.
+
+PROCEDURE CheckPrinterStatus;
+const
+  Return = ^M;
+  ESC    = #27;
+var
+  Key : char;
+  Interrupted : boolean;
+begin
+  Interrupted:= false;
+  while not( PrinterReady or Interrupted ) do
+  begin
+    gotoXY(1,3);
+    write( 'Please check your printer and press RETURN to continue, or ESC to exit' );
+    ClrEol;
+    repeat
+      read( Kbd, Key );
+      if ( Key = ESC ) and not KeyPressed then Interrupted:= true;
+      { not KeyPressed is required for MS-DOS only }
+    until ( Key = Return ) or Interrupted;
+  end;
+end;  { CheckPrinterStatus }
+

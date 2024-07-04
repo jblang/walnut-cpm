@@ -1,0 +1,208 @@
+; ATTACH TO REMOTE DRIVERS VIA REMDRV
+;
+	MODULE	"ATTREM"
+;
+; Improved version now includes the following features:
+; - Attach to port A..P, corresponding to REMDRV-COMM-CHANNELS 0..15
+; - optional second argument allows specification of
+;   channel baud rates ... OR ...
+;   clearing a channel.
+;
+;   Syntax: ATTREM <1> [2]
+;   Example:
+;	    0A}attrem a b
+;	<1>	= mandatory argument -- port letter A..P
+;	[2]	= optional argument -- baud rate (A=50 baud...P=19200)
+;		  OR, this argument may be "X" to DETACH the channel
+;		  For baud rate codes, see Z80 Programmer's Guide,
+;		  T-Function 37 (Page 5-40), where 0=A,1=B..15=P
+;
+; NOTE:
+;	The "X" (DETACH) command should only be used if a channel is
+;	hopelessly locked up. IT SHOULD NOT BE USED TO "chase someone
+;	off the system"!!! It's sole purpose is to free a locked channel
+;	(a channel can be locked simply by crashing the process running
+;	ATTREM; subsequent calls to ATTREM will show that channel busy.)
+; NOTE:
+;	The above also applies to the 8-bit version of ATTREM.
+;
+; PATCH POINTS:
+;	AT 0102H IN THE Z80 VERSION (CS+2 IN THE 8086 VERSION), FOUR BYTES
+;	MAY BE PATCHED:
+;	Z80 0102	8086 CS+2	default baud rate code (A..H)
+;	    0103	     CS+3	intercept character used to send ATTN
+;					to remote
+;	    0104	     CS+4	remote attention character
+;	    0105	     CS+5	exit character (must be typed 5 times)
+;
+	LOC	Code#
+;
+START:	JMPS	SKIP
+;
+DBAUD:	BYTE	'O'			; DEFAULT BAUD RATE
+INTER:	BYTE	0X1E			; ^\
+BREAK:	BYTE	0
+EXITC:	BYTE	'`'
+;
+SKIP:	MOV	AX,DS
+	MOV	SS,AX
+	MOV	SP,&STACK		; set up local stack
+	MOV	AL,(0X5D)		; PORT A..P
+	CMP	AL,='A'			; CHECK!
+	JC	FALP
+	CMP	AL,='Q'
+	JNC	FALP
+	MOV	PORT1,AL
+	MOV	PORT2,AL
+	MOV	PORT3,AL
+	MOV	PORT4,AL
+	DEC	AL
+	AND	AL,=0X0F
+	MOV	PORT,AL
+	MOV	AL,0X6D
+	CMP	AL,='X'
+	JNZ	__NQ
+	JMP	QUIT
+;
+__NQ:	CMP	AL,=' '
+	JNZ	__BRT
+	CS MOV	AL,DBAUD
+__BRT:	CMP	AL,='A'
+	JB	ILB
+	CMP	AL,='P'
+	JA	ILB
+	DEC	AL
+	AND	AL,=0X0F
+	MOV	BAUDR,AL
+	MOV	DX,&QUIT		; set abort address
+	MOV	BX,CS
+	MOV	CL,=8
+	INT	0XDF
+	MOV	CL,=33
+	MOV	DH,=0XFE		; attach to com channel 1
+	MOV	CH,PORT
+	INT	0XDF
+	INC	AL			; busy?
+	JZ	BUZI
+	INC	AL
+	JNZ	LOCL1
+	MOV	DX,&EROR
+	JMPS	XX
+;
+ILB:	MOV	DX,&MILB
+	JMPS	XX
+;
+FALP:	MOV	DX,&FALPM
+	JMPS	XX
+;
+BUZI:	MOV	DX,&BARF			; else quit with error message
+XX:	MOV	CL,=9
+	INT	0XE0
+	MOV	CL,=0
+	INT	0XE0
+;
+LOCL1:	MOV	CL,=9
+	MOV	DX,&HOOKED		; display success message
+	INT	0XE0
+	MOV	CL,=33
+	MOV	DH,=0XFC		; set com channel 1 baud rate
+	MOV	CH,PORT
+	MOV	DL,BAUDR
+	INT	0XDF
+	MOV	AL,=0X0D
+	JMPS	ECHO
+;
+; I/O loop
+;
+LOCL:	MOV	CL,=6			; get keyboard char if there is one
+	MOV	DL,=0XFF
+	INT	0XE0
+	OR	AL,AL			; got a character?
+	JNZ	ECHO			;   yes, echo it to remote
+;
+NOIN:	MOV	CL,=33
+	MOV	DH,=0XFA		; com channel 1 I/O
+	MOV	CH,PORT
+	INT	0XDF
+	OR	AL,AL			; check if any input chars
+	JZ	LOCL			;   no, get next keyboard char
+OO:	MOV	CL,AL			;     else display the input buffer
+	XOR	CH,CH
+	MOV	BX,=0X81		;     starting at 81h, for A chars
+OLP:	MOV	AL,[BX]
+	PUSH	CX
+	PUSH	BX
+	CALL	ECHO1			; display the character
+	POP	BX
+	POP	CX
+	INC	BX
+	LOOP	OLP
+	JMPS	LOCL
+;
+; echo a character to remote, read input buffer
+;
+ECHO:	CS CMP	EXITC,AL		; see if exit char
+	JZ	__XC			; yes, skip
+	MOV	COUNT,=5		; set count to start
+	JMPS	__X
+;
+__XC:	CALL	CHKXIT			; check exit
+__X:	CS CMP	INTER,AL
+	JNZ	__NB
+	CS MOV	AL,BREAK
+__NB:	MOV	CL,=33
+	MOV	DL,AL			; load character
+	MOV	DH,=0XFA		; com channel 1 I/O request
+	MOV	CH,PORT
+	OR	CH,=0X80		; set output flag
+	INT	0XDF
+	OR	AL,AL			; got any input?
+	JNZ	OO			;   yes, join above loop
+	JMPS	LOCL			;     else go for next keyboard char
+;
+; echo a character to the console
+;
+ECHO1:	MOV	DL,AL
+	MOV	CL,=6
+	INT	0XE0
+	RET
+;
+CHKXIT:	DEC	COUNT
+	JZ	QUIT
+	RET
+;
+; abort address - only way to exit
+;
+QUIT:	MOV	DH,=0XFD		; request detach from com1
+	MOV	CH,PORT
+	MOV	CL,=33
+	INT	0XDF
+	MOV	CL,=9
+	MOV	DX,&UNHOOK		; display message
+	INT	0XE0
+	MOV	CL,=0
+	INT	0XE0
+;
+	LOC	Data#
+;
+PORT:	BYTE	0
+BAUDR:	BYTE	0
+COUNT:	BYTE	5
+;
+BARF:	BYTE	"\R\N\N\7ERROR: COM CHANNEL "
+PORT1:	BYTE	"1 IS BUSY\R\N\N$"
+EROR:	BYTE	"\R\N\N\7ERROR: COM CHANNEL "
+PORT2:	BYTE	"1 DOES NOT EXIST\R\N\N$"
+HOOKED:	BYTE	"\R\NCONNECTED TO COM CHANNEL "
+PORT3:	BYTE	"1\R\N$"
+UNHOOK:	BYTE	"\R\NDISCONNECTED FROM COM CHANNEL "
+PORT4:	BYTE	"1\R\N\N$"
+FALPM:	BYTE	"\R\N\N\7ERROR: ONLY PORTS A..P ALLOWED!\R\N\N$"
+MILB:	BYTE	"\R\N\N\7ERROR: BAUD RATE CODES A..P ONLY\R\N\N$"
+	RES	40
+STACK	==	.
+	END
+OV	CH,PORT
+	OR	CH,=0X80		; set output flag
+	INT	0XDF
+	OR	AL,A

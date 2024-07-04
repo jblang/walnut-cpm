@@ -1,0 +1,73 @@
+To:	Steve Russell, Jay Sage
+From:	Bridger Mitchell
+subj:	SLR180P.BUG report
+date:	4/15/90
+------------
+
+SLR180+ v 1.12 #PL006: Assembler fails with bogus errors,
+*depending on size of tpa and the number of output files*
+
+Source files:
+  1 main file + 10 include files, total of ~ 156K.
+  assemble absolute to COM, with com and lst outputs.
+  When it assembles correctly, it goes virtual in pass 2.
+  When it fails, the first error message occurs in pass 1.
+
+The following tests used COM and LST output files, no SYM file. 
+----------------------------
+Using #1 System:
+ON!, 2MB ramdisk as A:
+ZSDOS 1.1
+All files on A:
+A: is the virtual drive
+
+Assembly fails with first messages:
+  IF BMSEARCH  Must be absolute this pass
+  this message occurs several times (there are several BMSEARCH conditionals)
+  in pass 2 there are a large number of "undefined symbol" messages
+
+when top of tpa is:
+  D606 hex
+  D206
+  d806
+  d906
+  da06
+  da4f
+
+It assembles correctly when top of tpa is
+  d606
+  d706
+
+----------------------------
+Using #2 System:
+SB180FX
+all files on N: (ramdisk)
+
+Assembles correctly when top of tpa is
+  D606 hex
+
+
+Fails when top of tpa is
+  CDB1 hex
+  CD06 hex	fails in pass 2
+  CC06		fails in pass 1
+  CB06		fails in pass 1
+
+Notes:
+
+Files verified by CRC as identical on both systems.
+Experimenting with various 180FIGP settings to eliminate
+disk optimization had no effect.
+
+The size of tpa is set by an RSX below the BDOS in all cases on the
+ON!.
+
+On the SB180FX, there is no rsx when the tpa goes up to d606 hex.
+The other tests on that system use an rsx.
+
+-----------
+
+On the ON! system I also experimented with COM, LST and SYM output.
+Now, in this case, the D606-size tpa FAILS!
+
+ this message occurs 

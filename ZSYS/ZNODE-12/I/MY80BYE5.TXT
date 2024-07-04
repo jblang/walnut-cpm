@@ -1,0 +1,202 @@
+
+Public Message # 6440  CPMTECH Area  Entered 08:45 Saturday  26-Dec-92
+From:  BRUCE DUDLEY
+  To:  SIMEON CRAN
+  Re:  BYE Modem insert
+
+Don't know if this will work but here is the MYZ80 modem insert for BYE and 
+Foodo.
+
+ --------------------------------------------------------------------------
+
+ ; MYZ80.INS - BYE5 insert for MSDOS using MYZ80 CP/M emulator
+ ;
+ ; This insert adapts the MYZ80 CP/M emulator to BYE5.
+ ;
+ ; Adaptded to suit by:
+
+ ; Bruce Dudley     24/12/92  SYSOP Z-Node 62 RCPM
+
+ ;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+  =
+ ; Set to the com: port used on your PC for modem communications
+ ; Note: Only set one of these to 'yes'
+
+ com1    equ     no
+ com2    equ     yes
+ com3    equ     no
+ com4    equ     no
+
+         if      com1
+ portbase        equ     0
+         endif
+
+         if      com2
+ portbase        equ     8
+         endif
+
+         if      com3
+ portbase        equ     16
+         endif
+
+         if      com4
+ portbase        equ     24
+         endif
+ ;-----------------------------------------------------------------------
+ ;
+ ;
+ ; See if we still have a carrier - if not, return with the zero flag
+ set
+ ;
+ mdcarck:in      a,(portbase+6)
+         bit     7,a
+         ret
+ ;.....
+ ;
+ ; Disconnect and wait for an incoming call
+ ;
+ mdinit: push    bc
+         xor     a
+         out     (portbase+1),a  ; Prevent interrupts
+         ld      a,00010011b     ; Line control register value set for:
+                                 ; DLAB off
+                                 ; Break off
+                                 ; Parity unstuck
+                                 ; None...
+                                 ; 1 stop bit
+                                 ; 8 data bits
+         out     (portbase+3),a
+         in      a,(portbase+4)
+         set     1,a             ; Make sure RTS is on
+         out     (portbase+4),a
+         call    mdstop
+         ld      b,20            ; 2 second delay
+ offti:  call    delay           ; 0.1 second delay
+         djnz    offti           ; Keep looping until finished
+         call    dtron
+
+          if     imodem          ; If using intelligent modem
+         call    iminit          ; Go initialize modem now
+          endif                  ; IMODEM
+
+         pop     bc
+         ret
+ ;.....
+ ;
+ ; Input a character from the modem port
+ ;
+ mdinp:  in      a,(portbase+0)
+         ret
+ ;.....
+ ;
+ ;
+ ; Check the status to see if a character is available.  If not, return
+ ; with the zero flag set.  If yes, use 0FFH to clear the flag.
+ ;
+ mdinst: in      a,(portbase+5)
+         bit     0,a
+         ret     z       ; Return if not ready
+         or      -1      ; Set the proper flag
+         ret             ; And return
+ ;.....
+ ;
+ ;
+ ; Send a character to the modem
+ ;
+ mdoutp: out     (portbase+0),a
+         ret
+ ;.....
+ ;
+ ;
+ ; See if the output is ready for another character
+ ;
+ mdoutst:in      a,(portbase+5)
+         bit     5,a
+         ret
+ ;.....
+ ;
+ ;
+ ; Reinitialize the modem and hang up the phone by dropping DTR and
+ ; leaving it inactive.
+ ;
+ mdquit:  if     imodem          ; If using an intelligent modem
+         call    imquit          ; Tell it to shut down
+          endif                  ; IMODEM
+ ;
+ ;
+ ; Called by the main program after caller types BYE.
+ ;
+ mdstop: in      a,(portbase+4)
+         bit     0,a
+         ret     z
+         res     0,a             ; Drop DTR
+         out     (portbase+4),a
+         ret
+ ;.....
+
+ dtron:  in      a,(portbase+4)
+         bit     0,a
+         ret     nz
+         set     0,a             ; Assert DTR
+         out     (portbase+4),a
+         ret
+
+ ;
+ ; The following routine sets the baudrate.  BYE5 asks for the maximum
+ ; speed you have available.
+ ;
+ setinv: or      -1              ; Make sure zero flag is not set
+         ret
+ ;.....
+ ;
+ ;
+ set300: ld      hl,bd300
+         jr      setbaud
+ ;
+ set1200:ld      hl,bd1200
+         jr      setbaud
+ ;
+ set2400:ld      hl,bd2400
+         jr      setbaud
+ ;
+ set9600:ld      hl,bd9600
+         jr      setbaud
+ ;
+ set1920:ld      hl,bd1920
+ ;
+ setbaud:in      a,(portbase+3)
+         set     7,a             ; Set DLAB
+         out     (portbase+3),a
+         ld      a,l
+         out     (portbase+0),a  ; Do low byte
+         ld      a,h
+         out     (portbase+1),a  ; Do high byte
+         in      a,(portbase+3)
+         res     7,a             ; Restore DLAB
+         out     (portbase+3),a
+         xor     a
+         ret                     ; Return
+ ;.....
+ ;
+ ;
+ ; The following are baud rates for BPORT -- they will have to be changed
+ ; for your particular CTC.
+
+ bd300   equ     180h            ; 300
+ bd1200  equ     060h            ; 1200
+ bd2400  equ     030h            ; 2400
+ bd9600  equ     0ch             ; 9600
+ bd1920  equ     6               ; 19200
+ ;.....
+
+  -------------------------------------------------------------------------
+
+I don't know if a DOS BBS will reformat all that and if so it will look a 
+mess. Looks OK here on Z-Node..
+
+  Bruce..
+ 
+--- Foodo v1.1
+ * Origin: Z-Node 62 RCPM, Perth Western Australia. CP/M on FidoNet (3:690/718)
+
+

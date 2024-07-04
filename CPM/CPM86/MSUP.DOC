@@ -1,0 +1,63 @@
+			MSUP - Modem SUPervisor
+
+	MSUP allows a CompuPro system with MPM86 or MPM8-16 to run
+Communication software without loosing characters and allowing more than
+one Modem to be used simultaneously. If only One COM channel is available,
+or all are used by users on the system, the use of Mutual eXclusion queues
+will prevent any other user from grabing the modem. MSUP was tested at speeds
+of up to 19200 bps in file transfer modes and up to 2400 bps in ASCII mode
+on a system with the 8085/88 Cpu board installed. Higher speeds may be possible
+with the 8086 board and I sure would like to hear from anyone with a 80286 !
+
+	Modem programs should of course make use of MSUP otherwise MSUP
+doesn't do much good ! M8MPMIN.A86 is the source listing for the overlay
+to go with MDM8xx and can be used with MDM8xx or adapted to work with another
+8086 Modem program. (Also SYSMPM.A86 is available from the author to run
+with the 16 bit version of MODEM901)
+
+
+	Installing MSUP is a relatively simple procedure. After assembling
+MSUP.A86 with ASM86 and generating MSUP.CMD with GENCMD, rename MSUP.CMD to
+MSUP.RSP. Run GENSYS to generate a new MPM.SYS file and include MSUP.RSP.
+Answer all the GENSYS questions as specified in the CompuPro MPM 8-16 manual
+except for the Number of System flags which should be 51 with MSUP installed.
+Next copy the terminal and printer option files TTYS and LPRS into the files
+TTYSC and LPRSC respectively:
+
+	PIP TTYSC=TTYS
+	PIP LPRSC=LPRS
+
+Do NOT INCLUDE THE CONSOLE NUMBERS to be used as communication channels in the
+TTYS and TTYSC files as otherwise these channels will be used by MPM as
+ordinary consoles. Last but not least create the file COMCH as per example 1
+specifiying the Console numbers to be used as communication channels. After
+booting MPM with MSUP installed, MSUP will print a message on the system
+console indicating it is active. The creation of the new comm. channels can be
+verified by running MPMSTAT and looking for the MXmodemN queues.
+
+	If you have any problems installing MSUP.RSP and getting it to run
+let me know.
+
+				- 09/20/84  - Alex Soya
+					      P.O. Box 121
+					      Melbourne Bch.
+					      FL. 32951
+
+					      Melbourne RCPM (305) 259-7955
+
+
+	Example 1:    COMCH file format
+
+		N: [Comment] <CR><LF>
+
+	N = Console number to be used as Communication channel
+	Comment is optional. Each line must be terminated
+	by a Carriage Return, Line Feed sequence.
+	The last line must be terminated by <CR><LF><EOF>
+	(EOF is a Ctrl-Z).
+
+	eg:
+
+			2: Phone line 1
+			3: Phone line 2
+

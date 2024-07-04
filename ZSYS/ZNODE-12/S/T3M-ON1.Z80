@@ -1,0 +1,240 @@
+
+; Program: T3M-ON1.Z80
+; Author:  Joe Wright
+; Date:    10 June 1986
+;
+;	Serial port overlay to TERM III for the Oneac computer.
+;	     Z80 DART and 615,385 Hz Baud Rate Generator.
+;
+MDPORT	EQU	92H		; Z80 sio-0 or dart
+M1$DATA	EQU	MDPORT		; Data port
+M1$STAT	EQU	MDPORT+1	; Status port
+RDA	EQU	1		; Receive data available
+TBE	EQU	4		; Transmit buffer empty
+DCD	EQU	8		; Data carrier detect
+RES	EQU	10H		; Reset external/status
+;
+; Baud rate table.  Low order byte is baud rate generator divisor,
+;  High order byte is the Dart divisor (WR4, 1 stop bit).
+;
+BD300	EQU	0C400H		; /64, /32
+BD1200	EQU	04400H		; /16, /32
+BD2400	EQU	08410H		; /32, /8
+BD4800	EQU	04410H		; /16, /8
+BD9600	EQU	0C420H		; /64, /1
+BD19200	EQU	08420H		; /32, /1
+BD38400	EQU	04420H		; /16, /1
+;
+	ORG	600H		; Base address (600h - 6ffh)
+;
+; Modem Support Package
+;
+M1$INIT:
+	JP	SM1$INIT	; Initialize dart
+M1$ISTAT:
+	JP	SM1$ISTAT	; Test input status (rda)
+M1$OSTAT:
+	JP	SM1$OSTAT	; Test output status (tbe)
+M1$IN:
+	JP	SM1$IN		; Input a byte from the usart
+M1$OUT:
+	JP	SM1$OUT		; Output a byte to the usart
+M1$BREAK:
+	JP	SM1$BREAK	; Cause the usart to issue a break
+MM1$CST:
+	JP	SM1$CST		; Determine carrier status (detect) on usart
+M1$SPTAB:
+	DB	01111111B	; All rates available
+;
+;	Modem Routines
+;
+;  Modem 1 Initialization
+;	Function:  To initialize the Modem 1 Port
+;	Input Parameters:  A=Speed
+;		0=no set
+;		1=  300
+;		2= 1200
+;		3= 2400
+;		4= 4800
+;		5= 9600
+;		6=19200
+;		7=38400
+;	Output Parameters:  A=Set Speed (same table as above)
+;		ZERO FLAG SET
+;
+SM1$INIT:
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	PUSH	AF		; Save all registers
+	OR	A
+	JR	Z,NO$BAUD	; No speed selected
+	CP	8
+	JR	NC,NO$BAUD	; Out of range
+;
+; Set up to determine if desired speed is available
+;
+	LD	B,A		; Save it a moment
+	LD	C,A		; Two copies
+	XOR	A		; Clear A
+	SCF			; Set carry flag
+;
+; Shift carry into A (speed) times corresponding to speed table
+;
+LOOP:	RLA
+	DEC	C
+	JR	NZ,LOOP		; Shift into position
+;
+; See if we have a match
+;
+	LD	HL,M1$SPTAB	; Point to speed table
+	AND	(HL)		; Check for corresponding bit
+	LD	A,B		; Get speed
+	JR	Z,NO$BAUD	; Not available
+;
+; Speed value in range, set it up
+;
+	LD	DE,BD300
+	DEC	A
+	JR	Z,SETBAUD	; Set 300 bps
+	LD	DE,BD1200
+	DEC	A
+	JR	Z,SETBAUD	; Set 1200 bps
+	LD	DE,BD2400
+	DEC	A
+	JR	Z,SETBAUD	; Set 2400 bps
+	LD	DE,BD4800
+	DEC	A
+	JR	Z,SETBAUD	; Set 4800 bps
+	LD	DE,BD9600
+	DEC	A
+	JR	Z,SETBAUD	; Set 9600 bps
+	LD	DE,BD19200
+	DEC	A
+	JR	Z,SETBAUD	; Set 19200 bps
+	LD	DE,BD38400
+	DEC	A		; Insure A=0, Set 38400 bps
+;
+; Set up the baud rate requested
+;
+SETBAUD:
+	CALL	SELBNK		; A=0 returns system port data
+	AND	0CFH		; Mask rate generator  xx00xxxxB
+	OR	E		; Selected rate
+	LD	C,A		; Return it in C
+	CALL	SELBNK		; A<=>0 sets new rate
+	LD	A,4
+	OUT	(M1$STAT),A	; Select WR4
+	LD	A,D		; Get dart divisor, 1 stop bit
+	OUT	(M1$STAT),A
+	LD	A,3
+	OUT	(M1$STAT),A	; WR3
+	LD	A,0C1H		; 8 bits, Rx enable
+	OUT	(M1$STAT),A
+	LD	A,5
+	OUT	(M1$STAT),A	; WR5
+	LD	A,0EAH		; DTR, 8 bits, Tx enable, RTS
+	OUT	(M1$STAT),A
+;
+SMINIT$RET:
+	POP	AF
+ERR$RET:
+	POP	BC
+	POP	DE
+	POP	HL
+	OR	A		; Set zero flag
+	RET
+
+; Speed value out of range, do nothing, return zero
+;
+NO$BAUD:
+	POP	AF		; Adjust stack
+	XOR	A		; A zero
+	JR	ERR$RET		; Quit, having failed..
+;
+; SELBNK  routine in the ON bios gets/sets the baud rate clock
+;  This routine also affects the bank port and the terminal speed.
+;   Please don't play around with it.
+;
+SELBNK:
+	LD	HL,(1)		; Bios jump table
+	LD	L,33H		; Offset to selbnk jump
+	JP	(HL)		; Do it, return to caller
+;
+;  Modem 1 Input Status
+;	Function:  To return byte ready (RDA) status
+;	Input Parameters:  None
+;	Output Parameters:  A=0 if no byte, A=0FFH if byte ready
+;
+SM1$ISTAT:
+	IN	A,(M1$STAT)	; Get status byte
+	AND	RDA		; Data available?
+	RET	Z		; Zero if no data
+	LD	A,0FFH		; Load with ff
+	RET
+;
+;  Modem 1 Output Status
+;	Function:  To return buffer empty (TBE) status
+;	Input Parameters:  None
+;	Output Parameters:  A=0 if buffer full, A=0FFH if buffer empty (TBE)
+;
+SM1$OSTAT:
+	IN	A,(M1$STAT)	; Get status byte
+	AND	TBE		; Buffer empty?
+	RET	Z		; Zero if not empty
+	LD	A,0FFH		; Load with ff
+	RET
+;
+;  Modem 1 Input
+;	Function:  To return a byte in the A Reg from Modem 1
+;	Input Parameters:  None
+;	Output Parameters:  A=byte (MSB NOT cleared)
+;
+SM1$IN:
+	CALL	M1$ISTAT	; Get status
+	JP	Z,M1$IN		; Continue until data available
+	IN	A,(M1$DATA)	; Get char
+	RET
+;
+;  Modem 1 Output
+;	Function:  To output the byte in the A Reg to Modem 1
+;	Input Parameters:  A=byte
+;	Output Parameters:  None
+;
+SM1$OUT:
+	PUSH	AF		; Save byte
+M1OLOOP:
+	CALL	M1$OSTAT	; Check output status
+	JP	Z,M1OLOOP	; Wait until empty
+	POP	AF		; Get byte
+	OUT	(M1$DATA),A	; Output it
+	RET
+;
+;  Modem 1 Break
+;	Function:  To return the status of the break function for Modem 1
+;		and to execute the break if function is available
+;	Input Parameters:  A=0 to return status, A=0FFH to break
+;	Output Parameters:  A=0 and Zero Flag Set if Break not supported
+;
+SM1$BREAK:
+	XOR	A		; Not implemented
+	RET
+;
+;  Modem 1 Carrier Status Detect
+;	Function:  Determine if carrier is present
+;	Input Parameters:  None
+;	Output Parameters:  A=0 if no carrier, A=0FFH if carrier
+;
+SM1$CST:
+	LD	A,RES		; Reset external/status
+	OUT	(M1$STAT),A
+	IN	A,(M1$STAT)	; Get new status
+	AND	DCD		; Check data carrier
+	RET	Z		; No carrier, else..
+	OR	0FFH		; Set af
+	RET
+
+	DB	'End of Oneac serial port drivers'
+
+	END
+

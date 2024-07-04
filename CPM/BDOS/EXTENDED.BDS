@@ -1,0 +1,114 @@
+; From Dr. Dobb's Journal, Number 73, November 1982, pp. 6
+
+; A letter from Oscar Goldman, extracted from
+; CP/M EXCHANGE by Gene Head 
+
+; Dear Gene,
+;    This scheme is based on intercepting calls to the BDOS.  The
+; only visible entry point into the BDOS is the jump instruction
+; at the absolute memory address of 5.  WHile it might seem a
+; simple matter to change the address at 6 and 7 in order to
+; effect the interception, many applications programs (e.g., DDT)
+; determine memory size from the information contained there.
+; Therefore, it would seem prudent to leave the content of 6 and
+; 7 alone.  Fortunately, for our purpose, the instruction jumped
+; to from 5 is also a jump instruction.  This observation is the
+; key to the interception process.
+;    Here is an outline of the modifications to be made in the
+; BIOS.  (If necessary, change the identifiers to avoid
+; duplication.)
+;    Add the following two equates:
+
+; MAXFUN	EQU	49	; Last of the standard BDOS function numbers
+; EXTRA	EQU	?	; Replace the "?" with the actual number
+			; of new BDOS calls.  The new function
+			; numbers will start from 50.
+
+; Toward the end of the warm boot, there is a routine called
+; "gocpm".  (This name is used by Digital Research in the listing
+; of the skeletal CBIOS.)  Somewhere in there will be found the
+; two lines:
+
+;	LXI	H,BDOS
+;	SHLD	6
+
+; Immediately after these, insert the following 4 lines:
+
+; 	LHLD	BDOS+1
+;	SHLD	NORMAL+1
+;	LXI	H,DIVERT
+;	SHLD	BDOS+1
+
+; and finish with the rest of "gocpm".
+;     At a convenient point in the BIOS, add the following:
+
+NORMAL:	EQU	JMP	0	; The 0 will be replaced during
+				; the warm boot.
+DIVERT:
+	; This point is reached with the function number in C
+	; and the BDOS call information in DE.
+	MVI	A,MAXFUN
+	CMP	C		; Is it an old or new call?
+	JNC	NORMAL		; Old ones are diverted to NORMAL.
+	ADI	EXTRA
+	CMP	C		; Are we exceeding the number of
+				; allowed calls?
+	JNC	OKAY		; Continue if not.
+	LXI	H,0		; Protocol requires these registers
+				; to be zeroed for out-of-range calls.
+	RET
+;
+OKAY:
+	; Here we handle the new functions
+	LXI	H,0		; HL is lost.
+	DAD	SP
+	SHLD	SAVSTK		; Save the stack pointer for later return,
+	LXI	SP,SAVSTK	; and set up a local stack.
+	XCHG
+	SHLD	NTRPAR		; Save the entry parameters.
+	LXI	D,FIN
+	PUSH	D		; A place to return to when done.
+	MOV	A,c
+	SBI	MAXFUN+1	; Start counting from 0.
+	ADD	A		; Double it
+	MOV	E,A
+	MVI	D,0
+	LXI	D,TABLE
+	DAD	D		; HL points to the revelent table entry.
+	MOV	E,M		; Get the address
+	INX	H		; contained there,
+	MOV	D,M		; and move it
+	XCHG			; into HL.
+	PCHL			; Go do it.
+;
+FIN:
+	; Return to here when done.
+	LHLD	SAVSTK
+	SPHL			; Restore old stack pointer.
+	LHLD	XITPAR		; Get the result of the routine.
+	MOV	A,L
+	MOV	B,H		; As per CP/M protocol.
+	RET			; All done.
+;
+TABLE:
+	; Jump table for the various new BDOS calls.
+	; There should be one entry for each of "EXTRA" items.
+NEW0:	DW	DONEW0
+NEW1:	DW	DONEW1
+	...
+	...
+;
+NITPAR:	DS	2		; Save the entry value of DE.
+XITPAR:	DS	2		; Save the result of the BDOS call.
+	DS	40		; Ample local stack -
+				; change this if necessary.
+SAVSTK:	DS	2		; Save the stack pointer on entry.
+;
+; Each of the following routines must end with a RET instruction.
+; If the routine returns a value, then it should be stored in XITPAR.
+;
+DONEW0:				; Actual routine #0.
+
+DONEW1:				; Actual routine #1.
+
+	etc.

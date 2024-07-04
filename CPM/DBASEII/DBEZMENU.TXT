@@ -1,0 +1,71 @@
+.RR---------------------------------------------------R
+.op
+.mt3
+.mb4
+..
+..<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+..<<<<<<<<<       CP/M Athens Newsletter     >>>>>>>>>>
+..<<<<<<<<<     Vol 2, No 8, August 1985     >>>>>>>>>>
+..<<<<<<<<< P.O. Box 2121, Athens, GA  30612 >>>>>>>>>>
+..<<<<<<<<<  Pat Boyle @ Phone 404-549-9586  >>>>>>>>>>
+..<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                  MAKING DBASE MENUS
+                     By Pat Boyle
+
+Many  methods of menu design for dBASE employ heavy use
+of  @ row,col SAY/GET which require that you  know  the
+coordinates  of  the desired rows and columns  for  the
+text that you want printed on the screen. Since working
+with  raw  screen  coordinates can  get  tedious,  I've
+developed  a  method  of MENU design  using  the  dBASE
+commands  'TEXT/ENDTEXT.' Some of the advantages of  my
+method  (my  apologies  to others  who  have  developed
+similar methods) are:
+
+1 - 'What  you  see' in your editor 'is what  you  get'
+    when you execute your command file in dBASE.
+2 - You  need  to  determine  only one set  of  row,col
+    coordinates (the GET in the choice DO WHILE loop)
+    simplified if you use an editor such as WordStar.
+3 - Menu  editing is simplified since only one  set  of
+    coordinates needs adjusting when changes are made.
+4 - This  method  when used with the substring  logical
+    operator  ($) prevents continuous rewriting of  the
+    menu  to  the screen when incorrect  or  non active
+    choices are made by the operator.
+
+The  following  is  a  simple  dBASE  II  command  file
+demonstrating this technique of menu generation.
+
+SET TALK OFF
+STORE T TO menurepeat
+DO WHILE menurepeat
+  ERASE
+  TEXT
+    ========== Example Menu For dBASE II ==========
+                     Q - QUIT
+                     1 - OPTION 1
+    ===============================================
+                 Enter Your Choice -->
+    ===============================================
+  ENDTEXT
+
+  STORE " " TO choice
+  DO WHILE .NOT. choice$('Q1')
+     STORE " " TO choice
+     @ 5,39 GET choice PICTURE "!"
+     READ
+  ENDDO choice
+
+  DO CASE
+     CASE choice = 'Q'
+          STORE F TO menurepeat
+     CASE choice = '1'
+          ERASE
+          ? 'Command such as DO OPTION1 might go here'
+          WAIT
+          STORE T TO menurepeat
+  ENDCASE
+ENDDO menurepeat
+SET TALK ON
+

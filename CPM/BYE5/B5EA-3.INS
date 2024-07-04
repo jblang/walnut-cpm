@@ -1,0 +1,203 @@
+; B5EA-3.INS  -  Eagle IIE Series insert for BYE5  -  02/15/86
+;
+;		   Z80 SIO and CTC 8340 timer
+;
+; Note:  This is an insert, not an overlay.
+;
+; This version is for the Eagle IIE Series computers using channel 'A'
+; Z80 SIO.  The Z80-CTC is used as the baud rate generator.
+;
+;
+; NOTE:  The Eagle does not support DTR on pin 20 or DCD on pin 8, so
+;	 be sure you wire the modem cable like this:
+;
+;		      modem	Eagle
+;
+;		   TXD	 2  -->  2  RXD
+;		   RXD	 3  <--  3  TXD
+;		   GND	 7  ---  7  GND
+;		   DCD	 8  -->  5  CTS
+;		   DTR	20  <--  4  RTS
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 02/15/86  Added additional code to poke Baud Rate values to High Memory
+;    v3     as the Eagle IIE warm boot routine always looks for a value
+;	    in memory and re-initializes the port with these values.
+;	    Set the value of HIMEM to your machine.  The three vaules I
+;	    have encountered are:
+;
+;		0DE3AH for bundled hard disk operating system (IIE/IV)
+;		0E23AH for Xebec operating system (File 10 added to
+;		       floppy system)
+;		0EA3AH for floppy-only system  (IIE/II)
+;
+;	    Also corrected error in the RS-232C Pin-out information for
+;	    the Eagle IIE which uses a non-standard convention on the
+;	    serial ports.  Pins 2/3 are are reversed from the norm.
+;					- Ken Kosakowski
+;
+; 12/01/85  Fixed the LOADBD routine to output correctly, thanks to
+;    v2     Dennis Recla		- Irv Hoff
+;
+; 07/17/85  Written for use with BYE5	- Irv Hoff
+;    v1
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;-----------------------------------------------------------------------
+;
+; Note: For Port A, Data = 18H, CTC = 01H, Port B, Data = 1AH, CTC = 02H
+;
+PORT	EQU	18H		; Data port
+MDCTL1	EQU	PORT+1		; Status/control port
+BRPORT	EQU	01H		; Baud rate port
+HIMEM	EQU	0E23AH		; Location that the warm boot routine
+				; Peeks to re-initialize baudrate on
+				; Warm boot
+;
+BD300	EQU	47D0H		; 62400/300  (first half is CTC command)
+BD1200	EQU	4734H		; 62400/1200
+BD2400	EQU	471AH		; 62400/2400
+;
+MBD300	EQU	0734H		; 124800/300  (first half is CTC command)
+MBD1200	EQU	4768H		; 124800/1200
+MBD2400	EQU	4734H		; 124800/2400
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	20H		; Check for data carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,84H		; *1 stop, 8 bits, no parity, 32x
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear RTS causing hangup
+	OUT	MDCTL1
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 seconds delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; Initialize receive register
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; Turn on RTS so modem can answer phone
+	OUT	MDCTL1
+;
+	 IF	IMODEM		; If using intelligent modem
+	CALL	IMINIT		; Go initialize
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	01H		; Check receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the proper flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1
+	ANI	04H		; Check transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear RTS causing shutdown
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET			; Return
+;.....
+;
+;
+SET300:	LXI	D,BD300		; Get 300 bps parameters in 'HL' for CTC
+	LXI	H,MBD300	; Now get the parameters for high memory
+	JMP	LOADBD		; Poke them into memory
+;
+SET1200:LXI	D,BD1200
+	LXI	H,MBD1200
+	JMP	LOADBD
+;
+SET2400:LXI	D,BD2400
+	LHLD	MBD2400
+;
+LOADBD:	MOV	A,D		; CTC command word
+	OUT	BRPORT
+	MOV	A,E		; Baudrate
+	OUT	BRPORT
+;
+;
+; Poke the Eagle CTC code to High Memory
+;
+	MOV	A,H		; CTC command word
+	STA	HIMEM		; Warm boot looks hear for port speed
+	MOV	A,L		; Baudrate
+	STA	HIMEM+1
+	XRA	A		; Show change was satisfactory
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

@@ -1,0 +1,1881 @@
+4. S T E P S   3 - 6 :   I N S T A L L A T I O N 
+
+
+
+4.1. Step 3: Modifying the BIOS Cold Boot Routine
+
+     Thå  followinç  ió á reformatteä anä editeä copù oæ mù  BIOÓ 
+(Basiã Input/Outpuô System© anä thå headeò filå useä tï customizå 
+it®   Thió informatioî ió provideä aó aî examplå oæ ho÷ tï modifù 
+thå  Colä Booô routinå (labelleä 'cboot§ iî thió example©  foò  á 
+fulì  installatioî oæ ZCPR3®   Onlù thå pertinenô informatioî  ió 
+included.
+
+
+4.1.1. CBIOSHDR.LIB -- BIOS Configuration File
+
+
+*****************************************************************
+*								*
+*  Control Processor/Microcomputer Basic I/O System		*
+*	CP/ZM CBIOSZ Standard with CON:=CRT:			*
+*								*
+*	Customized for the ARIES-1 Microcomputer by		*
+*		Richard Conn, 5 Jan 1984			*
+*								*
+*****************************************************************
+
+*****************************************************************
+*								*
+* The following revision number is in reference to the DR 	*
+* 2.8 CBIOS&.							*
+*								*
+*****************************************************************
+
+revnum	equ	cbrev		;CBIOSZ revision number
+cpmrev	equ	z3rev		;ZCPR3 revision number
+
+     Thå  valueó  'cbrev§ waó provideä bù thå  BIOÓ  source¬  anä 
+'z3rev' came from Z3HDR.LIB.
+
+
+<< Detail Left Out >>
+
+.paŠ
+cbdisk	equ	0F0H		;Initial Disk to Log In, 0=A, 1=B
+				;User 15, Disk A
+
+*****************************************************************
+*								*
+* CP/M system equates. If reconfiguration of the CP/M system	*
+* is being done, the changes can be made to the following	*
+* equates.							*
+*								*
+*****************************************************************
+
+bdos	equ	ccp+800h	;BDOS address
+bios	equ	ccp+1600h	;CBIOS address
+
+wbot	equ	0		;Warm boot jump address
+iobyte	equ	3		;IOBYTE location
+cdisk	equ	4		;Address of last logged disk
+entry	equ	5		;BDOS entry jump address
+buff	equ	80h		;Default buffer address
+tpa	equ	100h		;Transient memory
+
+retries	equ	10		;Max retries on disk I/O before error
+
+<< Detail Left Out >>
+
+*****************************************************************
+*								*
+*	Under the new redirectable I/O driver system, the I/O	*
+* byte can be anything you desire.  I have set it up as follows:*
+*								*
+*		-------------------------------			*
+*	IOBYTE	| LST:  | PUN: | RDR: | CON:  |			*
+*		-------------------------------			*
+*	 bits ->  7 6 5    4      3     2 1 0			*
+*								*
+*	The initial IOBYTE is currently defined as:		*
+*		Bits 0-2: CON					*
+*		Bit 3: RDR					*
+*		Bit 4: PUN					*
+*		Bits 5-7: LST					*
+*								*
+*		CON: = CRT: CRT					*
+*		RDR: = CLOCK: System Clock			*
+*		PUN: = CLOCK: System Clock			*
+*		LST: = TTY: Printer				*
+*								*
+*****************************************************************
+
+intioby	equ	000$1$1$001B	; Initial IOBYTE
+
+     Thió   I/Ï  Bytå  coulä  alsï  bå  initializeä  withiî   thå 
+initializatioî  sequencå iî thå Input/Outpuô  Package®   Wheneveò 
+LDR.COM loads an I/O Package, it calls an initialization routine.
+Š
+*****************************************************************
+*								*
+* If there is a command inserted here, it will be given on cold	*
+* boot.								*
+*	For Example:						*
+*								*
+*	coldbeg	db	'MBASIC MYPROG'				*
+*	coldend	db	0					*
+*								*
+* will execute microsoft basic, and mbasic will execute the	*
+* "MYPROG" basic program.					*
+*								*
+*****************************************************************
+
+acmd	macro			;Define as Macro for Code Insertion
+coldbeg:
+	db	'STARTUP'	;Cold boot command goes here
+coldend:
+	db	0
+	endm
+
+     Bù  ZCPR³ convention¬  STARTUĞ ió á prograí createä witè thå 
+ALIAÓ utility®   Aî Aliaó ió á prograí createä bù thå ZCPR³ ALIAÓ 
+utilitù  whicè generateó commanä lineó anä placeó theí  intï  thå 
+Commanä Linå Buffeò oæ thå ZCPR³ System®  Theså commanä lineó caî 
+bå quitå involved¬  includinç IF/ELSÅ constructs¬  anä parameteró 
+maù  bå  passeä  intï theí aô strategiã pointó  bù  aî  elaboratå 
+parameteò passinç mechanism®  Seå thå documentatioî (HLĞ file© oî 
+thå ALIAÓ commanä foò morå details®   Thå STARTUĞ Aliaó typicallù 
+doeó  noô  extracô informatioî froí thå commanä linå  anä  simplù 
+generateó  á  sequencå  oæ commandó whicè  initializå  thå  ZCPR³ 
+Systeí  bù  runninç  LDÒ  oî á varietù  oæ  Systeí  Segmentó  anä 
+performinç otheò sucè operations.
+
+
+*****************************************************************
+*								*
+*  Path to be Set for ZCPR2 on Cold Boot			*
+*								*
+*****************************************************************
+
+idisk1	equ	'A'-'@'	;1st: Disk A, Current User
+iuser1	equ	'$'
+idisk2	equ	'A'-'@'	;2nd: Disk A, User 15
+iuser2	equ	15
+idisk3	equ	0	;No 3rd Entry
+iuser3	equ	0
+idisk4	equ	0	;No 4th Entry
+iuser4	equ	0
+
+<< Detail on I/O Devices Left Out >>
+
+.paŠ
+4.1.2. CBIOSZ -- Selections from a ZCPR3 BIOS
+
+
+*  SYSTEM SEGMENT:  CBIOSZ
+*  SYSTEM:  ARIES-1
+*  CUSTOMIZED BY:  RICHARD CONN
+
+*---- Customize Section ----*
+*  Customization Performed in CBIOSHDR.LIB
+*---- End of Customize Section ----*
+
+*****************************************************************
+*								*
+*  Control Processor/Microcomputer Basic I/O System		*
+*	CP/ZM BIOSZ Standard with CON:=CRT:			*
+*	CHBIOSZ Body						*
+*								*
+*	Customized for the ARIES-1 Microcomputer with Hard Disk	*
+*		by Richard Conn, Feb 2, 1984			*
+*								*
+*****************************************************************
+
+;
+;  Macro Libraries for Customization
+;
+	MACLIB	Z3BASE
+	MACLIB	CBIOSHDR
+
+<< Detail Left Out >>
+
+*****************************************************************
+*								*
+* The following are internal Cbios equates. Most are misc. 	*
+* constants.							*
+*								*
+*****************************************************************
+
+acr	equ	0dh		;A carriage return
+alf	equ	0ah		;A line feed
+XON	equ	11h		;X-ON
+XOFF	equ	13h		;X-OFF
+
+
+.paŠ
+*****************************************************************
+*								*
+* The jump table below must remain in the same order, the 	*
+* routines may be changed, but the function executed must be	*
+* the same.							*
+*								*
+*****************************************************************
+
+	org	bios		;CBIOS starting address
+
+	jmp	cboot		;Cold boot entry point
+wboote:
+	jmp	wboot		;Warm boot entry point
+;
+	jmp	const		;Console status routine
+	jmp	fconin		;Console input
+cout:
+	jmp	fconout		;Console output
+	jmp	list		;List device output
+	jmp	punch		;Punch device output
+	jmp	reader		;Reader device input
+;
+	jmp	home		;Home drive
+	jmp	setdrv		;Select disk
+	jmp	settrk		;Set track
+	jmp	setsec		;Set sector
+	jmp	setdma		;Set DMA address
+	jmp	read		;Read the disk
+	jmp	write		;Write the disk
+;
+	jmp	listst		;List device status
+;
+	jmp	sectran		;Sector translation
+;
+	jmp	newio		;Redirect I/O Drivers
+
+     Mù  JMĞ tablå ió extendeä slightly®   NEWIÏ ió foò á  systeí 
+not described here.
+
+*****************************************************************
+*								*
+*  These are the console I/O routines with buffer flush.	*
+*								*
+*****************************************************************
+
+fconin:
+	call	flush		;Flush Buffer
+	jmp	conin
+
+fconout:
+	push	b		;Save char
+	call	flush		;Flush Buffer
+	pop	b		;Get char
+	jmp	conoutŠ
+*****************************************************************
+*								*
+* Gocpm is the entry point from cold boots, and warm boots. It	*
+* initializes some of the locations in page 0, and sets up the	*
+* initial DMA address (80h).					*
+*								*
+*****************************************************************
+
+gocpm:
+	call	const		;Check for Input Char
+	ora	a		;NZ means char there
+	cnz	conin		;Flush it if so
+;
+	lxi	h,buff		;Set up initial DMA address
+	call	setdma
+;
+	mvi	a,(jmp)		;Initialize jump to warm boot
+	sta	wbot
+	sta	entry		;Initialize jump to BDOS
+;
+	lxi	h,wboote	;Address in warm boot jump
+	shld	wbot+1
+;
+	lxi	h,bdos+6	;Address in BDOS jump
+	shld	entry+1
+;
+	xra	a		;A = 0
+	sta	bufsec		;Disk Jockey buffer empty
+	sta	bufwrtn		;Set buffer not dirty flag
+;
+	lda	cdisk		;Jump to CP/M with currently
+                                   ;selected disk in C
+	mov	c,a
+
+     Thió GOCPÍ sectioî ió more-or-lesó standard®   Thå followinç 
+sectioî  oæ GOCPÍ dealó witè initializinç thå Commanä Linå Buffeò 
+on Cold Boot (or Warm Boot).
+
+.paŠ
+;
+;  This code loads an optional command line on COLD BOOT only
+;
+	lda	cwflg		;Test for any loaded command
+	ora	a
+	jnz	ccp+3		;Enter ZCPR3 without command if Warm Boot
+	lxi	d,coldbeg	;Beginning of initial command
+cldcmnd:
+;
+	if	z3cl ne 0	;Multiple Commands Allowed?
+;
+	lxi	h,z3cl+4	;Multiple Command buffer
+;
+	else
+;
+	lxi	h,ccp+8		;Command buffer
+;
+	endif
+;
+cld1:
+	ldax	d		;Get char
+	mov	m,a		;Put char
+	inx	h		;Pt to next
+	inx	d
+	ora	a		;Done?
+	jrnz	cld1
+	jmp	ccp		;Run with Command
+
+cwflg:
+	db	0		;Cold/warm boot flag
+
+*****************************************************************
+*								*
+* If there is a command inserted here, it will be given if the	*
+* auto feature is enabled.					*
+*	For Example:						*
+*								*
+*	coldbeg	db	'MBASIC MYPROG'				*
+*	coldend	db	0					*
+*								*
+* will execute microsoft basic, and mbasic will execute the	*
+* "MYPROG" basic program.					*
+*								*
+*****************************************************************
+
+	acmd	;Perform Macro from CBIOSHDR.LIB
+
+.paŠ
+*****************************************************************
+*								*
+* Signon message output during cold boot.			*
+*								*
+*****************************************************************
+
+prompt:
+	db	acr,alf
+	db	'0'+msize/10		;CP/ZM memory size
+	db	'0'+(msize mod 10)
+	db	'K TPA ZCPR V'		;ZCPR version number
+	db	z3rev/10+'0','.',(z3rev mod 10)+'0'
+	db	', CBIOSZ V'		;CBIOSZ version number
+	db	cbrev/10+'0','.',(cbrev mod 10)+'0'
+
+	if	first	;if hard disk is A
+	db	'H'	;say this is a hard disk version
+	else
+	db	'F'	;say this is a floppy version
+	endif
+
+	db	acr,alf
+	db	0
+
+*****************************************************************
+*								*
+* Path for ZCPR 3.x initialized during cold boot.		*
+*								*
+*****************************************************************
+path:
+	db	idisk1,iuser1	;First Disk and User
+	db	idisk2,iuser2	;2nd Disk and User
+	db	idisk3,iuser3	;3rd Disk and User
+	db	idisk4,iuser4	;4th Disk and User
+
+	db	0		;End of PATH
+
+     This path is defined in CBIOSHDR.LIB.
+
+.paŠ
+*****************************************************************
+*								*
+* Utility routine to output the message pointed at by H&L,	*
+* terminated with a null.					*
+*								*
+*****************************************************************
+
+message:
+	mov	a,m		;Get a character of the message
+	inx	h		;Bump text pointer
+	ana	a		;Test for end
+	rz			;Return if done
+	push	h		;Save pointer to text
+	mov	c,a		;Output character in C
+	call	cout		;Output the character
+	pop	h		;Restore the pointer
+	jr	message		;Continue until null reached
+
+
+*****************************************************************
+*								*
+* Cboot is the cold boot loader. All of CP/M has been loaded in	*
+* when control is passed here.					*
+*								*
+*****************************************************************
+
+cboot:
+	lxi	sp,tpa		;Set up stack
+
+
+     Thå followinç codå segmenô copieó thå defaulô command-searcè 
+patè  intï  thå Externaì Patè buffer®   Sincå thå  ZCPR³  Commanä 
+Processoò  useó thió buffeò thå firsô timå iô searcheó foò á  COÍ 
+file¬  iô ió recommendeä thaô thió initializatioî alwayó bå  donå 
+iî  thå Colä Booô routinå oæ thå BIOS®   Therå arå somå  isolateä 
+caseó wherå thió ió noô required¬  buô theù wilì noô bå discusseä 
+here.
+
+	if	expath ne 0	;External Paths Supported
+	lxi	d,path		;Copy Cold-Boot Path
+	lxi	h,expath	;Into System External Path Area
+	mvi	b,9		;Always 9 bytes
+	call	movlop
+	endif
+
+
+     Thå  followinç  codå segmenô initializeó thå Wheeì  Bytå  tï 
+non-privelegeä  status®   Thió  initializatioî maù bå donå  bù  á 
+program executed by STARTUP if desired.
+
+	if	z3whl ne 0	;Wheel Byte Supported
+	xra	a		;Clear Wheel Byte
+	sta	z3whl
+	endifŠ
+     Thå  followinç codå segmenô initializeó thå Residenô Commanä 
+Packagå  buffeò tï zero®   12¸ byteó ió largeò thaî  needed¬  buô 
+ratheò thaî specifù thå exacô sizå foò eacè package¬ thió anä thå 
+followinç  initializationó savå codå spacå iî thå BIOÓ anä  don'ô 
+wastå  á  significanô amounô oæ time®   Sincå thå  ZCPR³  Commanä 
+Processoò  useó  thå  RCĞ  beforå anù  COÍ  fileó  arå  executed¬ 
+initializatioî  oæ thå RCĞ buffeò ió requireä tï bå performeä  iî 
+the BIOS Cold Boot routine.
+
+	if	rcp ne 0	;RCPs Supported
+	lxi	h,rcp		;RCP Address (zero fill)
+	call	zero128		;128 bytes
+	endif
+
+
+     Thå  followinç codå segmenô initializeó thå I/Ï Packagå witè 
+driveró whicè arå containeä withiî thå BIOS®  Later¬ wheî STARTUĞ 
+executes¬  LDÒ wilì probablù loaä á propeò I/Ï Packagå oveò theså 
+drivers®   Sincå  I/Ï ió useä immediatelù afteò Colä  Boot¬  thió 
+initializatioî musô bå performeä iî thå Colä Booô routine.
+
+	if	iop ne 0	;IOPs Supported
+	lxi	d,iodrivers	;Set up I/O Drivers
+	lxi	h,iop		;Location for drivers
+	call	mover		;Copy an arbitrary 128 bytes
+	else
+	call	lstinit		;Init Simple LST Device
+	call	clkinit		;Init Clock
+	endif
+
+
+     Thå  followinç  codå  segmenô initializeó thå  Flo÷  Commanä 
+Package®   Likå thå RCP¬  thå FCĞ musô bå initializeä durinç Colä 
+Boot.
+
+	if	fcp ne 0	;FCPs Supported
+	lxi	h,fcp		;FCP Address (zero fill)
+	call	zero128		;128 bytes
+	endif
+
+
+     Thå followinç codå segmenô initializeó thå ZCPR³ Environmenô 
+Descriptor®   Sincå thå firsô utilitù executeä ió usuallù STARTUĞ 
+(whicè  ió  aî  Alias)¬   thå  Environmenô  Descriptoò  musô   bå 
+initialized during Cold Boot.
+
+	if	z3env ne 0	;ENVs Supported
+	lxi	h,z3env		;ENV Address (zero fill)
+	mvi	b,128+16	;128 bytes of environ + 16 bytes
+	call	zerom              ;of TCAP
+	endif
+
+.paŠ
+     Thå  followinç  codå segmenô clearó thå  Shelì  Stack®   Thå 
+ZCPR³  Commanä  Processoò querieó thió buffeò almosô  immediatelù 
+afteò Colä Boot¬  sï thió initializatioî musô bå performeä durinç 
+Cold Boot.
+
+	if	shstk ne 0	;Shell Stack Supported
+	xra	a		;Clear Stack
+	sta	shstk
+	endif
+
+     Thå  followinç initializatioî musô alsï bå performeä  durinç 
+Colä  Booô  sincå  thå  ZCPR³  Commanä  Processoò  useó  messageó 
+extensively if this feature is enabled.
+
+	if	z3msg ne 0	;ZCPR3 Messages Supported
+	lxi	h,z3msg		;Clear Message Bytes
+	mvi	b,80		;80 bytes
+	call	zerom
+	endif
+
+
+     Thå  followinç  initializatioî ió noô requireä  durinç  Colä 
+Booô  iæ thå analysió oæ thå DÕ forí ió performeä beforå thå  DIÒ 
+forí bù thå ZCPR³ Commanä Processor¬  buô thå installeò ió takinç 
+á  risë thaô alì wilì bå welì untiì LDÒ loadó thå Nameä Directorù 
+buffeò iæ hå doeó noô perforí thå followinç initializatioî durinç 
+Colä Boot.
+
+	if	z3ndir ne 0	;Named Directory Based in Memory
+	lxi	h,z3ndir	;Named Directory Base
+	call	zero128		;128 bytes
+	endif
+
+
+     Thå  followinç initializatioî oæ thå Commanä Linå buffeò  ió 
+absolutelù requireä durinç Colä Boot®   Onlù iæ thå Commanä  Linå 
+buffeò  ió NOÔ externaì ió thió initializatioî  unnecessary¬  buô 
+theî  á  significanô amounô oæ thå poweò oæ thå ZCPR³  Systeí  ió 
+lost by having an internal Command Line buffer.
+
+	if	z3cl ne 0	;Multiple Commands Allowed
+	lxi	d,cmdset	;Set buffers for Multiple Command
+	lxi	h,z3cl		;Command Line Base
+	call	mover		;Copy an arbitrary 128 bytes
+	endif
+
+     Aó mentioneä previously¬ thå followinç initializatioî ió noô 
+requireä anä maù bå performeä bù thå I/Ï Packagå loadeä bù LDR.
+
+	if	iop ne 0
+	mvi	a,intioby	;Initialize the I/O Byte
+	sta	iobyte
+	endif
+Š
+     The following completes the Cold Boot initializations.
+
+	lxi	h,prompt	;Prep for sending signon message
+	call	message		;Send the prompt
+	mvi	a,cbdisk	;Select basic disk
+	sta	cpmdrv
+	sta	cdisk
+
+<< Detail Left Out >>
+
+        jmp     gocpm
+
+
+
+*****************************************************************
+*								*
+* Mover moves 128 bytes of data. Source pointer in DE, Dest	*
+* pointer in HL.						*
+*								*
+*****************************************************************
+
+mover:
+	mvi	b,128		;Length of transfer
+movlop:
+	ldax	d		;Get a byte of source
+	mov	m,a		;Move it
+	inx	d		;Bump pointers
+	inx	h
+	djnz	movlop		;Continue moving until done
+	ret
+
+zerofl	set	(rcp ne 0)or(fcp ne 0)or(z3env ne 0)or(z3msg ne 0)
+zerofl	set	zerofl or (z3ndir ne 0)
+	if	zerofl
+;
+; Zero 128 bytes of memory pted to by HL
+;
+zero128:
+	mvi	b,128		;128 bytes
+;
+; Zero memory for B bytes; memory pted to by HL
+;
+zerom:
+	mvi	m,0		;store zero
+	inx	h
+	djnz	zerom
+	ret
+	endif
+
+.paŠ
+;
+; Selection of LST: Device
+;	If IOP is not supported, provide for one simple LST device;
+; else, set LST device equal to console for later redefinition by
+; loading an I/O Package via LDR
+;
+	if	iop ne 0
+;
+lstout	equ	djcout		;same as console for now
+punout	equ	djcout		;same as console for now
+rdrin	equ	djcin		;same as console for now
+;
+	else
+;
+;  Initialize MPU Serial I/O Channel Characteristics and Baud Rate
+;
+lstinit:
+
+<< Detail Left Out >>
+
+;
+	endif		;IOP ne 0
+;
+
+.paŠ
+*****************************************************************
+*								*
+* Primitive I/O Drivers which are loaded at Cold Boot time.	*
+*								*
+*****************************************************************
+uart	equ	origin+3F9H	;UART address
+rda	equ	4		;UART RDA Bit
+iodrivers:
+;
+	if	iop ne 0
+;
+	jr	ioerror		;no Status Routine
+	db	0		;Fill 3 bytes
+	jr	ioerror		;no Select Routine
+	db	0		;Fill 3 bytes
+	jr	ioerror		;no Namer Routine
+	db	0		;Fill 3 bytes
+;
+	endif		;iop ne 0
+;
+	ret			;Initialize Terminal
+	db	0,0		;Fill 3 bytes
+	jr	ustat		;Console Input Status
+	db	0		;Fill 3 bytes
+	jmp	djcin		;Console Input Char
+	jmp	djcout		;Console Output Char
+
+	jmp	lstout		;List Output Char
+
+	jmp	punout		;Punch Output Char
+
+	jmp	rdrin		;Reader Input Char
+
+
+Note:
+     Thå  abovå routineó arå locateä somewherå withiî  thå  BIOS®  
+Theù  arå  verù  smalì  anä simplå iî nature¬  anä  theù  dï  noô 
+implemenô  thå I/Ï Byte®   Thió ió lefô foò thå redirectablå  I/Ï 
+package which will be loaded later.
+
+
+	mvi	a,0ffh		;List Status Ready
+	ora	a		;Set Flags
+
+	ret			;New I/O Driver Installation Routine
+
+ioerror:
+	xra	a		;No device assignments
+	ret
+
+
+.paŠ
+*****************************************************************
+*								*
+*  The following equates define the various Redirectable I/O	*
+*  routines in the SYSTEM I/O Area.				*
+*								*
+*****************************************************************
+
+;
+	if	iop ne 0
+riobase	equ	iop+9		;Relative I/O Base (less support)
+	else
+riobase	equ	iodrivers	;Simple I/O Drivers
+	endif		;iop ne 0
+;
+tinit	equ	riobase		;Terminal Init
+const	equ	riobase+3	;Console Input Status
+conin	equ	riobase+6	;Console Input
+conout	equ	riobase+9	;Console Output
+list	equ	riobase+12	;List Output
+punch	equ	riobase+15	;Punch Output
+reader	equ	riobase+18	;Reader Input
+listst	equ	riobase+21	;List Output Status
+newio	equ	riobase+24	;Redirectable I/O Patcher
+
+*****************************************************************
+*								*
+* Initial Values for the External Command Line Buffers		*
+*    and Named Directory Memory-Based Buffers			*
+*								*
+*****************************************************************
+	if	z3cl ne 0
+cmdset:
+	dw	z3cl+4		;Beginning of I/O Buffer
+	db	z3cls		;Size of I/O Buffer
+	db	0		;Empty Buffer
+	db	0		;Empty Buffer
+	endif
+
+*****************************************************************
+*								*
+* Wboot loads in all of CP/M except the CBIOS, then initializes	*
+* system parameters as in cold boot. See the Cold Boot Loader	*
+* listing for exactly what happens during warm and cold boots.	*
+*								*
+*****************************************************************
+
+wboot:
+
+<< Detail Left Out >>
+
+.paŠ
+4.2. Step 4: Editing Z3HDR.LIB
+
+     Thå followinç ió á reformatteä duplicatå oæ thå bodù oæ  thå 
+Z3HDR.LIÂ  file®   Iô  ió  provideä herå  tï  presenô  additionaì 
+informatioî  oî ho÷ tï seô thå equates®   Iô maù bå usefuì tï thå 
+installeò  tï havå thió installatioî manuaì opeî tï  theså  pageó 
+whilå hå ió editinç thå Z3HDR.LIÂ file.
+
+     The following is the Banner for Z3HDR.LIB:
+
+Z3HDR - Maximum Configuration
+Offset:  5100H
+
+     Thió  offseô ió á notå tï thå installer®   Iô indicateó  thå 
+valuå tï adä tï thå Ò commanä oæ DDÔ iî ordeò tï properlù reaä iî 
+thå  HEØ  filå oæ thå ZCPR³ Commanä Processoò intï thå  Operatinç 
+System memory image.
+
+
+Module:  Z3HDR
+Author:  Richard Conn
+Module Used By:  ZCPR3 Version 3.x
+
+Noteº   Z3HDÒ  containó thå keù customizatioî equateó foò  ZCPR3®  
+Theså  equateó allo÷ thå useò tï selecô variouó ZCPR³ optionó anä 
+dï  aî  extensivå  amounô oæ tailorinç oæ  ZCPR³  tï  thå  user'ó 
+desires.
+
+
+4.2.1. Basic System Definitions
+
+     Thå  followinç equateó maù bå useä tï customizå thió CPÒ foò 
+thå user'ó systeí anä integratioî technique.
+
+    REL - TRUE if integration is to be done via MOVCPM
+        - FALSE if integration is to be done via DDT and SYSGEN
+
+    CPRLOC - Base Page Address of CPR; this value can be obtained
+          by running the CCPLOC program on your system, and if REL
+          is FALSE, this value is supplied through the Z3BASE.LIB
+          CCP equate
+
+REL	EQU	FALSE
+	IF	REL
+CPRLOC	EQU	0
+	ELSE
+CPRLOC	EQU	CCP	;VALUE PROVIDED IN Z3BASE.LIB
+	ENDIF
+
+     CCPLOC.COÍ waó aî earlieò versioî oæ Z3LOC.COM¬ whicè ió no÷ 
+supplieä witè thå ZCPR³ distribution®  Yoõ maù uså eitheò prograí 
+tï  determinå  thå  baså  pagå  oæ  thå  CPÒ  (Commanä  Processoò 
+Replacement).
+Š     Integration by MOVCPM is not addressed here.
+
+
+4.2.2. Default File Types
+
+     Thå  followinç macroó definå thå filå typeó oæ  thå  commanä 
+objecô  fileó (COÍ fileó undeò CP/Í 2.2© tï bå loadeä wheî á non-
+residenô ZCPR³ commanä ió giveî anä oæ thå indirecô commanä fileó 
+(SUÂ  fileó undeò CP/Í 2.2© tï bå useä tï extracô  commandó  froí 
+wheî thå indirecô commanä facilitù ió invoked.
+
+COMTYP	MACRO
+	DB	'COM'
+	ENDM
+
+SUBTYP	MACRO
+	DB	'SUB'
+	ENDM
+
+     Theså equateó arå provideä tï allo÷ thå installeò tï  selecô 
+anù  filå  typå hå wisheó foò objecô anä indirecô commanä  files®  
+Thå indicateä valueó oæ 'COM§ anä 'SUB§ arå conventional.
+
+
+4.2.3. SUBMIT File Processing
+
+     Thå  followinç flaç enableó thå abilitù oæ ZCPR³ tï  procesó 
+SUBMIÔ  fileó (commanä fileó oæ thå forí $$$.SUB)®   Iæ SUBOÎ  ió 
+TRUE¬ theî ZCPR³ wilì procesó sucè fileó likå CP/M'ó CCĞ normallù 
+does»  iæ  SUBOÎ  ió  FALSE¬  ZCPR³ wilì noô procesó  sucè  fileó 
+(ignorå  them)®   Iî  sucè á case¬  onlù  indirecô  commanä  filå 
+facilitieó likå ZEØ wilì work®   Mucè codå ió saveä insidå oæ thå 
+ZCPR³ Commanä Processoò iæ SUBOÎ ió seô tï FALSE¬ buô thió ratheò 
+usefuì facilitù ió lost.
+
+SUBON	EQU	TRUE 
+
+4.2.4. Command Prefix
+
+     Thå  followinç  flaç allowó ZCPR³ tï accepô commandó oæ  thå 
+forí "du:commanä params¢ oò "dir:commanä params"®   Iæ  DRVPREFIØ 
+ió  TRUE¬  thió  forí ió accepted»  iæ FALSE¬  thió forí  ió  noô 
+accepted.
+
+DRVPREFIX	equ	TRUE 
+
+     Thió optioî alsï affectó argumentó tï commands¬ sucè aó "DIÒ 
+A5:*.TXT"¬  anä  DÕ  oò DIÒ prefixeó oî theså argumentó  arå  noô 
+processed either if DRVPREVIX is FALSE.
+
+4.2.5. Command Attributes
+
+     Thå   followinç  equatå  allowó  thå  useò  tï  selecô   thå 
+attributeó  oæ  thå COÍ fileó whicè arå selecteä  foò  execution®  
+Thå ZCPR³ Commanä Processoò caî bå madå tï executå onlù COÍ fileó Šwitè  thå Systeí attributå set¬  witè thå Directorù  (non-System© 
+attributå  set¬  oò  witè eitheò attributå  set®   Thå  followinç 
+valueó arå defineä foò thió equate:
+
+		  COMATT	Files Selected
+		    0		System
+		   80H		Directory
+		    1		Both System and Directory
+
+COMATT	equ	01H
+
+
+4.2.6. ZCPR3 Resident Command Activation and Wheels
+
+     Thå   followinç   equateó  enablå   variouó   ZCPR3-residenô 
+commands®   Thå useò maù invokå theså aó desired¬ buô shoulä keeğ 
+iî minä thå sizå oæ thå resultinç ZCPR³ anä makå surå iô doeó noô 
+exceeä thå requireä limits.
+
+DIRON	equ	FALSE	;DIR COMMAND
+LTON	equ	FALSE	;LIST, TYPE COMMANDS
+GOON	equ	TRUE 	;GO COMMAND
+ERAON	equ	FALSE	;ERA COMMAND
+SAVEON	equ	TRUE 	;SAVE COMMAND
+RENON	equ	FALSE	;REN COMMAND
+GETON	equ	TRUE 	;GET COMMAND
+JUMPON	equ	FALSE	;JUMP COMMAND
+NOTEON	equ	FALSE	;NOTE COMMAND
+
+     Mosô  oæ  theså  commandó arå availablå aó  optionó  iî  thå 
+Residenô Commanä Packages®   Iæ selecteä foò incorporatioî iî thå 
+Residenô Commanä Packageó insteaä oæ thå ZCPR³ Commanä Processor¬ 
+spacå  ió  freeä iî thå ZCPR³ CPÒ anä thå functionalitù oæ  theså 
+commandó  caî bå extendeä easilù (eg¬  ERÁ iî aî RCĞ caî havå  aî 
+Inspect option).
+
+
+.paŠ
+     Thå Wheeì equatå tablå enableó thå WHEEÌ facilitù oæ  ZCPR3®  
+Witè  thió  facility¬  á WHEEÌ BYTE¬  whicè existó  somewherå  iî 
+memory¬  ió  examineä beforå á seô oæ installer-selecteä commandó 
+arå  executed®   Iæ  thió  bytå ió noô  zero¬  theî  thå  commanä 
+proceeds®   Iæ  iô ió zero¬  theî thå commanä ió noô  alloweä  tï 
+proceeä anä ió exiteä witè aî erroò message.
+
+     Thå  followinç  seô  oæ equateó makå eacè oæ  thå  indicateä 
+commandó  selectablå tï responä tï thå Wheeì Bytå  oò  not®   Foò 
+instance¬  iæ WERA=TRUE¬  theî iô respondó tï thå Wheeì Byte»  iæ 
+WERA=FALSE¬ iô doeó not.
+
+	IF	Z3WHL NE 0	;IF A WHEEL BYTE ADDRESS IS DEFINED
+WERA	equ	FALSE	;Make ERA a Wheel-Oriented Command
+WREN	equ	FALSE	; "   REN "   "       "       "
+WLT	equ	FALSE	; "   L/T "   "       "       "  (LIST/TYPE)
+WGO	equ	FALSE	; "   GO  "   "       "       "
+WSAVE	equ	FALSE	; "   SAVE "  "       "       "
+WGET	equ	FALSE	; "   GET "   "       "       "
+WJUMP	equ	FALSE	; "   JUMP "  "       "       "
+WDU	equ	FALSE	; "   DU: "   "       "       " (DU/DIR Change)
+WHEEL	equ	WERA OR WREN OR WLT OR WGO OR WSAVE OR WGET OR WJUMP OR WDU
+	ENDIF		;Z3WHL
+
+     Thå commandó insidå oæ thå Residenô Commanä Packagå caî alsï 
+be set to respond to the Wheel Byte.
+
+
+4.2.7. ZCPR3 Resident Command Table
+
+     Thió  tablå  consistó  oæ thå nameó oæ  thå  variouó  ZCPR3-
+residenô commandó anä theiò addresses®  Thå NCHARÓ equatå defineó 
+ho÷ manù characteró lonç eacè namå maù be¬  anä alì tablå entrieó 
+musô  bå  exactlù  thå indicateä numbeò oæ  characteró  (trailinç 
+spaceó arå useä tï filì ouô shorteò names).
+
+     Each table entry is structured as follows:
+
+		DB	'CMND'	;Name of Command (NCHARS long)
+		DB	CMNDADR	;Address of Command within ZCPR3
+
+     Thå  installeò shoulä onlù changå thå nameó oæ thå  commandó 
+aó  desireä  anä  shoulä  not¬  aó  á  rule¬  toucè  thå  addresó 
+definitioî sincå thió ió fixeä withiî thå bodù oæ ZCPR3.
+
+.paŠ
+NCHARS	EQU	4		;NUMBER OF CHARS/COMMAND
+
+CTABLE	MACRO
+;
+	IF	DIRON
+	DB	'DIR '
+	DW	DIR		;DIRECTORY DISPLAY COMMAND
+	ENDIF
+;
+	IF	LTON
+	DB	'LIST'
+	DW	LIST		;LIST FILE ON PRINTER COMMAND
+	DB	'TYPE'
+	DW	TYPE		;TYPE FILE ON CONSOLE COMMAND
+	ENDIF
+;
+	IF	GOON
+	DB	'GO  '
+	DW	GO		;EXECUTE CURRENT TPA COMMAND
+	ENDIF
+;
+	IF	ERAON
+	DB	'ERA '
+	DW	ERA		;ERASE FILES COMMAND
+	ENDIF
+;
+	IF	SAVEON
+	DB	'SAVE'
+	DW	SAVE		;SAVE TPA COMMAND
+	ENDIF
+;
+	IF	RENON
+	DB	'REN '
+	DW	REN		;RENAME FILES COMMAND
+	ENDIF
+;
+	IF	GETON
+	DB	'GET '
+	DW	GET		;LOAD FILE INTO TPA COMMAND
+	ENDIF
+;
+	IF	JUMPON
+	DB	'JUMP'
+	DW	JUMP		;JUMP TO ANY MEMORY LOCATION COMMAND
+	ENDIF
+;
+	IF	NOTEON
+	DB	'NOTE'
+	DW	NOTE		;NOTE - NULL COMMAND (NOP)
+	ENDIF
+;
+	ENDM
+
+                  FIG 4-1: ZCPR3 Resident Command NamingŠ
+4.2.8. Controls on ZCPR3 Resident Commands
+
+     Thå  followinç setó oæ equateó providå speciaì controló  anä 
+parameteró oî variouó ZCPR3-residenô commands.
+
+
+     Thå  followinç equateó seô thå widtè oæ thå spacinç  betweeî 
+thå  filå  nameó foò thå DIÒ commanä anä thå  characteò  useä  tï 
+separatå filå nameó froí onå anotheò oî thå samå line.
+
+     Assuminç thaô FENCÅ ió seô tï thå characteò '|'¬  Iæ WIDÅ ió 
+TRUE¬ theî thå outpuô wilì looë like:
+
+		filename.typ__|__filename.typ ...
+
+while if WIDE is FALSE, the output will look like:
+
+		filename.typ_|_filename.typ ...
+
+(underscore represents a space)
+
+WIDE	EQU	TRUE 
+FENCE	EQU	'|'
+
+     Thå WIDÅ equatå ió intendeä tï providå foò shorteò lineó foò 
+thoså  useró witè 64-columî displays®   Foò thoså witè  80-columî 
+displays¬ thå outpuô lineó arå mucè easieò tï read.
+
+
+     Thå  followinç  equateó definå twï flagó whicè arå  useä  iî 
+conjunctioî witè thå DIÒ commanä oî thå commanä line®   SYSFLÇ ió 
+thå characteò useä tï indicatå tï DIÒ thaô alì files¬ botè Systeí 
+anä Non-System¬ arå tï bå displayed®  SOFLÇ ió thå characteò useä 
+tï  indicatå  tï  DIÒ  thaô  onlù thå  Systeí  fileó  arå  tï  bå 
+displayed®  Bù default¬ DIÒ displayó non-Systeí files.
+
+     Foò  example¬  iæ  SYSFLÇ ió seô tï 'A§ anä SOFLÇ ió seô  tï 
+'S'¬ then:
+		DIR *.COM A
+
+displayó alì COÍ fileó witè botè Systeí anä non-Systeí attributeó 
+while:
+		DIR *.COM S
+
+displays only COM files with the System attribute.  Naturally:
+
+		DIR *.COM
+
+displays only COM files with the non-System attribute.
+
+SYSFLG	EQU	'A'
+SOFLG	EQU	'S'
+.paŠ
+     Thå  followinç equatå causeó ERÁ tï confirí thå fileó tï  bå 
+eraseä beforå iô goeó aheaä anä eraseó them®   Iæ ERAOË ió  TRUE¬ 
+theî  thå useò wilì bå prompteä eacè time»  iæ iô ió FALSE¬  theî 
+thå useò wilì noô bå prompted.
+
+ERAOK	equ	FALSE
+
+
+     Iæ ERAOË ió TRUE¬  thå followinç equatå addó á Verifù optioî 
+tï  thå ERÁ commanä whicè causeó thå useò tï bå prompteä onlù  iæ 
+thå Verifù optioî letter¬  defineä bù ERDFLG¬  ió giveî afteò thå 
+filå  name®   Iæ  ERAÖ ió TRUE¬  theî thå useò wilì bå  askeä  tï 
+verifù onlù wheî ERDFLÇ ió containeä iî thå commanä line» iæ ERAÖ 
+ió FALSE¬ thå useò wilì alwayó bå askeä tï verify.
+
+     Foò example¬  iæ ERAOË ió TRUE¬  ERAÖ ió TRUE¬ anä ERDFLÇ ió 
+'V'¬ theî thå command:
+			ERA *.* V
+wilì resulô iî thå filå nameó beinç displayeä anä thå useò  beinç 
+askeä foò verification®  Iæ thå Ö optioî werå noô given¬ thå useò 
+woulä noô bå askeä foò verification.
+
+ERAV	equ	FALSE
+ERDFLG	equ	'V'
+
+
+     Thå followinç equateó seô thå paginç parameteró foò thå TYPÅ 
+command.
+
+     PGDFLÔ  determineó iæ TYPÅ pageó bù default®   Iæ PGDFLÔ  ió 
+TRUE¬ then:
+		TYPE FILE.TXT
+
+wilì bå paged®  Iæ PGDFLÔ ió FALSE¬ thå abovå commanä wilì noô bå 
+paged.
+
+     PGDFLÇ defineó thå optioî characteò iî thå TYPÅ commanä linå 
+whicè ió useä tï togglå thå defaulô seô bù PGDFLT®  Assuminç thaô 
+PGDFLÇ ió seô tï 'P'¬ then:
+		TYPE FILE.TXT P
+
+wilì  pagå thå filå listinç iæ PGDFLÔ ió FALSÅ anä noô pagå iô iæ 
+PGDFLÔ ió TRUE.
+
+PGDFLT	EQU	TRUE 
+PGDFLG	EQU	'P'
+
+.paŠ
+     Thå  followinç  equatå  defineó thå numbeò oæ lineó  oî  thå 
+user'ó CRÔ screeî foò uså bù thå TYPÅ commanä wheî iô ió  paging®  
+Thió valuå ió usuallù 24.
+
+NLINES	EQU	24
+
+
+     Thå followinç equatå defineó thå optioî letteò useä witè thå 
+SAVÅ  commanä tï indicatå thaô thå associateä numbeò ió  128-bytå 
+sectoró aó opposeä tï 256-bytå pages®  Foò example¬ iæ SECTFLÇ ió 
+seô tï 'S'¬ then:
+
+		SAVE 25 FILE.BIN S
+
+savå  2µ 128-bytå sectoró startinç aô locatioî 100È intï thå filå 
+nameä FILE.BIN®  IÆ thå Ó optioî waó noô present¬ SAVÅ woulä havå 
+saveä 2µ 256-bytå blockó startinç aô locatioî 100È intï thå  filå 
+nameä FILE.BIN.
+
+SECTFLG	EQU	'S'
+
+
+4.2.9. Path Definition
+
+     Thå followinç equatå specifieó thå addresó oæ thå PATÈ tï bå 
+followeä  foò  thå  PATÈ  command-searcè iæ thå  PATÈ  ió  tï  bå 
+initializeä  bù  thå  BIOÓ  anä seô bù thå useò  viá  á  PATH.COÍ 
+program®   Thå  valuå oæ PATÈ shoulä bå thå addresó oæ  thå  PATÈ 
+datá  areá iî memory®   Iæ thå internaì PATÈ provideä bù ZCPR³ ió 
+tï bå used¬  theî PATHBASÅ shoulä bå equateä tï 0¬  whicè selectó 
+thå PATÈ locateä jusô afteò thå MEMLOAÄ routine®  Iæ thå externaì 
+PATÈ ió tï bå used¬ theî PATHBASÅ shoulä bå seô tï thå addresó oæ 
+thå externaì path.
+
+     Á PATÈ ió á serieó oæ byte-pairs¬  terminateä bù á binarù 0®  
+Thå firsô bytå oæ eacè paiò ió thå disë numbeò (1-1¶ foò diskó A-
+P)¬  anä  thå seconä bytå oæ eacè paiò ió thå useò numbeò (0-31)®  
+Thå  speciaì characteò '$§ indicateó thå currenô useò oò  currenô 
+disk®   Foò example¬  thå patè froí currenô disk/currenô useò  tï 
+currenô disk/useò ° tï disë A/useò ° ió selecteä bù thå followinç 
+sequence:
+
+		DB	'$$'	;current disk/user
+		DB	'$',0	;current disk/user 0
+		DB	1,0	;disk A/user 0
+		DB	0	;end of path
+
+.paŠ
+	IF	EXPATH NE 0	;External Path Selected
+
+     This equate defines the base address of the external path
+
+PATH	equ	EXPATH		;External ZCPR3 PATH
+
+	ELSE			;Internal Path Selected
+
+     The following macro defines the n-element internal path
+
+IPATH	MACRO
+	db	'A'-'@','$'	;Disk A, Current User
+	db	'A'-'@',0	;Disk A, User 0
+	db	0		;End of Path -- MUST be here
+	ENDM
+
+	ENDIF
+
+
+
+     Thå  followinç  flaç enableó ZCPR³ tï perforí  aî  optimizeä 
+patè  searcè wheî iô ió searchinç alonç á patè foò  á  file®   Iæ 
+thió  equatå  ió  TRUE¬  ZCPR³  wilì builä á patè  iî  memorù  oæ 
+absolutå  entrieó  (A1¬  B7¬  etc© froí thå  symboliã  patè  (onå 
+containinç  '$'© whicè ió thå patè iô woulä otherwiså use®   Thió 
+ne÷  patè  woulä  contaiî nï duplicatå  patè  elements¬  wherå  á 
+symboliã patè analysió may®  Foò example¬ iæ thå patè is:
+
+		db	'A'-'@','$'	;disk A, current user
+		db	'A'-'@',15	;disk A, user 15
+		db	0
+
+theî iæ thå useò ió loggeä intï A15¬  settinç thå belo÷ equatå tï 
+TRUÅ woulä allo÷ ZCPR³ tï builä thå path:
+
+		db	'A'-'@',15	;only one entry
+		db	0
+
+iî  thå analysió oæ thió symboliã path¬  whilå witè  thió  equatå 
+FALSE¬  ZCPR³  maù loç intï A1µ aó manù aó threå timeó (oncå  foò 
+thå  defaulô anä twicå morå foò thå symboliã path© iî lookinç foò 
+á filå whicè ió noô founä beforå iô giveó up®  Usinç thió minimuí 
+patè  facilitù  costó  somå  codå iî  ZCPR3¬  buô  iô  speedó  uğ 
+processinç noticablù iî somå cases.
+
+     Enable this equate if MINIMUM PATH SEARCH is to be employed.
+
+MINPATH	EQU	TRUE 
+
+.paŠ
+     Iî searchinç foò á filå alonç á path¬ ZCPR³ caî bå commandeä 
+tï  alwayó  looë  iî  thå  currenô  logged-iî  directorù   beforå 
+beginninç  thå patè search®   Thió equatå controló thió  feature®  
+Iæ  SCANCUÒ ió seô tï TRUE¬  thå currenô directorù neeä neveò  bå 
+referenceä  iî  á  symboliã patè expressioî  (DÂ  '$','$'©  sincå 
+SCANCUÒ insureó thaô thå currenô directorù ió scanned.
+
+     Enablå  thió  equatå  iæ  thå currenô DÕ  ió  alwayó  tï  bå 
+scanned.
+
+SCANCUR	EQU	TRUE 
+
+
+
+4.2.10. DU and DIR Controls
+
+     Thå  followinç equatå enableó thå appearancå oæ thå  currenô 
+disk/useò  iî  thå ZCPR³ prompt®   Iæ seô tï  FALSE¬  thå  prompô 
+appearó  aó '>§ (assuminç ¾ ió thå currenô valuå oæ CPRMPT)®   Iæ 
+seô tï TRUE¬  thå prompô appearó aó 'd>§ oò 'dn>'®   (seå INCLNDÒ 
+below)
+
+INCLDU	equ	TRUE 
+
+
+     Thå followinç equatå allowó ZCPR³ tï accepô thå  DUº  prefiø 
+oò logiî forí foò input®  Seô thió tï TRUÅ iæ DUº prefiø ió tï bå 
+allowed.
+
+     Settinç thió equatå tï TRUÅ allowó thå followinç forms:
+
+		A>B1:
+		A>TYPE B4:FILE.TXT
+		A>B:
+		A>1:
+
+ACCPTDU	EQU	TRUE 
+
+
+     Thió  equatå enableó ZCPR³ tï procesó DIRº  formó internallù 
+througè thå memory-baseä nameä directorù buffer®  Thió equatå anä 
+thå  NDBASÅ addresó shoulä bå TRUÅ (non-zero© iî ordeò tï  enablå 
+ZCPR³ tï procesó nameä directories.
+
+     If NDINCP is TRUE, the following forms are allowed:
+
+		A>ROOT:
+		A>TYPE TEXT:FILE.TXT
+
+if the other associated equates (below) are set correctly.
+
+NDINCP	EQU	TRUE 
+.paŠ
+     Thå  followinç  equatå wilì causå thå namå  oæ  thå  currenô 
+directorù tï bå displayeä aó parô oæ thå prompô alonç witè thå DÕ 
+forí iæ enabled (seå INCLDÕ above).
+
+     For example, if INCLNDR is TRUE, the prompt would look like:
+
+		B7:TEXT>	-- if INCLDU is also TRUE
+		TEXT>		-- if INCLDU is FALSE
+
+INCLNDR	EQU	TRUE 
+
+
+     Thå followinç equatå allowó ZCPR³ tï accepô thå DIRº  prefiø 
+oò logiî forí foò input®   Seô thió tï TRUÅ iæ DIRº  prefiø ió tï 
+bå allowed.
+
+     Setting this equate to TRUE allows the following forms:
+
+		A>ROOT:
+		A>TYPE TEXT:FILE.TXT
+
+ACCPTND	EQU	TRUE 
+
+
+     Thå  followinç  equatå determineó thå hierarchù oæ  DU:/DIRº 
+evaluation®   Seô thió tï TRUÅ iæ DUº  ió tï bå testeä foò beforå 
+DIRº oò seô thió tï FALSÅ iæ DIRº ió tï bå testeä foò beforå DU:®  
+Iæ thió ió FALSE¬  nameä directorieó likå Cº (standinç foò Ã worë 
+areá - NOÔ disë C© arå permitted.
+
+     Assuminç thaô á directorù foò Ã programs¬  nameä 'C'¬  anä á 
+rooô directory¬  nameä 'ROOT'¬  exist¬  theî iæ DUFIRSÔ ió seô tï 
+FALSE:
+
+	A>C:	-- logs the user into the directory named 'C'
+	A>ROOT:	-- logs the user into the directory named 'ROOT'
+
+
+while if DUFIRST is set to TRUE:
+
+	A>C:	-- logs the user into disk C:
+                    (dir C can't be accessed)
+	A>ROOT:	-- logs the user into the directory named 'ROOT'
+
+DUFIRST	EQU	FALSE
+
+.paŠ
+     Enablå passworä checë oî nameä directorù references®   Iæ  á 
+nameä  directorù ió referenceä anä haó á passworä associateä witè 
+it¬  ZCPR³  wilì asë thå useò foò thió passworä anä  approvå  thå 
+referencå  onlù iæ hå giveó á valiä response®   Onå anä onlù  onå 
+trù  ió permitted®   Settinç thió equatå tï TRUÅ wilì enablå  thå 
+passworä checë facility.
+
+PWCHECK	EQU	TRUE 
+
+
+
+4.2.11. Command Line Buffer Control
+
+     Thå  MULTCMÄ equatå enableó thå featurå oæ havinç morå  thaî 
+onå  commanä  oî thå samå line¬  separateä bù á  separatioî  chaò 
+whicè  ió  defineä  bù thå CMDSEĞ equate®   Iæ  thió  featurå  ió 
+enabled¬  thå  commanä linå buffeò anä buffeò pointeró arå  moveä 
+outsidå oæ ZCPR³ aô thå indicateä addresó oæ Z3CL.
+
+     MULTCMÄ  indicateó  iæ  thå abilitù tï havå  morå  thaî  onå 
+commanä  oî á linå ió tï bå enabled¬  anä CMDSEĞ ió thå characteò 
+useä tï separatå theså commands®   Foò example¬  iæ CMDSEĞ ió ';§ 
+anä MULTCMÄ ió TRUE¬ theî commandó likå thió arå possible:
+
+		ERA *.BAK;DIR
+
+	IF	Z3CL NE 0
+MULTCMD	equ	TRUE 
+	ELSE
+MULTCMD	equ	FALSE
+	ENDIF
+CMDSEP	equ	';'
+
+
+
+.paŠ
+4.2.12. CMDRUN -- ZCPR3 Extended Command Processing
+
+     Thió equatå enableó thå ZCPR³ CMDRUÎ facility®  Iæ CMDRUÎ ió 
+TRUE¬  theî anotheò stagå oæ commanä processinç ió invokeä shoulä 
+ZCPR³  faiì  tï finä á COÍ filå wheî thå useò  giveó  á  command®  
+Thió stagå involveó invokinç thå COÍ filå specifieä bù CMDFCÂ anä 
+givinç iô thå currenô commanä linå aó aî argument®   Iî thió way¬ 
+if¬  say¬  M8° PROG² failó aó á command¬ á ne÷ commanä likå LRUNÚ 
+M8° PROG2¬  SUÂ M8° PROG2¬ oò ZEØ M8° PROG² maù bå processed®  Iæ 
+thå ne÷ commanä fails¬ aî appropriatå erroò messagå ió given.
+
+     Thå  ROOTONLÙ optioî causeó ZCPR³ tï onlù looë aô  thå  Rooô 
+(bottoí  oæ path© foò thå Extendeä Commanä Processoò iæ iô ió seô 
+tï  TRUE®   Iæ iô ió seô tï FALSE¬  thå patè ió searcheä foò  thå 
+Extendeä Commanä Processor®  Thå tradeofæ herå ió thaô ROOTONLÙ ½ 
+TRUÅ ió lesó flexiblå buô somewhaô fasteò thaî ROOTONLÙ ½ FALSE.
+
+CMDRUN	equ	FALSE	; Enable the Facility
+
+	if	CMDRUN
+ROOTONLY	equ	TRUE 	; TRUE if look at Root Only for Extended
+				; Command Processor, FALSE if look along
+				; path
+CMDFCB	MACRO
+	db	0
+	db	'CMDRUN  '	;Name of Program
+	db	'COM'		;File Type
+	ENDM
+	endif	;CMDRUN
+
+
+
+4.2.13. Flow Command Facility
+
+     Thió  equatå  enableó  ZCPR³ tï responä  tï  IÆ  processing®  
+ZCPR³ simplù flusheó commandó iæ á FALSÅ IÆ ió currentlù engaged®  
+FCPó musô bå enableä foò IFOÎ tï worë correctly.
+
+IFON	EQU	TRUE 
+
+
+
+.paŠ
+4.2.14. Miscellaneous Equates
+
+MAXUSR	EQU	31 		;MAXIMUM USER NUMBER ACCESSABLE
+MAXDISK	EQU	4		;MAXIMUM NUMBER OF DISKS ACCESSABLE
+
+     Thå DÕ forí wilì onlù bå alloweä tï referencå diskó anä useò 
+areaó uğ tï thå indicateä maximuí values®  Theså limits¬ however¬ 
+dï noô applù tï nameä directories®   Foò instance¬  iæ MAXUSÒ waó 
+2° anä thå namå SPECIAÌ waó equateä tï B31¬ theî 'SPECIAL:§ woulä 
+bå  resolveä  correctlù buô 'B31:§ woulä causå aî  error®   Nameä 
+directorieó caî havå passworä protectioî associateä witè them¬ sï 
+B3±  caî bå á directorù whicè ió accesseä onlù iæ thå useò  knowó 
+thå passworä foò it.
+
+
+SUPRES	EQU	TRUE 		;SUPRESSES USER # REPORT FOR USER 0
+
+     Iæ  yoõ  arå loggeä intï B0:¬  theî thå  prompô  woulä  looë 
+something like:
+
+          B>        if SUPRES is TRUE
+          B0>       if SUPRES is FALSE
+
+
+SPRMPT	EQU	'$'		;CPR PROMPT INDICATING SUBMIT COMMAND
+CPRMPT	EQU	'>'		;CPR PROMPT INDICATING USER COMMAND
+
+     With these values:
+
+          B1>       appears for commands typed by the user
+          B1$       appears for commands input from a submit file
+
+
+NUMBASE	EQU	'H'		;CHAR USED TO SWITCH FROM DEFAULT
+                                   ;NUMBER BASE
+
+     Thió  optioî applieó tï thå SAVÅ commanä only®   Iô  permitó 
+forms like:
+
+          SAVE 17 myfile.bin       17 is decimal
+          SAVE 11H myfile.bin      11H is hexadecimal
+
+Thió  featurå ió handù iî thaô valueó outpuô bù tooló likå DDÔ dï 
+noô  neeä tï bå converteä tï hexadecimaì beforå thå SAVÅ  commanä 
+can be used.
+
+
+CURIND	EQU	'$'		;SYMBOL FOR CURRENT DISK OR USER
+
+COMMENT	EQU	';'		;LINES BEGINNING WITH THIS CHAR
+                                   ;ARE COMMENTS
+
+
+.paŠ
+4.3. Step 5: Overlaying the old BIOS and the CCP
+
+     Thå  procedurå  foò overlayinç thå olä BIOÓ ió thå  samå  aó 
+witè  conventionaì  CP/M®   Thå  relativå offseô  foò  thå  ZCPR³ 
+Commanä  Processoò Replacemenô wilì bå thå samå aó thaô useä  foò 
+thå BIOS®   Refeò tï thå manuaì publisheä bù Digitaì Researcè foò 
+more detail.
+
+     Aî  examplå  oæ  thió procedurå ió provideä  iî  thå  samplå 
+session which follows.
+
+
+4.4. Step 6: Implanting the Operating System Image
+
+     Oncå  everythinç  ió overlayeä iî thå memorù  imagå  oæ  thå 
+system¬  SYSGEÎ  ió usuallù useä tï implanô thå operatinç  systeí 
+imagå  oî  thå systeí trackó oæ thå disk®   Refeò tï  thå  manuaì 
+published by Digital Research for more detail.
+
+     Aî  examplå  oæ  thió procedurå ió provideä  iî  thå  samplå 
+session which follows.
+
+
+4.5. Sample Session
+
+     Thå  followinç directorù displaù showó thå fileó wå wilì  bå 
+workinç   with®    Notå   thaô  Z3BASE.LIÂ  anä   Z3HDR.LIÂ   arå 
+instrumentaì  tï  thå  installatioî oæ almosô alì oæ  thå  Systeí 
+Segmentó  -- Z3BASE.LIÂ  anä  Z3HDR.LIÂ arå reaä iî  bù  thå  MAÃ 
+assembler during the assembly process.
+
+B11>xd /oa
+XD III  Version 1.2
+Filename.Typ Size K  Filename.Typ Size K  Filename.Typ Size K
+-------- --- ------  -------- --- ------  -------- --- ------
+CBIOSZ  .ASM     56  SYSRCP  .ASM     44  SYSNDR  .LIB      4
+SYSENV  .ASM      4  ZCPR3   .ASM     68  SYSRCP  .LIB     12
+SYSFCP  .ASM     20  CBIOSHDR.LIB     12  Z3BASE  .LIB     12
+SYSIOP  .ASM     32  SYSENV  .LIB      4  Z3HDR   .LIB     20
+SYSNDR  .ASM      4  SYSFCP  .LIB      8
+     B 11:  --   14 Files Using   300K ( 2328K Left)
+
+.paŠ
+4.5.1. Assembling SYSENV
+
+     Thå followinç illustrateó thå assemblù oæ SYSENÖ tï  producå 
+thå SYS.ENÖ file®  Thió filå wilì bå thå ZCPR³ Systeí Environmenô 
+Descriptor.
+
+B11>zex mac sysenv
+ZEX, Version 3.0
+B11> ZEX: ;
+B11> ZEX: ;  MAC -- CP/M Standard MACRO Assembler and Loader
+B11> ZEX: ;
+B11> ZEX: ;     Suppress FALSE IF Printout
+B11> ZEX: ;
+B11> ZEX: IF NUL SYSENV
+B11> ZEX: MAC SYSENV $-S PZ
+CP/M MACRO ASSEM 2.0
+0200
+01AH USE FACTOR
+END OF ASSEMBLY
+
+B11> ZEX: IF INPUT Abort if Errors Exist
+IF True?  
+B11> ZEX: ERA SYSENV.BAK  ;NOTE Cleanup
+ No Files
+
+B11> ZEX: ERA SYSENV.COM
+ No Files
+B11> ZEX: MLOAD SYSENV    ;NOTE Load Hex File
+MLOAD ver. 1.4   Copyright (C) 1983 Ronald G. Fowler
+Loaded 172 bytes (00ACH - 2 records) to file B:SYSENV.COM
+Start address: 0100H  Ending address: 01ADH  Bias: 0000H
+
+
+B11> ZEX: FI
+B11> ZEX: ERA SYSENV.HEX
+ SYSENV  .HEX
+B11> ZEX: FI
+B11> ZEX: ;
+B11> ZEX: ;  Assembly Complete
+B11> ZEX: ;
+B11> ZEX: Done>
+B11>ren sys.env=sysenv.com
+
+
+.paŠ
+4.5.2. Assembling SYSNDR
+
+B11>zex mac sysndr
+ZEX, Version 3.0
+B11> ZEX: ;
+B11> ZEX: ;  MAC -- CP/M Standard MACRO Assembler and Loader
+B11> ZEX: ;
+B11> ZEX: ;     Suppress FALSE IF Printout
+B11> ZEX: ;
+B11> ZEX: IF NUL SYSNDR
+B11> ZEX: MAC SYSNDR $-S PZ
+CP/M MACRO ASSEM 2.0
+01EB
+005H USE FACTOR
+END OF ASSEMBLY
+
+B11> ZEX: IF INPUT Abort if Errors Exist
+IF True?  
+B11> ZEX: ERA SYSNDR.BAK  ;NOTE Cleanup
+ No Files
+
+B11> ZEX: ERA SYSNDR.COM
+ No Files
+B11> ZEX: MLOAD SYSNDR    ;NOTE Load Hex File
+MLOAD ver. 1.4   Copyright (C) 1983 Ronald G. Fowler
+Loaded 235 bytes (00EBH - 2 records) to file B:SYSNDR.COM
+Start address: 0100H  Ending address: 01EAH  Bias: 0000H
+
+
+B11> ZEX: FI
+B11> ZEX: ERA SYSNDR.HEX
+ SYSNDR  .HEX
+B11> ZEX: FI
+B11> ZEX: ;
+B11> ZEX: ;  Assembly Complete
+B11> ZEX: ;
+B11> ZEX: Done>
+B11>ren sys.ndr=sysndr.com
+
+.paŠ
+4.5.3. Assembling SYSIOP
+
+B11>zex mac sysiop
+ZEX, Version 3.0
+B11> ZEX: ;
+B11> ZEX: ;  MAC -- CP/M Standard MACRO Assembler and Loader
+B11> ZEX: ;
+B11> ZEX: ;     Suppress FALSE IF Printout
+B11> ZEX: ;
+B11> ZEX: IF NUL SYSIOP
+B11> ZEX: MAC SYSIOP $-S PZ
+CP/M MACRO ASSEM 2.0
+F0AA
+016H USE FACTOR
+END OF ASSEMBLY
+
+B11> ZEX: IF INPUT Abort if Errors Exist
+IF True?  
+B11> ZEX: ERA SYSIOP.BAK  ;NOTE Cleanup
+ No Files
+
+B11> ZEX: ERA SYSIOP.COM
+ No Files
+B11> ZEX: MLOAD SYSIOP    ;NOTE Load Hex File
+MLOAD ver. 1.4   Copyright (C) 1983 Ronald G. Fowler
+Loaded 1192 bytes (04A8H - 10 records) to file B:SYSIOP.COM
+Start address: EC00H  Ending address: F0A7H  Bias: 0000H
+
+++ Warning: program origin NOT at 100H ++
+
+
+B11> ZEX: FI
+B11> ZEX: ERA SYSIOP.HEX
+ SYSIOP  .HEX
+B11> ZEX: FI
+B11> ZEX: ;
+B11> ZEX: ;  Assembly Complete
+B11> ZEX: ;
+B11> ZEX: Done>
+B11>ren sys.iop=sysiop.com
+
+.paŠ
+4.5.4. Assembling SYSRCP
+
+
+B11>zex mac sysrcp
+ZEX, Version 3.0
+B11> ZEX: ;
+B11> ZEX: ;  MAC -- CP/M Standard MACRO Assembler and Loader
+B11> ZEX: ;
+B11> ZEX: ;     Suppress FALSE IF Printout
+B11> ZEX: ;
+B11> ZEX: IF NUL SYSRCP
+B11> ZEX: MAC SYSRCP $-S PZ
+CP/M MACRO ASSEM 2.0
+EBF1
+017H USE FACTOR
+END OF ASSEMBLY
+
+B11> ZEX: IF INPUT Abort if Errors Exist
+IF True?  
+B11> ZEX: ERA SYSRCP.BAK  ;NOTE Cleanup
+ No Files
+
+B11> ZEX: ERA SYSRCP.COM
+ No Files
+B11> ZEX: MLOAD SYSRCP    ;NOTE Load Hex File
+MLOAD ver. 1.4   Copyright (C) 1983 Ronald G. Fowler
+Loaded 2027 bytes (07EBH - 16 records) to file B:SYSRCP.COM
+Start address: E400H  Ending address: EBEEH  Bias: 0000H
+
+++ Warning: program origin NOT at 100H ++
+
+
+B11> ZEX: FI
+B11> ZEX: ERA SYSRCP.HEX
+ SYSRCP  .HEX
+B11> ZEX: FI
+B11> ZEX: ;
+B11> ZEX: ;  Assembly Complete
+B11> ZEX: ;
+B11> ZEX: Done>
+B11>ren sys.rcp=sysrcp.com
+
+.paŠ
+4.5.5. Assembling SYSFCP
+
+
+B11>zex mac sysfcp
+ZEX, Version 3.0
+B11> ZEX: ;
+B11> ZEX: ;  MAC -- CP/M Standard MACRO Assembler and Loader
+B11> ZEX: ;
+B11> ZEX: ;     Suppress FALSE IF Printout
+B11> ZEX: ;
+B11> ZEX: IF NUL SYSFCP
+B11> ZEX: MAC SYSFCP $-S PZ
+CP/M MACRO ASSEM 2.0
+F3F3
+00CH USE FACTOR
+END OF ASSEMBLY
+
+B11> ZEX: IF INPUT Abort if Errors Exist
+IF True?  
+B11> ZEX: ERA SYSFCP.BAK  ;NOTE Cleanup
+ No Files
+
+B11> ZEX: ERA SYSFCP.COM
+ No Files
+B11> ZEX: MLOAD SYSFCP    ;NOTE Load Hex File
+MLOAD ver. 1.4   Copyright (C) 1983 Ronald G. Fowler
+Loaded 499 bytes (01F3H - 4 records) to file B:SYSFCP.COM
+Start address: F200H  Ending address: F3F2H  Bias: 0000H
+
+++ Warning: program origin NOT at 100H ++
+
+
+B11> ZEX: FI
+B11> ZEX: ERA SYSFCP.HEX
+ SYSFCP  .HEX
+B11> ZEX: FI
+B11> ZEX: ;
+B11> ZEX: ;  Assembly Complete
+B11> ZEX: ;
+B11> ZEX: Done>
+B11>ren sys.fcp=sysfcp.com
+
+.paŠ
+4.5.6. Creating MYTERM.Z3T via TCSELECT
+
+
+B11>tcselect myterm
+TCSELECT, Version 1.0
+
+** Terminal Menu 1 for Z3TCAP Version 1.1  **
+
+A.  AA Ambassador           K.  Concept 100             
+B.  ADDS Consul 980         L.  Concept 108             
+C.  ADDS Regent 20          M.  CT82                    
+D.  ADDS Viewpoint          N.  DEC VT52                
+E.  ADM 2                   O.  DEC VT100               
+F.  ADM 31                  P.  Dialogue 80             
+G.  ADM 3A                  Q.  Direct 800/A            
+H.  ADM 42                  R.  General Trm 100A        
+I.  Bantam 550              S.  Hazeltine 1420          
+J.  CDC 456                 T.  Hazeltine 1500          
+
+Enter Selection, + for Next, or ^C to Exit - +
+
+** Terminal Menu 2 for Z3TCAP Version 1.1  **
+
+A.  Hazeltine 1510          K.  P Elmer 1200            
+B.  Hazeltine 1520          L.  SOROC 120               
+C.  H19 (ANSI Mode)         M.  Super Bee               
+D.  H19 (Heath Mode)        N.  TAB 132                 
+E.  HP 2621                 O.  Teleray 1061            
+F.  IBM 3101                P.  Teleray 3800            
+G.  Micro Bee               Q.  TTY 4424                
+H.  Microterm ACT IV        R.  TVI 912                 
+I.  Microterm ACT V         S.  TVI 920                 
+J.  P Elmer 1100            T.  TVI 950                 
+
+Enter Selection, - for Last, + for Next, or ^C to Exit - T
+
+  Selected Terminal is: TVI 950                  -- Confirm (Y/N)? Y
+
+File MYTERM  .Z3T Created
+
+.paŠ
+4.5.7. Recap
+
+     Tï  recap¬  thå maiî Systeí Segmentó whicè wilì bå loadeä bù 
+thå  LDÒ utilitù havå no÷ beeî created®   Theså  Systeí  Segmentó 
+are:
+
+
+B11>xd sys.* oa
+XD III  Version 1.2
+Filename.Typ Size K  Filename.Typ Size K  Filename.Typ Size K
+-------- --- ------  -------- --- ------  -------- --- ------
+SYS     .ENV      4  SYS     .IOP      4  SYS     .RCP      4
+SYS     .FCP      4  SYS     .NDR      4
+     B 11:  --    5 Files Using    20K ( 2304K Left)
+
+B11>xd myterm.z3t oa
+XD III  Version 1.2
+Filename.Typ Size K  Filename.Typ Size K  Filename.Typ Size K
+-------- --- ------  -------- --- ------  -------- --- ------
+MYTERM  .Z3T      4
+     B 11:  -     1 Files Using     4K ( 2304K Left)
+
+
+4.5.8. Assembling the CBIOS
+
+
+     Thå  followinç  illustrateó thå assemblù oæ  thå  Customizeä 
+Basiã  Input/Outpuô  Systeí  (CBIOS)®   CBIOÓ  haó  alreadù  beeî 
+customizeä  sï  thaô  itó Colä Booô routinå performó  thå  propeò 
+initializations of buffers required by the ZCPR3 System.
+
+
+B11>mac cbiosz $-s pz
+CP/M MACRO ASSEM 2.0
+E3CE
+01FH USE FACTOR
+END OF ASSEMBLY
+
+
+4.5.9. Assembling the ZCPR3 Command Processor Replacement
+
+     Thå followinç illustrateó thå assemblù oæ thå ZCPR³  Commanä 
+Processoò  Replacement®   Alì customizatioî haó beeî donå iî  thå 
+files Z3BASE.LIB and Z3HDR.LIB.
+
+
+B11>mac zcpr3 $-s pz
+CP/M MACRO ASSEM 2.0
+C7E9
+01EH USE FACTOR
+END OF ASSEMBLY
+
+.paŠ
+4.5.10. Obtaining the Operating System Image
+
+     Thå followinç SYSGEÎ pulló thå Operatinç Systeí Imagå ofæ oæ 
+thå  Systeí Tracks®   Iæ yoõ arå installinç á ZCPR³  Systeí  froí 
+scratch¬ yoõ shoulä bå runninç á CP/Í systeí whicè haó beeî moveä 
+dowî tï allo÷ spacå foò thå ZCPR³ bufferó iî higè memory®  MOVCPÍ 
+caî  usuallù  bå  useä tï dï thió (MOVCPÍ ió provideä  witè  youò 
+system as a CP/M utility).
+
+     Iî  thió  example¬  thå sizå oæ thå CP/Í systeí  whicè  thió 
+versioî  oæ  ZCPR³ waó builô oî ió thå samå aó thå  sizå  oæ  thå 
+ZCPR³ whicè ió beinç built®  Botè havå thå samå sizå oæ Transienô 
+Program Area (TPA).
+
+     Thå  followinç commanä pulló thå Operatinç Systeí Imagå  ofæ 
+of the System Tracks:
+
+B11>sysgen
+SYSGEN VER 2.2
+SOURCE DRIVE NAME (OR RETURN TO SKIP)a
+SOURCE ON A, THEN TYPE RETURN
+FUNCTION COMPLETE
+DESTINATION DRIVE NAME (OR RETURN TO REBOOT)
+
+B11>save 45 cpm.bin
+
+
+     Wå  no÷  havå  á filå nameä CPM.BIÎ oî disk®   Thió  ió  thå 
+Operatinç  Systeí Image®   Notå thaô thå "45¢ abovå ió  á  numbeò 
+uniquå  tï mù systeí anä iô maù bå differenô foò thå  installer'ó 
+system.
+
+.paŠ
+4.5.11. Patching the CP/M System Image
+
+     Thå followinç illustrateó thå techniquå oæ patchinç thå CP/Í 
+Operatinç Systeí Image®  Thå CCĞ ió replaceä bù ZCPR³ (ZCPR3.HEX© 
+anä thå BIOÓ ió replaceä bù CBIOÓ (CBIOS.HEX).
+
+     Iî  thió example¬  thå CP/Í Operatinç Systeí Imagå beginó aô 
+1100H®  Thió maù bå differenô oî thå systeí beinç installed.
+
+
+B11>ddt cpm.bin
+DDT VERS 2.0
+NEXT  PC
+2E00 0100
+
+     Thå followinç commanä displayó thå CCĞ area®   Youò  displaù 
+wilì probablù noô bå thå samå aó thió (É waó runninç ZCPR³ aô thå 
+timå  thió  displaù  waó  created)¬   buô  thå  installeò  shoulä 
+recognizå thå twï openinç JMĞ instructionó aó á keù tï beinç surå 
+that the CCP is indeed at this location.
+
+-d1100 111f
+1100 C3 3E C0 C3 3E C0 43 4F 4D 01 24 24 24 20 20 20 .>..>.COM.$$$   
+1110 20 20 53 55 42 00 00 00 00 00 00 00 00 00 00 00   SUB...........
+
+     Thå followinç Zeroeó ouô thå CCĞ areá [É prefeò tï dï thió - 
+just in case!].
+
+-f1100 18ff 0
+
+     No÷  thå  ZCPR³ Commanä Processoò Replacemenô ió reaä iî  oî 
+toğ  oæ thå CCĞ area®   Thå offseô herå ió 5100¬  anä iô  maù  bå 
+differenô foò thå systeí beinç installed®   Afteò thå read-in¬  á 
+dump is done to make sure the image was loaded properly.
+
+-izcpr3.hex
+-r5100
+NEXT  PC
+2E00 0000
+-d1100 111f
+1100 C3 3E C0 C3 3E C0 43 4F 4D 01 24 24 24 20 20 20 .>..>.COM.$$$   
+1110 20 20 53 55 42 00 00 00 00 00 00 00 00 00 00 00   SUB...........
+
+     Thå followinç commanä displayó thå BIOÓ area®   Youò displaù 
+wilì  probablù noô bå thå samå aó this¬  buô thå installeò shoulä 
+recognizå thå twï openinç JMĞ instructionó aó á keù tï beinç surå 
+thaô thå BIOÓ ió indeeä aô thió location.
+
+-d2700 270f
+2700 C3 CC D6 C3 70 D7 C3 0C EC C3 39 D6 C3 3F D6 C3 ....p.....9..?..
+
+.paŠ
+     Thå followinç Zeroeó ouô thå BIOÓ areá [É prefeò tï dï  thió 
+- jusô iî case!].
+
+-f2700 2dff 0
+
+     No÷  thå  CBIOÓ  ió reaä iî oî toğ oæ thå  BIOÓ  area®   Thå 
+offseô herå ió 5100¬ anä iô maù bå differenô foò thå systeí beinç 
+installed®   Afteò thå read-in¬  á dumğ ió donå tï makå surå  thå 
+imagå waó loadeä properly.
+
+-icbiosz.hex
+-r5100
+NEXT  PC
+2E00 0000
+-d2700 274f
+2700 C3 CC D6 C3 70 D7 C3 0C EC C3 39 D6 C3 3F D6 C3 ....p.....9..?..
+2710 15 EC C3 18 EC C3 1B EC C3 C3 D7 C3 04 D8 C3 C5 ................
+2720 D7 C3 B7 D7 C3 BD D7 C3 F6 D8 C3 EF D8 C3 1E EC ................
+2730 C3 CA D7 C3 1B FC C3 21 EC CD 64 D9 C3 0F EC C5 .......!..d.....
+2740 CD 64 D9 C1 C3 12 EC CD 0C EC B7 C4 0F EC 21 80 .d............!.
+-^C
+
+     Thå  followinç  SAVÅ placeó thå ne÷ ZCPR³  Operatinç  Systeí 
+Image on disk.
+
+B11>save 46 zcpr3.bin
+
+     Jusô  tï double-check¬  thå imagå ió reloadeä anä thå enä oæ 
+the CBIOS is displayed to make sure the image is complete.
+
+B11>ddt zcpr3.bin
+DDT VERS 2.0
+NEXT  PC
+2E00 0100
+-d2dc0 2dff
+2DC0 00 00 00 00 00 00 F8 E0 00 00 03 E3 B8 E2 00 00 ................
+2DD0 00 00 00 00 00 00 F8 E0 00 00 8E E3 43 E3 45 6E ............C.En
+2DE0 64 20 6F 66 20 43 42 49 4F 53 5A 00 00 00 00 00 d of CBIOSZ.....
+2DF0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................
+-^C
+
+4.5.12. Placing the Operating System Image
+
+     Thå followinç no÷ placeó thå Operatinç Systeí Imagå ontï thå 
+systeí  trackó  oæ thå desireä disks®   Notå thaô thió  imagå  ió 
+memory-residenô  froí thå previouó executioî oæ DDT®   Writå  ouô 
+thå imagå oî aó manù tesô diskó aó desired.
+
+B11>sysgen
+SYSGEN VER 2.2
+SOURCE DRIVE NAME (OR RETURN TO SKIP)
+DESTINATION DRIVE NAME (OR RETURN TO REBOOT)B ...
+
+

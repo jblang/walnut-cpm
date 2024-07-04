@@ -1,0 +1,131 @@
+STAT COMMAND
+by Stanley M. Gee, PUGSKUG, August 1987
+
+(What STAT does and how to use it)
+
+STAT is shorthand for Statistics.  The STAT command is a
+transient command that must exist as a file on the disc that you
+are using.  Most people use the STAT command for displaying the
+size of the remaining space on the disc that they are writing to.
+
+For example: A>STAT<CR> The computer responds with
+A:R/W,SPACE:100K, B:R/W,SPACE: 191K.  Unfortunately this command
+is used only for the preceding example.  There are many more uses
+for this command.
+
+Specifically STAT can change device assignments, display all
+potential device assignments, assign attributes to files, display
+disc attributes, display user numbers and display system file
+attributes.
+
+There are many enhancements to this command specifically STAT44
+and D, which is available from our library.  However this article
+is limited to the standard version of STAT.  
+
+The STAT command when used for displaying attributes and space
+left on the disc for writing should be used as follows, At system
+level prompt A> type "STAT<CR>".  This will return a message "A:
+R/W, SPACE: nK".  The A: is the drive identification, R/W means
+Read and Write capability and Space is the amount of space left
+on the disc for writing in K bytes (K is abbreviation for 1000)
+the n is the amount of K bytes.  The STAT of the second drive is
+also returned if it is initialized.  The response will be the
+same as for the prime drive except for the drive or disc
+identification.  The STAT command won't return the status of the
+second drive after a warm boot.  You can either initialize the
+second drive or type in "STAT B:<DCR>".
+
+The STAT command when used for specific files is as follows,
+"STAT Filename.Ext<CR>".  The response to this command is in the
+following format, "RECS, BYTES, EX, ACC, D:FILENAME.TYP".  RECS
+is the number of records the file uses, BYTES is the amount of
+bytes used in thousands, EX is the number of extents occupied by
+the file, ACC is the file attribute read write etc., and
+D:FILENAME.TYPE is the disc drive identification, filename and
+TYPE is the ext of the filename.
+
+Ambiguous filenames may be used with the STAT Command.  For
+example, at A>, typing "STAT B:*.MSS<CR>" will return the status
+of all MSS files on drive B.  To list the status of the entire
+disc type "STAT *.*<CR>".
+
+To set file attributes, the correct syntax is "STAT FILENAME.EXT
+$ATTRIBUTE" where attribute is R/O (read only), R/W (read write),
+SYS (system - hides the file from the dir command) and DIR
+(cancels the SYS attributed).  For example, to make a file "read
+only" type "STAT Filename.Ext $R/O" or to make an entire disc
+"read only" type "A>STAT B: = R/O".
+
+As mentioned previously the STAT Command can be used to provide
+information on the logical and physical devices on our computer.
+
+A logical device is a general function of the computer.  A
+physical device is a specific piece of equipment chosen to
+perform that function.  Basically there are four logical devices. 
+CON:  (console), RDR:  (paper tape reader), PUN:  (paper tape
+punch) and LST:  (listing device).
+
+There are twelve physical devices possible.  They are CRT: 
+(cathode ray tube - fast console display)  TTY:  (teletypewriter
+- slow console display) UC1:  (user defined console) BAT:  (batch
+processor)  PTR:  (paper tape reader)  PTP:  (paper tape punch)
+UR1:  (user reader #1) UR2:  (user reader #2) UP1:  (user punch
+#1) UP2: (user punch #2) LPT:  (line printer) and UL1:  (user
+list device).
+
+Sixteen physical to logical devices assignments are permitted. 
+CON:  may be performed by TTY:, CRT:, BAT:, or UC1:.  RDR:  may
+be performed by TTY:, PTR:, UR1:, or UR2:.  PUN:  may be
+performed by TTY:, PTP:, UP1:, or UP2:.  LST:  may be performed
+by TTY:, CRT:, LPT:, OR UL1:.
+
+To find the default device assignments, type "STAT DEV:<CR>". 
+The computer responds with
+
+  CON:  is CRT:
+  RDR:  is TTY:
+  PUN:  is TTY:
+  LST:  is LPT:
+
+Note that the left hand column is the logical device and the
+right hand column is the current physical device assigned to it.
+
+To find the possible assignments of physical to logical devices
+and see an abbreviated STAT command line summary type "STAT
+VAL:<CR>".
+
+The correct form for device assignment using STAT is, "STAT log: 
+= dev:, ....".  More than one device assignment can be made on
+this command by separating the assignments with commas.
+
+An example STAT LST:=LPT:,PUN:=UR1<CR>.  Certain protocols must
+be observed.  The CON: device must be an input/output device that
+can send or receive data.  The RDR:  must be able to send data
+and the LST:  device must be able to receive data.
+
+If you have two printers, i.e. a daisy wheel and a dot matrix
+printer you could assign LPT:  to the daisy wheel printer and
+UL1:  to the dot matrix printer.  This would allow you to shift
+printers without physically unplugging and plugging the other
+printer in its place which becomes a real drag after a while, not
+to mention the possibility of damage to the connectors. 
+
+To display the current user number and to list user numbers for
+user files, type "STAT USR:<CR>".  The computer responds with
+"ACTIVE USER:  0" and "ACTIVE FILES:  0  1 2".  Active files 1 &
+2 would be present only if User command was used.
+
+To display the stat of the current disc or alternate disc type
+"STAT [B:]DSK:<CR>".  The computer will respond with the
+following: (drive specified on alternate drive only).
+
+     A:  DRIVE CHARACTERISTICS
+  1560:  128 BYTE RECORD CAPACITY
+   195:  KILOBYTE DRIVE CAPACITY
+    64:  32 BYTE DIRECTORY ENTRIES
+    64:  CHECKED DIRECTORY ENTRIES
+   128:  RECORDS/EXTENT
+     8:  RECORDS/BLOCK
+    40:  SECTORS/TRACK
+     1:  RESERVE TRACKS
+ 

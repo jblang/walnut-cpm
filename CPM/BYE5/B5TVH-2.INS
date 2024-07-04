@@ -1,0 +1,213 @@
+
+; B5TVH-2.INS  -  BYE5 insert for TeleVideo 803H computers  -  03/27/86
+;
+;		Mostek 3801 and CTC timer (3.6864 MHz)
+;
+;		Note: This is an insert, not an overlay.
+;
+; This version is for a TeleVideo 803H using an interrupt-driven Mostek
+; Mostek 3801 STI.
+;
+; These routines will allow the easy patching of BYE5xx for any type of
+; of modem/serial port combination.  Certain routines must return status
+; flags, so please be careful to set the flags as directed.
+;
+; This version is for the TeleVideo 803H that is hooked up to an exter-
+; nal modem.
+;
+;-----------------------------------------------------------------------
+;
+; 06/11/86  Added 2400 bps capability, changed to BYE5 format from MBYE.
+;					- Irv Hoff
+;
+; 03/27/86  Created from MBTV-10.ASM	- Ian Cottrell
+;
+;-----------------------------------------------------------------------
+;
+; Change the following information to match your equipment
+;
+PORT	EQU	2FH		; Modem data port
+MDSND	EQU	PORT-1		; Modem send status register
+MDRCV	EQU	PORT-2		; Modem receive status register
+MDCTL	EQU	PORT-3		; MOdem control register
+IOPORT	EQU	20H		; Modem general purpose I/O port
+INTREG	EQU	27H		; Modem interrupt register
+MDPVR	EQU	28H		; Modem pointer/vector register
+TIMER	EQU	29H		; Modem timer A & B control register
+BDPORT	EQU	2BH		; CTC port for baud rate
+;
+MDRDY	EQU	80H		; Value for receive/send ready
+SPSTAT	EQU	21H		; Parameter status register
+;
+BD300	EQU	32		; 300 baud (9600/300 converted to hex)
+BD1200	EQU	8		; 1200 baud (9600/1200 converted to hex)
+BD2400	EQU	4		; 2400 baud (9600/2400 converted to hex)
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+; Reg A is zero if no carrier, non-zero if carrier
+;
+MDCARCK:IN	SPSTAT		; Read status register
+	ANI	01H		; Check for carrier detect
+	XRI	01H		; Ready if bit 0 = 0
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	PUSH	H		; Save regs
+	PUSH	D
+	PUSH	B
+	IN	TIMER		; Read current timer value
+	STA	TABD
+	IN	MDPVR		; Get STI interrupt vector
+	ANI	0E0H		; And mask off don't care bits
+	MOV	B,A		; Save it in B
+	ORI	6		; Point to indirect reg # 6
+	OUT	MDPVR
+	MVI	A,04H		; Set RTS
+	OUT	IOPORT
+	XRA	A		; Set handshake lines
+	OUT	SPSTAT
+	MOV	A,B		; Restore STI interrupt vector
+	ORI	7		; Point to indirect reg # 7
+	OUT	MDPVR
+	IN	IOPORT		; Read timer C and D regs
+	ORI	88H		; A & B reset; C & D unchanged
+	OUT	IOPORT		; Go do it
+	XRA	A		; Stop timers
+	OUT	TIMER
+;
+INITBD:	OUT	BDPORT
+	LDA	TABD		; Restart timers
+	OUT	TIMER
+	MVI	A,88H		; No parity, 8 bits, 1 stop, x16
+	OUT	MDCTL
+	MVI	A,1		; Turn on RXD
+	OUT	MDRCV
+	MVI	A,5		; Turn on TXD
+	OUT	MDSND
+	MVI	A,0FH		; Turn off interrupts
+	OUT	INTREG
+	IN	MDPVR		; Read pointer/vector register
+	ANI	0E0H		; Mask don't care bits
+	ORI	6		; Select indirect register 6
+	OUT	MDPVR
+	MVI	A,24H		; Set DTR and RTS
+	OUT	IOPORT
+	IN	PORT		; Clear any incoming chars
+	IN	PORT		; Try again
+	XRA	A		; Clear 'A' reg
+	POP	B		; Restore regs
+	POP	D
+	POP	H
+	RET
+;
+TABD:	DB	0
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the staus to see if a character is available.  If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDRCV		; Get status
+	ANI	MDRDY		; Check receive ready bit
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDSND
+	ANI	MDRDY
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; If a smartmodem, tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	IN	MDPVR		; Read pointer/vector register
+	ANI	0E0H		; Mask don't care bits
+	ORI	6		; Select indirect register 6
+	OUT	MDPVR
+	MVI	A,04H		; DTR off; RTS on
+	OUT	IOPORT
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make surae trhe flag is not set
+	RET
+;
+SET300:	MVI	A,BD300		; 300 baud
+	JMP	STBAUD
+;
+SET1200:MVI	A,BD1200	; 1200 bps
+	JMP	STBAUD
+;
+SET2400:MVI	A,BD2400	; 2400 bps
+;
+STBAUD:	PUSH	PSW		; Save baud rate
+	IN	TIMER		; Read current timer value
+	STA	TABD
+	IN	MDPVR		; Get STI interrupt vector
+	ANI	0E0H		; And mask off don't care bits
+	MOV	B,A		; Save it in B
+	ORI	6		; Point to indirect reg # 6
+	OUT	MDPVR
+	MVI	A,24H		; Set DTR and RTS
+	OUT	IOPORT
+	XRA	A		; Set handshake lines
+	OUT	SPSTAT
+	MOV	A,B		; Restore STI interrupt vector
+	ORI	7		; Point to indirect reg # 7
+	OUT	MDPVR
+	IN	IOPORT		; Read timer C and D regs
+	ORI	88H		; A & B reset; C & D unchanged
+	OUT	IOPORT		; Go do it
+	XRA	A		; Stop timers
+	OUT	TIMER
+	POP	PSW		; Restore baud rate
+	OUT	BDPORT		; And set it
+	LDA	TABD		; Restart timers
+	OUT	TIMER
+	MVI	A,88H		; No parity, 8 bits, 1 stop, x16
+	OUT	MDCTL
+	MVI	A,1		; Turn on RXD
+	OUT	MDRCV
+	MVI	A,5		; Turn on TXD
+	OUT	MDSND
+	XRA	A		; Set zero flag
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

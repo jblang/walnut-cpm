@@ -1,0 +1,152 @@
+
+; B3EP-1.INS - BYE3 insert for Epson QX-10 computers - 07/30/85
+;
+;		    Z80 SIO and 8253 CTC timer
+;
+;	    Note:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/30/85	- Restored original format of overlay	- pst
+; 12/15/83	- Created				- Albert Doolittle
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+DPORT	EQU	11H		; Data port
+SPORT	EQU	PORT+2		; Status/Control port
+CTC0	EQU	06H		; CTC baudrate port
+CTC1	EQU	CTC0+1		; Vector port
+;
+DAV	EQU	00000001B	; Data available
+TBMT	EQU	00000100B	; Transmitt buffer empty
+DCD	EQU	00001000B	; Data carrier detect
+;
+; Now comes the time to decide how we set the baud rate.  Set it prop-
+; erly for your particular CTC configuration
+;
+BDVECT	EQU	0B6H		; QX-10 Vector word
+;
+BD300	EQU	01A0H		; 300 baud
+BD1200	EQU	0068H		; 1200 bps
+BD2400	EQU	0034H		; 2400 bps
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	SPORT
+	IN	SPORT		; Get status
+	ANI	DCD		; Check for data carrier
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0		; Select Register
+	OUT	SPORT
+	MVI	A,18H		; Reset channel
+	OUT	SPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	SPORT
+	MVI	A,44H		; 1 stop, no parity, 8 bits
+	OUT	SPORT
+	MVI	A,1		; Setup to write register 1
+	OUT	SPORT
+	MVI	A,68H		; DTR off
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0		; Clear DTR
+	OUT	SPORT		; Causing Hang-Up
+	IN	DPORT		; Clear out garbage
+	IN	DPORT		; Make sure we're clear
+	PUSH	B		; In case it's being used elsewhere
+	MVI	B,20		; 2 seconds delay to drop any carrier
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore BC
+	MVI	A,3		; Setup to write register 3
+	OUT	SPORT
+	MVI	A,0C1H		; Initialize receive register
+	OUT	SPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,0EAH		; DTR high lets the modem answer phone
+	OUT	SPORT
+;
+	 IF	IMODEM		; If using an intelligent modem
+	CALL	IMINIT		; Go initialize it now
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Check the receive ready bit
+	RZ			; Return if none
+	ORI	255		; Otherwise, set the proper flag
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character.
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT		; Check the transmit ready bit
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	SPORT
+	MVI	A,68H		; Clear DTR
+	OUT	SPORT		; Causing Hang-Up
+	IN	DPORT		; Clear out garbage
+	IN	DPORT		; Make sure we're clear
+	RET			; Not used
+;
+; The following reoutine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	LXI	H,BD300
+	JMP	LOADBD
+;
+SET1200:LXI	H,BD1200
+	JMP	LOADBD
+;
+SET2400:LXI	H,BD2400
+;
+LOADBD:	MVI	A,BDVECT	; Get vector address
+	OUT	CTC1		; Send to CTC
+	MOV	A,L		; MSP of baudrate
+	OUT	CTC0
+	MOV	A,H
+	OUT	CTC0
+	RET
+;
+;			       end
+;-----------------------------------------------------------------------
+

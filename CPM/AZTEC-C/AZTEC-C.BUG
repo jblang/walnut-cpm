@@ -1,0 +1,57 @@
+Date: Thursday, 7 June 1984  09:44-MDT
+From: "Pearson Pete" at LLL-MFE.ARPA
+To:   info-micro at BRL.ARPA
+Re:   Five known problems with Aztec C compiler (long).
+
+    Re: Manx Software Systems' Aztec C compiler for Z80, CP/M,
+	version CZII 1.05c.
+
+The following five problems were reported to Manx long enough ago (1983, I
+think) that I'm confident they're never going to acknowledge them, let alone
+fix them for me.
+
+- Does not flag an error when a structure is passed as an argument, if
+there is another argument. However, the code generated passes a nonsense
+value instead of the address of the structure.
+  Example:
+	struct confrm {	int c_act;	};	/* No error messages is	*/
+	testsub(s)				/* output during the	*/
+	char *s;				/* compilation of this	*/
+	{	struct confrm xyz;		/* program, though	*/
+		sreadcf(s, xyz);		/* bad code is		*/
+	}					/* generated. 		*/
+
+- Does not report an error when an undefined structure is referenced in the
+definition of a second structure. Of course, it can't possibly generate
+correct code in this situation!
+  Example:
+	struct ss1 {	int a;
+			struct ss2 b;	};
+	sub1()					/* No error message	*/
+	{					/* appears during the	*/
+	    struct ss1 c;			/* compilation of this	*/
+	    c.a = 1;				/* program.		*/
+	}
+
+- Does not properly interpret the logical negation operator ("!") during
+the compile-time evaluation of constant expressions.
+  Example:
+	#define	TRUE	(1==1)
+	#define	FALSE	(!TRUE)
+	sub1()
+	{
+		sub2(TRUE);	/* The compiler evaluates all	*/
+		sub3(FALSE);	/* three of these arguments	*/
+		sub4(!1);	/* to 1.			*/
+	}
+
+- Programs compiled with the Aztec C compiler and running with the Z80CLIB
+runtime library run ridiculously slowly when "stdout" output is redirected
+to a file. A change to the Aztec-supplied module "Croot" (which scans the
+execute line to perform redirection) can correct this problem.
+
+- Generates incorrect code for the statement
+	i = (x > 0);
+
+pearson@lll-mfe
+Opinions and speculations entirely my own.

@@ -1,0 +1,196 @@
+                                                                  29 July 1985
+                                  Z-NEWS 208
+
+Z TIPS:  AC, Version 1.1, has been placed in ZRDOS (or ECHELON) directory area 
+of  Z-Nodes (AC works with ZRDOS and ZRDOS Plus only).   ZRDOS author,  Dennis 
+Wright,  changed  archive copy program by eliminating prompt if file exits  on 
+destination.    Now  simply  using  option  /a  causes  changed  files  to  be 
+automatically  copied from source to destination directory.   Using  /an  with 
+Version 1.0 did the same thing but file copy remained unverified.  Now program 
+seems  exactly  what  it  should be.   (Dennis is creator  of  our  three  I/O 
+Packages, Items 40, 41, and 42 on Echelon Price List.)
+     By the way,  AC makes dandy file MOVE,  as opposed to COPY, program using 
+the  trailing  e  option.   Command  ac b:=fn.ft /e<cr>  copies  fn.ft  to  B: 
+directory  from  current,  then  erases fn.ft from current  after  coping  has 
+completed!   Using  AC  and ALIAS,  ZRDOS owners can create a mv function  for 
+moving files, one having simple and easy to remember syntax.
+     Richard  Conn,  author of ZCPR3,  has finished writing a tutorial on  I/O 
+Packages.   Fifty-page  document shows how to modify your BIOS  for  efficient 
+input/output  redirection.   IOP  concepts and design criteria receive  detail 
+treatments.   We  publish as loose-leaf and offer for $9.95 plus shipping  and 
+handling,  is  Item  84 on price list.   On the other  hand,  tutorial  is  so 
+important  we placed it (as file IO/P.LBR) on our nodes for  downloading--take 
+it, but only if you want to learn things I/O.
+     Magazine  Micro Cornucopia has commissioned busy Richard to write an  in-
+depth  article  on ZCPR3 and Z-System,  piece scheduled to appear  in  Oct/Nov 
+issue,  No.  26.   Certainly,  we have been frustrated in our struggle, in our 
+inability to explain satisfactorily what Z is all about.   Everything we speak 
+and  write  seems to generate more questions than answers.   Of  course,  your 
+interest is shown by all this, and we rejoice!  Nonetheless, Richard currently 
+expends   much  energy  on  Micro  C  article  hoping  it  fosters   increased 
+understanding, fewer questions.
+
+ZCPR3:  The  Manual  and  Term3 Status:   Yes,  manual  is  shipping,  slowly. 
+Richard's  book certainly answers many pent-up,  so-far unanswered  questions.
+Term3  about  to  ship...another fortnight and  it  should  be...documentation 
+taking longer than planned.
+
+Software Musings:  Zilog Z80 instruction set is so powerful that it's a shame, 
+historically,  Intel 8080 common-denominator code writing started and has gone 
+on  for  so  long.   Now with  HD64180  high-integration  microprocessor  chip 
+availability,  we  start  to forget 8080 and take full advantage of  Z80  (and 
+National NSC800) hardware architecture,  especially since Zas relocating macro 
+assembler  is perfected (and is only $69.00).   Zenith and Viasyn  (CompruPro) 
+curse day they chose Intel 8085 (similar to 8080) as co-processor,  instead of 
+Z80 or NSC800, in their S-100 bus computers.
+     The  RISC (reduced instruction set computer) concept,  fostered by  Prof. 
+David  Patterson  and his University of California at Berkeley (CAL)  students 
+and getting coverage by trade press,  means little to us here at EI.   We  use 
+existing  hardware  power to simplify software and increase computer  through-
+put.   Others play their games to break hardware market strangle-holds created 
+by Intel, IBM, et al; we won't!
+     Long live instructions DJNZ,  INC,  DNC,  INI,  INIR,  EX, EXX, ADD, ADC, 
+LDIR,  SET, RES, SBC, SUB, JR, and extremely versatile LD.  And HD64180's MLT, 
+IN0,  OUT0,  OTIMR,  TST  should prove of great value for compact,  fast  code 
+production.   Instructions  LD  (HL),C or LD C,(HL) require only one  byte  as 
+object  code.   Load (copy) the contents of memory pointed to  (addressed)  by 
+register-pair  HL  into C register,  all in one byte!   Many  useful  one-byte 
+instructions  exist;  two  and three-byte ones usually complete our needs  for 
+fast-code writing.  Seldom do we use four-byte op-codes.  Oi ghlge, two-byte 
+op-codes are required for typical programs,  giving 6mHz HD64180 (or 8mHz Z80) 
+through-put  of  one_MIPS (million instructions  per  second)!   Compare  with 
+through-put (and with hardware/software costs) of 16/32-bit Intel processors!
+     Now that we have your full attention, consider:  HD64180 double-precision 
+multiply  bench mark reported in Z-News 107,  pg 3,  was obtained using  short 
+(54-byte)  assembly  language  subroutine.   Listing comes from  a  yet-to-be-
+released Hitachi application note.  Interesting code works the way we multiply 
+with pencil and paper:
+
+; 16-bit unsigned multiply with 32-bit result subroutine
+ 
+MULTX:  LD      DE,(MEM1)      ;16-bit unsigned arguments previously
+        LD      BC,(MEM2)      ; stored at locations 'mem1' and 'mem2'
+MLTX0:  LD      H,C            ;use lower order byte of
+        LD      L,E            ; of both words for 1st mult
+        MLT     HL             ;16-bit product stored
+        LD      (RESULT),HL    ; in 'result' location
+        LD      L,H
+        LD      H,0
+        LD      A,B            ;save
+        LD      B,D
+        MLT     BC             ;diagonal multiply
+        ADD     HL,BC
+        LD      B,A            ;restore value
+        LD      C,E
+        MLT     BC             ;diagonal multiply
+        ADD     HL,BC
+        LD      (RESULT+1),HL  ;interim product stored
+        LD      L,H            ;ready to shift second line
+        LD      H,0            ; left then add to first
+        RL      H              ;rotate left through carry
+        LD      E,A            ;original b-reg value into e-reg
+        MLT     DE             ;multiply
+        ADD     HL,DE
+        LD      (RESULT+2),HL  ;final 32-bit product available
+        RET                    ;return to caller
+
+MEM1:   DS      2              ;uninitialized area starts here
+MEM2:   DS      2
+RESULT: DS      4              ;32-bit product (low-byte first)
+
+     Twelve bytes are removed if application program places data in BC and  DE 
+register pairs before entry to subroutine (call to MLTX0, eliminate MEM1 and 2 
+references).   Execution time:   37.1 usec (microseconds) with 6.144 mHz clock 
+(0.163 usec period), 42 op-code/operand fetches, 3 clock cycles per fetch, 110 
+machine cycles and 185 states.   Recall,  Z80 processor took 302 usec (8 times 
+longer than HD64180) to double-precision multiply, lacking MLT instruction.
+     Ready  your  order  for  SB180;   call  The  Micromint  at  800/635-3355. 
+Incidentally,  stand-alone  BBS package (see Z-News 206 and 207),  using SB180 
+and COMM180 (with MOSART and SCSI hard disk interface), has been given name of 
+TurnKey Bulletin Board System,  TKBBS.   And glory-be,  there's been no  price 
+increase!  Full disclosure in upcoming communications issue of BYTE magazine.
+
+Using  ZAS:   Universal assemble-link-load is major Zas quality,  as  well  as 
+convenience  and speed.   Here's a few general rules to follow when assembling 
+an already-written source listing:   1) convert ASM,  MAC,  and LIB files that 
+use Intel 8080 mnemonics to Zilog with supplied Zcon converter and translator. 
+2) Make sure, by scanning source code with your editor, pseudo-ops don't start 
+in column one but in operation/operand columns,  usually column 2 through  32.
+Column  one  is reserved for labels,  except leading line comments may  occupy 
+this column.   Normally, pseudo-ops start in column 9, the first tab stop.  3) 
+Comments start with a ";" (semicolon) and not with "*" (asterisk); neither ASM 
+nor M80 permit other than semicolon.  (Unexpectedly, Patrick O'Connell, author 
+of Zas,  made present version of Zcon convert leading *'s to ;'s.   Thank you, 
+Patrick!)   Errors  flagged by Zcon during conversion should be  fixed  before 
+assembling with Zas.
+     Investigate  errors  produced during assembly,  then  fix.   First  error 
+usually causes many subsequent errors,  so fix first then see what remains  to 
+be done, if any thing.  Always fix next first error of previous assembly.
+     Typically, changes in source statement form make for error-free assembly. 
+For example,  listing pseudo-ops like $-MACRO and $+MACRO should be changed to 
+should be "commented out" (see Z-News 106,  pg 1,  and 205, pg 3).  Of course, 
+all new programs should be written using Zas User's Manual as absolute  guide. 
+If  ZAS doesn't perform as the manual indicates,  fill out EI "Software Update 
+Form" explaining trouble and return to Echelon.   Moreover, these fill-in-the-
+blank  forms should be used for program improvement suggestions,  for  any  EI 
+product.  We value your advice!
+
+Amateur  Z  User's Corner:  Above Zas discussions suggests  a  quick-and-dirty 
+alias  to  assemble  converted-to-Zilog files (using Zcon)  and  link/load  to 
+executable COM files:
+
+     ZAS $1;SAK /bp6 Errors, cancel (^C)?;ERA $1.bak;ERA $1.com;
+     ZLINK $d:$1,a:VLIB/,a:Z3LIB/,a:SYSLIB/;ERA $1.rel
+
+No  harm comes to file being linked if routines from invoked libraries are not 
+needed.   Fast  Zlink  is  intelligent  enough  to  work  quickly  under  such 
+conditions.
+
+Z-Node Activity:  Rea Williams,  Z-Node 10, installed a 2400 bps modem and now 
+uses Z-Msg;  try him by calling 714/855-0672.   Also,  Rea ordered a Micromint 
+SB180 single board computer and plans to quickly have it up as his node  after 
+arrival in August.
+     Though  not a Z-Node,  Norm Feder is a ZCPR3 enthusiast.   His BBS--Lands 
+End RCP/M--is in Sidney,  British Columbia,  Canada; dialing 604/656-9115 gets 
+his  300/1200 bps modem.   Give our Great Northwestern neighbor a call  for  a 
+change of pace!
+     Oh, Happy Day!  Z-Node Central up with 2400 bps communication capability, 
+starting today.   David McCord,  Sysop,  obtained US Robotics Courier modem to 
+reduce your online time, your monthly telephone bill!  Oh, Happy Day!
+
+Silicon  Valley (and other hi-tech regions) Brief:  Ups and downs,  peaks  and 
+valleys,  chills and fever (see Newsletters 007,  pg 5,  and 009, pg 7).  Many 
+Silicon  Valley companies (principally their management) appear suffering from 
+lack of discipline,  knowledge,  and understanding.  Such suffering usually is 
+caused by greed (we,  human beings, are yet perfected), aided substantially by 
+short-sighted   mental   conditioning,    lack   of   significant    education 
+(indoctrination,  yes).   Who knows where we've come from,  where we're going? 
+Lacking knowledge, we take what comes.
+     Technology  is  no substitute for learning;  yet,  we  seek  push-bottom, 
+instant  response and gratification!   Life is to be lived--physical,  mental, 
+emotional life--and from living, higher levels of understanding come, feelings 
+of  satisfaction and fulfillment obtained.   Those who acquire  power  without 
+regard for pain caused to others in the process produce exactly what they sow: 
+hostility and anguish!  Sleep occurs not only at night for these power-at-any-
+price  holders  but during the day.   Still,  it's during the day  consciously 
+directed  thoughts and locomotion are  needed;  anxious,  subconscious  energy 
+shouldn't  control then.   Wake-up America,  Sun is high in  sky!   Breakfast, 
+brunch  on lush strawberries and white Zinfandel--enter realms of  enchantment 
+naturally!  See you down the lines...
+
+                                                                 Echelon, Inc.
+				                              101 First Street
+			                                  Los Altos, CA  94022
+				                       Telephone: 415/948-3820
+				                  Z-Node Central: 415/489-9005
+
+Trademarks:    SB180,   COMM180,  TKBBS,  Micromint;  HD63484/64180,  Hitachi; 
+Z80/800, Zilog; 8080/85/88/86/186, Intel; 9580/81, Advanced Micro Devices; WY-
+50/350,  Wyse Technology;  Z-System, ZCPR3, ZRDOS, Z-Tools, Z-Com, Zas, Zlink, 
+ZDM,  REVAS,  Z-Msg,  DSD,  Term3,  Lasting-Value Software,  Echelon and their 
+respective owners and authors; MOSART, XE1201/03, Xecom; NSC800, National.
+
+Z-News 208 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon.
+

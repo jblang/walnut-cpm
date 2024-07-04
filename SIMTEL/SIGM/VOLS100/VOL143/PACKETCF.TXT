@@ -1,0 +1,445 @@
+              ON THE CARE AND FEEDING OF YOUR PACKET REPEATER
+ 
+                                    by
+ 
+                             Hank Magnuski, KA6M
+ 
+          This paper will describe the construction and functioning
+          of the KA6M packet repeater, and will report on the oper-
+          ational results during the first 10 months of service.
+          Since its initial turn-on in December of 1980, the repea-
+          ter has been transformed from an experiment to a major
+          Bay Area repeater serving a user group now approaching 30
+          stations.  The repeater has been extremely important in
+          testing new hardware and software, and in provoking inter-
+          est in the area's amateur community.
+ 
+ 
+I.     The KA6M packet repeater
+ 
+       From its initial turn-on in December, 1980, and through most of the
+Spring of 1981 the packet repeater was operating out of my residence in west-
+ern Menlo Park, California, a location which is in the foothills which border
+the western shore of the San Francisco Bay.  It was an experimental machine
+then, but could be heard well through most of the northern end of Silicon
+Valley, even though the power level was modest.  The only station equipped to
+use it then was located in the same house, so there was never any real problem
+with signal path.  Since then we have installed a couple of upgrades to the
+control software, we have used a better CPU card, increased the power level,
+moved the repeater up to a 700 ft. elevation, and integrated its operation to
+be 100% compatible with the protocol used by the Vancouver Digital Communicat-
+ions Group's terminal node controller.  The repeater has changed from being a
+laboratory curiousity to a major Bay Area repeater heard from Marin/Berkeley
+to south San Jose, and the user community has grown from a couple of stations
+to a network apporaching 30 users. (See the April 1981, "QST" for the initial
+announcement on the machine.)
+ 
+     The KA6M/R repeater is currently operating on a simplex channel assigned
+(in the San Francisco Bay Area) for non-voice use, 146.580 MHz., and transmits
+data at a speed of 1200 Baud.  The machine consists of a Z-80 microprocessor,
+a Bell 202 compatible modem, and a solid-state transceiver with power ampli-
+fier.
+     The repeater hardware is based on STD bus cards.  The STD bus uses 56-pin
+1/2" x 6 1/2" cards and is very popular for industrial process control appli-
+cations.  There are now many manufacturers supplying cards for this bus, and
+the repeater uses the Z-80/CPU-2 card from Mostek, which costs about $195.
+The STD card is very compact, and does not have unneeded extra circuitry which
+is typically found on more versatile personal system CPU cards.
+A WD1933 chip was breadboarded onto a Vector STD board, and one additional
+card to control the transmitter is all that was required.
+ 
+     A Bell 202 modem uses a mark tone of 1200 Hz., and a space tone of 2200
+Hz.  The modulation is AFSK-FM using unmodified voice-frequency radio equip-
+ment.  The signal is NRZI encoded, which means that each zero data bit causes
+a mark-space or space-mark transition in the carrier.  It is difficult to ex-
+plain to old-time RTTYers that "mark" and "space" lose their meaning in an
+NRZI system.  The HDLC frame guarantees that there will be a sufficient number
+of zeroes sent so that bit timing and clocking can be recovered from the in-
+coming signal.  No start/stop bits are ever sent.
+ 
+     The radio is an FT202 handheld transceiver with a 20 Watt power amplifier
+Since this repeater runs simplex, problems associated with full-duplex repeat-
+ers (desense, etc.) are not encountered, and exotic remedies, such as duplex-
+ers, dual antennas, and so forth, are not required.
+ 
+     The control software for the repeater is written in PASCAL/Z, a PASCAL
+which generates native Z-80 code instructions.  Assembly language interface
+routines have been written to control a Western Digital 1933 HDLC chip.  The
+software fits into two 2716 EPROMS, and 2K bytes of RAM memory are available
+for use.  The repeater can store up to eight 128-byte packets.
+ 
+     Before giving any more details about the repeater, it would be worth-
+while reviewing some concepts concerning packet repeaters.
+ 
+II.  Packet repeaters in Amateur Radio Services
+ 
+     Virtually all repeaters in Amateur Radio Service can be classified into
+three major categories:  Frequency-diversity, Time-diversity,
+                         or Space-diversity.
+ 
+        A frequency-diversity repeater is a conventional repeater
+        which uses two or more frequencies for input and output.
+ 
+        A time-diversity repeater may use a single frequency for
+        both input and output, but the signals are separated in time.
+ 
+        A space-diversity repeater or on-channel booster relies on
+        the spatial separation of its input and output channels.
+ 
+     For digital data-communications work in Amateur Radio many variations on
+the above three approaches are possible.  In the frequency-diversity case, for
+example, we have
+ 
+        Linear translators - Devices which take incoming RF within a
+        specified band and retransmit that RF on a new set of frequencies.
+        There is a one-for-one mapping of each input frequency to each
+        output frequecncy.  Data communications through the soon-to-be-
+        launched AMSAT spacecraft will use linear translators.
+        Audio transponders - The incoming RF is demodulated, and the
+        recovered audio signal is used to modulate the outgoing carrier.
+        Most 2-meter FM repeaters are of this type.
+ 
+        Digital transponders - The incoming RF is demodulated, and the
+        resultant audio tones are converted to their logic "1" and
+        logic "0" values.  The digital signal is then used to modulate
+        the outgoing carrier with the correct AFSK tones.  Many RTTY
+        repeaters use this technique;  it discourages voice communi-
+        cations.  Digital signal regeneration may also be done at the
+        character level, where a complete incoming character is received
+        and then retransmitted with new tones and bit timing.
+ 
+In all of the above examples, input and output activity occurs simultaneously
+with practically no time lag in retransmission of the signal.  Such repeaters
+are termed "duplex" machines, because the information is going in two ways at
+the same time.
+ 
+     In the time-diversity case there is local storage for packets or frames
+at the repeater site, and we can run the repeater in a "simplex" mode, i.e.
+transmitting and receiving the frame on the same frequency.  The outgoing sig-
+nal is completely regenerated at the frame level, and all receiving stations
+are presented with a uniform signal, independent of the condition of the orig-
+inal input.
+ 
+     The primary function of a packet repeater, as with a more conventional
+repeater, is to extend the geographic range and coverage of fixed or mobile
+stations.  A packet repeater, however, can be programmed to selectively repeat
+only those packets addressed to it, thus allowing the possibility of multiple
+repeaters on the same frequency, an advantage instead of a curse!  In fact,
+there is a wide range of functions which can be programmed into a packet
+repeater, and we will discuss some of these options later in this article.
+ 
+     The FCC currently considers a packet repeater to be in the same category
+as an ordinary voice repeater, and so it must abide by the rules governing
+voice machines.  Thus, it must be in the repeater subbands, must ID with a /R,
+cannot be used on a simplex HF frequency, etc.
+ 
+     Of the three or four packet repeaters currently in use in amateur radio
+service there are no two alike, and each of the different approaches has its
+own merits:
+ 
+        Contention Protocol Repeaters - Each station transmits on the
+        channel without regard to the activity of other stations.  If
+        a packet collision occurs, the station will not receive an
+        acknowledgement for the packet, will delay for a random period
+        of time, and then transmit again.
+ 
+        Carrier Sense Multiple Access - Each station is able to sense
+        the carrier of other users and waits until the channel is clear.
+        Collisions will occur in this form of contention protocol, but
+        less frequently than above.
+ 
+        Time Division Multiple Access - Each station is assigned a
+        time slot for its transmission.  No amateur repeaters utilize
+        this approach yet.
+ 
+        Polling Protocol Repeaters - The repeater cycles through a list
+        of active stations requesting traffic from each one.  No
+        collisions occur, but stations must respond to the polls in
+        milliseconds and the poll list must be kept short for good
+        throughput.
+ 
+The trade-off in these different approaches is channel utilization vs. centra-
+lized control and coordination.  The tighter controls lead to better through-
+put, but the penalty is dependence on the functioning of a central station or
+on increased complexity of station equipment.  Since the Amateur Radio service
+is a voluntary, non-professional operation, any scheme which depends on the
+24-hour functioning of a single, central control station for all network users
+should be looked at very carefully.  A philosophy which adopts looser controls
+and multiple or redundant repeat points will probably prove more workable in
+the long term.
+ 
+     The design of the local area network and repeater for each amateur commu-
+nity will probably be different and tailored to the needs of that community
+and subject to the technical preferences and biases of its designers.  As long
+as the local net designers provide for future compatibility with whatever nat-
+ional networking scheme is adopted there should be no problem with variations
+of a protocol for a given region.
+ 
+     Here in the Bay Area we are considering the possibilities of a two-
+repeater system, one serving the north Bay, and one for the south.  The
+alternative is a single high-level repeater.  We need further study of our
+expected traffic patterns and of the interconnects required to nearby cities.
+The higher the repeater the greater the range and coverage, and consequently
+the increased traffic and throughput delays.  Lower level repeaters can handle
+smaller groups of users with better throughput, but connects to distant
+locations may require double and triple packet hops.
+ 
+     Our design so far has stressed the ability of users to be able to do
+direct point-to-point connects to target stations if they are within radio
+range.  This can offload some of the traffic from the repeater and allows
+stations to communicate with each other should the repeater go down.  Note
+also that the 1200 Baud throughput is cut in half when packets have to be re-
+peated, and is down to a third or less when two hops are involved. Some of our
+next experiments will be with two repeaters in tandem so that we can gain some
+experience in coupling two machines.
+
+     While we're on the subject it would be worthwhile mentioning some devices
+which are very similar to packet repeaters but which have different names:
+ 
+     Gateways - It is frequently necessary to convert a packet from one media
+to another or to transport a packet from one local net to another.  A "local
+network" usually implies geographic proximity, a common medium, and addressing
+which is unambiguous and at the lowest level of the protocol hierarchy.  Each
+of the stations using a particular satellite channel might be a member of a
+different local net, and the satellite channel would be used to connect
+different local nets around the globe.  A gateway would be used to convert a
+satellite packet to the format of another local net, say, the net consisting
+of all the stations using the KA6M repeater.
+ 
+     Station Nodes - If a repeater participates in creating or dissolving a
+connection between two or more users, or if it has extensive information about
+the state of the network and provides routing directives to other repeaters
+that device is normally called a "station node".  The exact functions of a
+station node depend on the design of the network, but in general we think of
+it as a repeater which has been promoted into the first level of network
+management.
+ 
+     Host Node - There are many different types of services which might be
+offered on a packet network,the most frequently mentioned one being electronic
+mail.  Services such as that should be done by host machines on the network
+and probably should not be incorporated into a repeater.  The hardware of a
+repeater should be simple and reliable, and should not depend on disk storage
+or other failure prone equipment.
+ 
+     In summary, it becomes clear that with a programmable device we can
+implement many different levels of complexity and service in a repeater, and
+the choice of what to incorporate is only limited by the time and talent of
+the designer and the constraints imposed by the hardware used.
+ 
+III. Operational Aspects and Details of KA6M/R
+ 
+     The Z-80 was an obvious choice for the basis of constructing a micro-
+processor based repeater system.  It is a very popular chip, and some
+interesting high-level language support is available for it.  The STD cards
+are small and compact, and it is extremely easy to wire a new board for
+testing ideas.
+ 
+     The choice of the Western Digital 1933 chip needs more explanation.
+Quite a few manufacturers are now making HDLC/SDLC VLSI chips.  Of the half-
+dozen or so available, only two have the hardware required for easy use in an
+amateur radio environment.  The special features required are NRZI encoding
+and an on-board digital phase-locked loop for timing recovery.  The two chips
+which have this circuitry are the Intel 8273 and the Western Digital 1933.
+The Intel chip has a more elegant programming interface, but is slower and
+more expensive than the Western Digital unit.  In quantity purchase the Intel
+part is about $35, and the Western Digital part is $25.
+
+     The Bell 202 modem operates at the maximum Baud rate permitted on VHF,
+and works very well with voice frequency equipment.  Also, 202's are available
+from many different sources and can be found at surplus electronics houses.
+ 
+     The 2-meter band was selected because it permits 1200 Baud transmission
+and radio equipment for it is widely available.  Keeping the entry threshold
+low for packet users was an important part in introducing the service here.
+It's quite enough to ask someone to buy a new controller board and a modem.
+Requiring special radio equipment on top of that would be a burden.
+ 
+     The repeater design assumed that the machine eventually would be on a
+mountain top, and that limited access to it would be the rule.  Thus the
+design was kept simple, and the minimum functionality was planned for the
+first installation.  Virtually no manipulation is done on an incoming packet.
+The repeater does not participate in the link-level protocol, and any acknow-
+ledgements or requests for retransmission must be done by the end-user
+stations.  Initially the repeater was set up to repeat a single packet with up
+to 256 bytes in the information field.  That was changed, however, and it will
+now repeat up to eight 128 byte packets.  Storing and repeating multiple
+packets in a single transmission is important for compatibility with the
+current VADCG software, and is required when packets are hopping down a chain
+of repeaters.  If two packets are coming from opposite directions, one of the
+repeaters at crossover point must be able to store more than one packet.
+ 
+     The address byte modifications which were adopted, work as follows:  the
+repeater will repeat packets which have an address byte of hex 80 to 9F.  In
+repeating the packet, the outgoing address will be the incomming address plus
+hex 20.  Thus, repeated packets will have an address in the range A0 to BF.
+This is the only alteration to the packet, and is otherwise an exact duplicate
+of the incoming packet.  The address change is required so that receiving
+stations are not confused by a packet coming from both the sending station and
+the repeater.  Stations wishing to direct connect may use addresses in the
+range 07 through 7F.  The VADCG TNC software has been modified so that a
+station receiving a connect message adjusts its outgoing address to match the
+repeater/non-repeater range of the incoming connect message.  So, a station
+wishing to log into the mailbox can do so directly or be repeated, and the
+mailbox will automatically adjust itself to the selection made by the
+operator.
+ 
+     This addressing scheme has two major problems.  First, it requires an
+individual to coordinate address assignments within a user community.  Second,
+if the user population grows beyond the 32 slots currently assigned to the
+KA6M repeater, something has to give.  Several suggestions have been made to
+let the repeater dynamically assign addresses, but what we're really facing
+here is the tip of the iceburg with respect to some real serious issues con-
+cerning local area and nationwide network addresses and how to handle them.
+Some bandaids could be applied to the addressing strategy described above,
+but I think it would be better to face the more global issues right away.
+ 
+     As soon as a packet is received the FCS field is checked, and if not
+correct, the packet is discarded.  Next, the incoming address byte is checked
+for the right range, and if approved, the address field is modified and the
+packet is put on the outgoing list.  When one or more packets are ready for
+retransmission and when the modem carrier detect signal has dropped to the
+channel clear state, the repeater turns on its transmitter and transmits all
+packets on the outbound list.
+ 
+     The repeater has circuitry to sample both RF Carrier Sense and Modem
+Carrier Detect.  Originally packet retransmission waited for a clear RF
+channel, but this proved unworkable in an RF jungle such as Silicon Valley.
+Now, the beacon will hold back if RF Carrier Sense is on, but packet
+retransmission will only be delayed by other packet activity on channel, or
+by tones which can fool the modem, such as RTTY AFSK.
+ 
+     If at least 5 minutes have elapsed, and the channel has been RF free for
+the last 30 seconds, then the repeater executes a beacon subroutine which
+transmits three 70 character packets.  The beacon messages are very useful for
+testing the receive path of new packet stations, and for verifying that
+everything is in order both at a working station and at the repeater.  They
+also have attracted lots of attention from hams in the community who have
+never before listened to packet transmissions.  One uninformed gentleman
+described the beacon packets as "The longest squelch tail I ever heard".
+ 
+     Entering the beacon subroutine also triggers the CW identification.  The
+hardware has separate control leads for request-to-send and transmitter on.
+The software currently turns the transmitter on and then toggles R-T-S on and
+off to produce the code required to ID.  This procedure is not as good as the
+VADCG CWID routine, for packet stations can fire off a packet in the dead air
+time between the dits and dahs.  The repeater, of course, is not listening.
+The VADCG TNC keeps R-T-S on continuously and uses Mark (1200 Hz.) for the
+dits and dahs, and Space (2200 Hz.) for the inactive time.
+ 
+     The transmitter control card has some simple push-to-talk control
+circuitry on it and a 30 second watchdog timer.  An absolutely foolproof
+watchdog timer is difficult to construct because it would have a hard time
+discriminating between normal program operation and a loop which periodically
+turned RTS and the PTT circuit on and off.  Now it only catches a continuous
+RTS on state.  One really needs two or three independent checks on the program
+to insure proper functioning.  Failure of any one of those checks should reset
+the repeater.
+ 
+     The FT202 radio has worked rather well considering its initial cost, and
+any similar unit would be suitable for small to medium size metropolitan
+areas.  Crystal controlled radios, in general, are ideal for packet service.
+They tend to have faster switching times than the new synthesized units.  We
+are going to upgrade the unit here, however, because of the dense RF in this
+area.
+
+     One of our more interesting findings is that the repeater has proven to
+be tremendously useful as a test tool for bringing up and checking out
+stations.  The machine is there 24 hours a day, and by bouncing a packet off
+it you can quickly verify if your station is in order.  The beacon messages
+provide a readily available signal source.  The eight packets which can be
+stored represent nearly a third of a page of text, enough to trigger failures
+in I/O interfaces which might be prone to dropping characters.
+ 
+     We also discovered, and this sounds really incestuous, that you can self-
+connect through the repeater.  Due to the way the VADCG and repeater software
+and addressing is structured a station can make a complete round-trip
+connection loop to its own equipment.  A line of text typed in at a terminal
+will come back to the screen via the repeater, and all error checking,
+retransmit and flow control logic is active during such a test.  This is an
+excellent way for a personal computer system to exercise its software and test
+to see if there are any conditions under which bits and pieces might be
+dropped.
+ 
+     The repeater users have found that packet radio service is more demanding
+of their stations than originally expected.  Modem programs that used to work
+fine at 45 or 300 Baud may not be able to keep up at the 1200-9600 Baud rate
+coming from the TNC.  File transfers are expected to be 100% reliable, so the
+flow control mechanisms have to function perfectly in order to not lose data.
+Radios, modems and antennas have to be adjusted for optimum settings if the
+1200 Baud 202 modem rate is going to be meaningful.  We have reached the point
+where most of the pieces of our network are working, but a lot of fine tuning
+remains to be done.
+ 
+IV.  Advanced Functions for Repeaters
+ 
+     The following are some of the ideas which have accumulated but which are
+not currently implemented in our repeater:
+ 
+     Program bootstrap - A ground station is used to load the bulk of the
+repeater program.  New features and functions, program corrections, routine
+tables, etc. could be maintained at a convenient host station away from the
+repeater site.
+ 
+     Changeable beacon messages - Special packets could be sent to load new
+messages of importance to the repeater users.
+ 
+     Time of Day - A realtime clock could transmit current time and date or
+GMT.
+ 
+     Statistics - The repeater could be put into a mode where it would send
+nearly continuous packets of some interesting pattern for a period of time.
+This would be useful for checking modems and levels and continuous reception
+of data at a station.
+ 
+     Log List - Users like to know what stations might be monitoring and what
+stations were active in the recent past.  The callsigns of the last ten
+connecting stations could be kept in a first-in first-out list.
+ 
+     Multi-party conferences - The current point-to-point connections provided
+by the HDLC link level protocol do not allow real-time conferences or
+roundtables.  The issue, of course, is data integrity.  Error checking and
+retransmission must be done for each user plugged into the discussion.  A
+smart repeater or station node might be able to arrange such a multi-way
+conference.
+ 
+     Terminal-node repeaters - Any user who desired or was in a strategic
+location could program his TNC to act as a repeater in addition to the usual
+TNC functions.
+ 
+     Role in larger network - The real mission of a repeater is to be a member
+of a larger national or international network.  What functions have to be
+added to the program logic of a repeater to accomplish this is a subject
+for debate and will hopefully be outlined in the near future.
+ 
+V.   Future Directions
+ 
+     There are many possibilities for future development of repeaters in the
+amateur service:
+ 
+     Hardware - High speed, 48 Kilobaud UHF repeaters using direct digital
+modulation of the RF, with no audio modems used at all.  Decoding will be
+done directly from the IF strip.  Repeaters with dual RF modules and selective
+control of frequencies and antennas.  Spread spectrum transmission, with
+selective targeting of a repeater by changing the transmit hop codes.
+ 
+     Software - Development of higher level networking protocols in higher
+level languages such as PASCAL, C, ADA, FORTH, and others.  Interconnects with
+other networks and CBBS's.  Development of broadcast protocols which handle
+real-time conferencing and networking games.
+ 
+     It seems to me that we are only beginning, and that there is still plenty
+of room for future experimentation.
+ 
+VI.  Acknowledgement
+ 
+     I wish to thank the amateur radio operators of the Northern California
+area for their extremely enthusiastic response to this new service and their
+willingness to spend time and money in putting together packet stations.
+Their feedback on many of the problems and contributions at our packet
+seminars have helped generate some of the ideas in this paper. Thanks also to
+W6FFC, for the past repeater site and to WA6TAT, for the current repeater site.
+     The software and schematics will be available from me for a modest charge.
+Contact me if you are seriously interested in duplicating this equipment.
+
+***EOF***
+

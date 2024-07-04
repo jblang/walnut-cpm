@@ -1,0 +1,528 @@
+;
+; Program:  Z3INS
+; Author:  Richard Conn
+; Version:  1.2
+; Date:  9 January 1985
+; Previous Versions:  1.0 11 June 84, 1.1 1 Dec 84
+;
+VERS	EQU	12		; Four times faster.. jww
+Z3ENV	SET	0F400H
+
+;
+;	The purpose of Z3INS is to install a group of ZCPR3 System Utilities.
+; Z3INS reads in an Environment Descriptor and then reads in a file containing
+; the names of the utilities to be installed.  It then reads in each file named
+; and installs the proper values into it.
+;
+;	Syntax:
+;		Z3INS Envfile.typ Install.typ
+;	Default File Types:
+;		Envfile - ENV
+;		Install - INS
+;
+;	Added the ability to install one program if the "Install" type
+;	is "COM".
+;
+;  Customization
+;	Number of Blocks to Read/Write Per File Access
+;
+NBLKS	EQU	16		; Must be even (8=1K, 16=2K, etc)
+
+;
+;  Library Utilities
+;
+	EXT	Z3INIT
+	EXT	FNAME
+	EXT	F$OPEN,F$CLOSE,F$READ,F$WRITE,INITFCB
+	EXT	EPRINT,PFN1,CRLF,COUT
+	EXT	MOVEB,SKSP
+	EXT	CODEND
+
+;
+;  System Equates
+;
+BASE	EQU	0		; Base address of system
+BDOS	EQU	BASE+05H
+FCB	EQU	BASE+5CH
+FCB2	EQU	BASE+6CH
+TBUFF	EQU	BASE+80H
+TAB	EQU	09H
+CR	EQU	0DH
+LF	EQU	0AH
+CTRLZ	EQU	'Z'-'@'		; EOF mark
+
+;
+; Environment Definition
+;
+	 IF	Z3ENV NE 0
+;
+; External ZCPR3 Environment Descriptor
+;
+	JMP	START
+	DB	'Z3ENV'		; This is a ZCPR3 Utility
+	DB	1		; External Environment Descriptor
+Z3EADR:
+	DW	Z3ENV
+START:
+	LHLD	Z3EADR		; Pt to ZCPR3 environment
+;
+	 ELSE
+;
+; Internal ZCPR3 Environment Descriptor
+;
+	MACLIB	Z3BASE.LIB
+	MACLIB	SYSENV.LIB
+Z3EADR:
+	JMP	START
+	SYSENV
+START:
+	LXI	H,Z3EADR	; Pt to ZCPR3 environment
+	 ENDIF
+
+;
+; Start of Program -- Initialize ZCPR3 Environment
+;
+	CALL	Z3INIT		; Initialize the ZCPR3 Env and the VLIB Env
+;
+; Print Name
+;
+	CALL	EPRINT
+	DB	'Z3INS  Version '
+	DB	(VERS/10)+'0','.',(VERS	MOD 10)+'0',0
+;
+; Check for file names
+;
+	LDA	FCB+1		; Get first char
+	CPI	'/'		; Print help
+	JZ	HELP
+	CPI	' '
+	JNZ	FN2
+;
+; Print Help Message
+;
+HELP:
+	CALL	EPRINT
+	DB	CR,LF,'Syntax:'
+	DB	CR,LF,'  Z3INS envfile.ENV insfile.INS or'
+	DB	CR,LF,'  Z3INS envfile.ENV program.com'
+	DB	0
+	RET
+;
+; Continue file name check
+;
+FN2:
+	LDA	FCB2+1
+	CPI	' '		; Print help if none
+	JZ	HELP
+;
+; Set Default File Types
+;
+	LXI	D,FCB+9		; Pt to file type
+	LXI	H,DEFENV	; Pt to default
+	CALL	SETTYP
+	LXI	D,FCB2+9	; Pt to file type
+	LXI	H,DEFINS	; Pt to default
+	CALL	SETTYP
+	LXI	H,FCB2		; Save 2nd FCB
+	LXI	D,INFILE
+	MVI	B,16		; 16 bytes
+	CALL	MOVEB
+;
+; Load Environment Descriptor
+;
+	LXI	D,FCB		; Pt to FCB
+	CALL	INITFCB
+	CALL	F$OPEN		; Open file
+	JZ	LOADENV
+;
+; Print File Not Found Message
+;	DE pts to FCB
+;
+PRFNF:
+	CALL	EPRINT
+	DB	CR,LF,'** File ',0
+	LXI	D,FCB+1		; Pt to file name
+	CALL	PFN1
+	CALL	EPRINT
+	DB	' NOT Found',0
+	RET
+;
+; Load Environment Descriptor
+;
+LOADENV:
+	CALL	CODEND		; Pt to free space
+	CALL	LOAD		; Load in file
+	SHLD	FLIST		; Save ptr to file list
+	XCHG			; In DE also
+	CALL	CODEND		; Check for proper amount
+	MOV	A,D
+	SUB	H
+	CPI	1		; Must be 1 page
+	JZ	LOADE1
+ENVERR:
+	CALL	EPRINT
+	DB	CR,LF,'** Invalid Environment Descriptor',0
+	RET
+LOADE1:
+	MOV	A,L		; Low must be same
+	SUB	E
+	JNZ	ENVERR
+	LXI	D,FCB		; Close environment descriptor
+	CALL	F$CLOSE
+;
+;  Load File List
+;
+	LXI	H,INFILE	; Copy into FCB
+	LXI	D,FCB
+	MVI	B,16
+	CALL	MOVEB
+
+; start changes here (Vers 1.1)
+
+	LXI	H,FCB+9		; Point to install file type
+	LXI	D,COMNAME	; File type for single Install
+	MVI	B,3		; Character loop count
+COMLP:
+	LDAX	D		; Next character for file type
+	CMP	M		; Next install file type char
+	JNZ	MULT		; Match failed - install multiple
+	INX	H
+	INX	D
+	DCR	B
+	JNZ	COMLP		; Loop for all chars
+
+	LXI	H,ZZ		; Point to EOF character
+	SHLD	NXTCHR		; To stop install procedure
+	LHLD	FLIST		; Get next avail free storage loc
+	SHLD	FREE		; Place to load installed program
+	JMP	SINGLE		; Process just a single program
+
+; stop changes here (Vers 1.1)
+
+MULT:	LXI	D,FCB		; Init FCB
+	CALL	INITFCB
+	CALL	F$OPEN		; Open file
+	JNZ	PRFNF		; File not found
+	LHLD	FLIST		; Pt to buffer
+	CALL	LOAD		; Load file
+	MVI	M,CTRLZ		; Ensure EOF mark
+ZZ	EQU	$-1		; Point to a convenient CTRL-Z (Vers 1.1)
+	SHLD	FREE		; Set ptr to free space
+	XCHG			; Ptr in DE
+	LHLD	BDOS+1		; Get address of top of TPA
+	MOV	A,H		; Adjust for CPR
+	SUI	10
+	SUB	D		; See how many pages left
+	CPI	NBLKS/2		; Must be at least N/2 pages
+	JNC	FUNCTION	; Perform function if OK
+	CALL	EPRINT
+	DB	CR,LF,'** Not Enough Free Memory for Installation'
+	DB	CR,LF,'   Make Installation File Shorter',0
+	RET
+;
+; Perform Installation Function
+;
+FUNCTION:
+	LHLD	FLIST		; Pt to file list
+	PUSH	H		; Save ptr
+;
+; Set all MSBs to Zero
+;
+CLEAN:
+	MOV	A,M		; Clear MSB
+	ANI	7FH
+	MOV	M,A
+	INX	H		; Pt to next
+	CPI	CTRLZ		; Done?
+	JNZ	CLEAN
+	POP	H		; Pt to first line
+;
+; Process Next Line
+;
+FCTNXT:
+	CALL	SKSP		; Skip over leading spaces
+	SHLD	NXTCHR		; Set ptr to next char
+	MOV	A,M		; Get char
+	CPI	';'		; Comment?
+	JZ	FCTCMT		; Process comment line
+	CPI	CTRLZ		; Done?
+	JZ	DONE
+	LXI	D,FCB		; Pt to FCB
+	CALL	FNAME		; Process file name
+;
+; Check for Non-Ambiguous File Name
+;
+SINGLE:				; Entry point to install a single program
+	LXI	H,FCB+1		; Pt to file name
+	MVI	B,11		; 11 chars
+FCTAMB:
+	MOV	A,M		; Check it
+	CPI	'?'
+	JZ	AMBERR
+	INX	H		; Pt to next
+	DCR	B		; Count down
+	JNZ	FCTAMB
+	LXI	D,FCB		; Init FCB and open file
+	CALL	INITFCB
+	CALL	F$OPEN
+	JZ	FCTPRE		; If ok, process preamble
+	CALL	PRFNF		; Print file not found
+;
+; Continue with Next Line
+;
+FCTCONT:
+	LHLD	NXTCHR		; Pt to next char
+FCTC1:
+	MOV	A,M		; Skip to after LF or EOF
+	INX	H
+	CPI	LF
+	JZ	FCTNXT		; Continue
+	CPI	CTRLZ		; Done?
+	JNZ	FCTC1
+	RET
+;
+; Print Ambiguous File Name Error
+;
+AMBERR:
+	CALL	EPRINT
+	DB	CR,LF,'** Ambiguous File Name Not Allowed: ',0
+	LXI	D,FCB+1		; Pt to file name
+	CALL	PFN1
+	JMP	FCTCONT		; Continue
+;
+; Process Comment Line
+;
+FCTCMT:
+	CALL	CRLF		; New line
+	MVI	C,1		; Set tab count
+FCTCMT1:
+	MOV	A,M		; Get char
+	INX	H		; Pt to next
+	CPI	TAB		; Tabulate?
+	JZ	FCTCMT2
+	CPI	CR		; Done?
+	JZ	FCTCONT
+	CPI	LF		; Done?
+	JZ	FCTCONT
+	CPI	CTRLZ		; Done?
+	JZ	FCTCONT
+	CPI	' '		; Don't advance if less than space
+	JC	FCTCMT1
+	INR	C		; Add 1 to col pos
+	CALL	COUT		; Print
+	JMP	FCTCMT1		; Resume
+FCTCMT2:
+	MVI	A,' '		; Space over
+	CALL	COUT
+	INR	C		; Increment location
+	MOV	A,C
+	ANI	7		; Check for every 8
+	JNZ	FCTCMT2
+	JMP	FCTCMT1		; Resume
+;
+; Process Preamble
+;
+FCTPRE:
+	CALL	EPRINT
+	DB	CR,LF,'** Installing File ',0
+	LXI	D,FCB+1		; Pt to file name
+	CALL	PFN1
+	LHLD	FREE		; Pt to free area
+	MVI	B,2		; Number of blocks to load
+	CALL	LOADN		; Load them
+	MOV	A,C		; How many blocks loaded?
+	CPI	2		; Must be 2
+	JZ	FCTPRE1
+;
+; Not a ZCPR3 Utility
+;
+NOTZ3:
+	CALL	EPRINT
+	DB	' -- NOT a ZCPR3 Utility',0
+	JMP	FCTCONT
+;
+; Ensure we have a Z3 utility
+;
+FCTPRE1:
+	LHLD	FREE		; Pt to first byte
+	MOV	A,M		; Get it
+	CPI	0C3H		; Must be a JMP
+	JNZ	NOTZ3
+	INX	H		; Pt to next key area
+	INX	H
+	INX	H
+	LXI	D,ENVNAM	; Pt to environment name
+	MVI	B,5		; 5 chars
+FCTPRE2:
+	LDAX	D		; Get name char
+	CMP	M		; Check
+	JNZ	NOTZ3
+	INX	H		; Pt to next
+	INX	D
+	DCR	B		; Count down
+	JNZ	FCTPRE2
+	MOV	A,M		; Get class
+	PUSH	PSW
+	INX	H		; Pt to first byte
+	XCHG			; DE pts to next byte
+	CALL	CODEND		; Pt to environment descriptor
+	POP	PSW
+	CPI	1		; Class 1 (external) or 2 (internal)?
+	JZ	CLASS1
+;
+; Environment Descriptor is Internal
+;	HL pts to Environment Descriptor and DE pts to next byte
+;
+	LXI	B,3+5+1		; Skip to first valid byte
+	DAD	B
+	MVI	A,0		; Compute number of bytes to copy
+	SUB	C
+	MOV	B,A		; Result in B
+	CALL	MOVEB		; Copy into buffer
+	JMP	FCTPRE3		; Complete preamble processing
+;
+; Environment Descriptor is External
+;	HL pts to Environment Descriptor and DE pts to next byte
+;
+CLASS1:
+	LXI	B,1BH		; Offset to environment descriptor address
+	DAD	B
+	MOV	A,M		; Get address
+	STAX	D		; Store it
+	INX	H		; Pt to next
+	INX	D
+	MOV	A,M		; Get high
+	STAX	D		; Store it
+;
+; Complete Preamble Processing
+;  Write the new preamble directly to the target file (Vers 1.2)
+;
+FCTPRE3:
+	XRA	A
+	STA	FCB+32		; Set current record to zero
+	LXI	B,2		; Record count
+	LHLD	FREE		; Start at the beginning
+	CALL	WRITEN		; Write 2 records
+	MOV	A,C
+	ORA	A		; Check that 2 records were written
+	JNZ	PRFWE		; Report error and exit, if not.
+	LXI	D,FCB		; Point to current FCB
+	CALL	F$CLOSE		; Close the file
+	JMP	FCTCONT		; Get the next one
+;
+; File Write Error
+;
+PRFWE:
+	CALL	EPRINT
+	DB	CR,LF,'** File Write Error',0
+	RET
+;
+; Set File Type Pted to by HL into DE if (DE)=' '
+;
+SETTYP:
+	LDAX	D		; Get dest byte
+	CPI	' '
+	RNZ			; Already has type
+	MVI	B,3		; Copy
+	JMP	MOVEB
+;
+; Load File Specified in FCB into Memory Starting at HL
+;	Check for Overflow
+;
+LOAD:
+	PUSH	H		; Save address of next block
+	LHLD	BDOS+1		; Check for overflow
+	XCHG
+	POP	H		; Get address of next block
+	MOV	A,D
+	SUI	10		; Adjust for CPR
+	SUB	H
+	JNZ	LOAD1
+	CALL	EPRINT
+	DB	CR,LF,'** Memory Overflow',0
+	POP	PSW		; Clear stack
+	RET
+;
+; Load next block - HL pts to location
+;
+LOAD1:
+	LXI	D,FCB		; Pt to FCB
+	CALL	F$READ		; Read next block
+	RNZ			; Done if EOF
+	LXI	D,TBUFF		; Pt to buffer area
+	XCHG			; Flip source and dest
+	MVI	B,128		; 128 bytes
+	CALL	MOVEB
+	LXI	H,128		; Pt to next
+	DAD	D
+	JMP	LOAD		; Continue
+;
+; Load B blocks into Memory Pted to by HL
+;  Return count in C
+;
+LOADN:
+	MVI	C,0		; Set count
+LOADN1:
+	LXI	D,FCB		; Pt to fcb
+	CALL	F$READ		; Read next block
+	RNZ			; Done if EOF
+	INR	C		; Increment count
+	PUSH	B		; Save BC
+	LXI	D,TBUFF		; Pt to buffer area
+	XCHG			; Flip source and dest
+	MVI	B,128		; 128 bytes
+	CALL	MOVEB
+	LXI	H,128		; Pt to next
+	DAD	D
+	POP	B		; Restore BC
+	DCR	B		; Count down
+	JNZ	LOADN1
+	RET
+;
+; Store C blocks from Memory Pted to by HL
+;
+WRITEN:
+	PUSH	B		; Save count
+	LXI	D,TBUFF		; Copy into TBUFF
+	MVI	B,128		; 128 bytes
+	CALL	MOVEB
+	LXI	B,128		; Pt to next
+	DAD	B
+	POP	B		; Get count
+	LXI	D,FCB		; Pt to fcb
+	CALL	F$WRITE		; Write next block
+	RNZ			; Done if EOF
+	DCR	C		; Decrement count
+	JNZ	WRITEN
+	RET
+
+;
+; Write Completion Message
+;
+DONE:
+	CALL	EPRINT
+	DB	CR,LF,'** Installation Complete **',0
+	RET
+
+;
+; Buffers
+;
+COMNAME:
+	DB	'COM'		; File type for COM file
+DEFENV:
+	DB	'ENV'		; Default file type for Environment Descriptor
+DEFINS:
+	DB	'INS'		; Default file type for Installation File
+INFILE:
+	DS	16		; FCB save area
+FLIST:
+	DS	2		; Address of file list
+FREE:
+	DS	2		; Address of scratch area to read into
+NXTCHR:
+	DS	2		; Ptr to next char to process
+ENVNAM:
+	DB	'Z3ENV'		; Environment Descriptor ID
+
+	END
+

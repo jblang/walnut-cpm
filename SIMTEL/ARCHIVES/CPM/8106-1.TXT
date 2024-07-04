@@ -1,0 +1,1728 @@
+ 1-Jun-81 22:18:00,3013;000000000000
+Date: 2 Jun 1981 (Tuesday) 0018-EDT
+From: PLATTS at WHARTON-10 (Steve Platt)
+To:   devon at MIT-MC
+cc:   info-cpm at MIT-AI
+Subject: details of search first/next
+
+  FILE SEARCHING in CP/M
+ 
+  Ok, I'm using an old listing of a slightly modified BDOS from CP/M 1.4,
+so much of the following might not be exactly the same for newer CP/M's.
+But it may give you an idea of what to look for.
+ 
+  CP/M has two calls to search for ambiguous file names (AFN's) in a
+directory structure:
+      A <- Bdos(17,fcbaddr)   ; find first
+      A <- Bdos(18,fcbaddr)     ; find next
+Some notes on these:  Each returns a value, that value mod 4 being
+the index into the data in the current DMA area of the found file.
+(As such, any data in the current DMA area is smashed.)
+(Also, DMAaddr + (RA mod 4)*32 gives the fcb of the found file.)
+  Finally, it should be noted that the extent# is also checked -- when
+using these calls, stick a 00 there if you only want the *first*
+occurrance of each file; however, if you are writing a SIZE function of
+some sort, you'll want a "?" there (match any extent).
+  ** implementation **
+  As you may have guessed, BDOS is essentially a router -- it takes
+the function code you pass it and jumps to an address in a table.  For
+the version I have, the code for 17 and 18 is roughly:
+
+   call17:
+	call selfil  ;all-purpose file finder
+	mvi  c,13    ;counter for #chs to check - 1(byte 0) +
+			; 8(name) + 3(typ) + 1(ext)
+	call srcdir  ;saves passed DE as FCBTMP, then calls SRCNXT.
+		     ;also in general, init's the search process.
+	ret
+
+  call18:
+	de <- fcbtmp  ;was set by prev call to 17, remember? essentially,
+			; this means that it really doesn't matter what
+			;you pass it in DE.  I have never tried this out...
+	call selfil	;again, set up the file-finder (insures logged-in
+			;drive, etc.)
+	call srcnxt
+	ret
+
+srcnxt:
+	;just find the next file using the FCB sent to it. (remember
+	;that for bdos(18), it'll still use the one passed from
+	;bdos(17).
+
+Now the documentation I'm looking at (TPM doc. *not* CP/M doc.!) says
+"No other intermediate TPM calls are allowed between function 17 and 18
+or 18 and the next call on 18.", however, the only problems appear to
+be with overlapping disk functions. (You may screw up communication
+between 17 and 18 if you do.)  In fact, if you are very careful, almost
+anything may be do-able -- just keep a seperate DMA area for whenever
+you call 17 or 18, and don't play with the FCB you are comparing against.
+Upon thought, I can think of calls to almost every disk primitive:
+consider ERA *.* for deletion while searching, PIP B:=A:*.* for
+reading and writing, as well as opening/closing, etc.  Again, just keep
+the 17/18 data completely seperate ! (and that includes
+copying any FCB's you find for use to another location...)
+ 
+If you play with any of this and find anything out (definite) please
+confirm the above.  Again, I am not sure how CP/M 2.2
+treats this.
+ 
+   ---Steve
+ 2-Jun-81 00:42:00,860;000000000000
+Date: Tuesday, 2 June 1981  00:42-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: New version of SD directory program
+
+SD has been updated, as of 6/1/81.  File now has version number
+in the name, instead of creation date.  Remote CP/M operators
+have discussed file names and feel version numbers are better,
+especially when crossing from one year into the next.
+
+The new files on MC are:
+
+MC:CPM;SD COM    and    MC:CPM;SD-12 ASM
+
+The new version will now print on your list device when you
+do CTL-P.  It has a shell sort now, instead of the old bubble sort.
+It's much faster, especially when being used on a disk with many
+names in the directory.
+
+Special assembly-time options allow for direct console I/O
+for remote CP/M systems (to avoid echoing line-noise induced
+garbage characters during printing).
+ 2-Jun-81 01:42:00,391;000000000000
+Date: Tuesday, 2 June 1981  01:42-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: New version of XMODEM
+
+MC:CPM;XMODEM 43ASM is an updated version of XMODEM.ASM.  It
+differs from XMODEM ver 4.2 only in a correction for a missing
+conditional assembly which affected assembly when the DC hayes
+modem was selected as the choice of the modem being used.
+ 3-Jun-81 01:06:00,389;000000000000
+Date: Wednesday, 3 June 1981  01:06-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Correction to new SD program name
+
+Sorry I transposed the numbers in my last message about the new
+SD program.  The new version is 2.1.  The file is on MC as
+MC:CPM;SD-21 ASM   as I mentioned before MC:CPM;SD COM is also
+available for those with LMODEM available.
+ 3-Jun-81 01:58:00,554;000000000000
+Date: Wednesday, 3 June 1981  01:58-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Rick Conn's HELP program and files
+
+MC:CPM now has the following available:
+
+MC:CPM;HELP COM   ;the program for displaying the help files
+MC:CPM;HELP HLP   ;a help file explaining HELP itself
+MC:CPM;MAC HLP    ;explains about the CP/M 'MAC' assembler
+MC:CPM;MASM HLP   ;explains about the Microsoft MACRO-80 assembler
+MC:CPM;RESOURCE HLP ;explains Ward Christensen's disassembler
+MC:CPM;DU-V75 HLP ;explains the disk utility
+ 3-Jun-81 02:01:00,289;000000000000
+Date: Wednesday, 3 June 1981  02:01-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Resource HELP file
+
+Correction on Resource HELP file.  Name on MC is
+MC:CPM;RESOUR HLP    (not enough characters available in the
+filename to spell it out entirely)
+ 3-Jun-81 21:49:00,780;000000000000
+Date: Wednesday, 3 June 1981  21:49-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-CPM at MIT-MC
+cc:   ELLEN at MIT-MC, JPG at MIT-MC
+Subject: Housecleaning time
+
+Due to the limited space available on MC, I am about to do some
+general file-flushing of the 108 files in MC:CPM; which haven't been
+accessed in the last month or so.  The alternate temporary online home
+for all of the files is [DARCOM-KA]<MICRO>, which can be accessed with
+the usual ANONYMOUS FTP login - sorry, no guest accounts available
+there.
+
+So, either get those files you need now, or get them off of the KA
+later, and hope someone has written a MODEM program for your site so
+you can download those 8-bit COM files... HEX files will no longer be
+maintained at either site.
+
+--Frank
+ 4-Jun-81 20:34:00,887;000000000000
+Date: Thursday, 4 June 1981  20:34-MDT
+From: Ronald G. Fowler <RGF at MIT-MC>
+To:   BLUE at MIT-MC
+cc:   W8SDZ at MIT-MC, FJW at MIT-MC, INFO-CPM at MIT-MC
+Subject: RESETING DRIVES
+
+  Bill, you CAN reset individual drives if you're using CPM2;
+there is a function described in a DR field update that was
+left out of the CPM Interface guide.  It is function 25: RESET
+DRIVE.  You call function 25 with a vector of drives to be reset
+in DE reg...ie, a 1 indicates reset requested.  The least sig-
+nificant bit represents drive A.  I don't believe anything is
+returned to indicate success/failure in CPM; MPM returns a 0
+if no process is accessing the requested drive, 0FFH otherwise.
+  Keith: can you point Bill to the file here on MC?  I believe
+you sent a note down to info-cpm that you had downloaded the
+file, but I have lost track of what it's name is.
+      ---Ron
+ 5-Jun-81 03:40:00,247;000000000000
+Date: Friday, 5 June 1981  03:40-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: SD directory program updated
+
+SD version 2.2 has just been released.  It is on MC as
+MC:CPM;SD-22 ASM   and   MC:CPM;SD-22 COM
+ 5-Jun-81 23:02:00,1013;000000000000
+Date: Friday, 5 June 1981  23:02-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-APPLE at MIT-MC
+cc:   INFO-CPM at MIT-MC
+Subject: APPLE MODEM Programs
+
+Keith Petersen (W8SDZ@MC) has uploaded the following files for those
+of you with the APPLE II with the Microsoft Z80 cards and CP/M.  We
+suggest that you capture MC:CPM;APBOOT MAC (or MC:CPM;APMBOT ASM),
+assemble it, and use it with :LMODEM on MC to get MC:CPM;CRCK COM and
+the MC:CPM;APMODM 21ASM or MC:CPM;APMODM 2ASM.  Assemble either APMODM
+and you can throw away APBOOT.  From there you can use APMODM to grab
+whatever other files of interest from MC:CPM; or the various Remote
+CP/M systems around the country (see MC:CPM;RCP/M NOS and MC:CPM;RCP/M
+INFO for more details).
+
+MC:CPM;
+  1   APBOOT MAC      0 +235
+  1   APBYE  ASM      4 +764
+  1   APHIGH MEMASM   0 +310
+  14  APMBOT ASM      1 +500
+  1   APMODM 21ASM    7 +550
+  1   APMODM 2ASM     7 +832
+  1   APMODM DOC      0 +908
+  1   APXMOD ASM      4 +848
+
+--Frank
+ 6-Jun-81 17:20:00,379;000000000000
+Date: 6 Jun 1981 (Saturday) 1920-EDT
+From: PLATTS at WHARTON-10 (Steve Platt)
+To:   info-cpm at MIT-AI
+Subject: Microsoft FTN problem -- Y/N questions
+
+  Did anyone ever find a solution to Frank's problem in getting FTN
+to correctly interpret a Y/N answer to a question? I've been playing
+with it, it's reading the vals correctly, just not processing the
+Y.
+    -Steve
+ 7-Jun-81 01:33:00,441;000000000000
+Date: Sunday, 7 June 1981  01:33-MDT
+From: EHUANG at MIT-AI
+To:   gz at MIT-MC
+cc:   INFO-CPM at MIT-AI
+
+Hi,
+What is the difference between these Remote CP/M Systems BBSs
+and the mc:cpm;bye asm  program?
+thanks.
+ps: will bye.asm work if I remove all the PMMI,SUPERBRAIN,and
+DCHAYES codes and put in my own? I'm using Relocated CP/M
+1.4 with a CAT hooked up by a RS-232 port (this i/o interface
+is simple to use -- only 3 ports)
+ 7-Jun-81 20:14:00,818;000000000000
+Date: Sunday, 7 June 1981  20:14-MDT
+From: EHUANG at MIT-AI
+To:   INFO-CPM at MIT-AI
+cc:   PLK at MIT-AI
+
+WIll BYE.ASM work as is? I mean that BYE.ASM doesnt
+need other porgrams from MC:CPM;.
+What does label DEST do? What should I do about it?
+I dont really understand that.
+
+**** SInce there are lots of users who run relocated CP/M,
+could you in future programs put in a offset for system
+calls and pointers such as CALL BDOS,JP 0000H,references
+to 80H,and FCB,etc...
+example:
+at start of program --
+Q	EQU 	4200H (for relocated systems)
+;Q	 EQU 	 0H   (for normal systems)
+	ORG 100H+Q
+BDOS 	EQU 05H+Q
+etc..
+It took me a WHOLE afternoon to change all the stuff!
+I'm not complaining but just making a suggestion for
+future programs to be placed in MC:CPM;
+	Thank you very much,
+	Edward Huang
+ 7-Jun-81 21:28:00,624;000000000000
+Date: Sunday, 7 June 1981  21:28-MDT
+From: ehuang at MIT-AI
+To:   INFO-CPM at MIT-AI
+cc:   W8SDZ at MIT-AI, PLK at MIT-AI
+
+Big deal! BYE.ASM is SO big (50,000 bytes) that after
+a whole afternoon of removing every single COND for
+PMMI,SUPERB,and DCHAYES it still wont load into
+SCRIPSIT (word processor) and the edited file is
+now 37,000 bytes...looks like I have to finish ALL
+editing using EMACS and then download directly to
+CP/M ASM. ANyone got this problem and any ideas
+on cutting down the size?
+Hey,any of you tried editing a 50K file (bye.asm)
+on a 64K CP/M system?? ran out of memory??
+	Edward Huang
+ 7-Jun-81 22:01:00,161;000000000000
+Date: Sunday, 7 June 1981  22:01-MDT
+From: Patrick L. Harvey <HARV at MIT-MC>
+To:   INFO-CPM at MIT-MC
+
+Please take me off the list...I'm drowning.
+Thanks
+ 8-Jun-81 00:15:00,1018;000000000000
+Date: Monday, 8 June 1981  00:15-MDT
+From: Jonathan W. Platt <JWP at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Editing large CP/M files
+
+     Those of you who are having problems (EHUANG, etc.) editing
+large files on their  CP/M system aught to look into "WorkStar (tm)"
+by MicroPro.   They have very extensive interfacing procedures (if
+not overly so) to hook up to most any display and printer.  A daisy
+wheel type incremental printer is what it seems best at (ie. I have
+an NEC 5520 and it does magical things with it).  You can hook Wordstar
+up to your screen if it is memory mapped (makes things 20 times faster).
+     Anyway,  It pipelines the file you are editing so the file size
+is limited to disk space available.  If you keep WordStar on one disk
+(it takes up that much) and use the other disk for editing, there
+are almost no problems with size.  Of course, if you only have one
+floppy drive (double density at least) then you really should have
+two anyway; anything else is cretinous...
+ 8-Jun-81 00:18:00,410;000000000000
+Date: Monday, 8 June 1981  00:18-MDT
+From: EHUANG at MIT-AI
+To:   INFO-CPM at MIT-AI
+
+I thanks to all of you who have FLOODED me with all kinds
+of suggestions! esp all of them tell me to buy $400
+WOrdstar! What I'm doing is use EMACS,then download
+to CP/M and ASM it and run it..that should work..
+	Thanks again,
+	Edward Huang
+ps: thanks esp to MADDOX,PLK,and another user who has a long uname@bbnb
+ 8-Jun-81 00:19:00,231;000000000000
+Date: Monday, 8 June 1981  00:19-MDT
+From: Jonathan W. Platt <JWP at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Oops...
+
+   I see the idea of WordStar has already come up so my next
+message in your mail is useless...**sigh**
+ 8-Jun-81 00:25:00,539;000000000000
+Date: Monday, 8 June 1981  00:25-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Editing large files on CP/M
+
+You don't need to buyy WordStar to edit large files.  The editor
+that comes with CP/M  (ED.COM) will do it.  You bring the file
+into the edit buffer, edit that section, write it out and append
+more.
+
+If the file is too large for the resultant output file to fit on
+the same disk, use the command which tells ED.COM to put the new
+edited file on the other drive....   ED myfile.asm B:
+ 8-Jun-81 00:31:00,1060;000000000000
+Date: Monday, 8 June 1981  00:31-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Using DC Hayes modem at 450 baud
+
+I picked up the following message from a remote CP/M system
+recently:
+
+According to the supplied literature of the D.C.Hayes
+MicroModem-100, it cannot be operated above 300 baud.
+The limiting factor is not the Uart or it clock
+frequency but the Microcoupler itself (according to
+its designer). Not accepting that their design was
+such that its upper limit was no higher than 300
+I decided to experiment. If you replace the diodes
+that determine the 12-bit divider for the clock
+frequency to a decimal 17 - 00010001 - (I used a
+16-pin socket and a removeable header), you can
+squeeze out 450 Baud. I couldn't get 600 baud, but
+the upper limit probably varies from unit to unit.
+If you wish you had a PMMI, give this a try. Anything
+is better than 300.
+
+                                Bob Loesch
+                                Bel Air, Md.
+                                (301) 879-7135
+ 8-Jun-81 00:39:00,352;000000000000
+Date: Monday, 8 June 1981  00:39-MDT
+From: Jonathan W. Platt <JWP at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: CP/M's ED.COM and where it should be put...
+
+    For those who cannot afford anything else, I guess ED is the
+only thing to use.  But those who can afford a micro-computer should
+be able to get something good as opposed to ... that.
+ 8-Jun-81 07:19:00,3862;000000000000
+Date: Monday, 8 June 1981  07:19-MDT
+From: AFITGORDON at BBNB
+To:   info-cpm at MC
+cc:   [Conn]: at BBNB
+Subject: An Editor Philosophy
+
+Hi, Everyone,
+
+        The recent  discussions  over  the  weekend  have  been  quite
+enjoyable  and  interesting,  and I have been noting an inordinate (my
+opinion, of course) amount of interest and  enthusiasm  for  the  Word
+Star text editor/formatter.
+
+        What I wanted to bring up  in  this  note  is  a  question  of
+philosophy.   I  currently use both Word Master (which runs for around
+$150) and Word Star (which runs for around  $400+),  and  have  edited
+files  as  large  as  170K  with  each  (to  emphasize that size is no
+problem).  Over a period of time and  after  some  experimentation,  a
+basic philosophy has developed which may be of interest --
+
+
+                1.  For the largest extent of my work  (software
+                    development),   Word   Master  is  generally
+                    preferred
+
+                2.  When  document preparation is the objective,
+                    Word Star is DEFINITELY preferred
+
+        Why?   User  interaction  is  the  key.  My basic objective in
+using an editor is to compose the text as quickly as possible and move
+on  to  the assembly or compilation.  Although Word Star is admittedly
+phenomenal  in  its  capabilities,  for  strict  text  work  with   no
+formatting, Word Master exhibits the following traits:
+
+                1.  WM is generaly FASTER (no overlays to  load,
+                    no  drastic  refreshing  of  screen displays
+                    during  global  and   local   substitutions,
+                    extreme ease of use in the video mode [there
+                    are   only   7   commands   I   really   use
+                    frequently])
+
+                2.  WM exhibits capabilities  not  found  in  WS
+                    [counterpoint    --    WS    exhibits   many
+                    capabilities  not  found  in  WM];  the   WM
+                    extensions, such as macro command definition
+                    and execution and the ED subset (I  actually
+                    like  ED,  being  that  it was my first CP/M
+                    editor) which  lends  itself  to  repetative
+                    operations  which  don't  waste  my  time by
+                    refreshing  the  screen  each  time  one  is
+                    performed or can be made to just reprint the
+                    edited or modified line and then go on
+
+                3.  WM   provides   very  little  overhead  (10K
+                    editor, 4K HELP file) and, aside from saving
+                    disk  space, provides a larger memory buffer
+                    than WS (is this  true???)   that  decreases
+                    the frequency of disk accesses
+
+        In sum, the core of what I am trying to say is to not view  WS
+as  a  panacea;  I  feel  that  the  editor should be selected for the
+intended application.  I also use EDIT-80, and have  selected  it  for
+use  by  remote  users who dial into my system because it is (1) disk-
+based, (2) NOT terminal dependent, (3) relatively responsive, and  (4)
+provides   little   disk  overhead.   EDIT-80,  WM,  and  WS  are  all
+outstanding editors, and I am sure that this is just a subset  of  the
+good  editors  out there.  Each should be judged on its own merits and
+should be selected for your particular (each  particular)  application
+based  on  its responsiveness (minimum delay when a command is issued)
+and applicability and utility in a particular situation.
+
+________
+
+        By the way, I am the one with the long uname at BBNB, and  you
+may address me more simply by sending mail to CONN at MC (such mail is
+automatically forwarded to BBNB).
+
+	
+					Rick Conn
+ 8-Jun-81 07:52:00,510;000000000000
+Date: Monday, 8 June 1981  07:52-MDT
+From: BHUBER at USC-ECL
+To:   W8SDZ at MIT-MC, INFO-CPM at MIT-MC
+cc:   BHUBER at USC-ECL
+Subject: Using DC Hayes modem at 450 baud
+
+In response to the message sent  8 June 1981 02:31-EDT from W8SDZ@MIT-MC
+
+"Anything is better than 300 [bps]."  Oh?  What about 75, 110, or 134.5 bps?
+Bob Loesch must not have much (any?) experience with older equipments.
+
+Bud
+
+P.S., I suspect today is going to be a bad one if this is my reaction to
+the referenced message.
+ 8-Jun-81 10:38:00,542;000000000000
+Date: Monday, 8 June 1981  10:38-MDT
+From: Jim Moore <MOORE at USC-ISIB>
+To:   ehuang at MIT-AI, INFO-CPM at MIT-AI
+cc:   W8SDZ at MIT-AI, PLK at MIT-AI, MOORE at USC-ISIB
+
+Big deal back atcha!  I have been routinely editing a 150K file on my 64K cp/m.
+My secret is MINCE -- the only thing one must do is define a big mother swap
+file (as per the users' manual).  Since you seem to already be an EMACSophile,
+you'll be right at home (on the subset of commands that are implemented, it's
+a 95% fit w/ EMACS.).
+
+Enjoy,
+
+Jim Moore
+ 9-Jun-81 00:28:00,229;000000000000
+Date: Tuesday, 9 June 1981  00:28-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: New list of remote CP/M systems
+
+MC:CPM;RCP/M NOS is now list #16 as of today.  Several new
+systems listed.
+ 9-Jun-81 00:59:00,551;000000000000
+Date: Tuesday, 9 June 1981  00:59-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+cc:   BUG-LMODEM at MIT-MC
+
+When you use LMODEM to get files from MC, if the file name
+has a slash ("/") in it (like that RCP/M NOS file I mentioned
+in my last message) you need to use two /'s in a row when
+telling LMODEM to send the file.  Apparently the slash is
+used as some sort of option character in LISP and you need to
+type two of them for one to be recognized.  I have noticed the
+same thing with GZ's DOWN LOAD and UP LOAD.
+ 9-Jun-81 01:02:00,481;000000000000
+Date: Tuesday, 9 June 1981  01:02-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: PLINK63.ASM
+
+Those who cannot use FJW's excellent MicroTelnet program will
+find PLINK63.ASM of interest.  It is written in 8080 code and
+has equates for many different kinds of I/O, including
+H89, TRS-80, PMMI, DC Hayes, Cromemco TUART, and others.
+See the DOC file for details.  These files are available:
+   MC:CPM;PLINK 63ASM   and   MC;CPM;PLINK 63DOC
+ 9-Jun-81 12:19:00,877;000000000000
+Date: Tuesday, 9 June 1981  12:19-MDT
+From: Jim Moore <MOORE at USC-ISIB>
+To:   info-cpm at MIT-MC
+cc:   moore at USC-ISIB, lucas at USC-ISIB
+Subject: submit problems ...
+
+It seems as though SUBMIT is only capable of feeding input to the top-level of
+CP/M -- not to running programs.  Is there any technique for doing a
+SUBMIT-like operation where the canned input first calls a program, then
+provides the input for the program, looking (to the program) as though it had
+come from the terminal.
+
+Alternative formulation of my problem:  BaZic seems to store its programs in
+an unreadable, compresssed form.  Consequently, readable programs (as one might
+find on a BBS) can't be loaded -- at least I haven't found a way.  Is there a
+way to cause BaZic to be happy with an externally prepared  BASIC program?
+
+Thanks for any info ...
+
+Jim Moore (Moore @ ISIB)
+ 9-Jun-81 17:52:00,478;000000000000
+Date: 9 Jun 1981 (Tuesday) 1552-PST
+From: MARON at LLL-MFE
+To:   info-cpm at MIT-MC
+cc:   moore at USC-ISIB
+Subject: xsub as solution to submit problems
+
+Jim-  under ver 2.x there is a program called XSUB. It will allow 
+programs to read input from a submit file BUT.... only using the
+read input buffer call (call 10). The program wont read from file
+if it is using character by character input. If anyone has a better
+XSUB program tell us SUBMIT/XSUB users. Thanks
+ 9-Jun-81 23:02:00,356;000000000000
+Date: Tuesday, 9 June 1981  23:02-MDT
+From: Devon S. McCullough <DEVON at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: ehuang's complaint
+
+Anyone who writes
+
+CALL 5
+
+instead of
+
+CALL BDOS
+
+should be condemned to coding in hexadecimal:
+
+CD 05 00
+
+All my stuff starts out with
+
+WARM EQU 0 ; OR 4200H AS THE CASE MAY BE
+BDOS EQU WARM+5
+...
+10-Jun-81 01:56:00,834;000000000000
+Date: Wednesday, 10 June 1981  01:56-MDT
+From: MADDOX at MIT-AI
+To:   INFO-CPM at MIT-AI
+Subject: XSUB problem
+
+There have been many times when I have been quite thankful for XSUB.  Sometimes,
+though, I have been quite frustrated by what appears to be a problem in
+relocation. On my system, a quite normal 64k Z80 system, certain programs will
+refuse to run if XSUB is installed.  The most notable is WordStar, which, when
+run, promptly returns to CP/M without any signs of trouble other than it
+doesn't run.  No crashes or other clues.  Other programs which conflict with
+XSUB seem to be generally those which try to relocate themselves below the
+CCP for one reason or another, although DDT, which I believe also relocates
+itself under the CCP, runs flawlessly.  Any ideas or similar experiences?
+
+					- Dave Maddox
+10-Jun-81 02:09:00,1786;000000000000
+Date: Wednesday, 10 June 1981  02:09-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Saving money on F80 and M80
+
+I recently noticed the following message on a remote CP/M
+system and thought it might be of interest here:
+
+Date: 5/30/81
+From: ANDY BENDER
+To:   ALL
+Re:   CHEAP FORTRAN AND MACRO 80 PROGRAMS
+
+If you want a copy of the Microsoft F80 and M80 programs
+as well as their support software and you want to get them
+with free updates for a year and be a legal user read on.
+While not free, Heathkit sells these programs, doctored up
+so they only run on Heath systems, at a discount.  The
+discount is quite steep and the free updates are attractive.
+You will need to know about DDT and SAVE to fix them so you
+can use them:
+
+FOR FORTRAN: >DDT F80.COM
+then alter the LXI d,barf at 2C38 to jmp 2C90.
+Exit from DDT and do a SAVE 107 F80.COM
+
+FOR MACRO80: >DDT M80.COM
+then alter the LXI d,barf at 4392 to jmp 43EA.
+Exit from DDT and do a SAVE 75 M80.COM
+
+You now own legal copies of both programs suitable for use
+on your CP/M 1.4 or 2.2 system.
+
+This patch bypasses the vendor code check in the CP/M
+serial number and also bypasses some I/O twitching that
+must be important for Heath systems.  The other system
+programs distibuted on the disk do not need patching
+these programs (LIB, L80 XREF etc) assume if you got to
+use them you must be ok.
+
+The same patch is probably possible in other Heath
+software such as BASIC Compiler or COBOL Compiler.  I
+have not researched these programs however.
+
+My advice to fix other software would be to look at the
+area in which the vendor code check is being carried out
+and follow the same bypass as I did in M80.
+
+Lots of Luck - Happy Computing from us at NSI.
+10-Jun-81 02:23:00,234;000000000000
+Date: Wednesday, 10 June 1981  02:23-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Update RCPM list
+
+MC:CPM;RCP/M NOS is new as of today.
+This is the list of remote CP/M file transfer systems.
+10-Jun-81 11:19:00,1668;000000000000
+Date: 10 Jun 1981 at 1019-PDT
+From: fylstra.tsca at Sri-Unix
+To:   info-cpm at MIT-AI
+Subject: bugs in SUBMIT/XSUB
+
+I have noticed the following bugs in SUBMIT and XSUB:
+
+	1. XSUB chokes on empty lines and dies a miserable death.
+	I noticed this while trying to spoon feed a number of
+	answers to prompts that Small C (Codeworks version) was
+	asking.  My intention was to reply (from the .SUB file)
+	with a carriage return.
+
+	A systems programmer from Digital Research acknowledged
+	this at the recent West Coast Comp Faire.  He said that
+	they knew it was a kludge but "it's better than nothing..."
+
+	2. When a transient program returns to the CCP via a
+	RET instruction rather than doing a warm boot, the CCP
+	fails to restore the DMA address to TBUFF at 80h.
+	If a .SUB file is active, the CCP will try to read the
+	next command line from the file into some random buffer
+	(most likely in the TPA someplace), and will then attempt
+	to parse whatever is left in TBUFF.  Sigh...  This explains
+	why so many CPMUG programs do a SETDMA(TBUFF) before
+	exiting to CP/M.
+
+	3. When expanding the arguments in the .SUB file, the SUBMIT
+	command actually writes the command lines, one per record,
+	in reverse order!!!  The CCP notices the $$$.SUB file, opens it,
+	reads the high-water-mark record, deletes it from the FCB,
+	and closes the $$$.SUB file.  In reading thru the CCP,
+	I get the feeling that $$$.SUB files won't work if they
+	are larger than one extent, but I haven't verified this.
+	Anyone have experience with this?
+
+All in all, the SUBMIT/XSUB system would best be served up for dinner
+on Thanksgiving day.
+
+Dave Fylstra
+10-Jun-81 18:50:00,591;000000000000
+Date: Wednesday, 10 June 1981  18:50-MDT
+From: Michael C. Adler <MADLER at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Converting to 48k system
+
+I just bought an H89 with CP/M.  In the CP/M manual there were references
+to upgrading the 20k version that comes on the distribution disk to the
+full capacity of my machine, 48k.  I could not find any information
+describing the differences between the 20k version and the version for
+48k.  Can anyone tell me what they are and why I would want to use more
+RAM to store a bigger version of CP/M?
+
+Thanks,
+-Michael Adler   (MADLER@MC)
+10-Jun-81 19:36:00,481;000000000000
+Date: Wednesday, 10 June 1981  19:36-MDT
+From: Michael C. Adler <MADLER at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Please disregard my last question
+
+Please:  It has just been pointed out to me that CP/M resides in high
+memory and for that reason I should reconfigure my system in order to gain
+TPA.  Please disregard my last question about 48K and do not flood me
+with a storm of nates to the same effect.  (I feel foolish enough as it
+is.)
+
+Thanks,
+-Michael Adler
+10-Jun-81 20:06:00,995;000000000000
+Date: 10 Jun 1981 at 1906-PDT
+From: fylstra.tsca at Sri-Unix
+To:   info-cpm at MIT-AI
+cc:   fylstra.tsca at Sri-Unix
+Subject: suggested enhancement to MODEM206
+
+The following may sound a little over-accomodating, but here goes...
+
+The most recent version of MODEM2 (on [mc]cpm;modem 206asm) assumes
+that, in the external coupler case, the transmit and receive data ports
+are identical, and that the TBE and RDA status bits occur on the same
+port.  I would suggest that the most general case would be
+
+	MODDATR	EQU	01H	;receive data port
+	MODDATW	EQU	02H	;transmit data port
+	MODCTLR	EQU	03H	;RDA status port
+	MODCLTW	EQU	04H	;TBE status port
+
+Then the few occurances of 'OUT MODDATP' would be changed to 'OUT MODDATW'.
+While interfacing MODEM206.ASM to a friend's Dynabyte system, I discovered
+that the transmit and receive data ports were actually different!  Fortunately
+the TBE and RDA bits occur on the same port.  It is unusual, but it does
+happen...
+
+Dave Fylstra
+10-Jun-81 20:28:00,562;000000000000
+Date: Wednesday, 10 June 1981  20:28-MDT
+From: EHUANG at MIT-AI
+To:   DEVON at MIT-MC
+cc:   INFO-CPM at MIT-AI
+
+Thanks.
+Your idea is ni....
+at last we got some Alternate CP/M supporters!
+I've reprinted your msg..
+    Date: 10 June 1981 01:02-EDT
+    From: Devon S. McCullough <DEVON at MIT-MC>
+
+    Anyone who writes
+
+    CALL 5
+
+    instead of
+
+    CALL BDOS
+
+    should be condemned to coding in hexadecimal:
+
+    CD 05 00
+
+    All my stuff starts out with
+
+    WARM EQU 0 ; OR 4200H AS THE CASE MAY BE
+    BDOS EQU WARM+5
+    ...
+10-Jun-81 23:29:00,5018;000000000000
+Date: Wednesday, 10 June 1981  23:29-MDT
+From: Frank J. Wancho <WANCHO at DARCOM-KA>
+To:   INFO-CPM at MIT-MC
+cc:   Stef at DARCOM-KA, IME-TECOM at OFFICE-2, Labhart at OFFICE-2,
+      Hewitt at OFFICE-2, SAD at OFFICE-2, EBoyd at OFFICE-2,
+      Christina at OFFICE-2, TECOM-HQ at OFFICE-2,
+      TBowerman at DARCOM-KA, TECOM-C3I at OFFICE-2, Farber at UDEL
+Subject: CP/M vs **NIX in the Office Environment
+
+The following edited exchange came about when Bob Bloom
+(IME-TECOM@OFFICE-2) solicited comments about a "spec" for a
+CP/M-based communicating Word Processor for an office environment...
+
+I believe there are several statements made herein which should not go
+unchallenged by those of us on this list who use tools which run in
+the CP/M environment in the office.
+
+I present this as only a temporary diversion from our otherwise highly
+technical discussion.  Please limit any responses to factual and
+well-founded comments and information, as has been the norm for this
+list.
+
+Also, please be sure to include the above CC: list in your replies, as
+most of these people are not on INFO-CPM.
+
+--Frank
+--------------------
+
+Date: Tuesday, 9 June 1981  13:46-PDT
+From: STEF
+Re:   Communicating WP Equipment
+
+[...]
+
+CP/M is an operating system environment for very small machines, which
+will not grow up to run on larger machines when they become as
+inexpensive as the CP/M machines are today.  I am speaking
+specifically of the 16 bit micros of the ONYX class, which will begin
+to displace the CP/M "price-range" machines in about one year from
+now.
+
+If you go the CP/M route, you will invest lots of money in building
+systems to run in an environment that will be very hard to maintain in
+the face of the obviously better quality of the UNIX/XENIX environment
+which is just around the corner.
+
+The trend is toward larger machines becoming cheap, and able to run
+the software implemented on the larger machines.  This means that you
+should be building your applications software now on the currently
+available UNIX systems, with intention to later run that same software
+on equivalent sized but cheaper machines next year, and the year
+after, etc.  .....
+
+In short, your MicroComputer with CP/M development strategy is running
+directly counter to the main driving forces of the industry and the
+economics of technology advances.
+
+You should be targeting for full capability Message handlers such as
+XMSG and MMDF plus SCRIBE and EMACS equivalent tools, which are much
+more easily built now for the larger machines, than can be implemented
+in the limited capability CP/M machines.
+
+[...]
+
+May I suggest that you take full advantage of the work that has been
+done, by opening up the options by replacing CP/M with UNIX, and
+adding mail handling capabilities with "message data base" software,
+ala INFOMAIL.
+
+I think you will find that more of the software has already been built
+for the UNIX environment than you plan to implement for the CP/M
+environment.
+
+
+Date: Wednesday, 10 June 1981  17:46-PDT
+From: STEF
+Re:   FYI:  [Dave Farber <farber@udel>:  Xerox "worms into Apple?"]
+
+Dave Farber originated this item, which relates to the CP/M proposal.
+
+    Today's Wall Street Journal has a product announcement for the
+    Xerox 820, a low cost information processor that can be used as a
+    desktop computer or word-processing system.  The basic system
+    costs 2,995 and comes with a display, a microprocessor, a keyboard
+    unit, and dual floppies.  The article hints that it can be
+    connected to the Ethernet.
+
+    If I remember correctly it uses an 8086 with CP/M.  Interesting
+    recognition of the dominence of CP/M is the micro marketplace.
+
+    Dave
+
+	
+....  I would comment that several aspects of the Xerox strategy seem
+strange to me, so I am not convinced that their plans to "worm their
+way into the APPLE market" with the 820 should offset my basic
+analysis that says large scale users, such as TECOM, should more
+likely consider UNIX/XENIX as a preferred "Domain for software
+accumulation."
+
+Cheers - Stef
+
+
+Date: 10 Jun 81 21:01:17-EDT (Wed)
+From: Dave Farber <farber at udel>
+Re:   FYI: [Dave Farber <farber@udel>: Xerox "worms into Apple?"]
+
+I also agree that the 820 should in no way impact plans for Unix.
+CP/M is just not Unix.  It does not grow the way Unix does.  It is
+strictly a Micro system, while Unix is much much wider in
+applicability.
+
+Dave
+
+
+Date: 10 Jun 81 21:23:29-EDT (Wed)
+From: Dave Farber <farber at udel>
+Re:   FYI: [Dave Farber <farber@udel>: Xerox "worms into App...
+
+I just want to restate clearly my view.  CP/M is competitive with Unix
+ONLY in small systems like the Z80, 8086 etc class machines.  There is
+NOwhere to grow and no chance from my view of any growth for CP/M.
+That still makes CP/M a good candidate for the small marketplace and
+the home market but as a basis for office systems in places that will
+grow, I think not.
+
+Dave
+11-Jun-81 05:37:00,624;000000000000
+Date: Thursday, 11 June 1981  05:37-MDT
+From: JSWAIN at BBNA
+To:   info-cpm at MIT-MC, info-micro at MIT-MC
+Subject: Format and Copy programs
+
+	Would any-one out there know where I would be able to get the
+source code for a full disk copy program and a disk format program
+running under CP/M(r) using the WD 1793 Controller Chip.
+	If possible, I would like them t support single/double density,
+and the same for the side options.
+
+	Modifying the source would be no trouble, as I am trying to save
+some time writing the programs, just get my wire-wrapped controller up.
+
+	Thanks,
+
+	John Swain    JSWAIN@BBNA
+11-Jun-81 22:59:00,962;000000000000
+Date: Thursday, 11 June 1981  22:59-MDT
+From: DAG at MIT-AI
+To:   info-cpm at MIT-MC
+cc:   info-micro at MIT-MC
+
+
+I am trying to set up a multi-user micro based computer
+system.  We need about 20meg on disk (hard), one single
+density 8" floppy, cartridge backup and two to three
+terminals.  I have thought of MP/M and OASIS as OS's and
+would like ideas about how folks feel about them, I also
+want to run some form of inventory control, but it must be
+configurable (hackable) and not too much pf a pain to
+use.  I have a limmitted (but practical budget) of about 14
+to 16 K bucks, but would like to stay less than that.
+
+I would like any ideas, sugesstions, other blah about systems,
+modules, vendors, and any other things you can think of.
+the other requiremnet is reliability.  Anything
+you can tell me would be of use.  I am still working
+on record lockout things and other nonesuch as well.
+
+
+			Thanks,
+			Dave Gewirtz (DAG@MIT-AI)
+13-Jun-81 00:09:00,943;000000000000
+Date: Saturday, 13 June 1981  00:09-MDT
+From: MITTON at MIT-AI
+To:   FJW at MIT-AI
+cc:   INFO-CPM at MIT-AI
+Subject: CBBS/NECS has been dead, long live CBBS/NECS!
+
+The CBBS that was run by the NECS at DEC in Maynard,
+617-897-0346, has not been operating since Fall 1979!!!!
+It is still listed in BBSNOS BYAREA (didn't  check BYNAME).
+It has also unfortunately been listed in three recent issues of Dr Dobbs,
+and Popular Electronics.  I was the operator.  I have told list
+maintainers here before!  How long does it take to get a number deleted?
+If this keeps up I am really going to start flaming!!!
+Anyone who runs a CBBS knows that calls come at random late hours of the
+night.  Some phones have been reassigned to residential numbers.
+These people do not appreciate, even understand, the publishing of their
+phone numbers.   PLEASE BE CAREFUL and CONSIDERATE when using these lists!!!!
+		Dave Mitton, CBBS/Cambridge SYSOP
+13-Jun-81 03:01:00,510;000000000000
+Date: Saturday, 13 June 1981  03:01-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: New version of D.ASM
+
+D.COM, the restricted directory program, is now version 2.6.
+The files are available on MC as:
+MC:CPM;D-26 COM   and  MC:CPM;D-26 ASM
+   Fixes include:  CTL-C abort now works consistantly, SYS options
+now allow for up to 3 characters for increased security on RCPM
+systems, some code optimization to reduce D.COM's size.  See .ASM
+file for details on updates.
+13-Jun-81 10:53:00,340;000000000000
+Date: Saturday, 13 June 1981  10:53-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: D-26 replaced by D-27
+
+There was an error in the names counter for files not found.
+I fixed it and replaced files on MC.  New files are:
+   MC:CPM;D-27 COM    and   MC:CPM;D-27 ASM
+Sorry if anyone was inconvienced.
+13-Jun-81 21:22:00,1316;000000000000
+Date: Saturday, 13 June 1981  21:22-MDT
+From: Bill Sholar <William.Sholar at CMU-10A>
+Sender: William.Sholar at CMU-10A
+To:   INFO-CPM at MIT-MC
+Subject: Help getting started . . .
+
+ 
+I've just started using CP/M on my TRS-80 Mod II, P&T version of CP/M.  I've
+been trying to make use of some of the public domain software, without success.
+ 
+I have Microsoft's Macro-80 (plus the Digital Research ASM), which will gladly
+generate 460 fatal errors when I try to assemble any of the .ASM files that
+sit about here and there.  Lacking the software to download a .COM file, 
+those files seem useless.  My current trick to download .ASM files (etc.) is
+to use a TRS-80 terminal package, then dump the files to a TRS-80 disk.
+Then I have to transfer the file to a CP/M disk, and try to assemble it.
+COM files won't down load because some of the characters cause my system
+to burp (and worse) if they are received "straight".  HEX files would be
+useful, but no one seems to keep those around. 
+ 
+I am getting ready to buy a batch of CPMUG disks -- would appreciate any
+advice on which modem packages work well, and on where to obtain similar
+public software.  
+ 
+I'd also appreciate comments on the relative merits of MAC, as compared 
+with MACRO-80.  
+ 
+Thanks,
+ 
+Bill Sholar
+<SHOLAR@CMUA>
+14-Jun-81 01:12:00,360;000000000000
+Date: Sunday, 14 June 1981  01:12-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Need help with Penril 212-A modem
+
+Anyone know how to make that modem switch to 1200 baud when
+placing a call?  I tried the "HS (high-speed) switch but all
+I get when I do that is high-speed reversals, still on the 103
+tone frequencies.
+14-Jun-81 03:59:00,1323;000000000000
+Date: Sunday, 14 June 1981  03:59-MDT
+From: Frank J. Wancho <FJW at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: CPMUG Catalog and Doc Files Available
+
+For a limited time (say, a week or so, until I can find room
+elsewhere), the subject files will be available for FTP from
+[DARCOM-KA]<FWANCHO>CPMUG.*.  The "original", CPMUG.DOC, came from a
+file that EB@AI constructed from a tape of the individual files from
+CLEMENTS@BBNA (who got it from yet another person whose name resides
+in the depths of the INFO-CPM archives).
+
+The files cover up through Volume 42 and have been back-converted into
+156 individual "messages" suitable for perusing with your favorite
+mail reader in either TENEX or BABYL format.  Be forewarned that each
+of these three files is 277 TENEX pages!
+
+They are:
+
+[DARCOM-KA]<FWANCHO>CPMUG.DOC   - The "original" file from EB -
+                                  slightly modified.
+
+[DARCOM-KA]<FWANCHO>CPMUG.BABYL - The BABYL format.
+
+[DARCOM-KA]<FWANCHO>CPMUG.TXT   - The TENEX MESSAGE.TXT format.
+
+I suspect the remaining catalog and doc files, up to whatever is the
+current release (56?), will eventually become available.  When that
+happens, I will create three more files as above and merge the
+resultant files into those as well, with a similar announcement.
+
+--Frank
+14-Jun-81 15:08:00,830;000000000000
+Date: Sunday, 14 June 1981  15:08-MDT
+From: Bill Sholar <William.Sholar at CMU-10A>
+Sender: William.Sholar at CMU-10A
+To:   INFO-CPM at MIT-MC
+Subject: My last query - help with TRS80/CPM
+
+After looking at a number of modem, mboot, etc. packages
+sitting on RBBS's, I can see how to make use of them to
+get on the air, but the Radio Shack documentation is
+poor to worse on accessing the serial ports, and the cpm
+material is about the same.
+ 
+I can get up and running if someone will provide me with
+the "magic numbers" to use with the EQU's for port numbers
+and bits being tested in the apparently standard modem
+packages sitting around (MODCTLP, MODSNDB, etc).
+ 
+These numbers are needed for a TRS-80, 64k, Model II machine
+running P&T's standard CPM for this machine.  
+ 
+Would appreciate any help!
+
+Bill
+14-Jun-81 21:47:00,463;000000000000
+Date: Sunday, 14 June 1981  21:47-MDT
+From: EHUANG at MIT-AI
+To:   INFO-CPM at MIT-AI
+
+Hi.
+There was a PATCH for the cp/m assembler by digital
+research andmodified by some users here. I cant
+find the file on MC:cpm;. caN ANYONE hELp OR TELL
+Me WHERE i COUDL fIND IT?
+AS THE ASMPAT.ASM IN THE MANUAL WONT WORK on my cP?m
+1.4 mofDIFIED.
+THANS
+PS: sORRY FOR THE MESSY UUPER/LOWER CASE BUT this
+CP/M termianls PROgraM IS SHFITNG UP/LOw CASe
+RANDOMLDy.
+15-Jun-81 04:58:00,307;000000000000
+Date: Monday, 15 June 1981  04:58-MDT
+From: Keith B. Petersen <W8SDZ at MIT-MC>
+To:   INFO-CPM at MIT-MC
+Subject: Equates for TRS80 for modem.asm
+
+MC:CPM;TRSMDM EQUS is a file detailing the equates and other
+info on how to set up MODEM206 (or MODEM527) for the TRS-80
+level II standard serial port.
+15-Jun-81 10:31:00,27736;000000000000
+Date: Monday, 15 June 1981  10:31-MDT
+From: AFITGORDON at BBNB
+To:   WANCHO at DARCOM-KA, INFO-CPM at MIT-MC
+cc:   [Zwiterion]: at BBNB, Stef at DARCOM-KA, IME-TECOM at OFFICE-2,
+      Labhart at OFFICE-2, Hewitt at OFFICE-2, SAD at OFFICE-2,
+      EBoyd at OFFICE-2, Christina at OFFICE-2, TECOM-HQ at OFFICE-2,
+      TBowerman at DARCOM-KA, TECOM-C3I at OFFICE-2, Farber at UDEL,
+      AFITGORDON at BBNB
+Subject: CP/M vs **NIX in the Office Environment
+
+In response to the message sent  10 June 1981  22:29-PDT (Wednesday) from WANCHO@DARCOM-KA
+
+Greetings, Gentlemen,
+
+        I  have  recently  noted  your  conversations  regarding   the
+adoption  of  an  operating  system for microcomputers in an automated
+office environment.  I would like to offer my opinions and comments in
+the following document for your review.
+
+        Your work is interesting and related to what  I  have  already
+been  doing  with  CP/M.   The  following  document,  for example, was
+composed on  my  personal  microcomputer  using  the  Word  Star  text
+editor/formatter  under CP/M and automatically transmitted to the ARPA
+Net, where it was further transmitted to you via electronic mail.
+
+        The following, then, are my opinions, for what they are worth,
+and they are submitted in the interest of  information  exchange  with
+your community.
+
+	
+					Richard Conn
+
+-------- Document Follows --------
+
+                       A Comparison of CP/M and UNIX
+ 
+ 
+                       A Comparison of CP/M and UNIX
+                             A Matter of Choice
+ 
+             An  interesting  discussion and controversy  concerning 
+        the  selection  of  an Operating System (OS)  for  a  micro-
+        computer-based  office automation system has recently  taken 
+        place between and within members of DARCOM (Dept of the Army 
+        Readiness Command) and others on the ARPA Network.   Central 
+        to  the  controversy are two basic groups -- those  for  the 
+        CP/M OS and those for UNIX/UNIX-like OS's.
+ 
+             This is the first such controversy I have observed that
+        has taken any significant proportions,  and with the  advent 
+        of  the new 16-bit microprocessors such as the 8086,  Z8000, 
+        and  68000  and the "UNIX-like" operating  systems  such  as 
+        OMNYX and XENIX,  the question of staying with CP/M or going 
+        to the UNIX environment is going to arise with more and more 
+        frequency.   UNIX  (first released by Bell Labs in 1969) has 
+        recently  been hailed as the "Operating System of the  80'S" 
+        by several people, and I feel that now may be a good time to 
+        outline  a  comparison  of  CP/M 2.2  and  UNIX  for  future 
+        reference.   Note that this comparison involves  traditional 
+        UNIX  (NOT  necessarily identical to the  yet-to-be-released 
+        XENIX).
+ 
+             Having  done  some research on and used both  types  of 
+        operating  systems,  I  offer the following  discussion  for 
+        general dissemination.   This discussion is divided into two 
+        parts  -- (1) a brief comparison of Bell's UNIX and CP/M 2.2 
+        and (2) a brief discussion of the criteria for selection  of 
+        the OS and my recommendation.
+ 
+ 
+                                   Part 1
+                  -- A Comparison of UNIX and CP/M 2.2 --
+ 
+             The  following  is  a basic comparison of  several  key 
+        points of the UNIX and CP/M 2.2 Operating Systems.  Data for 
+        the UNIX part of the comparison was extracted from "The Bell 
+        System Technical Journal",  July-Aug 78,  Vol 57, No 6, Part 
+        2, ISSN0005-8580 (Articles:  "A Retrospective" by DM Ritchie 
+        and "The UNIX Shell" by SR Bourne primarily).   Data for the 
+        CP/M 2.2 part of the comparison was extracted from  "Digital 
+        Research  CP/M 1.4 & 2.0 Documentation" reprinted by  Morrow 
+        Designs,  Inc.  (Section II:   CP/M 2.0 User's Guide).   The 
+        data  presented is edited and augmented by comments from  my 
+        personal experiences.
+ 
+                  UNIX                !         CP/M 2.2
+        ------------------------------!----------------------------
+        o No Unique Version           ! o Unique Version
+          At least 5 versions exist:  !   Version 2.2 (Precisely
+             1.  "Standard" maintained!    Defined)
+        by the UNIX Support Group at  !
+        Bell Labs                     !
+ 
+ 
+                                                           Page 1
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+             2.  PWB/UNIX (Programmers!
+        Work Bench)                   !
+             3.  Version 6 (distrib.  !
+        by Western Electric)          !
+             4.  Version 7            !
+             5.  The version currently!
+        in use by the Computing       !
+        Science Research System at    !
+        Bell Labs                     !
+                                      !
+        o Multi-user/process          ! o Single-user/process
+                                      !
+        o File Size Limit             ! o File Size Limit
+          ==  1e9 bytes (depends on   !   == 8e6 bytes
+        version); e=10 to power       !
+                                      !
+        o Supports Random Access Files! o Supports RA Files also
+                                      !
+        o Targeted to the PDP-11 Fam  ! o Targeted to 8080/Z80
+                                      !
+        o Tree Directory Structures   ! o Dual-Level Directory
+          (Indefinite number of levels!   Structure (USER/DIR or
+        and Path Names)               ! SYS) and Limited Path (A:FN)
+                                      !
+        o Links Allowed               ! o Links Permitted (Extension)
+          (Different dir entries pt to!
+        same file for disk space save)!
+                                      !
+        o Device Transparency and Re- ! o Device Transparency and Re-
+          directability Complete      !   directability limited to
+          (I/O routed to/from files   !   terminal I/O
+        and terminals with equal ease)!
+ 
+                         User Interface Comparisons
+                  UNIX                !         CP/M 2.2
+        ------------------------------!--------------------------
+        o Command Interpreter         ! o Command Interpreter
+          "Shell"                     !   "CCP"
+                                      !
+        o Shell Easily Replaced       ! o CCP Replaced with
+                                      !   difficulty
+                                      !
+        o Not Part of Kernal          ! o Not Part of Kernal
+                                      !
+        o Full Command Language is    ! o Full Command Language is
+          relatively complicated      !   simple
+                                      !
+        o All commands have redirect- ! o Only terminal I/O is
+          able I/O (<,<<,>,>>)        !   redirectable
+                                      !
+        o More extensive wild cards   ! o Simple wild cards
+          (?,*,[c1-c2],[c1...cn])     !   (?,*)
+                                      !
+        o Interprocess information    ! o No equivalent
+          transfer (pipes); coroutines!
+ 
+ 
+                                                           Page 2
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+                                      !
+        o Type-Ahead                  ! o Type-Ahead possible
+                                      !   via BIOS
+                                      !
+        o Parallel processes          ! o No equivalent
+                                      !
+        o Indirect command files; no  ! o Indirect cmnd files; 20
+          limit to arguments          !   argument limit
+          (sh file arg1 arg2 ...)     !   (submit file arg1 ...)
+                                      !
+        o Conditional Execution       ! o No equivalent
+          (ANDF - &&, ORF - !!)       !
+                                      !
+        o Construct Execution         ! o No equivalent
+             if ... then ... else     !
+             case ... in ...          !
+             while ... do ...         !
+             for ... do ...           !
+             until ... do ...         !
+                                      !
+        o Shell Variables (Param sub) ! o No equivalent
+          ex:  user=myfile            !
+               print $user            !
+                                      !
+        o Command Substitution        ! o No equivalent
+          ex:  d='pwd'                !
+ 
+ 
+                                Other Items
+                  UNIX                !         CP/M 2.2
+        ------------------------------!----------------------------
+        o Reliability - Good          ! o Reliability - Good
+                                      !
+        o Security - Fair             ! o Security - Poor
+                                      !
+        o Use of HOL                  ! o Use of HOL
+          90-95% in C - OS            !   Mainly Assem - OS
+          95-100% in C - Utilities    !   90% in PL/M - Std Utils
+                                      !
+        o ARPANET Interface (NCP)     ! o No Equivalent
+          currently available         !   (except for terminal pgms)
+                                      !
+        o Extensive document prepara- ! o Extensive document prep
+          tion facilities             !   facilities
+             ed - simple char-oriented!    ED - simple char-oriented
+               editor                 !      editor
+             Are there any screen-    !    WM, EP - screen-oriented
+               oriented editors or    !      editors
+               formatters?            !    WS, MW - s-o edit/format
+             troff, nroff - formatters!    TFS - formatter
+               with macro expansion   !      with macro expansion
+             eqn - mathematical expr  !    No known equivalent
+               preprocessor           !
+             tbl - table preprocessor !    No known equivalent
+             spell - spelling check   !    SPELLGUARD - spell chk
+ 
+ 
+                                                           Page 3
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+             speak - voice output     !    No known equivalent
+             diff - file comparator   !    FILCOM - file comparator
+                                      !
+        o Online instruction          ! o Online instruction
+             learn -- tutor           !    PILOT - CAI language
+             online help?             !    HELP - online doc
+                                      !
+        o Exotic applications         ! o Exotic applications
+             yacc - compiler-compilers!    MUMATH - symbolic
+             others?                  !      algebra
+                                      !
+        o Languages                   ! o Languages
+             C, FORTRAN 77, BASIC,    !    C, FORTRAN IV, BASICs,
+        SNOBOL, APL, ALGOL 68, PASCAL ! APL, ALGOL 60, PASCALs,
+        others?                       ! LISP, MUMATH, MUSIMP,
+                                      ! PILOT, PL/I, COBOL
+                                      ! others?
+ 
+ 
+                             Part 1 Commentary
+ 
+             From  the point of view of a hacker (such as I consider 
+        myself to be),  both CP/M and UNIX are outstanding operating 
+        systems to experiment with and study.   Systems  programming 
+        on  each is relatively easy to do,  and both exhibit an  ex-
+        treme  level of extensibility which may be utilized by  sys-
+        tems  programmers.   By  this I mean that both OS's  can  be 
+        modified,  tailored to a specific application,  with a great 
+        deal  of  ease at the systems programming  level.   Each  is 
+        flexible  enough to be used to create a "virtual machine" of 
+        the system programmer's design which can react in almost any 
+        way desired (e.g.,  text processing environments and program 
+        development  environments  can be easily created  which  are 
+        tailored to a user's particular needs).
+ 
+             The particularly intriguing aspects of UNIX to me are:
+                  1.   the  tree directory structures;  using these, 
+        each user's projects and files can be logically grouped  and 
+        organized as the user and/or his manager desires and special 
+        work environments,  each with their own set of commands, can 
+        be easily created
+                  2.   the Shell (command interpreter) can be easily 
+        replaced,  so specialized shells or even menu-driven command 
+        environments may be created with ease
+                  3.   device transparency and redirectability is an 
+        outstanding  concept!   This  allows  instances  such  as  a 
+        program  which  by default sends its output to the  terminal 
+        (such  as a directory program) to be forced to  channel  its 
+        output  to  a  different device,  a file,  or  even  another 
+        process;  the potential for applications of this facility is 
+        enormous!
+                  4.  parallel processing and coroutines are common-
+        place;  this  provides the very nice ability of a  user  to, 
+        say,  initiate  the printing of a file while he goes off and 
+        does  something  else  -- better yet,  one  user  may  issue 
+ 
+ 
+                                                           Page 4
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+        several  commands to be executed concurrently while he  does 
+        something else
+                  5.   conditional executions (ANDF,  ORF), language 
+        constructions in the command language (IF, WHILE, FOR, CASE, 
+        etc.),   and  parameter  and  command  substitutions  (Shell 
+        variables) are novel and interesting concepts
+ 
+             On the other hand, the intriguing aspects of CP/M to me 
+        are:
+                  1.   the  ability to divide logical  projects  and 
+        work  files into user areas,  with each user area having its 
+        own  set of files and commands (any number of which  may  be 
+        hidden  [transparent]  to  the  user);   in  a  single  user 
+        environment,  this seems to be just as reasonable and useful 
+        as the tree structure of UNIX
+                  2.    the   ability  to  replace  the  CCP   (with 
+        difficulty);  this can be done easier in UNIX, but it is not 
+        outside  the  scope of a system programmer to do  this  with 
+        CP/M  (I  have done it,  making a major  modification  which 
+        greatly  enhances  CP/M's power -- command execution of  COM
+        files under my new CCP searches the current user area on the 
+        current  disk,  falls to user 0 of the current disk  if  not 
+        found, finally falls to user 0 or drive A: if not found, and 
+        finally   issues   an   error  message).    This   new   CCP 
+        significantly places CP/M in a competative mode with UNIX in 
+        command  execution  (UNIX  traces up the  tree  for  command 
+        execution).
+                  3.   CP/M's terminal I/O is redirectable, and this 
+        buys a lot of flexibility for the user;  UNIX,  however,  is 
+        equally redirectable and even more so
+                  4.   CP/M  is  very small,  leaving  much  of  the 
+        microcomputer's  memory  for the transcients and  utilities; 
+        size   is   sometimes   a  problem,   but   with   the   new 
+        microprocessors and their megabyte addressing  capabilities, 
+        it should no longer pose such a problem
+                  5.   finally, and perhaps most importantly, a wide 
+        variety of relatively high-quality software (screen-oriented 
+        editors,  language systems,  communications systems, etc) is 
+        currently  available  for  CP/M,  and I have not  seen  such 
+        quality  systems yet being prepared for systems  like  XENIX 
+        (whose specs are not even out yet); there will be a definite 
+        lag  before (and IF) XENIX and other such systems obtain the 
+        software base currently in existence for CP/M!!!!!
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+                                                           Page 5
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+ 
+                                   Part 2
+         A Commentary -- Criteria for Selection and Recommendation
+ 
+             In making such a selection of operating systems, I feel 
+        that   there  are  five  basic  questions  which  should  be 
+        considered in the evaluation.  In short, these questions are 
+        the following:
+ 
+                  1.   Is  the OS adequate to meet the needs of  the 
+        user?  Is there enough memory for the required utilities and 
+        applications  programs  to  run in (considering  the  memory 
+        management schemes employed by the OS)?   VERY IMPORTANT  -- 
+        Is  the OS responsive (In the microcomputer age,  I consider 
+        the  time  of the user/programmer to be much  more  valuable 
+        than the time of the machine, and an OS/machine which in any 
+        way  slows the user/programmer down due to its lack  of  re-
+        sponsiveness should be reevaluated!!!!)
+                  2.   Is  the OS extensible (user-customizable  for 
+        his  particular application)?   If I don't like the form  of 
+        the  command language or the commands of the editor,  can  I 
+        change these to meet my tastes?  If I want a menu-based user 
+        interface, can I create one?
+                  3.  Is software produced under the OS on machine A 
+        easily  transportable to the same OS on machine B (allowing, 
+        of course,  media compatability)?   Source code generally is 
+        transportable provided the language is standardized (like  C 
+        on UNIX),  but is the binary (including the OS "hooks") also 
+        transportable (like on CP/M)?
+                  4.   Are software tools (editors,  compilers,  de-
+        buggers,  etc.) available AND effective for the target class 
+        of users?   For instance, I would much rather give my secre-
+        tary  a screen-oriented editor which is easy to use  as  op-
+        posed  to  a character-oriented editor in which she  has  to 
+        worry  about the position of an imaginary cursor.   The tool 
+        should be easy to use, people should be quickly and inexpen-
+        sively trained to use it,  and it should be efficient (fast,  
+        capable,  and  requiring  as little overhead  as  possible).
+        Also,  if  I currently have an existing tool base  which  my 
+        people are already trained to use,  I should think carefully 
+        about  moving  to  a new OS just because it is new  or  pro-
+        mising.
+                  5.   Finally,  is the software easily maintainable 
+        and reliable?   Tools are seldom perfect,  and  improvements 
+        are constantly coming out.   I would like to see the ability 
+        to modify my tools if I desire (I own them, don't I?) and be 
+        supported  by the vendor as new releases  emerge.   Also,  I 
+        want  to use proven,  time-tested tools which I can rely  on 
+        extensively.
+ 
+             Hence, reader, from my point of view, presented are the 
+        primary attributes of UNIX and CP/M 2.2 and my basic set  of 
+        criteria to judge these systems by.   Coming from a largely-
+        CP/M environment (I already have CP/M as a base), UNIX would 
+        win hands down (looking through the eyes of a hacker).  UNIX 
+ 
+ 
+                                                           Page 6
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+        is a fantastic software tool which supports many interesting 
+        and exciting features,  and, regardless of the use I put the 
+        UNIX  system  to,  I still have my CP/M base to  support  my 
+        current applications and interests (also including hacking).
+             The  above statement,  however,  was from the point  of 
+        view  of  a hacker with a CP/M base.   The  question  posed, 
+        however, was from the point of view of the creation of a new 
+        system  to support office automation.   This is a management 
+        system in a manager's environment,  not a hacker system in a 
+        programmer's environment.  To make a choice for the manager, 
+        let's fall back to the five criteria outline above.
+             In  my opinion,  both operating systems come out  about 
+        even in the first three items.   Both UNIX (XENIX?) and CP/M 
+        are   generally   adequate,    extensible,    and    support 
+        transportable software for the automated office environment.  
+        In  both cases,  tools may have to be designed for  specific 
+        needs  (like  XMSG for UNIX mail and CBBS software for  CP/M 
+        mail).   Software  support  from  systems  programmers  will 
+        probably  be  required  to design and  integrate  the  tools 
+        necessary for an automated office system.
+             Item  4 is perhaps a key point in the  decision.   CP/M 
+        already has a relatively-large base of quality tools for the 
+        target  class  (secretarial/managerial) of  user.   From  my 
+        observation of automated office environments such as my  own 
+        CP/M environment,  AUGMENT of Tymshare,  and NLS under TENEX 
+        and TOPS-20,  I note that the majority of the time (at least 
+        in  my  case,  and  I suspect most others) is spent  in  the 
+        electronic mail system and the editors.  Consequently, tools 
+        for these environments must be most effective,  allowing the 
+        user to get his job done in a minimum amount of time with  a 
+        minimum  amount of effort.   I am currently employing  menu-
+        driven  mail  systems and fast screen-oriented  editors  for 
+        these  functions,  and  I feel  that  (design-dependent,  of 
+        course),  these  are the most productive alternatives avail-
+        able today.  Specialized terminals designed with the editors 
+        in  mind  (e.g.,  DNLS Workstations) are a  good  goal,  but 
+        general CP/M screen editors such as Word Master,  Word Star, 
+        and Magic Wand are already available, reliable, field-proven 
+        and  tested,  and reasonably effective (I spend little  time 
+        waiting on them/giving commands and more time composing than 
+        I  do  with  more conventional editors).   I have  not  seen 
+        comparable  field-proven software for the new  UNIX  systems 
+        (they are not even out yet).
+             Finally,    the   fifth   item,    that   of   software 
+        maintainability and support, is concentrated on support from 
+        this (office automation) level.   Your environment  probably 
+        will not have systems programmers readily available,  so you 
+        will  probably  be  largely  dependent  on  vendor  support.  
+        Again, reliable, field-proven software is a big plus.
+ 
+             Two  additional  points should be brought out  at  this 
+        time  as well:   (1) the philosophy question of the state of 
+        the  art and (2) the philosophy question of the use  of  the 
+        new microcomputers (microprocessors).
+             Concerning  the  state  of the art,  UNIX  (XENIX?)  is 
+ 
+ 
+                                                     Page 7
+ 
+ 
+ 
+ 
+ 
+                       A Comparison of CP/M and UNIX
+ 
+ 
+        definitely closer to it than CP/M,  but the operating system 
+        is just the RESOURCE MANAGER of the computer system, not the 
+        KEY to the computer system.   The KEY to the system lies  in 
+        the  TOOLS (utilities) which run under the operating system!  
+        These tools must be reliable,  easy to use, and efficient in 
+        human  terms.   From my observations,  EDITORS are the  most 
+        instrumental   of   tools,   and   the   Word   Master   and 
+        (particularly)  Word Star are the most  powerful,  reliable, 
+        and  efficient  editors  I  have  seen  (with  the  possible 
+        exception  of EMACS on MIT and the DNLS editor).   Such  are 
+        already  available under CP/M,  and I know of no  comparable 
+        editor (Such could exist,  of course) under XENIX (will  the 
+        UNIX editors work on XENIX?).
+             Concerning the philosophy question,  many people  still 
+        look  at computer systems and operating systems from a "con-
+        ventional" point of view.   The computer is typically viewed 
+        as  an expensive resource which must be used as  efficiently 
+        (in terms of computer thruput) as possible,  but the  micro-
+        processor  has  changed that.   Under CP/M,  I am  currently 
+        running  two  microcomputers (total cost is  under  $15,000) 
+        quite  effectively.   These machines and their software  are 
+        designed to serve me,  and to obtain a maximum of effective-
+        ness for the user (measured in terms of minimum wait on  the
+        computer),  operations such as number crunching programs and
+        print  spooling  are sent to the second machine.   Too  many 
+        times  I have working in environments such as a dual  CYBER, 
+        DEC-10,  or  VAX where the machine's thruput was  considered 
+        above the individual's effectiveness, and the responsiveness 
+        of  these  machines to me was far less than that of  my  own 
+        microcomputer!   I hope you consider this point;  individual 
+        effectiveness and usefulness should be of prime concern, and 
+        consider  the idea of supplying the single  individual  with 
+        more than one processor/machine.  Many of the pro-UNIX types 
+        may  cling  to the old (machine-thruput) school of  thought, 
+        but much is to be said for the user-effective (made possible 
+        by  the  inexpensiveness  of the  microcomputer)  school  of 
+        thought.   The  multiprocess capabilities of UNIX are  nice, 
+        but I consider multiprocessor capability to be nicer still!
+ 
+             In  sum,  my recommendation is to go with CP/M if  your 
+        need is immediate.   If not, wait and see what the UNIX-like 
+        systems  have to offer in reliability,  tools,  and competa-
+        tively-marketed (competition is very important for quaility)
+        software.   "Something  better" is always  coming  out,  but 
+        buying  "the best" (=most recent?) software at a given  time 
+        is  not necessarily the best decision in the long run.   New 
+        software  is  frequently  field-debugged  (not  always,   of 
+        course),  and you should be leary of opening yourself up  to 
+        do the debugging when you are trying to get a job done.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+                                                           Page 8
+15-Jun-81 17:31:00,2455;000000000000
+Date: Monday, 15 June 1981  17:31-MDT
+From: CSVAX.dmu at Berkeley
+To:   info-cpm at mit-ai
+Subject: one of the most important but overlooked differences
+
+The recent document comparing UNIX and CP/M is difficult
+to answer objectively.  I have used both, although have
+used UNIX MUCH more.  Anyway, the problem in these comparisons
+don't convey the flavor of the system:
+the underlying world-view of the original design that no
+amount of fancy user-level sofware can completely mask.
+
+FLAME ON:
+
+UNIX has a `delete' key that aborts a user program
+WITHOUT any special code in the user program.
+CPM has this polling philosophy towards I/O (just look at
+the BDOS interface) that makes it hard to poke programs in standard ways.
+
+Berkeley UNIX has a job control facility that permits
+the user to take any job (a pipeline of processes)
+and suspend it, restart it in the background,
+or move it into the foreground.  Thus, from any interactive
+program, one can stop it, and enter commands to the command interpreter
+WITHOUT any code in the interactive program.
+
+UNIX has ``toolbox'' facilities that let one combine programs
+in unexpected (by the applications programmers) ways.
+Pipes, the absence of OS-supported file formats (this is a FEATURE),
+redirection, tools that support applicative programming
+(sort, uniq, awk especially) provide the user with a friendly,
+powerfull environment that allows one to shape the software
+to the human's needs, rather than vice-versa.
+
+Finally, UNIX may not have thousands of cottage programmers
+out there plugging away with applications,
+but instead it has hundreds of researchers (e.g. Aho) building tools:
+There are many screen editors, vi (Berkely editor), EMACS versions,
+edtv, syntax-directed editors, take your choice.  There are
+several PASCAL's.  There are word-processing programs that are
+simply amazing (e.g. awk, an interpreter with both regular-expression
+matching and procedural language).  Troff and TEX
+are just two of the formatters available.  Software control tools
+allow you to change any file and recompile everything that depends on it
+(and no more) with just one command.
+
+UNIX is not the be-all and end-all of Operating Systems, but it is the
+only reasonable choice for a 16-bit machine.  If you can afford
+it, (and memory prices are going down all the time), you should
+get it.
+
+P.S. UNIX has LISP and MACSYMA running on it.
+FLAME OFF
+David Ungar

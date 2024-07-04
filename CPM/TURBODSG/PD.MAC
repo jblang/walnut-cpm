@@ -1,0 +1,89 @@
+.request syslib
+sfirst	equ	17
+snext	equ	18
+;
+	extrn	bdos,print,crlf,cout,phldc
+;
+begin:	lxi	sp,stack
+	call	print
+	db	0dh,0ah
+	db	'Current disk:      (this may take a minute...)',0dh,0ah
+	db	'            ',0
+	MVI	C,25
+	CALL	BDOS
+	MVI	C,19
+	mov	e,a
+	call	50h
+	lxi	h,8
+	ani	0fh
+	dcr	a
+lp1:	dad	h
+	dcr	a
+	jnz	lp1
+	xchg
+	lxi	h,0
+lp2:	dad	d
+	dcr	c
+	jnz	lp2
+	call	phldc
+	call	print
+	db	' total dir entries, ',0
+	lxi	d,5ch
+	push	d
+	mvi	a,'?'
+	mvi	b,12
+fill:	stax	d
+	inx	d
+	dcr	b
+	jnz	fill
+	pop	d
+	call	wildex
+	call	phldc
+	call	print
+	db	' entries used.',0dh,0ah,0
+	rst	0
+;
+wildex:	lxi	h,0
+	shld	count
+	mvi	c,sfirst
+	call	bdos
+	cpi	0ffh
+	rz			;nothing found -- error
+	call	moven		;move name
+wloop:	mvi	c,snext		;search for next
+	call	bdos
+	cpi	0ffh
+	jz	done		;finished
+	call	moven
+	jmp	wloop
+;
+done:	ora	a
+	lhld	count
+	ret
+;
+moven:	push	psw
+	add	a
+	add	a
+	add	a
+	add	a
+	add	a
+	adi	80h
+	mov	l,a
+	mvi	h,0
+	mov	a,m
+	cpi	0e5h
+	jz	nof
+	lhld	count
+	inx	h
+	shld	count
+nof:	pop	psw
+	lhld	tot
+	inx	h
+	shld	tot
+	ret
+;
+count:	dw	0
+tot:	dw	0
+	ds	100
+stack	equ	$
+	end

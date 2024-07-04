@@ -1,0 +1,793 @@
+
+
+
+                                                                  20 August 1984
+
+                           ZCPR3 Newsletter 003
+
+ First a note:  file RELS.UTL is in the public domain.  Use EX.COM, also in the
+ public domain, in place of ZEX until you get ZEX up and running.  But do rename
+ all the *.ZEX batch files to *.SUB.  (These two files and MLOAD.COM are on the
+ AMPRO RCP/M and BBS at modem phone number: 408/258-8128.)
+
+ This issue contains the promised listing for buffers that are placed into your
+ CBIOS to obtain full ZCPR3 features.  It also contains CBIOS.LIB to be included
+ in your BIOS as a convenience file (one easy to edit, make changes, without
+ need of large source code file changes) during MAC assembly.  Also a different
+ presentation for installation is included, mainly to suggest one of many
+ correct ways of thinking about ZCPR3 and its RAM memory map. 
+
+               CP/M-80 BIOS RESERVED MEMORY AREAS
+
+           (Typical Semi-Fullup ZCPR3 Implementation)
+
+      These reserved areas are used by ZCPR3 and by custom  appli-
+ cation programs and ZCPR3 utility software.
+
+ 58K ZCPR3 system (51k TPA)
+ System  Segments (modules) discussed and implemented in the ZCPR3 
+ overall concept:
+                                                         
+         Segment         Function                        
+         -------         --------                        
+         CBOOT           Boot System from Floppy Disk    
+         BDOS            CP/M BDOS from DRI
+         CBIOSZ          Customized BIOS                 
+         ZCPR3           ZCPR3 Command Processor         
+         *.ENV           All Environment Descriptors     
+         *.FCP           All Flow Command Packages       
+         *.IOP           All Input/Output Packages       
+         *.NDR           All Named Directory Definition Files
+         *.RCP           All Resident Command Packages   
+                                                         
+  Sample Memory Map of System:
+
+         Address Range     Size  Function
+         -------------   ------- --------
+             0 -   FF    256 b   Standard CP/M Buffers except
+            40 -   4A     11 b    for ZCPR3 External Path and
+            4B             1 b    Wheel Byte
+           100 - CBFF      51  K TPA
+          CC00 - D3FF       2  K ZCPR3 Command Processor
+          D400 - E1FF       3.5K BDOS
+          E200 - F1FF       4.0K CBIOS with Buffers
+          F200 - F9FF       2.0K Resident Command Package
+          FA00 - FBFF       0.5K Flow Command Package
+          FC00 - FCFF    256 b   Memory-Based Named Directory
+          FD00 - FD7F    128 b   ZCPR3 Shell Stack
+          FD80 - FDCF     80 b   ZCPR3 Message Buffers
+
+
+
+
+
+
+
+
+ Newsletter 003                           BIOS Reserved Memory Areas
+
+
+                                 Byte 0:  Error Flag (Z/NZ)
+                                 Byte 1:  IF (8 Levels)  
+                                 Byte 2:  IF Active (8 Levels)
+                                 Byte 3:  Z3 Cmd Status  
+                                         00B - Normal    
+                                         01B - Shell     
+                                         10B - Error     
+                                 Bytes 4&5: Error Address if 10B
+                                 Byte 6: Program Error Code
+                                 Byte 7: ZEX Message Byte
+                                         00B - Normal    
+                                         01B - Z3 Prompt 
+                                         10B - Suspend Intercept
+                                 Byte 8: ZEX Running Flag (0=No)
+                                 Bytes 9-10: Address of Next
+                                         Char for ZEX to Return
+                                 Bytes 11-12: Address of First
+                                         Char in ZEX Memory-
+                                         Based File Buffer
+                                 Byte 13: SH Control Byte
+                                         Bit 0: Enable SHCMT
+                                         Bit 1: Enable SHECHO
+                                         Bit 7: Enable Shell
+                                                 Entry Wait
+                                 Bytes 14-15: Shell Scratch
+                                 Bytes 10H-2FH: Error Cmd
+                                 Bytes 30H-39H: Registers
+                                 Bytes 3AH-3FH: Reserved 
+                                 Bytes 40H-4FH: User-Defined
+          FDD0 - FDFF     48 b   ZCPR3 External FCB      
+                 -----------------
+     or   FDD0 - FDF3     36b    External FCB
+          FDF4 - FDFF     12b    External PATH (instead of location 40H)
+                 -----------------
+          FE00 - FEFF    256 b   Environment Descriptors 
+                                 Bytes 00H-7FH:  Z3 Parameters
+                                 Bytes 80H-FFH:  Z3 Terminal Cap
+          FF00 - FFCF    208 b   Multiple Command Line Buffer
+          FFD0 - FFFF     48 b   ZCPR3 External Stack    
+                                                         
+      The  51k TPA (58k system)  sample  implementation  of  ZCPR3 
+ contains all standard CP/M resident (intrinsic) CCP commands, but
+ in the Resident Command Packages, except DIR and USER.  Addition-
+ ally,  the  58k version uses  Flow Control Packages,  and memory-
+ based  Named  Directory  Definition  Files for near full CP/M en-
+ hancement.  (The IO package is not included.)
+
+      A  neat  transient (DIR.COM) is provided to handle  the  DIR 
+ function -- it shows file and disk size, number of files used and 
+ remaining,  drive/user area (DU form) plus the name (DIR form) of 
+ the  directory,  as well as disk space remaining.   The files are 
+ displayed   alpha-sorted,   by  either  filename   or   filetype, 
+ horizontally  across  the CRT screen.   XD.COM and  XDIR.COM  are 
+ provided  for  further expanded directory display capability  and 
+ power.  Use "//" or the HELP System for the trailing parameters.
+
+
+                                                                    Page 2
+
+
+
+
+
+ Newsletter 003                           BIOS Reserved Memory Areas
+
+
+      USER is not required under ZCPR3 because simply entering the 
+ user  area  number  (0 to 15) followed by a ":"  at  the  command 
+ prompt puts the system at that area.  From an application program  
+ the ":" is usually optional and user 0 to 31 is  permitted.
+
+                     CBIOS CODE EXAMPLE LISTING
+
+      Place this code, or similar, in the cold boot routine of your
+ CBIOS.   The  code  is written to use the facilities  of  Digital 
+ Research's   MAC.COM   macro  assembler,   for  convenience   and 
+ flexibility.  If you don't own a copy of MAC, it's a good idea to 
+ buy one!  (CBIOS.LIB must be placed at beginning of your CBIOS source
+ code file; see page 8 below.)
+
+ ; o n e - t i m e   c o d e   (used only during cold boot)
+
+ BOOT:
+         LXI     SP,100H         ;start local stack
+ ;
+ ; the following code is required for zcpr3 cold boot initialization
+ ;
+          IF     EXPATH NE 0     ;external paths supported
+         LXI     D,PATH          ;copy cold-boot path
+         LXI     H,EXPATH        ;into system external path area
+         MVI     B,9             ;always 9 bytes
+         CALL    MOVLOP
+          ENDIF
+
+          IF     Z3WHL NE 0      ;wheel byte supported
+         XRA     A               ;clear wheel byte
+         STA     Z3WHL
+          ENDIF
+
+          IF     RCP NE 0        ;rcps supported
+         LXI     H,RCP           ;rcp address (zero fill)
+         CALL    ZERO128         ;128 bytes
+          ENDIF
+
+          IF     FCP NE 0        ;fcps supported
+         LXI     H,FCP           ;fcp address (zero fill)
+         CALL    ZERO128         ;128 bytes
+          ENDIF
+
+          IF     Z3ENV NE 0      ;envs supported
+          IF     INITENV         ;initialize environments (equ in 'cbios.lib')
+         LXI     D,DEFENV        ;copy default environment ...
+         LXI     H,Z3ENV         ;... into zcpr3 environment descriptor
+         MVI     B,128           ;128 bytes
+         CALL    MOVLOP
+         MVI     B,32            ;32 zeroes for z3tcap
+         CALL    ZEROM
+          ELSE                   ;not initenv
+         LXI     H,Z3ENV         ;env address (zero fill)
+         MVI     B,128+32        ;128 bytes of environ + 32 bytes of z3tcap
+         CALL    ZEROM
+
+
+                                                                    Page 3
+
+
+
+
+
+ Newsletter 003                                             CBIOS Example
+
+
+          ENDIF                  ;initenv
+          ENDIF                  ;z3env ne 0
+
+          IF     SHSTK NE 0      ;shell stack supported
+         XRA     A               ;clear stack
+         STA     SHSTK
+          ENDIF
+
+          IF     Z3MSG NE 0      ;zcpr3 messages supported
+         LXI     H,Z3MSG         ;clear message bytes
+         MVI     B,80            ;80 bytes
+         CALL    ZEROM
+          ENDIF
+
+          IF     Z3NDIR NE 0     ;named directory based in memory
+         LXI     H,Z3NDIR        ;named directory base
+         CALL    ZERO128         ;128 bytes
+          ENDIF
+
+          IF     Z3CL NE 0       ;multiple commands allowed
+         LXI     D,CMDSET        ;set buffers for multiple command processing
+         LXI     H,Z3CL          ;command line base
+         MVI     B,4             ;4 bytes
+         CALL    MOVLOP          ;copy
+         LXI     D,AUTOCMD       ;pt to default command
+         LDAX    D               ;get char count
+         INX     D               ;pt to first char
+         MOV     B,A             ;count in b
+         INR     B               ;include ending 0
+         CALL    MOVLOP          ;copy
+          ENDIF
+ ;
+ ;  init some buffers which overlap the boot (in case you need this)
+ ;
+ ;       XRA     A               ;zero in the accum
+ ;       STA     HSTACT          ;host buffer inactive
+ ;       STA     UNACNT          ;clear unalloc count
+ ;       STA     HSTSID          ;assume side zero
+
+         JMP     GOCPM           ;initialize and go to cp/m (use your label)
+
+ AUTOCMD DB      8               ;'acmd' is a macro defined in 'cbios.lib'
+         ACMD
+ ;
+ ; copy from de to hl for b bytes
+ ;
+ MOVLOP:
+         LDAX    D               ;get and put
+         MOV     M,A
+         INX     H               ;pt to next
+         INX     D
+         DCR     B               ;count down
+         JNZ     MOVLOP
+         RET
+
+
+
+                                                                    Page 4
+
+
+
+
+
+ Newsletter 003                                             CBIOS Example
+
+
+ ;
+ ; zero 128 bytes of memory pted to by hl
+ ;
+ ZERO128:
+         MVI     B,128           ;128 bytes
+ ;
+ ; zero memory for b bytes; memory pted to by hl
+ ;
+ ZEROM:
+         MVI     M,0             ;store zero
+         INX     H
+         DCR     B               ;count down
+         JNZ     ZEROM
+         RET
+ ;
+ ; initial value for the external command line buffer
+ ;
+          IF     Z3CL NE 0
+ CMDSET:
+         DW      Z3CL+4          ;beginning of i/o buffer
+         DB      Z3CLS           ;size of i/o buffer
+         DB      0               ;empty buffer
+         DB      0               ;empty buffer
+          ENDIF
+ ;
+ ; default command search path
+ ;
+          IF     EXPATH NE 0
+ PATH:
+         DB      IDISK1,IUSER1   ;du path elements (from 'cbios.lib')
+         DB      IDISK2,IUSER2
+         DB      IDISK3,IUSER3
+         DB      IDISK4,IUSER4
+         DB      0               ;end of path
+          ENDIF
+ ;
+ ; signon  (constants located in 'cbios.lib', starting next page)
+ ;
+ LOGMSG: DB      CR,LF,'SUPER '  ; 'super' is your system name
+         DB      (SYSIZ/10)+'0',(SYSIZ MOD 10)+'0'
+         DB      'K TPA CP/M 2.2 with ZCPR '
+         DB      (CPMREV/10)+'0','.',(CPMREV MOD 10)+'0'
+         DB      CR,LF,' BIOS Version '
+         DB      (IVERS/10)+'0','.',(IVERS MOD 10)+'0'
+         DB      ' on '
+         IDATE                   ;set date from macro in 'cbios.lib'
+         DB      0
+ ;
+ ; built-in environment descriptor
+ ;       eliminates need for 'ldr' to run to init zcpr3 environment
+ ;       descriptor
+ ;
+          IF     INITENV   ;equate definition in 'cbios.lib'
+         MACLIB  SYSENV
+ DEFENV:
+
+
+                                                                    Page 5
+
+
+
+
+
+ Newsletter 003                                             CBIOS Example
+
+
+         JMP     0
+         SYSENV            ;fill in macros
+          ENDIF
+ ;
+ GOCPM:
+         MVI     A,CBDISK  ;make sure value not changed in cold boot
+         STA     CDISK     ;cp/m base page location 004h, disk/user area.
+                           ;label should be in your 'cbios' source code
+  
+ (start of console, other standard cp/m i/o initialization)
+
+         ORG     BOOT      ;uninitialized storage area starts here
+ --------------
+
+ Now the CBIOS.LIB file: (Add to the top of your CBIOS.ASM file)
+
+ *  File: CBIOS.LIB -- Customize for your CBIOS and desired features
+ *  then assemble with Z3BASE.LIB and MAC.COM.
+
+ *****************************************************************
+ *                                                               *
+ * THE FOLLOWING REVISION NUMBER IS IN REFERENCE TO THE Z3BASE   *
+ * VERSION                                                       *
+ *                                                               *
+ *****************************************************************
+
+ CPMREV  EQU     Z3REV           ;ZCPR3 revision number
+
+ IVERS   EQU     19              ;your BIOS Version
+ IDATE   MACRO
+         DB      '17 July 1984'  ;date of last BIOS Version
+         ENDM
+
+ CBDISK  EQU     0F0H            ;Initial Disk to Log In, 0=A, 1=B, etc
+                                 ;User 15, Disk A
+
+ *****************************************************************
+ *                                                               *
+ * CP/M SYSTEM EQUATES. IF RECONFIGURATION OF THE CP/M SYSTEM    *
+ * IS BEING DONE, CHANGES CAN BE MADE TO THE FOLLOWING EAUATES.  *
+ *                                                               *
+ *****************************************************************
+
+ BDOS    EQU     CCP+806H        ;BDOS address (800H may be req'd)
+ BIOS    EQU     CCP+1600H       ;CBIOS address
+ SYSIZ   EQU     CCP/1024        ;Size of System
+
+ *****************************************************************
+ *                                                               *
+ * IF THERE IS A COMMAND INSERTED HERE, IT WILL BE AUTO-LOADED   *
+ * ON COLD BOOT.                                                 *
+ *       FOR EXAMPLE:                                            *
+ *                                                               *
+ *       COLDBEG DB      'MBASIC MYPROG'                         *
+ *       COLDEND DB      0                                       *
+
+
+                                                                    Page 6
+
+
+
+
+
+ Newsletter 003                                             CBIOS Example
+
+
+ *                                                               *
+ * WILL EXECUTE MICROSOFT BASIC, AND MBASIC WILL EXECUTE THE     *
+ * "MYPROG" BASIC PROGRAM.                                       *
+ *                                                               *
+ *****************************************************************
+
+ ACMD    MACRO                   ;Define as Macro for Code Insertion
+         DB      'STARTUP '      ;Cold boot command here (8 chars)
+         DB      0               ;in 'cbios':  autocmd: db 8    acmd
+         ENDM
+
+ *****************************************************************
+ *                                                               *
+ *  PATH TO BE SET FOR ZCPR3 ON COLD BOOT                        *
+ *                                                               *
+ *****************************************************************
+
+ ; Current Disk, Current User always checked 1st
+
+ IDISK1  EQU     'A'-'@'         ; 2nd: Disk A, User 0
+ IUSER1  EQU     0
+
+ IDISK2  EQU     'A'-'@'         ; 3rd: Disk A, User 15
+ IUSER2  EQU     15
+
+ IDISK3  EQU     'A'-'@'         ; 4th: Disk A, Current User
+ IUSER3  EQU     '$'
+
+ IDISK4  EQU     '$'             ; 5th: Current Disk, User Zero
+ IUSER4  EQU     0
+
+ IDISK5  EQU     0               ;No 6th Entry
+ IUSER5  EQU     0
+  
+ *****************************************************************
+ *                                                               *
+ *  INITIALIZE ZCPR3 ENVIRONMENT DESCRIPTOR FROM WITHIN BIOS     *
+ *       SET THIS EQUATE TO TRUE TO DO SO                        *
+ *                                                               *
+ *****************************************************************
+
+ INITENV EQU     TRUE            ;best to leave 'true'; must be..
+                                 ;..'true' to run 'startup'.
+
+ *****************************************************************
+ *                                                               *
+ *  ENABLE RCP/M USE - LOSS OF CARRIER = REBOOT                  *
+ *                                                               *
+ *****************************************************************
+
+ RCPM    EQU     FALSE           ;set true if for BBS or RCP/M system
+
+
+
+
+
+
+                                                                    Page 7
+
+
+
+
+
+ Newsletter 003                              More Insallation Information
+
+
+
+                    MORE INSTALLATION INFORMATION
+
+      Installation of ZCPR3 in your CP/M system requires knowledge 
+ and understanding of the principles being used.  Use your printer 
+ to get hardcopy of the following supplied files:
+
+                     Z3BASE.LIB     ;base address reservations
+                     Z3HDR.LIB      ;ZCPR3 options selection
+                     SYSENV.ASM     ;environment header and..
+                     SYSENV.LIB     ;..macro library.
+                     CBIOS.LIB      ;CBIOS convenience library
+
+ Scan  (study) the sample Z3BASE.LIB's and Z3HHDR.LIB's furnished.  
+ Change equates to your desires.  Remember that the assembled ZCPR 
+ cannot exceed 2k bytes,  the size of the original CP/M CCP.   The 
+ last  used address cannot be higher than the BDOS  base  address.  
+ (Use  BDOSLOC.COM to determine CCP,  BDOS,  and BIOS base address 
+ locations of your system.)  The four sample Z3HDR files  supplied 
+ are  about  optimum from memory resource  management  standpoint.  
+ The trade is intrinsic (resident to ZCPR3's 2k command processor) 
+ versus  external  (Resident Command Package in CBIOS or  external 
+ executable COM file utilities) command functions.
+
+      Make  sure your existing system doesn't presently  use  CP/M 
+ base page locations 40H to 4BH.   If it does change Z3BASE.LIB to 
+ reflect  different External PATH (3.) and WHEEL Byte (4.) addres-
+ ses.   A  good  location would be near the External  FCB  Address 
+ (12.).   Only 36 bytes need be alloted to the FCB buffer, so PATH 
+ and  WHEEL can be just above it (11 bytes for PATH plus one  byte 
+ for WHEEL).  Many RCP/M systems use location 3EH for a WHEEL byte 
+ -- you  may desire that location over the high memory  one  above 
+ the suggested alternate PATH location.  If Z3BASE.LIB is changed, 
+ all programs that use it must be reassembled.
+
+      Once  the  system size you wish to run has been  determined, 
+ several ZCPR3 combinations may be assembled and experimented with 
+ to  further determine what's best for your desired  environmental 
+ requirements.
+
+      Several  ready-to-run Resident Command Packages (RCP's)  and 
+ Flow  Control  Packages (FCP's) are supplied to get  you  started 
+ quickly and are powerful examples of ZCPR3 capability.   Remember 
+ though,  if  you  change  any  address  in  Z3BASE.LIB  you  must 
+ reassemble all packages using Z3BASE.
+
+      Assemble all files using Digital Research's MAC.COM.  Libra-
+ ries  and marcos have been used for ease of file modification and 
+ simple,  short edits.  Add CBIOS.LIB and Z3BASE.LIB statements to 
+ your CBIOS code near the beginning:
+
+                MACLIB    CBIOS     ;the cbios header lib
+                MACLIB    Z3BASE    ;base address reservations
+
+      Assemble  SYSENV.ASM and change its name after loading to  a 
+
+
+                                                                    Page 8
+
+
+
+
+
+ Newsletter 003                              More Insallation Information
+
+
+ COM file to System Segment SYS.ENV.
+      SYS.ENV  can be initially loaded by LDR.COM or can be  auto-
+ loaded  by  the CBIOS built-in INITENV feature (if  you  use  the 
+ sample BIOS code fragment supplied above).   Set INITENV equate TRUE in 
+ CBIOS.LIB  before  assembly of your CBIOS.   More flexibility  is 
+ obtained  if  an alias STARTUP.COM is created that  contains  the 
+ LDR.COM utility command as the leading automatic loader command:
+
+   LDR MYTERM.Z3T,SYS.RCP,SYS.FCP,SYS.NDR;<application program(s)>
+
+ Commas are used between segment declarations,  semicolons between 
+ commands.   You may change drives and user areas by entering  the 
+ character followed by a colon.
+
+           15:;LDR MYTERM.Z3T,<etc.>;0:;DIR;B:;DIR
+
+ Go to user area 15, load MYTERM and other segment packages, go to 
+ user 0,  show files there;  then change to Drive B and show files 
+ on  it -- possibilities are essentially up to the desires of  the 
+ console operator or system installer.
+
+      Remember  STARTUP  is  the alias verb placed  in  CBIOS.LIB, 
+ linked with your CBIOS assembly.   MYTERM is created by  TCSELECT 
+ (or TCMAKE) and is the file containing your CRT terminal charact-
+ eristics.    It  obtains  the  extension  of  Z3T  automatically.  
+ Z3TCAP.TCP is the database used by TCSELECT for terminal capabil-
+ ities.
+
+      All   ZCPR3   screen-oriented   application   programs   use 
+ MYTERM.Z3T  for  CRT  description,  e.g.,  SHOW,  VFILER,  VMENU, 
+ ERROR2, DU3, MU3, HELP.
+
+      Additionally,  most  ZCPR3 utilities have built-in help  in-
+ formation,  obtained  by  typing the utility name followed  by  a 
+ <SPACE> and // (two slashes) and a <RETURN>. 
+
+                     ALIAS // <RETURN>
+
+      We  have many reserved memory addresses to consider.   Don't 
+ try to remember any of them.   Write them all down by editing the 
+ Z3BASE.LIB file and,  when finished, print it out for ready view.  
+
+      Let's  approach the installation from another  angle.   Scan 
+ and edit, as desired, all the ASM and LIB files supplied.  Then:
+
+           1. Assemble (using MAC.COM) ZCPR3.ASM with Z3BASE.LIB
+              and Z3HDR.LIB present on disk.
+
+           2. Assemble your CBIOS.ASM with Z3BASE.LIB, CBIOS.LIB,
+              and SYSENV.LIB on disk.
+
+           3. SYSGEN an image of your CP/M system into memory and
+              save as MYCPM.SYS.  Use DDT to load it.
+
+                DDT MYCPM.SYS
+
+
+                                                                    Page 9
+
+
+
+
+
+ Newsletter 003                              More Insallation Information
+
+
+                -IZCPR3.HEX
+                -R3D80           <-- value determined by system size,
+                -ICBIOS.HEX          see table below.
+                -R3D80
+                -^C
+                SAVE 48 MY58ZCPM.SYS
+                SYSGEN          <-- get system image from disk tracks
+                     at source drive prompt enter <RETURN>
+                     at destination    "      "   B<RETURN>
+                    
+              Now put Drive B disk into Drive A and reset (cold 
+              boot). If you don't get the system prompt, carefully
+              go over all the code again, making sure all is as it
+              should be.  Correct and reassemble if errors are found 
+              and try again.
+
+              DDT offset values used after the I filename insert 
+              command with the R command for different system 
+              sizes are:
+                R2D80      for 62k cp/m system (55k tpa)
+                R3180       "  61   "     "
+                R3580       "  60   "     "
+                R3D80       "  58   "     "
+                R4580       "  56   "     "
+              These values assume a DDT system image base at 980H.
+             
+           4. Assemble SYSENV.ASM with Z3BASE.LIB and SYSENV.LIB
+              on the disk creating SYSENV.HEX.  Load SYSENV.HEX
+              using LOAD.COM:  LOAD SYSENV  then rename.
+
+                REN SYS.ENV=SYSENV.COM
+
+              SYS.ENV need not be loaded if the SYSENV macro in 
+              CBIOS is expanded by setting INITENV equate TRUE in 
+              CBIOS.LIB and putting the correct code in CBIOS.ASM.
+
+            After SYS.ENV is created it should be used with
+              Z3INS.COM to auto-install all the Z3 utilities.
+
+                Do this:  Z3INS SYS.ENV ZCPR3.INS
+
+              with all the COM file utilities and Z3INS.COM and
+              SYS.ENV on the same disk.  ZCPR3.INS is an ASCII list
+              of the COM files to be installed.
+
+           5. Assemble SYSRCP.ASM with Z3BASE.LIB and SYSRCPn.LIB
+              present on disk, creating SYSFCP.HEX.  Then call DDT:
+                DDT
+                -H100 F200         <-- get hex difference and use..
+                F300 0F00
+                -ISYSRCP.HEX
+                -RF00              <-- ..here.
+                -^C
+                SAVE 8 SYS.RCP
+
+
+
+                                                                    Page 10
+
+
+
+
+
+ Newsletter 003                              More Insallation Information
+
+
+              An error message is displayed if the file size 
+              exceeds the space reserved.
+              (If you have the public domain MLOAD.COM, copyright
+               1983 by R. G. Fowler, you need not use the DDT approach
+               above or in the next section.  Simply type MLOAD SYSRCP
+               and change the name of the resultant SYSRCP.COM to SYS.RCP.)
+         
+           6. Assemble SYSFCP.ASM with Z3BASE.LIB and SYSFCPn.LIB
+              present on disk, creating SYSFCP.HEX.  Then call DDT:
+                DDT
+                -H100 FA00
+                FB00 0700
+                -ISYSFCP.HEX
+                -R700
+                -^C
+                SAVE 2 SYS.FCP (Or use MLOAD, rename SYSFCP.COM to SYS.FCP.)
+
+      Now  use LDR.COM to load the System Segments.   Create  your 
+ custom STARTUP.COM with ALIAS.COM.  ALIAS is self prompting, both 
+ for the command line string and the filename desired.
+
+      The  CP/M  system  size selected is determined by  how  much 
+ ZCPR3  capability is desired.   The 61k system permits  Z3HRD.LIB 
+ file equates to be set to allow enhanced standard CP/M intrinsics 
+ to be employed,  and quite a bit more.  PATHS, nested SHELLS, ZEX 
+ processing,  error handling,  and Multiple Commands per Line  are 
+ provided.   High  memory locations FD00H to FFFFH (768 bytes) are 
+ reserved for use by ZCPR3 to achieve this capability.
+
+      The  60k system furnishes Named Directories and WHEEL direc-
+ tory  passwords,  and  Flow Control Packages to be  installed  as 
+ environments.   Adding another 2k (58k system) permits the Resid-
+ ent Command Packages to exist.   It's best to not use the intrin-
+ sic DIR --  several much better transients are readily available, 
+ either as public domain  or  the  three  supplied  with the ZCPR3
+ system utilities.  Remember the conflict is always there to never
+ exceed the basic CCP memory space of 2k.   Make sure when you as-
+ semble ZCPR3.ASM that the last address does not exceed  the  BDOS
+ base  page  address.   A  careful  reading  of  the  comments  in
+ Z3HDR.LIB gives a good feeling of the options -- good reading and
+ good luck!
+ --------------
+
+ Well, there you have it.  The above should give you a different point of view
+ from that obtained from Installation Manual of SAMPLER.  Hopefully, the view
+ has been useful and permitted "leaping-over-a-stumbling-block" for you.
+
+ The ZCPR3 Newsletter, since some have asked, is a fortnighter -- it comes out
+ every 14 days (or there abouts).  There is no fixed or preconceived number of
+ pages for each issue.  The length is determined by amount needed to be said at
+ the time.  Please continue to send in your questions and comments, either to
+ the BBS at 408/258-8128 or directly; questions of a general natural receive a
+ reply in the Newsletter.
+
+ Next issue contains an editorial discussing the present situation in the micro-
+
+
+                                                                    Page 11
+
+
+
+
+
+ Newsletter 003                                                The Ending
+
+
+ computer world and why ZCPR3 is a success, and will continue to be.
+
+ FLASH:  Alpha Systems has just informed Echelon that structural design concepts
+         have been proven and Z3-Dot-Com (auto-install version of ZCPR3) has
+         been placed into beta testing.  First of September ship date presently
+         seems reasonable.  Those interested should get their order in early,
+         to avoid the rush.  Price is $149.00 and includes entire ZCPR3 System
+         and all programs and utilities.  Z3-Dot-Com comes on four (4) 8"
+         floppies.  Source code for the utilities is not supplied (code is the
+         same as the manual-install version presently being shipped).  These
+         come on eight (8) 8" floppies at a price of $89.00.  Shipping and
+         handling is another $3.00, in continental USA, $5 to $12 if elsewhere.
+
+                                                   Echelon, Inc.
+                                                   101 First Street
+                                                   Los Altos, CA 94022
+                                             (New) Telephone: 415/948-3820
+
+ P.S.    We have installed another office telephone.  Please use new number
+         first; if busy, older one (415/948-5321) may be used.  Thanks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                    Page 12
+
+
+
+
+
+

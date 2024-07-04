@@ -1,0 +1,46 @@
+The following is a general purpose READ file for placing calls
+via Telenet.   It assumes that the PREFIX is null (PREFIX "") and 
+that the SUFFIX is a RETURN (SUFFIX "^M").  These are the default 
+values on my system.   I've named this file CALLTO.MEX  The local 
+Telenet number is in the PHONE list. It is invoked by:
+READ CALLTO <AREA CODE> <NUMBER> [<CAPTURE FILE>]
+  
+                                       (remarks not part of file)
+
+     STAT WTECHO OFF                  not needed, just slows us
+     STAT WECHO 1                     fast for initial call-up
+     STAT REPLY 1
+     STAT RETRY 1
+     SENDOUT "ATM0"                   to silence modem
+     DIAL TELENET
+     SENDOUT "^M"                     two returns go get started
+     SENDOUT ""                       respond to TERMINAL=
+     SENDOUT "C DIAL{1}//12,YOURID"   respond to @
+     STAT WECHO 4                     slow down for packets
+     SENDOUT "PASSWORD"               your password, of course
+     SENDOUT "ATZ"
+     SENDOUT "ATDT{2}"
+     T {3:CAPTURE.NEW}
+
+For frequently called numbers a dedicated file can be created by
+copying the CALLTO file, and then filling in parameters 1, 2 and
+3.  My file to call the Net-exchange BBS (NEX.MEX) is
+
+     STAT CRC ON         set CRC/CHECKSUM to match bbs
+     STAT WTECHO OFF
+     STAT WECHO 1
+     STAT REPLY 1
+     STAT RETRY 1
+     SENDOUT "ATM0"
+     DIAL TELENET
+     SENDOUT "^M"
+     SENDOUT ""
+     SENDOUT "C DIAL202//12,YOURID"
+     STAT WECHO 4
+     SENDOUT "PASSWORD"
+     SENDOUT "ATZ"
+     SENDOUT "ATDT6893561"
+     T {1:CAPTURE.NEX}   option to specify different capture file 
+
+Thats all there is to it.  Have fun.
+

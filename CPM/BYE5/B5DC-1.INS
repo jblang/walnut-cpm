@@ -1,0 +1,104 @@
+
+; B5DC-1.INS - Hayes MM-100 insert for BYE5 - 07/17/85
+;
+;	  D. C. Hayes MicroModem 100 Interface routines
+;
+; This version is for the D.C. Hayes MM100 and 80-103A modem cards.
+; Note:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written for use with BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Port equates
+;
+PORT	EQU	80H		; Modem data port
+MDCTL1	EQU	PORT+1		; Status port and control port #1
+MDCTL2	EQU	PORT+2		; Control port #2
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Read port
+	ANI	40H		; Carrier there?
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	XRA	A		; Drop carrier, if any
+	OUT	MDCTL2		; Clear off-hook flag, turn off carrier
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the satus to see if a character is available.  If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	01H		; Check the receive ready bit
+	RZ
+	ORI	0FFH
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Get status
+	ANI	02H		; Check transmit ready bit
+	RET			; Return with proper status
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:
+MDSTOP:	RET			; Unused
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET1200	EQU	$		; 1200 bps not supported
+SET2400	EQU	$		; 2400 bps not supported
+;
+SETINV:	ORI	0FFH		; Make sure the Zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,17H		; 8 bits, no parity, 1 stop bit
+	OUT	MDCTL1
+	MVI	A,83H		; 300 baud and answer phone
+	OUT	MDCTL2
+	XRA	A		; Make sure Z is set
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

@@ -1,0 +1,264 @@
+2. S T E P   1 :   S E L E C T I N G   t h e   F E A T U R E S 
+
+
+
+2.1. Features of ZCPR3
+
+     Thå  installeò  musô  firsô decidå whaô featureó  thå  ZCPR³ 
+Systeí ió tï include¬ anä hió choiceó arå:
+
+          1©  Standarä Overheaä -- Ió thå ZCPR³ Systeí tï includå 
+thå  standarä 1Ë overheaä oò not¿   Iæ not¬  whicè partó  oæ  thå 
+Standard Overhead are to be included?
+
+          2©  Flo÷  Commanä Packagå -- Ió thå Systeí  tï  includå 
+Flo÷ Commandó oò not?
+
+          3© Input/Outpuô Packagå -- Ió thå Systeí tï includå I/Ï 
+Packageó oò not?
+
+          4© Residenô Commanä Packagå -- Ió thå Systeí tï includå 
+Residenô Commandó oò not?
+
+
+     Beyonä theså basiã decisions¬  thå contentó oæ thå followinç 
+configuratioî fileó havå tï bå determined:
+
+          1) Z3BASE.LIB -- Base Addresses for the System
+
+          2©  Z3HDR.LIÂ  -- Configuratioî Optionó foò  thå  ZCPR³ 
+Command Processor
+
+          3©  SYSFCP.LIÂ  -- Configuratioî Optionó foò  thå  Flo÷ 
+Command Packages (only if this feature is selected)
+
+          4© SYSRCP.LIÂ -- Configuratioî Optionó foò thå Residenô 
+Commanä Packageó (onlù iæ thió featurå ió selected)
+
+
+2.2. Standard Overhead
+
+     Thå  Standarä  Overhead“  oæ á ZCPR³ Systeí consistó  oæ  alì 
+buffers above 0F400H in Fig 1-3.  These buffers contain:
+
+          1) External Stack
+          2) Command Line Buffer
+          3) Memory-Based Named Directory
+          4) External File Control Block
+          5) Message Buffers
+          6) Shell Stack
+          7) Environment Descriptor
+
+.paŠ
+     Thå tradeofæ analysió oæ whetheò tï includå theså bufferó oò 
+noô follows®  Aó á generaì recommendation¬ thå featureó supporteä 
+bù theså bufferó arå fundamentaì tï bå basiã naturå oæ ZCPR³  anä 
+iô  ió  highlù recommendeä thaô alì oæ thå Standarä  Overheaä  bå 
+included.  The cost of doing this is 1K bytes.
+
+
+2.2.1. External Stack
+
+     Thå  Externaì  Stack“ occupieó 4¸ bytes¬  anä itó purposå  ió 
+two-foldº   (1©  tï freå uğ thió spacå withiî thå  ZCPR³  Commanä 
+Processoò  foò  otheò purposeó anä (2© tï providå á commoî  stacë 
+whicè  caî bå easilù accesseä bù thå ZCPR³ utilitieó  tï  restorå 
+systeí integritù wheî required.
+
+     Initializationº   Thå externaì stacë neeä noô bå initializeä 
+beforå use.
+
+
+2.2.2. Command Line Buffer
+
+     Thå Commanä Linå Buffer“ occupieó jusô oveò 20° bytes¬ anä iô 
+ió  instrumentaì  tï manù functionó oæ  thå  ZCPR³  System®   Itó 
+purposå  ió tï storå thå commanä linå inpuô bù thå useò froí  hió 
+terminal¬ bù aî executinç SUBMIÔ file¬ oò bù á ZCPR³ utilitù sucè 
+aó ALIAÓ oò MENU®  Iæ thió buffeò ió noô supporteä externallù (aó 
+recommended)¬  theî  spacå  wilì bå takeî uğ insidå oæ thå  ZCPR³ 
+Commanä Processoò foò it®   Iæ madå externaì tï thå ZCPR³ commanä 
+processor¬  thió  buffeò  provideó á mechanisí tï  implemenô  thå 
+followinç capabilities:
+
+          1) multiple commands on a single line, like:
+               DIR;ERA *.BAK;DIR
+
+          2) certain useful front-ends, such as MENU
+
+          3) the ALIAS feature
+
+     Initializationº  Thå Commanä Linå Buffeò MUSÔ bå initializeä 
+beforå  iô ió used®   Thå firsô timå thió buffeò ió useä  ió  thå 
+firsô  timå  thå  ZCPR³ Commanä Processoò ió  executed¬  sï  thió 
+initializatioî  MUSÔ  bå donå durinç (oò  before¬  iî  somå  rarå 
+cases© thå colä booô procedurå iî thå BIOS.
+
+
+2.2.3. Memory-Based Named Directory
+
+     Thå  Memory-Baseä  Nameä Directory“ (25¶ bytes© containó  thå 
+name-DÕ  assignmentó  foò  thå nameä  directorieó  knowî  tï  thå 
+system®   25¶  byteó ió thå recommendeä size¬  buô thió coulä  bå 
+extendeä iæ morå nameó arå desired®  Eacè namå requireó 1¸ bytes¬ 
+sï 1´ nameó caî bå defineä iî thå example®   Thió feature¬  whilå 
+ió  findó  immediatå applicatioî oî á harä disë system¬  ió  alsï 
+convenienô oî á floppy-baseä system¬ anä iô costó little.Š
+     Initializationº    Iô  ió  generallù  recommendeä  thaô  thå 
+Memory-Baseä  Nameä  Directorù buffeò bå initializeä durinç  colä 
+boot¬  buô thió ió noô mandatory®  Iæ thå ZCPR³ commanä processoò 
+ió  seô uğ tï givå precedencå tï thå DÕ forí oveò thå  DIÒ  form¬ 
+theî  thió directorù buffeò maù bå initializeä bù á STARTUĞ aliaó 
+(thå commanä "STARTUP¢ ió storeä iî thå Commanä Linå Buffeò aó  á 
+colä booô command)®  STARTUĞ maù theî ruî LDR¬ whicè wilì loaä aî 
+NDÒ (Nameä Directory© file®   Aó witè thå Commanä Linå buffer¬ iô 
+ió  importanô  tï remembeò thaô thå Memory-Baseä Nameä  Directorù 
+buffer must be initialized before it is used.
+
+
+2.2.4. External File Control Block
+
+     Thå  Externaì Filå Controì Block“ occupieó onlù 3¶ byteó  (4¸ 
+byteó  werå reserveä foò iô iî thå example)¬  anä itó purposå  ió 
+two-foldº   (1©  tï  freå  uğ spacå insidå oæ thå  ZCPR³  Commanä 
+Processoò  anä (2© tï providå á mechanisí bù whicè á utilitù  caî 
+determinå  thå  namå  iô  waó  invokeä  by®   Thå  ZCPR³  Commanä 
+Processoò storeó thå namå oæ thå commanä iô jusô parseä intï thió 
+buffeò  sï  thaô  thå commanä caî reaä iô  anä  uså  it®   Shelló 
+commonlù uså thió featurå tï determinå thå namå theù werå invokeä 
+under so they can set themselves up to be reexecuted.
+
+     Initializationº   Nï  initializatioî  ió  requireä  foò  thå 
+External File Control Block.
+
+
+2.2.5. Message Buffers
+
+     Thå Messagå Buffers“ oæ ZCPR³ occupù onlù 8° bytes¬  anä theù 
+arå  verù  importanô  aó á mechanisí  thrõ  whicè  thå  followinç 
+operationó caî bå performedº   (1© ZCPR³ caî leavå messageó abouô 
+itó  statuó  whicè caî bå reaä bù utilitieó executeä bù  it¬  (2© 
+programó  caî leavå messageó tï ZCPR³ tï givå iô instructionó  oî 
+ho÷  tï perforí certaiî operations¬  sucè aó erroò  handlinç  anä 
+shelì  execution¬  anä (3© onå prograí caî leavå á messagå tï  bå 
+read and interpreted by another program which is executed later.
+
+     Iô  cannoô  bå  emphasizeä  enougè thaô  thå  ZCPR³  Messagå 
+Bufferó  arå MOSÔ importanô foò thå operatioî oæ thå  systeí  anä 
+should be included as a feature.
+
+     Initializationº   Likå thå Commanä Linå buffer¬  thå Messagå 
+Bufferó musô bå initializeä beforå theù arå used¬  anä thå  ZCPR³ 
+Commanä  Processoò  beginó usinç thå Messagå Bufferó  immediatelù 
+after cold boot.
+
+
+.paŠ
+2.2.6. Shell Stack
+
+     Thå  Shelì  Stack“ permitó thå shelì featurå oæ ZCPR³  tï  bå 
+implemented¬  costó  onlù 12¸ bytes¬  anä alsï permitó thå  shelì 
+featurå tï bå extendeä tï includå invocatioî oæ onå shelì oî  toğ 
+oæ  anotheò  shell®   Shells“ arå front-enä processoró  whicè  arå 
+invokeä  iî  placå oæ thå ZCPR³ Commanä Processoò inpuô  routine¬ 
+anä theù allo÷ commanä inpuô iî á varietù oæ  different¬  perhapó 
+morå user-friendlù formó tï takå place®  Thå MENU¬ SH¬ anä VFILEÒ 
+utilitieó  arå  invokeä aó shelló undeò ZCPR3®   Havinç  á  shelì 
+stacë  allowó onå shell¬  likå MENU¬  tï ruî anotheò shell¬  likå 
+VFILER®   Thå firsô shelì ió suspended¬  thå seconä shelì runó aó 
+lonç aó desired¬  and¬ wheî thå seconä shelì ió exited¬ thå firsô 
+shelì ió resumed.
+
+     Initializationº   Thå Shelì Stacë musô bå initializeä bù thå 
+colä booô routine®   Reasonó arå thå samå aó foò thå Commanä Linå 
+Buffer.
+
+
+2.2.7. Environment Descriptor
+
+     Thå Environmenô Descriptor“ (25¶ bytes© containó mucè  detaiì 
+oî thå ZCPR³ environment¬  includinç informatioî oî whaô featureó 
+arå  availablå  anä  otheò  datá oî thå operatioî  oæ  thå  ZCPR³ 
+System®   Thå  ZCPR³  TCAĞ entrù foò thå user'ó CRÔ  terminaì  ió 
+includeä  iî  thå Environmenô  Descriptor®   Iæ  thå  Environmenô 
+Descriptoò  ió  noô supporteä externallù (aó  recommended)¬  theî 
+eacè  ZCPR³  utilitù musô bå assembleä tï includå á copù  oæ  thå 
+ZCPR³  Environmenô  Descriptoò withiî  it®   Iæ  thå  Environmenô 
+Descriptoò  ió supporteä externally¬  eacè ZCPR³ utilitù containó 
+onlù  á pointeò (² bytes© tï thå descriptor®   Installatioî oæ  á 
+utility amounts to only setting this pointer.
+
+     Initializationº   Thå  ZCPR³ Environmenô Descriptoò  maù  bå 
+initializeä bù eitheò thå colä booô routinå iî thå BIOÓ oò bù thå 
+execution of LDR on an ENV file as a STARTUP command.
+
+
+2.3. Flow Command Packages
+
+     Thå Flo÷ Commanä Package“ oæ ZCPR³ implementó thå basiã  flo÷ 
+constructó oæ thå ZCPR³ System®   Theså arå thå IF¬ ELSE¬ FI¬ anä 
+XIÆ commands¬ and¬ witè thió featurå installed¬ commanä sequenceó 
+likå thå followinç arå possible:
+
+          IF EXIST MYFILE.TXT
+               TYPE MYFILE.TXT
+          ELSE
+               IF ERROR
+                    ECHO MYFILE.TXT NOT FOUND
+               FI
+          FI
+.paŠ     Initializationº    Thå   Flo÷   Commanä  Packagå   MUSÔ   bå 
+initializeä  bù thå colä booô routine®   Reasonó arå thå samå  aó 
+those for the Command Line Buffer.
+
+
+2.4. Input/Output Packages
+
+     Thå  Input/Outpuô  Package“  oæ  ZCPR³ implementó  á  seô  oæ 
+Input/Outpuô driveró whicè caî bå loadeä dynamicallù tï configurå 
+and extend the input/output system of the user's computer.
+
+     Initializationº     Thå   Input/Outpuô   Packagå   MUSÔ   bå 
+initializeä  bù thå colä booô routine®   Reasonó arå thå samå  aó 
+thoså foò thå Commanä Linå Buffer.
+
+
+2.5. Resident Command Packages
+
+     Thå  Residenô  Commanä Package“ oæ ZCPR³ implementó á seô  oæ 
+commandó  whicè remaiî iî memorù untiì thå packagå ió  explicitlù 
+reloadeä bù thå LDR.COÍ utility®   Theså commandó caî bå useä  tï 
+extenä  thå  seô  oæ commandó residenô withiî thå  ZCPR³  Commanä 
+Processor¬  anä  theù  adä thå flexibilitù oæ beinç  ablå  tï  bå 
+reloadeä froí timå tï timå witè differenô commands.
+
+     Initializationº    Thå  Residenô  Commanä  Packagå  MUSÔ  bå 
+initializeä  bù thå colä booô routine®   Reasonó arå thå samå  aó 
+thoså foò thå Commanä Linå Buffer.
+
+
+2.6. Other Buffers
+
+2.6.1. External Path
+
+     Thå  Externaì  Path“  (consistinç oæ á fe÷ bytå pairs©  ió  á 
+buffeò  whicè  containó thå symboliã expressioî  oæ  thå  Commanä 
+Searcè  Patè  tï bå followeä bù thå ZCPR³ commanä processoò  wheî 
+searchinç foò á COÍ file.
+
+     Initializationº   Thå  Externaì Patè MUSÔ bå initializeä  bù 
+the cold boot routine.
+
+2.6.2. Wheel Byte
+
+     Thå  Wheeì  Byte“  (±  byte© ió á flaç  reaä  bù  somå  ZCPR³ 
+utilitieó  whicè defineó thå useò tï bå privelegeä  oò  not®   Iæ 
+thió bytå ió non-zero¬ thå useò ió declareä tï bå priveleged¬ anä 
+certaiî functionó arå enableä whicè arå noô normallù availablå tï 
+him®   PWÄ  (Prinô Workinç Directories)¬  foò example¬  wilì alsï 
+displaù passwordó tï theså directorieó iæ thå useò ió  privelegeä 
+and requests them.
+
+     Initializationº  Thå Wheeì Bytå shoulä bå initializeä beforå 
+á utilitù whicè readó iô ió used.
+

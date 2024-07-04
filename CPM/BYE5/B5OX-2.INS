@@ -1,0 +1,188 @@
+
+; B5OX-2.INS - BYE5 insert for Osborne Executive
+;
+;		Note: This is an insert, not an overlay
+;
+;		This INSert will work ONLY with BYE509 and above
+;
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/07/86	Overhauled the insert to be compatible with BYE509
+;		and later releases having proper CP/M Plus support:
+;		- Removed WINDOW configuration parameter as that
+;		  function should be provided in the software that uses
+;		  the window.
+;		- Removed MDPREP/MDPOSP routines as they are no longer
+;		  required.
+;					- George Peace
+;
+; 08/17/85	- Updated BYE+ version 6 to be compatible with BYE5.
+;					- George Peace
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;-----------------------------------------------------------------------
+;
+; Set base port for SIO & Clock chips
+;
+BASEP	EQU	0CH		; Base port for sio
+BASEC	EQU	04H		; Base port for baud rate generator
+;
+; The following define the port addresses to use.
+;
+DATPORT	EQU	BASEP		; Data port
+STPORT	EQU	BASEP+1		; Status/control port
+BPORT	EQU	BASEC		; Baud rate port
+;
+;
+; Second Byte of 8253 Command:
+;
+BDCMD1	EQU	1		;  300 baud
+BDCMD2	EQU	0		; 1200 bps
+BDCMD3	EQU	0		; 2400 bps
+BDCMD4	EQU	0		; 4800 bps
+BDCMD5	EQU	0		; 9600 bps
+;
+;
+; The following are baud rates for BPORT
+;
+B300	EQU	128		;  300 baud
+B1200	EQU	96		; 1200 bps
+B2400	EQU	48		; 2400 bps
+B4800	EQU	24		; 4800 bps
+B9600	EQU	12		; 9600 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; Is there a carrier?  If not, return with the zero flag set.
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	STPORT
+	IN	STPORT		; Get status
+	ANI	8		; Check for data carrier
+	RET			; Return
+;.....
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	STPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	STPORT
+	MVI	A,44H		; 16x, 1 stop bit, no parity
+	OUT	STPORT
+	MVI	A,1		; Setup to write register 1
+	OUT	STPORT
+	MVI	A,0
+	OUT	STPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,0		; Clear DTR causing hangup
+	OUT	STPORT
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+	MVI	A,3		; Setup to write register 3
+	OUT	STPORT
+	MVI	A,0C1H		; Initialize receive register
+	OUT	STPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,0EAH		; Turn on DTR so modem can answer phone
+	OUT	STPORT
+;
+	 IF	IMODEM		; If using hayes 300/1200 smartmodem
+	CALL	IMINIT		; Go initialize smartmodem now
+	 ENDIF			; IMODEM
+;
+	RET			; Return
+;.....
+;
+;
+; Input a character from the modem port.
+;
+MDINP:	IN	DATPORT		; Get character
+	RET			; Return
+;.....
+;
+;
+; Check the status to see if a character is available.  Return with the
+; zero flat set, if not.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	STPORT		; Get status
+	ANI	1		; Got a character?
+	RZ			; Return if none
+	ORI	0FFH		; ..otherwise, set the proper flag
+	RET			; ...and return
+;.....
+;
+;
+; Send a character to the modem.
+;
+MDOUTP:	OUT	DATPORT		; Send it
+	RET			; Return
+;.....
+;
+;
+; See if the output is ready for another character.
+;
+MDOUTST:IN	STPORT
+	ANI	4		; Mask it
+	RET			; Return
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after the caller types BYE.
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,44H		; 16x, 1 stop bit, no parity
+	OUT	STPORT
+	RET
+;.....
+;
+;
+; If you do not support a partiuclar baud rate, put it here before
+; SETINV:
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET			; Return
+;.....
+;
+;
+SET300:	MVI	A,BDCMD1	; Get second byte of command
+	PUSH	PSW		; ..store it
+	MVI	A,B300		; Load rate
+	JMP	SETBAUD
+;
+SET1200:MVI	A,BDCMD2	; Get second byte of command
+	PUSH	PSW		; ..save it
+	MVI	A,B1200		; Load rate
+	JMP	SETBAUD
+;
+SET2400:MVI	A,BDCMD3	; Get second byte of command
+	PUSH	PSW		; ..store it
+	MVI	A,B2400		; Load rate
+;
+SETBAUD:OUT	BPORT		; Send first byte of command
+	POP	PSW		; Restore the rate
+	OUT	BPORT		; Send second byte of command
+	XRA	A		; Say rate is OK
+	RET			; Return
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

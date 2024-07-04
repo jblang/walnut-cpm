@@ -1,0 +1,59 @@
+Date: Saturday, 14 December 1985
+From: Keith Petersen, W8SDZ
+Re:   MODEM/XMODEM robustness improvement on EOT tests successful
+
+One of the most serious shortcomings of the Christensen protocol is
+that a single EOT (04h) received during a protocol transfer is taken
+by the receiver as end-of-file.  In the presense of noise, this can -
+and does occur.  The result is an incomplete file on the receiving end
+and an abort after ten retries on the sending end.
+
+Frank Wancho and I have been experimenting with the idea of the
+receiving end sending a NAK when it gets the first EOT (or what it
+thinks is an EOT).  The sender will send another EOT in response to
+this if it's really EOT.  Otherwise, it will send SOH and the next
+record, thus allowing the receiver to recover from a false EOT.
+
+I have tried this with an experimental version of XMODEM (no source
+for IMP or MEX, so can't try them).  It works perfectly.
+
+The code looks something like this:
+
+[Already have character here, expecting SOH for new record]
+
+TSTSOH	if SOH then Jump to GOTSOH which gets rest of header, etc.
+	if not EOT then Jump to SENDNAK
+
+	else wait for one second of no received chars, send NAK
+
+	then do:
+
+	quick purge of input port to clear garbage
+	wait up to 10 seconds for another character
+	if timeout Jump to timeout routine
+	if character is EOT return to caller with flag set
+	Character was not EOT, Jump to TSTSOH to test for others
+
+--END OF ROUTINE--
+
+SENDNAK is same as always, wait for one second of no characters, send
+NAK, increment error count, Jump to receive loop.
+
+The only visable evidence that this improved code is in place is that
+the sender shows one error message: ** NAK received, not ACK **
+after it sends the real EOT.  It just sends another, so no problem.
+
+Earlier versions of various Christensen MODEM programs would send EOTs
+forever (it was a closed loop).  I have a max ten counter in the
+SENDEOT routine.  The latest versions of IMP and KMD have only a three
+counter there, which I consider too low.  The program should attempt
+to send EOT ten times, same as it does for any other received NAK
+during the file transfer.
+
+After we're through testing it, Frank will be releasing the improved
+Tops-20 MODEM program.  I am still working on XMODEM for CP/M-80.  It
+has so many conditional assembly switches and code dependant on other
+programs, such as BYE and ZCPR, that I am making a new program without
+all this rampent featuritus, which I will be releasing soon as XMD.
+
+--Keith

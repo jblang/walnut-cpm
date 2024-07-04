@@ -1,0 +1,79 @@
+;>>:yam8.csm 7-31-82
+; converted to a86 for use with CI C86, 10-15-83, pjh
+;
+;CRCK is a program to read any CP/M file and print
+;a CYCLIC-REDUNDANCY-CHECK number based on the
+;CCITT standard polynominal:
+;   X^16 + X^15 + X^13 + X^7 + X^4 + X^2 + X + 1
+;
+;Useful for checking accuracy of file transfers.
+;More accurate than a simple checksum.
+;
+;**************************************************
+;
+;	unsigned crck(buffer, bufsize, oldcrc)
+;
+;	At start of packet, oldcrc is set to 0
+;
+;	crc is accumulated by:
+;		oldcrc=crck(buffer, bufsize, oldcrc);
+;
+;	crck for file is final value of oldcrc
+;
+;	A Short Hostory of this function and crckfile() in yam7.c"
+;
+;	1.  First version used getc and called crck once per char.
+;	this took 39.2 seconds to crck all the yam C files (12357)
+;
+;	2.  Then crckfile was recoded to use read() instead of getc.
+;	Time: 19.1 seconds
+;
+;	3.  Several small changes in crckfile were unsuccessful in
+;	reducing this time.
+;
+;	4.  crck and crckfile recoded to call crck once per sector.
+;	This reduced time to 11.7 seconds, same as crck itself.
+;	That is the current version.  Note that the CRC polynomial used
+;	here is somewhat unusual; the only thing I know sure is that
+;	the answers agree with those given by the CRCK program -hence the
+;	function name.
+;
+
+DEFCGBL	equ	0c1h
+DEFDGBL	equ	0c2h
+RELCGBL	equ	0c3h
+ABSCGBL	equ	0c4h
+
+	cseg
+
+crck:	push	bp
+	mov	bp,sp
+	mov	bx,4[bp]	; get buffer pointer
+	mov	cx,6[bp]	; get buffer size
+	mov	dx,8[bp]	; get oldcrc
+;
+;---------------------------------------------
+;Bsed on an 8080 routine for generating a
+;CYCLIC-REDUNDANCY-CHECK by Fred Gutman.
+;From 'EDN' magazine, June 5, 1979 issue, page 84.
+;
+bytlop:	test	dh,128		; Q-bit mask
+	pushf			; save status
+	add	dx,dx		; 2 x r(x)
+	add	dl,[bx]		; add byte from buffer
+	inc	bx		; increment pointer to next byte
+	popf			; retreive Q-bit status
+	jz	qb2		; if Q-bit is zero
+	xor	dx,0a097h	; gen. poly
+qb2:	loop	bytlop		; do till buffer m-t
+	mov	ax,dx		; answer in accumulator for return
+	pop	bp
+	ret
+
+	eseg
+
+	dw	crck
+	db	DEFCGBL,'crck',0
+	dw	0,0
+
+	end

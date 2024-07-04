@@ -1,0 +1,169 @@
+
+==============================================================================
+[ THE KAY*FOG RBBS | Filename=CPM-CC25.ART | posted 07/05/86 | 200 lines 11k ]
+
+          The CP/M Connection                   Originally published in    
+                  by                               Computer Currents       
+             Ted Silveira                         5720 Hollis Street     
+  (copyright and all rights reserved)            Emeryville, CA  94608     
+
+                                April 22, 1986
+                            Z:  THE SAGA CONTINUES
+
+     Last issue, I covered the basics of ZCPR3, a replacement for all or 
+part of your CP/M operating system.  This time, I'm going to cover some 
+of the major utilities and other treats that come with it.
+
+     There are over 70 utilities available that have been specifically 
+written to work with ZCPR3.  Some of these are just standalone 
+counterparts of memory-resident commands such as DIR and ERA.  Others do 
+simple but useful things--DIFF compares two files, FINDF searches disks 
+for a particular file, PATH changes the default search path that ZCPR3 
+uses.  And some of these utilities turn out to be especially important:
+
+     [Alias]  Alias (as well as its variants, Valias and Balias) is a 
+very simple program.  It takes a series of commands that you specify and 
+then creates a small program (usually 1-2K) whose only function is to 
+deliver that series of commands to ZCPR3.  When you run this little 
+program, it stuffs the commands into ZCPR3's multiple-command buffer, 
+and ZCPR3 then executes the whole series just as if you'd entered them 
+at the keyboard, like an instant batch file.  The command line can 
+contain anything you could normally enter at the A> prompt, including 
+the flow commands (IF/THEN/ELSE) I mentioned last issue.
+
+     For example, because I use The Word Plus spelling checker, I 
+created one of these programs (called an "alias") named CHECK.COM 
+containing the commands [A:;ERA A:ERRWORDS.TXT;SPELL B:$1 
+$$SCF;REVIEW;IF EXIST A:ERRWORDS.TXT;MARKFIX B:$1;WS B:$1;FI].  Quite a 
+mouthful, but now when I give a command like [CHECK CLIENT.LTR], the 
+file name CLIENT.LTR is substituted for every occurrence of $1, and the 
+alias goes to work.  
+
+     First, it logs into drive A:.  Second, it erases the file 
+A:ERRWORDS.TXT, if it exists (ERRWORDS.TXT is created in the course of 
+the spelling check).  Third, it runs the SPELL program on the file 
+B:CLIENT.LTR, with the trailing parameters $SCF.  Fourth, it runs the 
+REVIEW program, which lets me check the unmatched words SPELL has found.  
+Fifth, it checks to see if A:ERRWORDS.TXT exists--since I erased it at 
+the beginning of this command, ERRWORDS.TXT only exists if it has been 
+recreated because of spelling errors in the file.  Sixth, if 
+ERRWORDS.TXT exists, the alias runs the MARKFIX program on B:CLIENT.LTR 
+to make corrections and then loads WordStar and opens CLIENT.LTR so that 
+I can clean up afterwards.  Seventh, the FI command simply marks the end 
+of the series that started with IF EXIST.  If the command [IF EXIST 
+A:ERRWORDS.TXT] had been false (if there had been no file ERRWORDS.TXT, 
+in other words), it would indicate that there were no spelling errors in 
+the file CLIENT.LTR and all the commands between IF EXIST and FI would 
+have been skipped.
+
+     Aliases can be even longer than the sample one above and are very 
+useful for automating any awkward or repetitive task.
+
+     [Vfiler]  Vfiler is a file-maintenance program something like 
+NewSweep.  It can copy delete, rename, and unsqueeze files, either 
+singly or in groups, and can send files either to the screen for viewing 
+or to the printer.  But Vfiler differs from NewSweep and similar 
+programs in three ways.
+
+     First, instead of listing the files on a disk in a single column, 
+Vfiler show them in four columns of 18 rows each, so you can see many 
+more files at once.  And you can use your cursor keys or the WordStar 
+cursor-diamond keys to move around this list in any direction--up, down, 
+right, or left--so that it usually takes fewer keystrokes to get to the 
+file you want.
+
+     Second, Vfiler runs as a _shell_.  A shell program is one that 
+allows you to execute a second program from within it--when the second 
+program is finished, you're automatically returned to the shell program 
+without giving any commands or going through the A> prompt.  So, from 
+inside Vfiler, you can issue any ZCPR3 command (or string of commands) 
+that you would enter at the A> prompt.  Vfiler will surrender control 
+while the commands are executed and then reload itself.  You could even 
+run WordStar from inside Vfiler if you wanted to.
+
+     Third, Vfiler can store up to ten macros, each of which can be any 
+series of ZCPR3 commands.  What's more, because Vfiler keeps track of 
+which file your cursor is pointing to, you can build macros that will 
+automatically act on this file (called the _pointer file_).  As with 
+aliases and regular command lines, you can use flow commands in these 
+macros to make "smart" commands.
+
+     [Menu and Vmenu]  Menu and Vmenu are programs that run menu systems 
+you create with simple text files.  The menu options can execute any 
+legal ZCPR3 command sequences (just as with aliases and Vfiler macros) 
+including flow commands and pauses for user input from the keyboard.  
+Both these programs are fast, so there's no speed penalty for using 
+menus--in fact, there's really a speed _gain_ because a single keystroke 
+in the menu can execute a long series of commands quickly and accurately 
+(no typing errors!).  Menu and Vmenu are both shell programs so that you 
+can build a menu system in which novice users never need to deal with 
+the A> prompt.
+
+     The difference between the two program is that Vmenu is screen-
+oriented in the same way that Vfiler is.  It displays 16 files (four 
+rows of four) above the menu choices.  You can move the cursor around 
+just as in Vfiler and have the menu choices automatically act on the 
+file the cursor is pointing to.  In fact, you could probably create 
+Vfiler out of Vmenu if you wanted to.
+
+     As with aliases, the key to Menu and Vmenu is automation.  They 
+make your work simpler and your computer faster by automatically 
+executing complicated "smart" command sequences without any mistakes or 
+pauses.
+
+     [Zex]  Zex is a fancy version of CP/M's SUBMIT and XSUB combined, a 
+complete batch file processor.  Zex can use all the usual ZCPR3 
+commands, including flow commands, plus several other programs.  GOTO 
+will cause Zex to jump to a certain location in the batch file (just 
+like BASIC's GOTO) and can be used to create loops in a batch file.  And 
+REG lets you check, set, increment and decrement several counters in 
+memory so that you can, for example, keep track of how many times Zex 
+has gone through a particular loop.  By combining GOTO and REG with the 
+flow commands, you have what amounts to a simple programming language 
+and can build Zex batch files that are smart enough to handle almost any 
+occurrence.
+
+     [Poke&Go]  Poke&Go isn't a program--it's a technique cooked up by 
+Bruce Morgen that shows just how much you can do with ZCPR3.  In 
+Poke&Go, you combine three ZCPR3 commands--GET, which loads a program 
+into memory but doesn't actually run it; POKE, which lets you patch any 
+location in memory you want; and GO, which runs the program currently 
+residing in memory.  The most common use of Poke&Go is to patch WordStar 
+on the fly.  For example, instead of having a separate copy of WS.COM 
+patched especially for working on manuscripts, I can have a little 2K 
+alias called WS-MS.COM that contains the commands [GET 100 A:WS.COM; 
+POKE 0366 00 0C 0A 00 40; POKE 0376 02; POKE 3CF1 C3 27 3D; GO $1].  
+This alias first loads the main WordStar file WS.COM into memory at 
+location 100 (GET 100).  Then it patches (POKE) a series of values into 
+memory to set WordStar the way I want it--double-spaced, no 
+justification, right margin 65, 10 characters per inch printing, and so 
+on.  And finally it runs (GO $1) the patched WordStar from memory, 
+substituting whatever filename I give it for the variable $1.
+
+     Poke&Go is a very simple but powerful technique that works on any 
+program amenable to patching and can be used in aliases, menus, and 
+batch files.  The value is tremendous--if I want three differently-
+patched versions of WordStar, for example, I only need one copy of 
+WordStar and three little aliases (or menu command lines) instead of 
+three separate copies of WordStar.
+
+     [More To Come]  So far, I've only told you bits and pieces about 
+what ZCPR3 can do.  Next time, I'll give you a tour of part of my ZCPR3 
+system and try to give you a feel for what it's like to use it.
+
+Information on ZCPR3 and accompanying programs:
+
+Echelon, Inc.                    Main Echelon/ZCPR3 bulletin board:
+855 N. San Antonio Road          Z-Node Central - 415/489-9005     
+Los Altos, CA  94022
+415/948-3820
+
+------------------------------------------------------------------------------
+      Ted Silveira is a freelance writer and contributing editor to several
+   computer-oriented publications.  He appreciates suggestions or feedback
+   and can be reached through the KAY*FOG RBBS (415)285-2687 and CompuServe
+   (72135,1447) or by mail to 2756 Mattison Lane, Santa Cruz, CA 95065.
+
+-------------------------  End of CPM-CC25.ART Text  -------------------------
+
+

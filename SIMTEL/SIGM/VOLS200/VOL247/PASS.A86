@@ -1,0 +1,112 @@
+;
+;
+; This program allows you to set the default password for a given process
+; (console), without using the SET utility. SET forces you to type the
+; password, as in SET [DEFAULT=TEST]. This utility prompts you, but types
+; a # in response to each key pressed. This permits passwords to be used
+; on files, even when someone "is looking" at your screen.
+;
+;  Dave Rand
+;  72 Longfellow St.
+;  Thousand Oaks, CA  91360
+;  805-493-1987
+; 
+;  05/29/85 - Version 1.0
+;
+
+ccpm		equ	224
+
+f_passwd	equ	106
+c_writestr	equ	9
+c_rawio		equ	6
+
+p_pdadr		equ	156
+
+
+	cseg
+
+begin:	mov	dx,offset message	;Ask the user for the password
+	mov	cl,c_writestr		;print the message on the cosole
+	int	ccpm
+
+	mov	bx,offset buffer	;point to our local buffer
+	mov	cx,8			;max of 8 chars
+
+lp1:	push	bx			;save the pointer
+	push	cx			;and the current count
+	mov	dl,0fdh			;get input from CCPM
+	mov	cl,c_rawio		;via raw I/O
+	int	ccpm
+	pop	cx			;restore the count
+	pop	bx			;and the pointer
+	cmp	al,3			;was it a ^C?
+	jz	exit			;yes, exit
+	cmp	al,13			;was it a return?
+	jz	done			;yes, do the password
+	cmp	al,8			;was it a backspace?
+	jnz	lp2			;no, must be a valid char
+	cmp	cx,8			;It is a backspace. Are we at left
+	jz	lp1			;edge already? Yes, ignore key
+	dec	bx			;no, so decrement pointer
+	inc	cx			;and increment count
+	mov	dl,8			;display a BS
+	call	dchar
+	mov	dl,' '			;SP
+	call	dchar
+	mov	dl,8			;BS triplet to erase char displayed
+	call	dchar
+	jmps	lp1			;and loop for more input
+
+lp2:	cmp	al,'a'			;Since it is a good char, convert
+	jb	lp3			;lower to uppercase
+	cmp	al,'z'
+	jae	lp3
+	and	al,5fh			;by anding with 5f
+lp3:	mov	byte ptr [bx],al	;store the char in the buffer
+	mov	dl,'#'			;and display a # to tell the world
+	call	dchar
+	inc	bx			;increment the buffer pointer
+	loop	lp1			;and loop for more chars
+
+done:	jcxz	done1			;we are done, so fill the
+	mov	byte ptr [bx],' '	;rest of the buffer with spaces
+	inc	bx			;increment pointer
+	loop	done			;and loop for rest
+done1:
+	mov	dx,offset buffer	;point to buffer
+	mov	cl,f_passwd		;and issue a password call
+	int	ccpm
+
+	mov	cl,p_pdadr
+	int	ccpm			;get address of calling PD
+	push	es:word ptr 10h[bx]	;save my UDA address
+	mov	bx,es:word ptr 1eh[bx]	;get parent PD address
+	mov	bx,es:word ptr 10h[bx]	;BX -> parents UDA
+	pop	ds			;DS -> my UDA
+	mov	es,bx			;ES -> parents UDA
+	mov	si,12h			;point to reserved PASSWORD area
+	mov	di,12h			;point to reserved PASSWORD area
+	mov	cx,8			;move 8 bytes
+	rep	movsb			;with a rep.
+
+	
+
+exit:	mov	cl,0
+	mov	dl,0
+	int	ccpm
+
+dchar:	push	bx			;display a char on the console
+	push	cx
+	mov	cl,c_rawio
+	int	ccpm
+	pop	cx
+	pop	bx
+	ret
+
+	dseg
+
+message	db	'Enter password: $'
+
+buffer	rs	8
+	end
+	

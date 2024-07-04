@@ -1,0 +1,54 @@
+.
+. There is a bug in MEX versions 1.65 (both 8 and 16 bit) that
+. affects the colon display at the beginning of each line of an
+. ASCII save-in-memory.  This script fixes that bug.
+.
+.		03/26/86   --Ron Fowler, NightOwl Software
+screen off
+  ver
+  %a=value	;.%A=version #
+  peek $100
+  %b=value	;.%B=CPU value
+screen on
+.
+. validate version
+.
+if %a<>165
+  say "Sorry, this script is only for MEX version 1.65"
+  stop
+endif
+.
+. get patch code
+.
+screen off		;.disable screen, PEEK shows on the tube
+if %b=233		;.if DOS version
+  peek $7FEE		;.get patch level for DOS version
+else			;.if CPM version
+  peek $2832		;.get patch level for CPM version
+endif
+screen on
+if value<>32		;.if we don't have blank patch level ...
+  say "Patch already present/n"
+  stop
+endif
+.
+if %b=233		;.DOS version
+  say "Patching 16-bit MEX/n"
+  poke $b725 $b0
+  poke $b72a $b0
+  poke $7fee $41
+else			;.CPM version
+  say "Patching 8-bit MEX/n"
+  poke $573e $3e
+  poke $5743 $3e
+  poke $2832 $41
+endif
+.
+. now ready to clone MEX
+.
+say "Saving MEX to disk .../n"
+say "Enter filename (e.g. MEX.COM): "
+accept d		;.get name from console
+clone {d}		;.note use of curly brace, useful for substituting
+;.			;.strings into commands that don't take string args
+say "All done. {d} is now fixed./n"

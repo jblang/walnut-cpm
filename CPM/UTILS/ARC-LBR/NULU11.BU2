@@ -1,0 +1,338 @@
+
+#: 153058 S1/General
+    09-Nov-85  17:49:10
+Sb: #NULU11 BUG!
+Fm: <MoM> John Deakin 74015,1624
+To: All NULU users
+
+I have checked out NULU11 (with the "fix") and find that Charles Hart is
+quite correct in his earlier messages.
+
+Additionally, I happened upon yet another bug, although less serious.  All
+the following were captured by REDIRection of the screen on my Kaypro 10.  A
+and B are two logical hard disks (same physical disk), and drive C is a
+floppy.  The h/d has 4K and the floppy has 2K allocation.  This problem does
+not show up when operations are confined to the hard disk, only when
+extracting the file from a LBR on the h/d to the floppy.
+
+This will take several messages, and I apologize for taking up so much
+space.  However, many people are using this program, and rumors of bugs have
+not been made clear until Charles reported this problem.  I hope that
+someone with the source code and the knowledge will correct this problem, as
+this has the potential to be a fine program.  I particularly like the
+"Extract and UnSQueeze option with one command, but after this testing, I
+will scrap this version of the program.
+
+CNAMES is my master copy of CPMSIG names and PPN's, and is a straight ASCII
+text file.
+
+B1>PIP C:=B:CNAMES     <- make a good copy on the floppy
+
+B1>DIFF CNAMES,C:CNAMES
+DIFF  Version 1.6
+Source File 1 -- B  1: CNAMES  .
+Source File 2 -- C  1: CNAMES  .
+NO Differences Noted in Files       <- we know this one is good
+
+<Let's also do a CRC check>
+
+C1>CHEK *.*    <- this is the PIPped copy
+
+----CHEK--------ver 1.5-------04/11/83----
+    FILE          CRC      CHARS   RECORDS
+
+CNAMES  .        E2 26     75520     590
+
+Done
+
+C1>CHEK B:CNAMES    <- this is the original
+
+----CHEK--------ver 1.5-------04/11/83----
+
+    FILE          CRC      CHARS   RECORDS
+CNAMES  .        E2 26     75520     590
+
+Done    <note CRC's are identical>
+
+[Following is the OTHER BUG]
+
+C1>NULU B:TEST    <--Note we are logged on to C1:
+
+NULU 1.1   (02/03/85)
+Copyright (C) 1984, 1985 by Martin Murray
+
+TYPE -M FOR MENU
+
+Library B1:TEST.LBR not found.
+  To make it, enter the number of entries to allow.
+  Press RETURN now to abort making the library.
+Allow how many entries: 1
+
+Library B1:TEST.LBR open.
+(Buffer size: 251 sectors)
+Active entries: 1, Deleted: 0, Free: 3, Total: 4.
+-READY B1:>-X                          <--What!?  Howcum that "B1:"????
+
+
+Library B1:TEST.LBR closed.
+
+
+C1>NULU B:TEST  <--Then, reenter, but with LBR already there...
+
+NULU 1.1   (02/03/85)
+Copyright (C) 1984, 1985 by Martin Murray
+
+TYPE -M FOR MENU
+
+Library B1:TEST.LBR open.
+(Buffer size: 251 sectors)
+Active entries: 1, Deleted: 0, Free: 3, Total: 4.
+-READY C1:>-A *.*  <--Now, it's correct (C1:), so go ahead and add it.
+
+Adding:    C1:CNAMES  .
+Active entries: 2, Deleted: 0, Free: 2, Total: 4.
+-ADD MEMBERS C1:>-L
+
+Library: B1:TEST    .LBR
+Name            Index    Size    KiloBytes      CRC
+DIRECTORY                   1
+CNAMES.             1     590      74           E226
+Active sectors            591
+Unused                      0
+Total                     591
+Active entries: 2, Deleted: 0, Free: 2, Total: 4.
+-ADD MEMBERS C1:>-X
+
+Library B1:TEST.LBR closed.
+
+C1>ERA *.*    <- Now, delete the copy
+CNAMES  .
+C1>NULU B:TEST
+
+NULU 1.1   (02/03/85)
+Copyright (C) 1984, 1985 by Martin Murray
+
+TYPE -M FOR MENU
+
+Library B1:TEST.LBR open.
+(Buffer size: 251 sectors)
+Active entries: 2, Deleted: 0, Free: 2, Total: 4.
+-READY C1:>-E *.*
+
+Extracting...
+  CNAMES  .    to C1:CNAMES  .   <- Now bring it back from LBR
+-EXTRACT MEMBERS C1:>-X
+
+Library B1:TEST.LBR closed.
+
+C1>CHEK *.*
+
+----CHEK--------ver 1.5-------04/11/83----
+
+    FILE          CRC      CHARS   RECORDS
+CNAMES  .        67 47     75520     590       <- Uh, oh, look at CRC
+
+Done
+
+C1>diff b:cnames,cnames
+
+DIFF  Version 1.6
+Source File 1 -- B  1: CNAMES  .
+Source File 2 -- C  1: CNAMES  .
+ Rel Offset   B  1: CNAMES  .        C  1: CNAMES  .
+ Hex    Dec       Hex  Dec Asc           Hex  Dec Asc
+4000  16384        0A   10  .             46   70  F
+4001  16385        38   56  8             20   32
+4002  16386        34   52  4             5A   90  Z
+4003  16387        30   48  0             41   65  A
+4004  16388        38   56  8             50   80  P
+4005  16389        32   50  2             50   80  P
+.
+.
+DIFF Pause -- Type <RETURN> to Continue or ^C or A to Abort -
+DIFF Aborting
+
+Both the original file and the extracted copy contain 5 extents, of 16K
+each.  HOWEVER, the extracted copy has:
+
+Extent #1
+Extent #3
+Extent #3
+Extent #4
+Extent #5
+
+Extracting the file to the hard disk results in a perfect copy.
+
+<bleah!>
+
+
+#: 153094 S1/General
+    10-Nov-85  06:02:19
+Sb: #153060-#NULU11 BUG!
+Fm: Mike Dingacci 74206,1747
+To: <MoM> John Deakin 74015,1624 (X)
+
+        I just couldn't resist jumping into your conversation about
+NULU bugs.  I've discovered one that's really irritating and could
+drive you "buggy" (boo!).  Under CP/M 2.2G for the Kaypros with
+graphics, the program will make a library in an apparently normal
+fashion.  When you exit the program, you think you have a good library
+and your disk directory will even show a program there with the proper
+file size, etc. The only problem is that NULU didn't write a library
+directory on the file, so there is no way to access the contents of
+the file!!  This also occurs when you try to ADD files to an existing
+library.  The program shows that you have added the file(s) and the
+library is shown as being that much bigger on the disk directory. 
+When you open it next time, however, the file you added is not shown
+in the LIBRARY directory.
+
+        This only occurs if you exit the library using the -X command
+after adding files.  If you use -O the re-open the library before you
+exit the program, the changes will be preserved on both the disk and
+the library directories.  I have tried this on both CP/M 2.2G and 2.2F
+and it only occurs on 2.2G.  I've also tried it using 2.2G with EZCPR
+and it still occurs.  Notably, the problem doesn't occur if there's a
+parasitic program like XtraKey or Write Hand Man in the high memory of
+the system.  That really seems strange to me but maybe one of you ace
+programers out there can gain some insight as to the cause of the bug
+from that.
+
+[example of session reveals bug]
+ 
+A0>NULU11
+NULU 1.1   (02/03/85)
+Copyright (C) 1984, 1985 by Martin Murray
+ 
+TYPE -M FOR MENU
+ 
+-OPEN A LIBRARY A0:>TEST      <----- <Here we make a new library>
+Library A0:TEST.LBR not found.
+  To make it, enter the number of entries to allow.
+  Press RETURN now to abort making the library.
+Allow how many entries: 10
+Library A0:TEST.LBR open.
+(Buffer size: 287 sectors)
+Active entries: 1, Deleted: 0, Free: 11, Total: 12.
+-READY A0:>-A
+-ADD MEMBERS A0:>???.COM      <----- <Three files are added to TEST.LBR>
+Adding:    A0:PIP     .COM
+Adding:    A0:RES     .COM
+Adding:    A0:SDT     .COM
+Active entries: 4, Deleted: 0, Free: 8, Total: 12.
+-ADD MEMBERS A0:>-X           <----- <The new library is closed>
+ 
+Library A0:TEST.LBR closed.
+ 
+ZCPG Boot                     <----- <Warm boot under CP/M 2.2G w/EZPR>
+ 
+A0>SD TEST.LBR $L             <----- <SD directory of TEST.LBR>
+ 
+       Drive A0:  Files: 1/14k  (300k free)
+ 
+TEST    .LBR  14k |
+ 
+Library Directory for A0:TEST    .LBR  14k
+                              <---- <Library has no apparent directory!>
+ 
+ 
+A0>NULU11                     <----- <Re-invoke NULU to re-open TEST.LBR>
+NULU 1.1   (02/03/85)
+Copyright (C) 1984, 1985 by Martin Murray
+ 
+TYPE -M FOR MENU
+ 
+-OPEN A LIBRARY A0:>TEST      <----- <TEST.LBR is re-opened>
+Library A0:TEST.LBR open.
+(Buffer size: 257 sectors)
+Active entries: 1, Deleted: 0, Free: 11, Total: 12. <---- <What?  No Files!>
+-READY A0:>-L
+ 
+Library: A0:TEST    .LBR      <----- <File list confirms directory is gone!>
+Name            Index    Size    KiloBytes      CRC
+DIRECTORY                   3
+Active sectors              3
+Unused                      0
+Total                       3
+Active entries: 1, Deleted: 0, Free: 11, Total: 12.
+
+
+#: 153106 S1/General
+    10-Nov-85  10:26:26
+Sb: #153094-#NULU11 BUG!
+Fm: <MoM> John Deakin 74015,1624
+To: Mike Dingacci 74206,1747 (X)
+
+Ok, thanks, Mike.  Sure looks like NULU is a bummer, depending on the
+system running it.  Your example is what I've been using for many
+moons, with no problems, so it looks like it might be a really elusive
+bug.  While I'm sorry to lose the use of such a fine idea, I'm sure
+happy to have found this one before it bit me (I think).  Regards...
+
+#: 153122 S1/General
+    10-Nov-85  16:50:40
+Sb: #153106-NULU11 BUG!
+Fm: Mike Dingacci 74206,1747
+To: <MoM> John Deakin 74015,1624 (X)
+
+John,
+        I really get the idea that my bug only happens with the
+out-ofthe-box version of cp/m 2.2g from Kaypro and the
+slightly-modified EZCPR version of it.  It may be that those of you
+using ZCPR3 and other more advanced versions of zcpm will be
+unaffected by it.  My example only shows the worst-case scenario and
+the bug can even be avoided there if you re-open a library before
+exiting the program.  The program works perfectly with cp/m 2.2F.
+
+        Thanks,         Mike.
+
+
+
+
+#: 153107 S1/General
+    10-Nov-85  10:26:31
+Sb: #NULU
+Fm: <MoM> John Deakin 74015,1624
+To: Sysop Charlie Strom 76703,602 (X)
+
+Looks like we've got some very hard evidence that this program is, as
+you have reported the rumors many times, buggy.  What do you think
+about yanking it, and perhaps putting up a "dummy" file with a
+DEScription saying something like "Known bugs, program not available
+here".
+
+Since source is not included, keeping it around seems like "feeding a
+time bomb"?  Best...
+
+#: 153111 S1/General
+    10-Nov-85  12:33:39
+Sb: #153107-NULU
+Fm: Charles Hart 72755,500
+To: <MoM> John Deakin 74015,1624 (X)
+
+I just spoke with Martin Murray, the author of NULU.
+ The bug we have been working with this last week has been known for
+some time, just not publicized too much as it only appeared to occur
+on systems with different sized drives/minimum-file-size.  Mr. Murray
+can not cause it on his own system, but he has caused it on other
+systems.  It is caused by some BDOS problem with random reads and
+sequential writes, and could only be fixed by a complete rewrite of
+the method used to extract the files.
+ The good news is that NULU15.LBR is now on Potpourri with all the
+bugs fixed, he thinks.
+ Squeezing has not been added as he doesn't know of any efficient
+assembly language routines to do the trick.  If you or anyone else
+does, you might call him at 214-351-6117 (Weekends only, please!) and
+suggest where he can get the code.  This program really _needs_ the
+capability to Squeeze files as they go into the LBR.
+
+
+#: 153152 S1/General
+    10-Nov-85  19:32:41
+Sb: #153107-NULU
+Fm: Sysop Charlie Strom 76703,602
+To: <MoM> John Deakin 74015,1624 (X)
+
+A good point - will delete NULU. I guess I developed a good second
+sense about such things - as you know, I never used the program since
+it made me feel "uneasy".
+

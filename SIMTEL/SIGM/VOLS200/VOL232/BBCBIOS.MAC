@@ -1,0 +1,585 @@
+.Z80
+.COMMENT @
+
+***************************************************************
+*							      *
+*	---   Custom BIOS for CP/M 2.2   ---		      *
+*							      *
+* Version: 1.0					28 0ct 1984.  *
+*							      *
+* by						Mark Little.  *
+*							      *
+***************************************************************
+
+	Custom BIOS for the Ferguson Big Board I to allow
+auto-execution of commands on Cold Boot ONLY.
+
+NOTE:
+-----
+	This has been implemented for a specific system which
+uses the parallel port for a Terminal. It also does not have
+a printer implemented. You will most likely have to modify
+the I/O jumps into the monitor and insert the printer setup in
+the Cold Boot routine. The listing of the CBIOS supplied with
+the system will show you how to do it. Also, the CBIOS supplied
+with the original system modifies the monitor code, preventing
+easy monitor modification. This version has eliminated that
+problem (without affecting operation).
+	The CBIOS uses a portion of the Monitor Work Area to
+store its variables and implement its stack. Normally the area
+used (0FF7CH - 0FFFFH) is unused once the monitor loses control
+and is free for use, so BEWARE if you have software that uses
+this area also.
+
+INSTALLATION.
+-------------
+
+(1)	Modify to suit your system.
+(2)	Assemble to produce a .HEX file
+(3)	DDT CPM60.COM (supplied on original CP/M diskette)
+(4)	ICBIOS.HEX (Identify File to use)
+(5)	R1E7D (Read in file with offset 1F80H-103H)
+(6)	^C (Exit DDT with changing memory image)
+(7)	SYSGEN (RETURN with asked for Source Drive)
+(8)	Test your modifications.
+(9)	Place a copy of you modifications in Public Domain
+
+
+							      @
+
+
+MEMORY_SIZE	EQU	64		; 64k bytes of RAM
+MONITOR_SIZE	EQU	4		;  4k bytes of Monitor
+USER_MEMORY	EQU	MEMORY_SIZE-MONITOR_SIZE
+MONITOR		EQU	USER_MEMORY*1024
+BIAS		EQU	(USER_MEMORY-20)*1024
+CCP		EQU	BIAS+03400H
+CBIOS		EQU	CCP+01600H
+BDOS		EQU	CCP+00806H	; BDOS Entry point
+STACK		EQU	00000H		; Stack pointer
+IOBYTE		EQU	00003H		; I/O Byte
+CONSOLE_STATUS	EQU	MONITOR+6
+CONSOLE_INPUT	EQU	MONITOR+9
+LIST_OUTPUT	EQU	MONITOR+15
+READ_DEVICE	EQU	MONITOR+21	; Read device
+TIKCNT		EQU	0FF5DH		; Tick counter
+RUN_UNIT	EQU	0FF79H		; Run unit
+DISK_UNIT	EQU	RUN_UNIT+1	; Disk Unit
+TRACK		EQU	DISK_UNIT+1	; Track
+SECTOR		EQU	TRACK+1		; Sector
+DMA_ADDRESS	EQU	SECTOR+1	; DMA address store
+RETRY_COUNT	EQU	DMA_ADDRESS+2	; Retry count
+
+SYDAP		EQU	28		; System Control Port
+MAX_DRIVE	EQU	04H		; Max No of drives
+
+CR		EQU	0DH		; Carriage return
+LF		EQU	0AH		; Line feed
+FF		EQU	0CH		; Form Feed
+TAB		EQU	08H		; TAB character
+
+;	Set assembly address.
+
+	.PHASE	CBIOS
+
+;	Jump Table into CBIOS.
+
+	JP	COLD_BOOT		; Cold Boot Entry
+	JP	WARM_BOOT		; Warm Boot Entry
+	JP	CONSOLE_STATUS		; Console Status
+	JP	CONSOLE_INPUT		; Console Input
+	JP	CONSOLE_OUTPUT		; Console output
+	JP	LIST_OUTPUT		; List output
+	JP	PUNCH_DEVICE		; Punch output
+	JP	READ_DEVICE		; Reader input
+	JP	HOME_HEAD		; Home Disk head
+	JP	SELECT_DRIVE		; Select the drive
+	JP	SEEK_TRACK		; Seek to a sector
+	JP	SET_SECTOR		; Set the sector
+	JP	SET_DMA_ADDRESS		; Set DMA address
+	JP	READ_SECTOR		; Read a sector
+	JP	WRITE_SECTOR		; Write a sector
+	JP	LIST_STATUS		; List status
+	JP	TRANSLATE_SECTOR	; Locate physical
+
+;	Send a character to the Punch Device.
+
+PUNCH_DEVICE:
+	LD	A,C
+	JP	MONITOR+24		; Go to the monitor
+
+;	Return permanent ready in this version.
+
+LIST_STATUS:
+	XOR	A			; Zero register
+	DEC	A			; Reset the 'Z' flag
+	RET
+
+;	Console Output routine.
+
+CONSOLE_OUTPUT:
+	LD	A,C
+	JP	MONITOR+12		; Send to Console
+
+;	Cold Boot CBIOS Routine.
+
+COLD_BOOT:
+	XOR	A			; Zero the byte
+	LD	(IOBYTE),A		; Reset I/O byte
+	LD	HL,TITLE_MESSAGE	; Title
+	CALL	SHOW_MESSAGE		; Send to console
+	CALL	SET_DEFAULTS		; Default addresses
+	JP	CCP			; Cold start the CCP
+
+;	Warm Boot CBIOS Routine.
+
+WARM_BOOT:
+	LD	SP,STACK		; Monitor stack area
+	LD	A,(DISK_UNIT)		; Get disk unit
+	LD	(RUN_UNIT),A		; Save it
+	LD	C,0			; Select disk 'A'
+	CALL	SELECT_DRIVE		; Select it
+	CALL	HOME_HEAD		; Send to track 0
+	LD	HL,CCP			; Point to the CCP
+	LD	BC,00D02H
+	CALL	READ_LOOP		; Even sectors, track 0
+	LD	HL,CCP+00080H		; Update DMA address
+	LD	BC,00C03H
+	CALL	READ_LOOP		; Odd sectors, track 1
+	LD	C,1
+	CALL	SEEK_TRACK		; Seek track 1
+	JR	NZ,FATAL_LOAD_ERROR	; Oops - Abort it now
+
+	LD	HL,BIAS+4080H
+	LD	BC,00A01H
+	CALL	READ_LOOP		; Odd sectors, track 1
+	LD	HL,BIAS+04100H
+	LD	BC,00902H
+	CALL	READ_LOOP		; Even sectors, track 1
+	CALL	SET_DEFAULTS		; Set default values
+	JP	CCP+3			; Warm start CCP
+
+;	Set up Default Values.
+
+SET_DEFAULTS:
+	LD	A,0C3H			; Jump command
+	LD	(00000H),A		; Warm start jump
+	LD	(00005H),A		; BDOS jump
+	LD	(00038H),A		; Restart FF jump
+	LD	HL,CBIOS+3		; Routine address
+	LD	(00001H),HL		; Put into position
+	LD	HL,BDOS			; Routine address
+	LD	(00006H),HL		; Put into position
+	LD	HL,MONITOR		; Monitor cold start
+	LD	(00039H),HL		; Put into position
+	LD	BC,00080H		; Default DMA address
+	CALL	SET_DMA_ADDRESS		; Save it
+	LD	A,(RUN_UNIT)
+	LD	(DISK_UNIT),A
+	LD	C,A			; Put unit into 'C'
+	RET
+
+;	Read a series of sectors.
+
+READ_LOOP:
+	LD	(DMA_ADDRESS),HL	; Save DMA address
+	LD	A,C			; Get the sector
+	LD	(SECTOR),A		; Save it
+	PUSH	HL
+	PUSH	BC			; Save registers
+	CALL	READ_SECTOR		; Read a sector
+	POP	BC
+	POP	HL			; Restore 'em
+	JR	NZ,FATAL_LOAD_ERROR	; Oops - Abort now
+
+	INC	H			; Set DMA by 256 bytes
+	INC	C
+	INC	C			; Bump sector by 2
+	DJNZ	READ_LOOP		; Read next sector
+	RET
+
+;	Show that CP/M was unable to be loaded from Disk.
+
+FATAL_LOAD_ERROR:
+	LD	HL,FATAL_ERROR		; Error message
+	CALL	SHOW_MESSAGE		; Tell the user
+	IN	A,(SYDAP)		; Get port status
+	OR	01000100B		; Mask to kill disks
+	OUT	(SYDAP),A		; Send to the port
+	HALT				; Stop the processor
+
+;	Store the Sector number passed.
+
+SET_SECTOR:
+	LD	A,C			; Get the sector
+	LD	(SECTOR),A		; Save the Sector
+	RET
+
+;	Translate to the Physical Sector.
+
+TRANSLATE_SECTOR:
+	EX	DE,HL			; Swap to use
+	ADD	HL,BC			; Point to sector
+	LD	L,(HL)			; Put into L
+	LD	H,0			; Make HL the sector
+	RET
+
+;	Set the DMA address.
+
+SET_DMA_ADDRESS:
+	LD	(DMA_ADDRESS),BC	; Save it
+	RET
+
+;	Select the Drive to use.
+
+SELECT_DRIVE:
+	LD	HL,0			; Clear result
+	LD	A,C			; Get drive Number
+	CP	MAX_DRIVE		; Out of bounds?
+	RET	NC			; Yes - Abort
+
+	LD	(DISK_UNIT),A		; Store new drive
+	LD	L,A			; Drive into HL
+	ADD	HL,HL			; Drive*2
+	ADD	HL,HL			; Drive*4
+	ADD	HL,HL			; Drive*8
+	ADD	HL,HL			; Drive*16
+	LD	DE,DRIVE_PARAM_HEADER	; Parameter block
+	ADD	HL,DE			; Point to correct one
+	PUSH	HL			; Save table pointer
+	LD	B,0			; Fastest seek speed
+	LD	C,A			; Load Disk Drive No.
+	CALL	MONITOR+27		; Do monitor routine
+	POP	HL			; Restore table pointer
+	RET	Z			; Return if successful
+
+	LD	C,1
+	CALL	REPORT
+	JR	NZ,SELECT_DRIVE2	; Jump if abort found
+
+	LD	A,(DISK_UNIT)		; Else try again
+	LD	C,A
+	JR	SELECT_DRIVE
+
+SELECT_DRIVE2:
+	LD	HL,0			; Flag as bad one
+	LD	A,(RUN_UNIT)
+	LD	(DISK_UNIT),A		; Restore old drive
+	RET
+
+;	Home the Disk Drive's head to Track 0.
+
+HOME_HEAD:
+	CALL	MONITOR+30		; Monitor Home routine
+	RET	Z			; Return if OK
+
+	LD	C,2
+	CALL	REPORT
+	JR	Z,HOME_HEAD		; Retry if error
+
+	RET
+
+;	Seek to the selected track.
+
+SEEK_TRACK:
+	LD	A,C			; Get the track
+	LD	(TRACK),A		; Save the track
+SEEK_TRACK1:
+	CALL	MONITOR+33		; Call the monitor
+	RET	Z			; Return if no error
+
+	LD	C,2			; Type of error
+	CALL	REPORT			; Show the error
+	RET	NZ			; Fatal Error - Abort!
+
+	LD	A,(TRACK)		; Get the track
+	LD	C,A
+	JR	SEEK_TRACK1		; Retry
+
+
+;	Read a Sector.
+
+READ_SECTOR:
+	LD	HL,(DMA_ADDRESS)	; Get the DMA address
+	LD	A,(SECTOR)		; Get the sector
+	LD	C,A
+	CALL	MONITOR+36		; Call the monitor
+	RET	Z			; Return if no error
+
+	LD	C,3			; Type of error
+	CALL	REPORT			; Show the error
+	JR	Z,READ_SECTOR		; Retry
+
+	RET				; Abort
+
+
+;	Write a sector.
+
+WRITE_SECTOR:
+	LD	HL,(DMA_ADDRESS)	; Get the DMA address
+	LD	A,(SECTOR)		; Get the sector
+	LD	C,A
+	CALL	MONITOR+39		; Call the monitor
+	RET	Z			; Return if no error
+
+	LD	C,4			; Type of error
+	CALL	REPORT			; Show the error
+	JR	Z,WRITE_SECTOR		; Retry
+
+	RET				; Abort
+
+;	Report on the error.
+
+REPORT:
+	LD	E,A			; Save error flags
+	LD	D,C			; Save error type
+	LD	HL,DISK_MESSAGES	; Point to messages
+	CALL	SHOW_MESSAGE		; Show the message
+	DEC	HL			; Step back
+	LD	B,D			; Get error class
+FIND_MESSAGE:
+	CALL	SKIP			; Find next '$'
+	DJNZ	FIND_MESSAGE		; Move to the message
+
+	CALL	SHOW_MESSAGE		; Show error message
+	LD	HL,ERROR_MESSAGE	; Finish error message
+	CALL	SHOW_MESSAGE		; Show it
+
+;	Determine the nature of the error.
+
+	LD	A,E			; Get the flags
+	RLA				; Test if drive unready
+	JR	C,DISK_NOT_READY	; Yes - Skip this bit
+
+	LD	E,A			; Save the flags
+	LD	HL,RW_ERRORS		; R/W error messages
+	LD	A,D			; Get the error type
+	CP	3			; Sel/Seek or R/W?
+	JR	NC,NOT_SEEK_ERRORS	; Read/Write errors
+
+	LD	HL,SEEK_ERRORS		; Select message set
+NOT_SEEK_ERRORS:
+	LD	B,5			; Five bits to test
+	RES	0,D			; Reset comma flag
+WHICH_ERROR:
+	SLA	E			; Move it left
+	JR	NC,SELECT_MESSAGE	; Not this one!
+
+	LD	A,','			; Load with comma
+	BIT	0,D			; Print a comma?
+	CALL	NZ,MONITOR+12		; Yes - Do it
+
+	CALL	SHOW_MESSAGE		; Show the error msg
+	SET	0,D			; Make a comma show
+	JR	TEST_NEXT_BIT		; Continue
+
+SELECT_MESSAGE:
+	CALL	SKIP			; Move to next message
+	RES	0,D			; Kill comma flag
+TEST_NEXT_BIT:
+	DJNZ	WHICH_ERROR		; Test all bits
+
+	LD	HL,TRK_SEC_MESSAGE	; Track/Sector message
+	CALL	SHOW_MESSAGE		; Display it
+	LD	A,(TRACK)		; Get the track number
+	CALL	SHOW_HEX_BYTE		; Show it
+	LD	A,'/'			; Delimiter
+	CALL	MONITOR+12		; Send to console
+	LD	A,(SECTOR)		; get the sector number
+	CALL	SHOW_HEX_BYTE		; Show it
+PERM_ERROR:
+	LD	A,1			; Flag permanent error
+	OR	A
+	RET
+
+DISK_NOT_READY:
+	LD	HL,DISK_UNREADY		; Show message
+	CALL	SHOW_MESSAGE		; Show 'em
+	CALL	CONSOLE_STATUS		; Key Pressed?
+	JR	Z,WAIT_A_SECOND		; No - Wait, then retry
+
+	CALL	CONSOLE_INPUT		; Get the character
+	CP	'C'-40H			; Abort it?
+	JR	Z,PERM_ERROR		; Yes!
+
+WAIT_A_SECOND:
+	LD	A,(TIKCNT)		; Get the current tick
+	LD	B,A			; Save it
+WAIT:
+	LD	A,(TIKCNT)		; Get the time
+	CP	B			; Same?
+	JR	Z,WAIT			; Yes - Wait
+
+	XOR	A			; Flag a retry
+	RET
+
+;	Skip a message string.
+
+SKIP:
+	PUSH	BC			; Save
+	LD	B,255			; Arbitary large No.
+	LD	A,'$'			; Terminator
+	CPIR				; Block search
+	POP	BC			; Restore
+	RET
+
+;	Send a message string to the Console.
+
+SHOW_MESSAGE:
+	LD	A,(HL)			; get a character
+	CP	'$'			; EOT?
+	INC	HL			; Step pointer
+	RET	Z			; Yes - Exit
+
+	CALL	MONITOR+12		; Send to console
+	JR	SHOW_MESSAGE		; Continue
+
+;	Send a byte to the screen in HEX format.
+
+SHOW_HEX_BYTE:
+	PUSH	AF			; Save byte
+	RRA
+	RRA
+	RRA
+	RRA				; Swap nibbles
+	CALL	SHOW_HEX_NIBBLE		; Show it
+	POP	AF			; Restore byte
+SHOW_HEX_NIBBLE:
+	AND	00001111B		; Select lower nibble
+	ADD	A,90H
+	DAA
+	ADC	A,40H
+	DAA				; Convert to hex
+	JP	MONITOR+12		; Send to console
+
+;	Title of the CBIOS.
+
+TITLE_MESSAGE:
+	DEFB	FF,CR,LF
+	DEFM	"Iceworks' CP/M 2.2 Version: 1.0"
+	DEFB	CR,LF,'$'
+
+;	Fatal Load Error Message.
+
+FATAL_ERROR:
+	DEFB	FF,TAB
+	DEFM	"UNABLE TO LOAD CP/M"
+	DEFB	CR,LF,'$'
+
+;	Disk Error Messages.
+
+DISK_MESSAGES:
+	DEFB	CR,LF
+	DEFM	'BIOS $'
+	DEFM	'SELECT $'
+	DEFM	'SEEK $'
+	DEFM	'READ $'
+	DEFM	'WRITE $'
+
+;	Tail of Error Message.
+
+ERROR_MESSAGE:
+	DEFM	'ERROR $'
+
+;	Seek Error Messages.
+
+SEEK_ERRORS:
+	DEFM	'$'
+	DEFM	'$'
+	DEFM	'CANNOT SEEK$'
+	DEFM	'BAD CRC$'
+	DEFM	'CANNOT RESTORE$'
+
+;	Drive Not Ready Message.
+
+DISK_UNREADY:
+	DEFB	CR,LF
+	DEFM	'Drive not ready -'
+	DEFM	CR,LF,'$'
+
+;	Read/Write Errors.
+
+RW_ERRORS:
+	DEFM	'WRITE PROTECTED$'
+	DEFM	'WRITE FAULT$'
+	DEFM	'RECORD NOT FOUND$'
+	DEFM	'BAD CRC$'
+	DEFM	'DATA OVERRUN$'
+
+;	Track/Sector Message.
+
+TRK_SEC_MESSAGE:
+	DEFM	' Track/Sector = $'
+
+;	Drive Parameter Headers for a 4 drive system.
+
+DRIVE_PARAM_HEADER:
+
+	DEFW	SECTAB,00000H		; Disk Unit 0
+	DEFW	00000H,00000H
+	DEFW	DIRBUF,DPBLOK
+	DEFW	CHECK0,ALLOC0
+
+	DEFW	SECTAB,00000H		; Disk Unit 1
+	DEFW	00000H,00000H
+	DEFW	DIRBUF,DPBLOK
+	DEFW	CHECK1,ALLOC1
+
+	DEFW	SECTAB,00000H		; Disk Unit 2
+	DEFW	00000H,00000H
+	DEFW	DIRBUF,DPBLOK
+	DEFW	CHECK2,ALLOC2
+
+	DEFW	SECTAB,00000H		; Disk Unit 3
+	DEFW	00000H,00000H
+	DEFW	DIRBUF,DPBLOK
+	DEFW	CHECK3,ALLOC3
+
+;	Sector Translation Table (Standard 1 in 6 interleave).
+
+SECTAB:
+	DEFB	1,7,13,19
+	DEFB	25,5,11,17
+	DEFB	23,3,9,15
+	DEFB	21,2,8,14
+	DEFB	20,26,6,12
+	DEFB	18,24,4,10
+	DEFB	16,22
+
+;	Disk Parameter Block for standard 8" Floppy.
+
+DPBLOK:
+	DEFW	26			; Sectors per track
+	DEFB	3			; Block shift constant
+	DEFB	7			; Block mask constant
+	DEFB	0			; Block extent Constatnnt
+	DEFW	242			; Maximum block number
+	DEFW	63			; Maximum Direct. Entry
+	DEFB	11000000B		; Allocation Mask MSB
+	DEFB	00000000B		;	"      "  LSB
+	DEFW	16			; Check size
+	DEFW	2			; Reserved tracks
+
+;	Disk I/O Buffers for BDOS file Handler.
+
+DIRBUF:
+	DEFS	128			; Scratch Directory
+ALLOC0:
+	DEFS	32			; Allocation Buffer 0
+CHECK0:
+	DEFS	16			; Check Vector 0
+ALLOC1:
+	DEFS	32
+CHECK1:
+	DEFS	16
+ALLOC2:
+	DEFS	32
+CHECK2:
+	DEFS	16
+ALLOC3:
+	DEFS	32
+CHECK3:
+	DEFS	16
+
+	END	COLD_BOOT
+

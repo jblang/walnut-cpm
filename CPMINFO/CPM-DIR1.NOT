@@ -1,0 +1,494 @@
+Date: 12 Mar 88 01:51:27 GMT
+From: hubcap!ncrcae!ncr-sd!crash!mwilson@gatech.edu  (Marc Wilson)
+Subject: CP/M disk Directories
+
+Ok, all you CP/M mavens, here's a good question for you.  Not anything earth-
+shattering, or anything like that... just irritating.
+
+The scenario:  Disk B: is a DSDD 48 tpi drive.  It uses 8-bit allocation
+groups, so 16 groups can be allocated in one directory extent.  The group
+size is 2k, so each extent can address 32k.  That, I have no problem with.
+What I have problems with is how the damn files are represented in the
+directory.  A short example session follows.
+
+----------
+
+B0:WORK>save 511 test.fil s                     ; create a file in 2 extents
+                                                ; minus 1 record
+SAVE, Version 0.4 (loaded at B000H)
+  TEST    .FIL saved
+B0:WORK>
+B0:WORK>stat test.fil                           ; check it out
+
+
+Recs  Bytes  Ext Acc
+  511    64k    2 R/W B:TEST.FIL                ; Ok, 511 recs in 2 extents
+Bytes Remaining On B: 154k
+
+B0:WORK>stat b:dsk:
+
+
+    B: Drive Characteristics
+ 3120: 128 Byte Record Capacity
+  390: Kilobyte Drive  Capacity
+  128: 32  Byte Directory Entries
+  128: Checked  Directory Entries
+  256: Records/ Extent                          ; Wait!  How is this done?
+   16: Records/ Block                           ; Isn't the RC byte limited to
+   40: Sectors/ Track                           ; a maximum of 80h records?
+    2: Reserved Tracks
+
+; Ok, now we look at the directory...
+
+B0:WORK>
+
+DU3  B0? s5
+Group = 00:04, Track = 2, Sector = 5, Physical Sector = 4
+
+DU3  B0? d
+00  005A3830 444F5331  30444F43 01000001  |.Z80DOS10DOC....|
+10  45464748 494A4B4C  4D000000 00000000  |EFGHIJKLM.......|
+20  005A3830 444F5331  305A3830 00000004  |.Z80DOS10Z80....|
+30  4F000000 00000000  00000000 00000000  |O...............|
+40  005A3830 4454494D  455A3830 0000003E  |.Z80DTIMEZ80...>|
+50  35363738 00000000  00000000 00000000  |5678............|
+                                vv-------------- extent #1?
+                                vv    vv-------- 80h records in this
+                                vv    vv         extent?
+                                vv    vv
+60  00544553 54202020  2046494C 01000080  |.TEST    FIL....|
+70  090A0B0C 0E0F101E  393A3B4E 5C5D5E5F  |........9:;N\]^_|
+
+DU3  B0? +d
+Group = 00:05, Track = 2, Sector = 6, Physical Sector = 5
+                                vv-------------- extent #3?
+                                vv    vv-------- 7fh records in this
+                                vv    vv-------- extent?
+                                vv    vv
+00  00544553 54202020  2046494C 0300007F  |.TEST    FIL....|
+10  60616263 64656667  686E6F70 71727374  |`abcdefghnopqrst|
+20  00444953 4B202020  20444F43 00000005  |.DISK    DOC....|
+30  75000000 00000000  00000000 00000000  |u...............|
+40  00434150 20202020  2046494C 00000000  |.CAP     FIL....|
+50  00000000 00000000  00000000 00000000  |................|
+60  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  |eeeeeeeeeeeeeeee|
+70  E5E5E5E5 E5E5E5E5  E5E5E5E5 E5E5E5E5  |eeeeeeeeeeeeeeee|
+
+----------
+
+What the @#^&$ happened to extent #0?  I thought I'd have two sequential
+extents, numbered zero and 1.  Instead, I get two extents, numbered 1 and
+3.  The first one says it has 128 records in it, and the second says it has
+127 records in it.  That's only 255 records.  Where'd the rest of 'em go?
+
+And another oddity.  I've been playing with random files lately ( that's
+how I got into this mess, trying to prove that BDOS did things the way
+the manual says! ), and just for fun, I built a random file that only had
+records 0 and 0ffffh in it.  Lowest and highest.  Now, utilities like copy
+programs and the like can't deal with this, because there are holes in the
+allocation.  I see that.  But the directory above looks like it has holes in
+the allocation as well!  Yet PIP/ACOPY/PIPE et. al. can read and copy *this*
+file, *correctly*!
+
+What's going on here?!
+--
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marc Wilson
+     ARPA: ...!crash!mwilson@nosc.mil
+           ...!crash!pnet01!pro-sol!mwilson@nosc.mil
+     UUCP: [ cbosgd | hp-sdd!hplabs | sdcsvax | nosc ]!crash!mwilson
+     INET: mwilson@crash.CTS.COM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+------------------------------
+
+Date: Mon 14 Mar 1988 11:46:02 EDT
+From: <SAGE@LL.ARPA>
+Subject: CP/M Directory Entries
+
+This is the classic problem of logical vs physical.  In one case
+'extent' is used to refer to the contents of one directory entry (32K or
+256 logical records -- physical records probably only 32 or 64!).  The
+logical extent is always 16K, and thus there can be two logical extents
+in one physical extent, just as there can be 2 or 4 or 8 logical records
+(128 bytes) in each physical record.  The extent number in the directory
+entry is the number of the last extent in that directory, and the record
+count is the number of logical records in that last extent.  With larger
+block sizes on a hard disk it is quite possible to have 4 or probably
+even 8 logical extents per physical extent.  The same rules apply.
+
+
+------------------------------
+
+Date: Mon, 14 Mar 88 12:01:05 PST
+From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+Subject: CP/M directory extents
+
+Yes, directory calculations are confusing, and not helped by confusing
+terminology!
+
+The key point is to keep physical and logical extents distinct.
+
+A CP/M LOGICAL extent holds 16K, or 80h = 128 records (each 128 bytes).
+
+A CP/M file can have several directory entries.  Each DIRECTORY ENTRY
+(i.e. 32 bytes in the first group(s) on a disk) has 16 bytes of space
+for data group numbers; the group numbers must be words if there are
+>255 groups on a disk. Thus:
+
+A CP/M PHYSICAL extent (i.e., a single DIRECTORY ENTRY) may be hold
+a multiple of 16K.
+
+  The multiple depends on:
+        (a) whether a group number is a byte or word
+        (b) the size of one allocation group (1,2,4,8,16 K)
+        (c) whether the format designer used all of the 16 bytes
+            available in a single directory entry
+
+The RECORD COUNT BYTE gives the number of records in the HIGHEST
+logical extent referenced by the physical extent/directory entry it
+appears in.
+
+Similarly, the EXTENT BYTE (and its overflow into the low-order bits
+of the S2 byte) gives the number of the HIGHEST logical extent
+referenced by the physical extent/directory entry it appears in.
+
+
+examples:
+(with S2 and EXT appropriately masked to remove internal bdos flag bits)
+
+#1      S2  = 0,  EXT = 1, RC = 7fh
+
+        If there is 1 directory entry per logical extent, then
+        this is the second directory entry; its final record is 7f=127.
+
+        If there are 2 or more directory entries per logical extent
+        this is the first directory entry; its final record is
+        80h + 7fh = 255.
+
+#2      S2 = 0, EXT =1, RC = 80h
+
+        If there is 1 directory entry per logical extent, then
+this is the second directory entry; its final record is 80h = 128
+
+        If there are exactly 2 directory entries per logical extent
+        this is the first directory entry; its final record is
+        80h + 80h = 256, and this entry is full.
+
+        If there are more than 2 entries per logical extent,
+        this entry is not full; the next record would result in
+        EXT = 2, RC = 1.
+
+If the file is written sequentially, then we know in #1 that the file has
+80h +7fh=255 total records.  If it is written randomly, all we know
+(without inspecting the group numbers) is that there is at least one
+record, the 255th; there may be others, including some in higher-numbered
+extents.
+
+In #2, assuming for example exactly 2 logical extents per directory
+entry, there may be a second directory entry that is totally empty
+(EXT=2, RC = 0).  This can happen when a sequentially-written file
+is exactly 256 records long; the bdos internally closes the directory
+entry, creates a new one, and then is told by the program to close the
+file.
+
+Regarding (c) above, several OEM's and ramdisk suppliers (Televideo,
+SWP, ...) have defined disk formats that do not use all 8/16 group
+slots in a single directory entry.  Apparently they weren't able to
+distinguish logical and physical extents!  The result is unnecessary
+extra directory entries for large files and additional headaches for
+programmers.
+
+COPYING random files (ones containing holes) is not so
+straightforward, because the utility must determine how to handle a
+destination disk that has a different allocation group size.  In the
+general case, although the data records can be copied, I don't believe
+a "perfect copy" is possible, because the destination copy may not
+retain the same information about unwritten records that existed in
+the original.  (Information about unwritten records is mostly inferred
+from missing group numbers.)  This could conceiveably lead to errors
+in a database program that relied on the "unwritten-data" error from
+the bdos. (Consider, for example, copying a random-record database
+from a 2K to a 4K group disk, and then copying it back to a 2K disk.)
+
+
+--bridger mitchell
+
+------------------------------
+
+Date: 13 Mar 88 18:01:57 GMT
+From: portal!cup.portal.com!dick_a_wotiz@uunet.uu.net
+Subject: CP/M disk Directories
+
+> Ok, all you CP/M mavens, here's a good question for you.  Not anything earth-
+> shattering, or anything like that... just irritating.
+>
+>  . . . .
+>
+>                                 vv-------------- extent #1?
+>                                 vv    vv-------- 80h records in this
+>                                 vv    vv         extent?
+>                                 vv    vv
+> 60  00544553 54202020  2046494C 01000080  |.TEST    FIL....|
+> 70  090A0B0C 0E0F101E  393A3B4E 5C5D5E5F  |........9:;N\]^_|
+>
+>                                 vv-------------- extent #3?
+>                                 vv    vv-------- 7fh records in this
+>                                 vv    vv-------- extent?
+>                                 vv    vv
+> 00  00544553 54202020  2046494C 0300007F  |.TEST    FIL....|
+> 10  60616263 64656667  686E6F70 71727374  |`abcdefghnopqrst|
+
+   Actually, the byte you are calling the 'extent #' is handled a
+little differently.  The LSB of this byte means 'add 80h records to
+the record count byte', and the upper 7 bits, when shifted once to
+the right, are the extent number.
+
+   The '# of records' byte is never allowed to get larger than 80h,
+so this method is needed to allow up to 256 records per extent.
+
+Some examples:                    vv    vv
+      extent 0,  127 records:     0000007F
+         "       128 records:     00000080
+         "       129 records:     01000001
+         "       256 records:     01000080
+      extent 1,  1   record:      02000001
+         "       129 records:     03000001
+         "       255 records:     0300007F
+
+- - - - - - - - - - - - - - - - - - - - - -
+dick@portal.com                {uunet|sun|atari}!portal!dick
+     dick@cup.portal.com
+
+------------------------------
+
+Date: 13 Mar 88 22:18:21 GMT
+From: portal!cup.portal.com!Robert_A_Freed@uunet.uu.net
+Subject: CP/M disk Directories
+
+In message <2662@crash.cts.com> mwilson@crash.cts.com (Marc Wilson)
+writes in some detail about a 511-record file (just short of 64K
+bytes), which uses two directory entries on a floppy disk system with
+2K-byte allocation block size (32K-byte extent size).
+
+> What's going on here?!
+
+What's going on is that you are confused about the RC (record count)
+and EX (extent number) bytes in a directory entry.  This is
+understandable, since the DRI (Digital Research, Inc.) CP/M 2.2
+documentation only describes the CP/M 1.x case of 1K allocation
+blocks and 16K extents.
+
+In order to accommodate larger disk capacities, DRI altered the
+meaning of these bytes in CP/M version 2.  They did this in a way
+which is downward compatible with CP/M version 1.  The record count
+for an extent is now split between the low 7 bits of RC and the lower
+bits of EX.  The portion of EX which is used for the high part of the
+record count is specified by the "extent mask."  A full extent is
+still indicated by RC = 80h (with all extent mask bits in EX set).
+I.e., the high bit of RC serves as a flag rather than as part of the
+record count.  The true "extent number" is obtained by right-shifting
+EX by the number of bits in the extent mask.
+
+> What the @#^&$ happened to extent #0?  I thought I'd have two sequential
+> extents, numbered zero and 1.  Instead, I get two extents, numbered 1 and
+> 3.  The first one says it has 128 records in it, and the second says it has
+> 127 records in it.  That's only 255 records.  Where'd the rest of 'em go?
+
+In your case, the extent mask is 1.  The two EX bytes (01h and 03h)
+become 0 and 1 after shifting right by one bit.  The RC value (80h)
+for the first extent indicates it is full (256 records).  The RC
+value (7Fh) for the second extent is combined with the low bit of the
+EX value to yield record count FFh (255 records).  This is as you had
+expected.  No records are "lost" and the file is not "sparse" (no
+unallocated extents.)
+
+Note:  The above description is sufficient for disks with no more
+than 512K-byte capacity.  However, two additional details must be
+noted to completely describe the situation for larger capacity disks.
+First, the upper 3 bits of the EX byte are always zero.  (The reason
+for this is somewhat obscure:  Since EX participates in directory
+scans by BDOS functions such as Open_File and Search_for_First, a
+valid EX value must not match 3Fh, the ASCII code for the ? character
+used as a "wildcard.")  Second, because the remaining 5 EX bits
+(less, due to the extent mask) are insufficient for specifying all
+extent numbers, the upper bits of the extent number overflow into the
+S2 byte, which was unused in CP/M version 1.
+
+To me, it's always seemed a shame that DRI went to such lengths to
+preserve backward compatibility with older versions of CP/M and then
+failed to properly document the changes.  I was only able to fully
+understand the above by disassembling BDOS (many, many moons ago).
+And I have seen many public domain programs that manipulate directory
+entries break on hard disk systems due to a lack of understanding of
+these details.
+
+Bob Freed
+
+Internet:  Robert_A_Freed@cup.portal.com
+Uucp: ...!sun!portal!cup.portal.com!Robert_A_Freed
+
+------------------------------
+
+Date: 13 Mar 88 20:02:21 GMT
+From: portal!cup.portal.com!dgood@uunet.uu.net
+Subject: CP/M disk Directories
+
+> The scenario:  Disk B: is a DSDD 48 tpi drive.  It uses 8-bit allocation
+> groups, so 16 groups can be allocated in one directory extent.  The group
+> size is 2k, so each extent can address 32k.  That, I have no problem with.
+> What I have problems with is how the damn files are represented in the
+> directory.  A short example session follows.
+
+There is some confusion here between about the concept of an extent.
+
+Originally, in cp/m 1.x (how's that for comp.archaeology) an extent
+was, by definition, 16k.  This was because each dir entry showed the
+location of 16 groups x 1k per group.
+
+With cp/m 2.x came a more flexible arrangement.  Groups can be up to
+16k each.  It also became possible to use either eight or sixteen bit
+directory addressing for each group; each directory entry still
+contains 16 bytes of group addresses, which may now address either
+eight or sixteen groups.
+
+Thus an extent (the amount of a file handled by a single directory
+entry) became variable.  However, to maintain compatibility with the
+earlier versions of cp/m, the physical directory entries continue
+to consider an extent as 16k (ALWAYS).  In other words, we now have
+a physical extent, which might contain as much as 128k (16k group x
+8 groups/dir entry), but our directory extent byte shows logical
+extents, which are always 16k!  In your example the logical extent
+is 16k, but the physical extent is 32k.
+
+
+> B0:WORK>save 511 test.fil s                   ; create a file in 2 extents
+>                                               ; minus 1 record
+
+Note that you have saved 2 physical extents, but 4 logical extents.
+
+> B0:WORK>stat test.fil                         ; check it out
+>
+>  Recs  Bytes  Ext Acc
+>   511    64k    2 R/W B:TEST.FIL              ; Ok, 511 recs in 2 extents
+> Bytes Remaining On B: 154k
+
+Yes, 2 physical, 4 logical extents
+
+> B0:WORK>stat b:dsk:
+>
+>
+>     B: Drive Characteristics
+>  3120: 128 Byte Record Capacity
+>   390: Kilobyte Drive  Capacity
+>   128: 32  Byte Directory Entries
+>   128: Checked  Directory Entries
+>   256: Records/ Extent                        ; Wait!  How is this done?
+>    16: Records/ Block                         ; Isn't the RC byte limited to
+>    40: Sectors/ Track                         ; a maximum of 80h records?
+>     2: Reserved Tracks
+
+The RC byte shows the number of records (max 80h) in the LAST logical
+extent for that directory entry.  Here, we'll have two logical extents,
+ext 0 & ext 1, for the first dir entry.
+
+> ; Ok, now we look at the directory...
+>
+> B0:WORK>
+>
+> DU3  B0? s5
+> Group = 00:04, Track = 2, Sector = 5, Physical Sector = 4
+>
+>                                 vv-------------- extent #1?
+>                                 vv    vv-------- 80h records in this
+>                                 vv    vv         extent?
+>                                 vv    vv
+> 60  00544553 54202020  2046494C 01000080  |.TEST    FIL....|
+> 70  090A0B0C 0E0F101E  393A3B4E 5C5D5E5F  |........9:;N\]^_|
+
+      ^ --extent #0-- ^  ^ --extent #1-- ^
+
+Since we have filled logical ext #0 and are into logical ext #1,
+we know that we have 80h records in logical ext #0.  The RC byte
+shows 80h records in logical ext #1, the last logical extent in
+the dir entry.  Remember that the extent byte shows the LAST
+logical extent in that directory entry, and the RC byte shows
+the number of records in that last logical extent.
+
+> DU3  B0? +d
+> Group = 00:05, Track = 2, Sector = 6, Physical Sector = 5
+>                                 vv-------------- extent #3?
+>                                 vv    vv-------- 7fh records in this
+>                                 vv    vv-------- extent?
+>                                 vv    vv
+> 00  00544553 54202020  2046494C 0300007F  |.TEST    FIL....|
+> 10  60616263 64656667  686E6F70 71727374  |`abcdefghnopqrst|
+
+      ^ --extent #2-- ^  ^ --extent #3-- ^
+
+Again, 80h records in (full) logical ext #2, 7Fh records in logical
+ext #3.
+
+
+                Dave Goodman    dgood@cup.portal.com
+
+
+------------------------------
+
+Date: Tuesday, 15 March 1988  10:05-MST
+From: Bridger Mitchell <bridger%rcc@RAND-UNIX.ARPA>
+Subject: CP/M dir. extents - correction
+
+In my posting yesterday:
+        Date: Mon, 14 Mar 88 12:01:05 PST
+        From: Bridger Mitchell <bridger%rcc@rand-unix.ARPA>
+        Subject: CP/M directory extents
+
+I got my tongue (keyboard?) twisted in describing two
+examples.  Here's the corrected excerpt, in "<<<...>>>"
+
+examples:
+(with S2 and EXT appropriately masked to remove internal bdos flag bits)
+
+#1      S2  = 0,  EXT = 1, RC = 7fh
+
+        If there is 1 <<<logical extent per directory entry>>>, then
+        this is the second directory entry; its final record is 7f=127.
+
+        If there are 2 or more <<<logical extents per directory entry>>>
+        this is the first directory entry; its final record is
+        80h + 7fh = 255.
+
+#2      S2 = 0, EXT =1, RC = 80h
+
+        If there is 1 <<<logical extent per directory entry>>>, then
+        this is the second directory entry; its final record is 80h = 128
+
+        If there are exactly 2 <<<logical extents per directory entry>>>
+        this is the first directory entry; its final record is
+        80h + 80h = 256, and this entry is full.
+
+        If there are more than 2  <<<logical extents per directory entry>>>
+        this entry is not full; the next record would result in
+        EXT = 2, RC = 1.
+
+--bridger
+
+------------------------------
+
+Date: 14 Mar 88 21:58:51 GMT
+From: portal!cup.portal.com!David_Michael_McCord@uunet.uu.net
+Subject: SB180 help?
+
+The Sb180 electronics and software make it virtually impossible to read
+or write 48tpi disks in a 96tpi drive.  However, an inexepensive solution
+is to add a 48tpi drive to the system, and then you can read and write
+48tpi formats to your heart's content, including mushdos if you buy the
+UNIFORM product from Micromint.
+
+I have an SB180 configured with 2 96tpi drives as A: and B:, and a 48tpi
+drive as C:.  Works great.
+
+------------------------------
+
+

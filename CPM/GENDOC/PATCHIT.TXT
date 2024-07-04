@@ -1,0 +1,436 @@
+Copyright (C) 1984 Richard D. Ezzard.  Print rights reserved.
+This article may be freely reproduced and transmitted electronically.
+
+                              PATCH IT UP
+         CP/M Patching explained, using WordStar as an example.
+
+                          by Richard Drakeford
+
+What Is Patching?
+
+     To patch an assembled program means to modify the existing program
+directly without bothering to completely rewrite and reassemble a "new"
+version.  In patching, existing code is overwritten at specific memory
+locations to achieve specific effects, such as fixing a tiny bug or
+changing a single variable.  To fix up the well known WordStar program,
+for example, you have no choice between patching and re-writing/
+re-assembling the program since the source code in assembly language
+version is proprietary and not available to the public.
+
+     Patching, although an expedient and inelegant way to change a
+program, is not in any way dishonorable.  In fact, one of the great
+advantages of WordStar over some other word processing programs is that
+WordStar contains many areas purposefully left to be patched by the user
+by use of the INSTALL program, thus permitting a high degree of
+customization of features.  And even after it is installed, the WordStar
+program is not locked in concrete but is still amenable to continued
+patching.
+
+     Like other CP/M programs, the assembled WordStar program you
+purchased consists of numerous machine language instructions which are
+loaded sequentially into your computer's RAM beginning at address 0100h
+(where all CP/M COM programs load) and running upwards from there.  To
+patch WordStar you load it into memory and go to a particular address in
+memory and physically change the instruction or value contained in that
+address.  And SAVE the program as modified onto a disk.
+
+Hand Patching Byte by Byte.
+
+     To correctly install a patch, two things must be known:
+
+     1)  the correct address in memory at which to patch.
+
+     2)  the exact value to be inserted at that location.
+
+     You can access specific locations at known addresses in memory by
+using the special program INSTALL.COM which came with your WordStar or
+by using the DDT.COM program which is one of the general CP/M utilities.
+Either will let you go directly to the location by using its address
+number.  Once at the location, both INSTALL and DDT will let you
+overwrite the current contents with the new desired value.  Call this
+procedure hand patching.
+
+     Concerning the practicalities of patching by rote: If you don't
+need a deep understanding of what the heck goes on in WordStar when it
+is operating, then it is perfectly okay to install patches by rote.
+Perhaps you can't afford the time or just don't care to invest the hours
+required to gain esoteric knowledge about internal WordStar affairs.
+Thus, if some expert has designed a patch and you find out what it is,
+i.e., where to install new values and what those values are, and you
+desire to achieve the effects that are the result of that patch, patch
+away on faith.  The results will be the same for you as for someone who
+knows in complete detail what is going on in the bowels of the computer.
+You can take two aspirin without knowing all about blood chemistry.  You
+can change spark plugs without knowing all the theory behind internal
+combustion engines.
+
+Labels: A Place By Any Other Name...
+
+     Besides going to an address by its numerical (usually a hex number)
+designation, there is another method of getting to a place to patch: by
+reference to a NAME for the location.  Like a house in a ritzy
+neighborhood, an address may be known by a name in addition to a number.
+1411 Seaside Heights could be known alternatively as "Seven Gables."
+Many computer programs may have locations identified by names, known
+commonly as LABELs.
+
+     These labels are shadows remaining from the source code.  Before it
+was assembled into a monster collection of machine language code, the
+assembly language source WordStar program instruction segments had names
+which roughly indicated their function.  During assembly and conversion
+to machine language the labels themselves disappeared but the functions
+of each label came out to be at specific addresses (somewhat arbitrary,
+depending on the assembly process).  If you know where the code doing a
+certain function came out to be after assembly, it is often convenient
+to refer to that location by its functional label.
+
+     In fact, it is so convenient that INSTALL programs (which are used
+to modify an assembled program) often have an internal index so they
+(the INSTALL programs) know which locations in the assembled program
+belong to which labels.  Thus, if you know the label of the function or
+variable you want to get to, using such a specially rigged INSTALL
+program as a tool you can go to the location by entering the label name
+rather than the numerical address.  If you know the label and use the
+right INSTALL program which can find the location by label name, you do
+not ever need to know the numerical address.
+
+     To repeat, labels are a convenient way to refer to the beginning
+address of a group of machine language instructions or to refer to a
+variable location.  As a specific example, the label "BLDSTR" refers to
+a variable location which contains the value which WordStar will use to
+determine how many times to make the printer strike the paper when
+boldface printing is called for.
+
+     Some other examples of the labels used in the WordStar program are:
+
+     PALT - the location where you can store the code to be sent to a
+printer to start printing in an alternate character size.  WordStar would
+refer to this location when it encounters a control character in a file
+while printing.
+
+     HAVBSY - A location which can be marked to indicate that WordStar
+can find out if the printer is ready for information during concurrent
+printing and editing.  WordStar will then operate differently than it
+would if it couldn't check on the printer.
+
+     ERAEOL - where code which gets the screen to instantly erase from
+the cursor position to the end of line (varies depending on your system)
+can be installed.
+
+     There are literally hundreds of labels associated with WordStar.
+As you can see, although some can be pretty cryptic, labels do often
+have a kind of mnemonic association with their actual function.
+
+     Labels for patch locations are also a convenience for humans to use
+when talking about patches.  Often you will find references to label
+locations published in the human-readable English language as "indexes"
+to WordStar in magazine articles and tip sheets, or in text files.  Such
+indexes will give a label, its function, the number of its address in
+the assembled WordStar program, and a hex value that is recommended for
+entry at that location to make WordStar perform in a certain way.
+
+     As an example, you might run across a tip phrased like this: "Patch
+the value of DEL3 to a higher number such as 1Fh in order to delay the
+appearance of prefix menus after you are familiar with most commands."
+
+       Conveniently, even though addresses have changed from version to
+version, the labels have remained the same for different CP/M versions
+of WordStar and if you know a label for a function in WordStar 2.26, you
+can use the same label to get to the location of that function in
+WordStar 3.0 or 3.3.  MicroPro was quite good about keeping the
+continuity of labels from one version of WordStar to another, even
+though the addresses necessarily changed as the program was re-written
+and reassembled.
+
+     To recap, hand patching is direct overwriting at specific locations
+in memory after a program has been loaded into memory.  There are several
+ways to get to a WordStar patch location:  1) go directly to the
+hexadecimal number address if known (you can use DDT.COM or INSTALL.COM)
+and 2) refer to a functional label name and go to the label via INSTALL
+which knows where the labels are, or 3) look up the label in an English
+index to label addresses and then go to the address number by DDT or
+INSTALL.  After writing new values directly into various locations, the
+program is saved in its modified (patched) form.
+
+Batches of Patches
+
+     So far we have been talking about patching individual WordStar
+locations one by one--hand patching.  The ultimate in patching
+proficiency, however, is to accomplish wholesale patches by writing an
+assembly language program which, when run, modifies numerous WordStar
+locations all at once.  Automatic patching! Programs which modify
+WordStar are indeed feasible and in fact many such programs have been
+written.  Some are commercial and proprietary but quite a few have been
+donated to the public domain by their authors and are free for the
+asking.
+
+     Although most WordStar users are not ready to write a WordStar
+modifying program, many users are capable of running an already written
+program which modifies WordStar in some desirable way--say to install
+the collection of patches which lets WordStar control a particular
+printer.  Such programs may be obtained from other WordStar users, from
+user clubs and user group libraries, and often from electronic bulletin
+board systems accessible by telephone.  Once you obtain such a program,
+it is a simple matter to give the CP/M command which runs the program
+and patches a WordStar for you.
+
+     As an example of what can be done along this line, there is a
+reasonably priced commercial printer installer program which will
+automatically modify WordStar to work with your selection from a menu of
+any one of a dozen printers.  Plus install other features.  It should be
+noted that INSTALL programs also can automatically spray batches of
+patches into a program if the correct menu choices are available.
+However, no INSTALL can cover every contingency that may arise.
+
+     Of course, if you use an automatic WordStar patching program to
+install some patches, you will be trusting that the programmer fixed it
+so his program goes to the right locations and makes the right
+modifications.  Also you may be forced to eat the whole meal the
+programmer has prepared whether you like everything on the plate or not.
+Another drawback might be that you may want to install features in two
+programs but may not be able to because they have been written so that
+they conflict with each other.
+
+     And since the WordStar feature choices are numerous and there are
+many different computer/ printer/ system combinations, there is a good
+chance of not finding an existing program which patches WordStar on your
+system exactly the way you want it to be patched.  So you may be
+interested in another method which allows somewhat more flexibility of
+choice.
+
+Overlay On MacDuff.
+
+     The final method of patching up for discussion is not quite
+assembly language programming but does use an assembler to install a
+selected batch of patches.  This is the hybrid "overlay" method, which
+yields a good compromise between freedom of choice of patches and
+automation of the actual installation of new values.  You write a very
+simple assembly language program which does nothing more than designate
+certain values for certain specific locations, as many or as few as you
+like.  Put these in a program file named, for example, PATCH.ASM (the
+name can be anything you want but the extension must be .ASM).
+
+     Assemble the "program" and save the resulting .HEX type file.  You
+load your WordStar COM program into memory with DDT, and then "overlay"
+the prepared hex file (by reading in on top of WS.COM) to modify the
+designated locations.  Use the DDT -I and -R commands to accomplish
+this.  Then save your newly touched up WordStar, perhaps under a new
+name such as WSTEST.COM.  (Consult a CP/M tutorial to determine how big
+a chunk of memory to save.)
+
+     The minimum such patching program would consist of the following:
+
+          org nnnnh
+          db  0nnh
+
+where org gives the hex address of the location to be patched and db
+gives the specific hex value to be placed there.  (The leading 0 is
+required by the assembler to unambiguously identify the following value
+as a number since db's may also include alpha characters.)  Yes, such a
+tiny "program" can be assembled using the CP/M assembler, ASM.COM and
+the resulting hex file can be overlayed into an existing WordStar
+WS.COM.
+
+     More than one sequential byte might be indicated, as follows:
+
+          org 06CB
+           db 002h,01Bh,022h
+
+which indicates that the three locations starting at address 06CB are to
+be patched with values 02, 1B, and 22 (hexadecimal notation).
+
+     Quite likely, the ASM file you make up will consist of several
+locations to be patched with several bytes starting at each location.
+As follows:
+
+          org 06CBh
+           db 002h,01Bh,022h
+          org 06D3h
+           db 002h,01Bh,021h
+
+     You may want to include labels and comments to yourself so that you
+can easily go back and change things again later.  A heavily commented
+PATCH.ASM file which could be used as a "template" to patch several
+locations of WordStar Version 2.26 is included as an example -- see
+Figure 1.   And a minimum configuration of the same program as it might
+appear after filling in is included as Figure 2.
+
+     One good reason for doing patches by this overlay method (rather
+than modifying byte by byte with INSTALL or DDT) is that you can make
+ready all your changes in one file and proof-read for correctness before
+actually modifying your working program. Whereas if you type them
+directly into the program byte by byte using INSTALL or DDT, you risk
+human error that can go undetected until the program is run.
+
+     To assure yourself that this kind of minimal assembly language
+patching file does assemble properly and that you know how to do it, you
+can use the template file for experimentation. Probably you will want to
+eliminate the comments and some of the addresses and patch identifiable
+"nonsense" values (such as 0FFh) into various addresses.  Use WordStar
+in the "N" non-document mode to make up the file.  (There is something
+recursively poetic in using WordStar to modify itself.)
+
+     Then assemble your PATCH.ASM (at the CP/M A> prompt do
+"ASM PATCH").
+     Next load your WordStar with DDT ("DDT WS.COM").
+     Insert your PATCH.HEX file ("-IPATCH.HEX" followed by "-R").
+     Exit DDT (-g0).
+     Save your new WordStar ("SAVE 56 WSTEST.COM").
+
+     To verify that your patches took place, use DDT again to load the
+new WordStar ("DDT WSTEST.COM") and look in the locations you wanted to
+change ("-Snnnn" or "-Dnnnn").  If the patching was effective, at the
+addresses given in your org statements, your WordStar should now hold
+the values you listed in your db statements.
+
+Semi-automatic Overlay
+
+     With that procedure understood, let it now be known that there is
+an even easier way to accomplish the same thing.  There is available in
+the public domain, free for anyone's use, a "linking loader" named
+MLOAD.COM.  This is the work of Mr. Ronald G. Fowler who has freely
+donated his program for the use of the computering public.
+
+     MLOAD.COM is available on many telephone RCP/M's and in the disk
+libraries of various user's clubs.  The latest version I have seen is
+MLOAD21 (version 2.1) and it is often distributed along with the public
+domain communications program MEX because MLOAD is handy for combining
+overlays for specific computers with the generic MEX.COM.
+
+     I find that MLOAD will automatically spray patches into WordStar
+addresses after you write (using WordStar of course) a very simple
+PATCH.ASM file (just orgs and dbs as previously described) and make a
+hex file out of it.
+
+     Whole procedure is:
+     A>ASM PATCH (previously written ASM of orgs and dbs)
+     A>MLOAD WSNEW.COM=WS.COM, PATCH.HEX
+
+     The first command assembles your file PATCH.ASM and makes up a
+PATCH.HEX file (as well as a PATCH.PRN file, extraneous to our purpose
+here, so not discussed).  The second command makes up a new file,
+WSNEW.COM by combining your regular WS.COM and the newly conceived
+PATCH.HEX.
+
+     The same thing can be accomplished with DDT commands and a SAVE as
+described earlier, but MLOAD just does it, and fast.  Many people owe
+thanks to Ronald G. Fowler for providing this nifty tool to the public
+domain.
+
+     Modifying a program by this "overlay" or "insert" method simplifies
+patching a lot for me, and is a more flexible procedure than using
+someone else's pre-canned set of patches which might not be just what
+you want.
+
+Conclusion.
+
+     The foregoing advice and instructions should serve as an
+introduction to the idea of patching.  Applying a patch avoids the
+bother (or impossible task in the case of proprietary programs) of going
+back to the original assembly language source code and making
+modifications in assembly language by writing within the entire major
+program.  Rather than doing that and then re-assembling the entire
+program from scratch, the modifications are applied to the existing COM
+file by direct overwrite.
+
+     Several methods have been discussed for applying patches.
+They are:
+     1)  the use of proprietary INSTALL programs, and the use of
+DDT.COM to do hand patching, byte by byte.
+     2)  the use of canned programs which apply batches of
+specific pre-configured patches.
+     3)  a simple overlay method where your patches are written
+up beforehand and assembled into a HEX file which is overlaid on
+the main program.  Either DDT.COM or the more convenient
+MLOAD.COM may be used to integrate the overlay patch file with
+the main program which gets patched.
+
+End of PATCH IT UP article.  Figures follow:
+-------------------------------
+-------------------------------
+FIGURE 1 - Example assembly language program file for positioning
+patches:
+;                           PATCH.ASM
+;                   for WordStar Version 2.26
+;This is a "fill in the blanks" template file for patching printer
+;control codes into the WordStar printer control patching areas.
+;Consult printer manual to determine exact values which go into
+;each control code area. First value in each area is the number of
+;following bytes to be sent to the printer when the trigger
+;control code is encountered in file while printing. The
+;subsequent bytes (up to four) are the actual hex codes to be sent
+;to the printer.  For many printers, the first value will be
+;ESCAPE, or hex 1B. With INSERT off, substitute hex values for the
+;'nn' indicators in the following program.  Then replace all unused
+;'nnh' with value 00h before assembly.  Or if a location
+;previously patched and no change desired, delete from this file.
+;
+;Label         Address                  Code which triggers
+;              & values
+;'nn' indicators in the following program. Then replace all unused
+;'nnh' with value 00h before assembly.  OR delete from this file.
+;
+;Label         Address                  Code which triggers
+;              & values
+;
+        org    06C9h
+USR1    db     0nnh                     ; ^Q
+        db     0nnh,0nnh,0nnh,0nnh      ;
+;
+        org    06CEh
+USR2    db     0nnh                     ; ^W
+        db     0nnh,0nnh,0nnh,0nnh      ;
+;
+        org     06D3h
+USR3    db      0nnh                    ; ^E
+        db      0nnh,0nnh,0nnh,0nnh     ;
+;
+        org     06D8h
+USR4    db      0nnh                    ; ^R
+        db      0nnh,0nnh,0nnh,0nnh     ;
+;
+END
+;When properly filled in, use CP/M's assembler ASM.COM to assemble this
+;file which can be named anything you want but should have the extension
+;ASM.  After assembly, the resulting HEX file may be used to "overlay" a
+;copy of WordStar version 2.26 and the hex codes you entered at the
+;various "blanks" above will be plugged into the correct WS.COM locations
+;to make the printer function appropriately when the various control
+;codes are entered in a text file.
+;
+;The procedure is:
+;1.  Amend this file with WordStar in the non-document mode.
+;2.  Assemble this file to obtain hex file.
+;3.  Use DDT to load WS.COM (A>DDT WS.COM)
+;4.  Use DDT to overlay hex file on WS.COM
+;        a. -INEWFILE.HEX
+;        b. -R
+;5.  Exit DDT (G0).
+;6.  Use CP/M's SAVE command to preserve modified WS.
+;        (SAVE 56 WSNEW.COM)
+;7.  Test modified WS for correct printer driving operation before
+;replacing original WS.
+;Or, if available, the MLOAD.COM utility may be used to do steps
+;3 through 6 in one simple operation:
+;        MLOAD WSNEW.COM=WS.COM,NEWFILE.HEX
+;End of WordStar Printer Patching File.
+-------------------------------
+-------------------------------
+FIGURE 2 - Minimum assembly language program file "filled in."
+
+        org    06C9h
+USR1    db     003h                     ; ^Q
+        db     01Bh,057h,000h           ;
+;
+        org    06CEh
+USR2    db     003h                     ; ^W
+        db     01Bh,057h,001h           ;
+END
+
+Comment:  This would patch the eight different locations necessary to
+control the double wide printing of an Epson MX-80 printer.  So that
+when the control character ^W is encountered when WordStar prints a
+file, the correct sequence is sent to the printer in order to turn on
+the double-wide character font.  And when ^Q is encountered, double-wide
+would be turned off again.
+

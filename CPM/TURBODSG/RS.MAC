@@ -1,0 +1,453 @@
+; RS version 1.40 (c) 1986 ESKAY Software Service
+;
+; N O T E
+;
+; RS is a variant of RELED with a certain specific purpose.
+; ESKAY Software Service does not support or encourage
+; copyright infringements and RS should only be used
+; in cases of extreme emergency, or after clearing its use
+; with the copyright holder!!!!!
+;
+.z80
+;
+cr	equ	0dh
+lf	equ	0ah
+dfcb	equ	5ch
+dbuf	equ	80h
+;
+; syslib externals
+;
+.request syslib
+	extrn	print,phl4hc,phlfdc,pfn2,crlf,pstr
+	extrn	bbline,condin,cout,eval10,compb
+	extrn	f$open,f$read,f$write,f$close,initfcb
+	extrn	codend
+;
+; other externals
+;
+	extrn	getbit		;get one bit from bit field
+	extrn	putbit		;put one bit into bit field
+	extrn	wildex
+;
+	cseg
+;
+begin:	ld	sp,stack
+	call	print
+	db	cr,lf,lf
+	db	9,9,' ----------------------------------------',cr,lf
+	db	9,9,'|              RS version 1.4            |',cr,lf
+	db	9,9,'|               RESERIALIZER             |',cr,lf
+	db	9,9,'|       USE THIS PROGRAM RESPONSIBLY     |',cr,lf
+	db	9,9,'| (c) infrigement is YOUR responsibility |',cr,lf
+	db	9,9,' ----------------------------------------',cr,lf,lf,0
+	ld	a,(dfcb+1)
+	cp	' '
+	jp	z,nofile
+	ld	hl,dfcb+9
+	ld	(hl),'R'
+	inc	hl
+	ld	(hl),'E'
+	inc	hl
+	ld	(hl),'L'
+getor:	call	print
+	db	cr,lf
+	db	'Enter new value for ?ORIG? in DECIMAL : ',0
+	call	bbline
+	or	a
+	jr	z,getor
+	call	eval10
+	ld	(newo),de
+getun:	call	print
+	db	cr,lf
+	db	'Enter new value for ?UNIT? in DECIMAL : ',0
+	call	bbline
+	or	a
+	jr	z,getun
+	call	eval10
+	ld	(newu),de
+	call	codend		;get buffer addr
+	ld	(fnbuf),hl
+	ld	de,1000h	;handle up to 256 files
+	add	hl,de
+	ld	(buffer),hl
+	push	hl
+	pop	ix		;ix is buffer ptr
+	ld	de,dfcb
+	ld	hl,(fnbuf)
+	call	wildex
+	jp	z,nofile
+	call	print
+	db	cr,lf
+	db	'Matching files: ',0
+	call	phlfdc
+	inc	hl
+	ld	(files),hl
+	call	print
+	db	cr,lf,lf,0
+nextf:	ld	hl,(files)
+	dec	hl
+	ld	(files),hl
+	ld	a,h
+	or	l
+	jp	z,finish
+	xor	a
+	ld	(chgd),a
+	ld	(bithi),a
+	ld	h,a
+	ld	l,a
+	ld	(bitml),hl
+	ld	de,dfcb
+	ld	hl,(fnbuf)
+	ld	bc,16
+	ldir
+	ld	(fnbuf),hl
+	ld	de,dfcb		;point to file name
+	call	initfcb
+	push	de
+	inc	de
+	call	print
+	db	cr,lf
+	db	'Now processing ',0
+	call	pfn2
+	pop	de
+	call	f$open		;open it
+	jp	nz,notfnd	;not there!
+	ld	hl,(buffer)	;hl=buffer start
+lodlp:	call	f$read		;read a sector
+	jr	nz,allrd	;done?
+	ld	bc,dbuf		;bc=buffer ptr
+movlp:	ld	a,(bc)
+	ld	(hl),a
+	inc	hl
+	inc	c
+	jr	nz,movlp
+	jr	lodlp
+;
+allrd:	call	f$close
+	call	print
+	db	', size ',0
+	ld	(eofptr),hl
+	push	hl
+	ld	hl,(buffer)
+	ex	de,hl
+	pop	hl
+	or	a
+	sbc	hl,de
+	call	phl4hc
+	call	print
+	db	'H bytes.',cr,lf,lf,0
+;
+; this is the main evaluation loop
+; come here for every new item
+;
+eval:	ld	e,0
+	call	get1		;get 1 bit
+	or	a
+	jr	nz,not8
+	call	get8		;get next 8 bits (and swallow them)
+	jr	eval
+;
+; get next 2 bits and interpret
+;
+not8:	call	get2
+	or	a		;see if special item
+	jr	z,spec
+	call	get8		;swallow 16 bits
+	call	get8
+	jr	eval
+;
+; evaluate special item
+;
+spec:	call	get4		;get 4-bit field
+;
+; following items followed by name field
+;
+	or	a		;entry symbol
+	jp	z,skipn		;skip name
+	cp	1		;select common
+	jp	z,skipn		;skip name
+	cp	2
+	jp	z,name		;display module name
+	cp	3		;request item
+	jp	z,skipn
+;
+; following items followed by value and name field
+;
+	cp	5		;common size
+	jp	z,skpvn		;skip val/name
+	cp	6		;chain external
+	jp	z,skpvn		;skip it
+	cp	7		;define entry point
+	jp	z,ckntry	;check if we want something
+;
+	cp	15		;end of file?
+	jp	z,eof
+	cp	14		;end module
+	jp	z,endm
+;
+; all others followed by value field
+; let's swallow it
+;
+	call	skpval
+	jr	eval
+;
+; end of module - skip to next byte boundary
+;
+endm:	ld	a,9		; a tab
+	call	cout
+	ld	a,(rsmod)
+	or	a		; rsed this?
+	ld	hl,rsedy
+	jr	nz,.em..
+	ld	hl,rsedn
+.em..:	call	pstr
+	call	crlf
+	call	skpval
+	ld	hl,(bitml)
+	ld	de,7
+	add	hl,de
+	jr	nc,..em
+	ld	a,(bithi)
+	inc	a
+	ld	(bithi),a
+..em:	ld	a,l
+	and	0f8h
+	ld	l,a
+	ld	(bitml),hl
+	jp	eval
+;
+eof:	call	print
+	db	cr,lf
+	db	'end of file',cr,lf,0
+	ld	a,(chgd)
+	or	a
+	jr	nz,wrback
+	call	print
+	db	'Unchanged - not saved',cr,lf,0
+	jp	nextf
+;
+wrback:	ld	de,dfcb
+	call	initfcb
+	call	f$open
+	jr	z,opnok
+	call	print
+	db	cr,lf
+	db	'*** cannot open file ***',cr,lf,0
+	jp	nextf
+;
+opnok:	ld	hl,(buffer)	;get start of buffer
+svlp:	ld	bc,dbuf
+..sav:	ld	a,(hl)
+	ld	(bc),a
+	inc	hl
+	inc	c
+	jr	nz,..sav
+	ld	de,dfcb
+	call	f$write
+	jr	nz,wrerr
+	ld	de,(eofptr)
+	push	hl
+	sbc	hl,de
+	pop	hl
+	jr	nz,svlp
+	ld	de,dfcb
+	call	f$close
+	inc	de
+	call	pfn2
+	call	print
+	db	' written back, all modules serialized ',0
+	ld	hl,(newo)
+	call	phlfdc
+	ld	a,'/'
+	call	cout
+	ld	hl,(newu)
+	call	phlfdc
+	call	crlf
+	jp	nextf
+;
+wrerr:	call	print
+	db	cr,lf
+	db	'*** write error - aborted ***',cr,lf,0
+	jp	nextf
+;
+ckntry:	call	get2		;get type
+	or	a		;absolute?
+	jr	z,abs
+	call	get8
+	call	get8
+	jp	skipn
+;
+abs:	ld	hl,(bitml)
+	ld	(savml),hl
+	ld	a,(bithi)
+	ld	(savhi),a
+	call	get8		;get first half
+	call	get8		;get second half
+	call	dspnam
+	ld	hl,nme
+	ld	de,orig
+	ld	b,7
+	call	compb
+	ld	de,(newo)
+	jr	z,chg
+	ld	de,unit
+	call	compb
+	jp	nz,eval
+	ld	de,(newu)
+chg:	ld	a,e		;get low byte
+	call	put8b		;stash 8 bits into REL file
+	ld	a,d		;get high byte
+	call	put8b
+	ld	a,1
+	ld	(chgd),a
+	jp	eval
+;
+put8b:	push	de		;save word
+	ld	e,a		;save byte
+	ld	a,(savhi)
+	ld	d,a
+	ld	hl,(savml)
+	ld	b,8		;8 bits to process
+..put:	rlc	e		;put bit in position
+	ld	a,e		;get byte
+	and	1		;isolate bit
+	ld	c,a
+	call	putbit
+	call	incbit		;point to next bit in file
+	djnz	..put		;do it 8 times
+	ld	a,1
+	ld	(rsmod),a	; set "module reserialized" flag
+	ld	(savml),hl
+	ld	a,d
+	ld	(savhi),a
+	pop	de
+	ret
+;
+name:	xor	a
+	ld	(rsmod),a	; reset flag
+	call	dspnam1
+	jp	eval
+;
+dspnam1:exx
+	ld	l,0
+	jr	.dsp..
+;
+dspnam:	exx
+	ld	l,1
+.dsp..:	exx
+	ld	e,0
+	call	get3		;get name length
+	ld	iy,nme
+	ld	b,a		;length into b
+namelp:	push	bc
+	call	get8		;get a byte
+	exx
+	bit	0,l
+	exx
+	call	z,cout
+	ld	(iy+0),a
+	inc	iy
+	pop	bc
+	djnz	namelp
+	ld	(iy+0),0
+	ret
+;
+skpvn:	call	skpval
+;
+; skip a name
+;
+skipn:	ld	e,0
+	call	get3		;get name field length
+	ld	b,a		;length into b
+skipnl:	push	bc
+	call	get8		;swallow 8 bits
+	pop	bc
+	djnz	skipnl
+	jp	eval
+;
+skpval:	ld	e,0
+	call	get2
+	call	get8
+;
+; the following routines return 1,2,3,4, or 8 bits in A.
+; when calling, E must be zero!
+;
+get8:	call	get4
+	ld	e,a
+get4:	call	get3
+	ld	e,a
+	jr	get1
+;
+; get next 3 bits into A
+;
+get3:	call	get2		;get 2 bits
+	ld	e,a
+	jr	get1
+;
+; get next 2 bits into A
+;
+get2:	call	get1
+	ld	e,a
+get1:	ld	a,(bithi)
+	ld	d,a
+	ld	hl,(bitml)
+	call	getbit
+	rlc	e
+	or	e
+	push	af
+	call	incbit
+	ld	(bitml),hl
+	ld	a,d
+	ld	(bithi),a
+	pop	af
+	ld	e,0		;make this re-entrant
+	ret
+;
+incbit:	inc	hl
+	ld	a,h
+	or	l
+	ret	nz
+	inc	d
+	ret
+;
+notfnd:	call	print
+	db	'File not found',cr,lf,0
+	jp	nextf
+;
+finish:	call	print
+	db	cr,lf,lf
+	db	'*** all done ***',cr,lf,0
+	rst	0
+;
+nofile:	call	print
+	db	'No file specified',cr,lf,lf
+	db	'Usage:',cr,lf
+	db	'0A}RS FILENAME[.REL]',cr,lf
+	db	'program prompts for input',cr,lf
+	db	'NOTE: the author cannot assume any liability',cr,lf
+	db	'for copyright violation by the user!',cr,lf,lf,0
+	rst	0
+;
+	dseg
+;
+nme:	ds	10
+orig:	db	'?ORIG?',0
+unit:	db	'?UNIT?',0
+rsmod:	db	0
+rsedy:	db	' reserialized.',0
+rsedn:	db	' unserialized.',0
+chgd:	db	0
+newo:	dw	1111h
+newu:	dw	2222h
+fnbuf:	dw	0
+files:	dw	0
+buffer:	dw	0
+eofptr:	dw	0
+bitml:	dw	0		;bit address medium+low
+bithi:	db	0		;bit address high
+savml:	dw	0
+savhi:	db	0
+	ds	80
+stack	equ	$
+	end
+d	e,a

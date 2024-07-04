@@ -1,0 +1,494 @@
+
+
+; the history of comm7
+ 
+* latest changes * 
+
+;04/25/83  'utl [d:] *.ft' permitted as call from main command line.  fixed
+;major bug with 'utl' not copying files larger than 16k to other than user
+;area zero.  'utl' includes multi-file mass copy routine, tagging/untagging
+;ability.  added more invalid drive/user area keyboard-entry error traps.
+;now d, d:, dn, dn:, dnn, and dnn: are all permitted responses to utl 'c',
+;'l', and 'm' prompts.  added the pds program 'sap' as a main menu command.
+;now directory of any drive can be 'sorted and packed' with dispatch, staying
+;in the program.  'sap' and 'sap d:' are valid entries.  tnx to 1977 original
+;author, l.e. hughes, and all hackers who have contributed to making 'sap'
+;the useful program it is today.  (721)  fg
+
+;04/10/83  major utility 'utl' added to primary command list.  'utl' provides
+;full file manipulation without leaving program and is based on 'disk7'
+;program.  operation is explained by self-help menu.  set 'utl' equate 'true',
+;if feature desired instead of 'vue'.  'sel' function expanded to permit
+;selection of half-duplex operation and filtering-out of received control
+;codes in terminal mode.  removed pmmi parity secondary command option.
+;installed fast table-driven 'crc' calculation method using techniques of
+;dave barker (same as used in chek13 and disk73).  mended 'softkey' equate if
+;set false.  also, finally, fixed ss1 board equates -- time feature now works
+;(tnx to bob greene for assistance).  to my understanding, this is the only
+;successful implementation of the compupro/godbout board with the 'cw' clock-
+;read code.  (the 'rtc' program supplied by godbout doesn't set the 'day'...
+;greene is rewriting so it does.)  'wrtdsk' routine uses 'shiftlp' to divide
+;by 128.  improved 'ramsave' routine so no bytes are lost when ram-to-disk
+;save occurs at full 'colon-save' buffer, if remote computer recognizes
+;'xoff/xon' protocol.  'break' function reworked for improved operation.
+;made 'quiet' mode friendlier.  (720)  fg
+
+;03/05/83  introduced console screen attributes.  added more terminals to
+;equate list.  eliminated 'ret' command, replaced by simply 't' to re-enter
+;terminal mode after using ^e to enter command mode.  if a file has been
+;opened, 't' retains all data until 'wrt' or 'del' is employed.  'm' now can
+;be used when a file is open.  improved technique of removing characters from
+;printer ring-buffer.  re-organination eliminated requirement for 'uartflg',
+;thus it was removed.  'getbaud' changed to retain current baudrate even if
+;command 'to fn.ft' is given.  presently both mode and baudrate are maintained
+;until explicitly changed.  'show', used to view ascii files on-the-fly,
+;displays control codes as ' ^x', instead of (xx).  program ready for updating
+;to handle new pmmi mm-212a.  eliminated 'imsaibyte'...sori abt that, zoso.
+; (719)  fg
+
+;02/25/83  added 'exit-to-cp/m-with-disconnect-and-reboot' as secondary option
+;'e' (a suggestion from jerry wolfson) and updated main menu.  completed set-
+;drive/user error-trapping at the command-line prompt.  added equate to allow
+;'time' display at command line, instead of 'day, date, and time'.  eliminated
+;need for 'origsav' flag by simplifying 'fixbaud' subroutine; also 'blkfile',
+;'termsel', and 'savagn' deleted, all made possible by re-organizing 'setfcb'
+;and 'procopt' routines.  'auto-linefeed after cursor-return' added to echo 
+;('e') primary mode loop to more accurately resemble a computer.  trap
+;installed denying 'q' and 'b' secondary options in terminal and echo modes.
+;added auto-routine-cancel if send/receive re-try error limit exceeded and
+;an equate to handle cp/m base address other than zero.  added selected
+;messages to be-sent/show in quiet mode.  several command-mode operational
+;messages now overwrite command line instead of scrolling screen.  added
+;primary command of 'vue' to permit viewing (type) an ascii file on the
+;console.  vue displays with <ctrl-x> used to cancel, <space> to turn-up
+;one line, and any other key to page screen.  (717/718)  fg
+
+;02/13/83  added ring-buffer to 'text-out-to-printer' routines.  non-buffered
+;and slow printers can receive data continuously at their average thru-put
+;capability.  data can be received for short periods at rates many times
+;printer average thru-put.  listing line-lengths adjusted for 12 characters
+;per inch printing of comm7.prn file on 8-1/2 inch paper.  tests for quiet
+;mode ('q' as a secondary option) performed in 'type' routine, saving over
+;100 bytes of code.  error messages show because 'qflg' is automatically reset
+;before executing the 'erxit' routine.  fixed long standing (since modem7 of
+;10/18/81) bug (in 'rcvchr') with view ('v') mode -- now doesn't show headers.
+;fixed 'nak' bug experienced during file send.  return-to-terminal mode bug
+;after 'wrt' or 'del' mended.  (current mode, 'o' or 'a', and baudrate remain
+;unchanged on-return using simply 't' under all operating maneuvers.  'to' or
+;'ta' returns the default, 300 baud, rate.)  original drive and user area are
+;returned on exit to cp/m.  'inbuf' now ignores leading-spaces in the command
+;line.  (716)  fg
+
+;02/13/83  added ring-buffer to 'text-out-to-printer' routines.  non-buffered
+;and slow printers can receive data continuously at their average thru-put
+;capability.  data can be received for short periods at rates many times
+;printer average thru-put.  listing line-lengths adjusted for 12 characters
+;per inch printing of comm7.prn file on 8 1/2 inch paper.  tests for quiet
+;mode ('q' as a secondary option) performed in 'type' routine, saving over
+;100 bytes of code.  error messages show because 'qflg' is automatically reset
+;before executing the 'erxit' routine.  fixed long standing (since modem7 of
+;10/18/81) bug (in 'rcvchr') with view ('v') mode -- now doesn't show headers.
+;fixed 'nak' bug experienced during file send.  return-to-terminal mode bug
+;after 'wrt' or 'del' mended.  (current 'o' or 'a' mode and baudrate remain
+;unchanged on-return using simply 't' under all operating maneuvers.  'to' or
+;'ta' returns the default, 300 baud, rate.)  original drive and user area are
+;returned on exit to cp/m.  'inbuf' now ignores leading-spaces in the command
+;line.  (716)  fg
+
+;01/30/83  modified main menu to better work with non-pmmi modem.  further
+;tightened send/receive-file error reporting code.  terminal mode function
+;<ctrl-p> added for printer on/off toggle.  baudrate change is now <ctrl-b>.
+;direct bios 'type' replaced with bdos 'type' and 'mover' replaced by 'move'
+;...saving much code.  last bug removed from auto-dial routines (tnx to irv
+;hoff) --  all dial-possiblities work cleanly and correctly.  (715)  fg
+
+;01/14/83  removed bug and tightened code associated with receive-file error
+;display routines, and in other areas.  added <ctrl-r> function, used in
+;terminal mode to review stored 'softkey' strings.  softkey send-routine
+;provided automatic bail-out if remote fails to echo.  (714)  fg
+
+;01/04/83  receive section extensively changed (adapted some paul kelley
+;routines).  made a major change in the rcvsq area.  error routines were
+;changed in some areas.  can abort a send or receive transfer at any time.
+;(if receiving, the send station will eventually time out.  until that
+;time the incoming data might display on the local crt.)  if using two
+;similar programs modem-to-modem, the receiving station will switch to
+;checksum mode if nothing is sent for one minute.  it will timeout in an
+;additional minute.  the easiest way to transfer files in this manner is
+;with the batch command (which does not time out).  this gives ample time
+;to initiate the transfer.  abolished the macro library by including those
+;routines.  the program may now be assembled with asm.com.  (713)  irv hoff
+
+;12/11/82  fixed waitcts in 'wait' to handle up to 51 seconds waiting for
+;'cts' (carrier) from remote computer.  made 'mhz' ten times the actual cpu
+;clock frequency (2.7 mhz = 27, 4.0 mhz = 40, etc., up to 15.7 mhz = 157).
+;put bell character as an indicator for <ctrl-y> toggle instead of crlf.
+;added equates to indicate version number and date and to handle the
+;compupro/godbout ss1 rtc board.  (712)  fg
+
+12/7/82  moved mspeed register to front of program and adjusted
+position of 'softkey' db table for easy hot patching.  created
+comm711.set file.  changed several messages to make similar to
+xmodem60.  newline and colon added immediately after save-file
+<ctrl-y> toggle is used.  (711)  irv hoff
+
+12/5/82  bug removed related to simultaneous use of <ctrl-y>
+"save-file" and esc "softkey" by pushing/popping d and h on
+entry/exit to/from softcmd.  last bug removed in sel command.
+ceased use of pmmi hardware timer, changed to dispatch tables
+at mspdsub and openok1, made lspeed automatic, saving much
+code.  the <ctrl-^> command from the terminal mode allows
+the next character, a control code, to be sent but ignored
+locally.  thus ^d, ^e, etc., can be sent to the remote for edit
+control, if desired.  menu updated to reflex additions.  dial
+routines and the manner mspeed is set improved.  crt screen is
+cleared, not scrolled, before phone library displayed.  (710)  fg
+
+11/22/82  send-a-file time calculation accuracy improved (tnx
+to irv hoff).  added 'softkey' equate allowing string command
+output in terminal mode, e.g., esc '1' --> "dir *.* $u0ad" (tnx
+to bob kuhman for the suggestion).  added a smarter protocol
+equate option for short file transfers under <ctrl-t> in
+terminal mode.  further generation of subroutines and tightening
+of code.  changed program name from modem783 to comm7 to
+eliminate version confusion.  the default drive and user area
+can be operator changed from the command line prompt similar to
+bob fischer's hack of user: if at drive a, user 0, i.e., (a>),
+entering "b: 7" changes to "b7>".  "b:" changes from a> to b>.
+thus "drive, colon, space, user number" changes to new drive/user
+area (tnx to paul traina for the code).  changed the way sel is
+handled to save code and make more convenient for other than pmmi
+modem.  (file is still 12k, worst case.)  (700)  fg
+
+11/04/82  send-a-file time now calculated from both the command
+mode (.xxx) and terminal mode <ctrl-p> options by adding mspdsub
+and setmspd routines.  added error traps for del, wrt, invalid
+option, ret and dir (disk reset) entries.  send/receive errors
+displayed in decimal, not hex.  bbs prompted file-send speeded
+to 85 wpm, from 70.  cleaned-up the way 'no dial tone within ten
+seconds' and rcverr routines are handled.  on send error, nak
+displayed instead of 015h.  replaced many redundant in-line
+routines with called subroutines to reduce program size.
+improved the xprt (xprflg) routine allowing options when modem7
+is first called.  equate to handle zenith z19/h19 terminals
+added (for bob kuhman).  (783)  fg
+
+10/2/82  fixed bug with rtc when set false.  changed the exit
+routine to permit connected-line on returning to cp/m.  added a
+lf at the dial-a-number routine.  code to display time to send-
+a-file at 110-300-450-600-710 baud added, thanks to sandy smith
+and bhk.  (782)  fg
+
+8/29/82  added rtc code to display data from the compu/time cw
+calendar board.  reduced screen scroll at the command prompt
+level with an overwrite feature (inbufr change in modem780.lib).
+disk-system reset feature added to dir command.  send/receive
+error counter now starts with 01h, not 00h.  wrtdsk routine
+fixed so whole disk not written if you wrt a 0k file.  changed
+the fastclk db to mhz equate for integer cpu clock rates.
+adjusted line lengths so prn file prints on 8-1/2" wide paper.
+took out cp/m 1.4 option.  bottram set to 128-byte boundaries,
+not 256.  added cp/m-convention era-files function from menu. general
+tightening of code to stay within 12k com file size.  (781) fg
+
+07/23/82  added simple delay loops (under ctrl-t) to permit 70
+wpm file transfer into prompted line-editors of typical bbs's.
+the dir command macro in modem780.lib now shows storage space
+remaining on the default drive.  single/double line spacing
+after commands to reduce screen scroll.  sel function added to
+change the transmission word characteristics.  several cosmetic
+bugs fixed.  (780)  fg
+
+07/04/82  added more space for the telephone library -- now set
+to 72-character line width for two entries.  added equates for
+crt "escape" character and "erase-to-end-of-line" for televideo
+920c thus stopping screen flicker during line overwrites.  added
+code to extend waitcts time, if needed, and to make the xprt
+mode automatic after showing the menu the first time.  added the
+alert label to remind to save file after rentering command mode
+from terminal mode.  fixed all bugs reported in modem versions
+7.3x through 7.6x and incorporated some of the enhancements of
+7.7 for single modem use.  (762)  fg
+
+05/29/82  fixed savccp option when set to false.  rlp
+
+05/16/82  added rcvfil1 label so that switch between crc mode
+and checksum mode is done only on the first file transfer in
+batch mode.  else the program hangs up on the second file
+transfer if the sending end is not crc capable.  r.l. plouffe        
+
+05/01/82  extended the main menu to display most of the commands
+used by the program (requires 80-column crt screen).  made
+some of the prompts more friendly and mnemonic.  introduced cls
+equate to clear screen before going to menu.  eliminated screen
+scroll during phone number auto re-dialing.  (762)  frank gaude'
+
+04/29/82  changes at term, start1 and optck 
+fix a bug that causes abort at the end of a file transfer if
+the originate 'o' or the answer 'a' character was not entered
+after the 't' term character when switching between term and
+menu. now the ogiginate or answer character has to only be 
+entered once when comunications is first established.  r.l. berg
+
+4/12/82  merged in changes/enhancements from versions 7.32
+and 7.4 and modem75.fix.  this should hopefully give us one
+"master" version again.  b.r. ratoff
+summary:
+ 7.32 - delay loop at dilagn1 to allow "smart" terminals time
+         to process bell character.
+
+ modem75.fix - maintain originate mode on ret command after
+         transferring files (at term:).  restore option tables
+         correctly on control-d command (at dir).  issue "file
+         open" message on receive (at rcvc3).
+ 7.41 - make crc/checksum switching on receive automatic....
+         assumes crc and defaults to checksum on time-out.
+
+2/20/82  changes at term and start1 fix a
+long standing bug in modem7x that causes abort at the end of a
+batch file transfer or an attempt to transfer a non-existent
+file.  the call to noparit in donetce caused a computer that was
+in answer mode (but not explicitly by command option) to switch
+to originate mode thus causing the two ends to no longer
+communicate with each other.  also added savccp byte and code to
+prevent overwriting of ccp at the users option.  r.l. plouffe
+
+1/23/82  the following changes were made in this version.  rlp
+set file capture mode to overwite the ccp and changed exit to
+return to the ccp instead of doing warm boot.
+terml routine fix:
+added rick kawala's fix so that fewer framing errors will occur
+with hosts that send out characters with high bit set.
+cal command fix:
+   all versions of modem7 including modem73 are supposed to be
+able to accept "cal n" (where n is either a library letter or
+a phone-number string) as a valid form of the cal command.  in
+fact, however, the "n" will simply be ignored.  this is because
+routine dialpl checks for a command length >= 4 as a signal to
+skip the library display, but the menu routine, after
+recognizing cal, sets the length to 1 so the l in cal doesn't
+look like an illegal secondary option.
+   the following kludge repairs this defect.  in routine
+dialpl, two lines above label dialpl0, change cmdbuf+5 to
+cmdbuf+6.  also, in routine getcmd, three lines above label
+nxtopt2, change mvi a,1 to mvi a,20h and change the next line
+from sta cmdbuf+1 to sta cmdbuf+4.  this makes the command
+look to the option processor like "ca  n", and since a is a
+legal secondary option (which in this case is never used) the
+line passes muster.  if an actual telephone number is used,
+you have to type an extra blank: cal  000-0000, whereas
+with library letters only one blank need be typed: cal a.
+
+12/16/81 removed stack imbalance bug at colonb by adding
+a jmp brk1. r.l. plouffe
+
+12/06/81 Eliminated "C" option entirely, made CRC mode
+automatic (see 10/29/81 below -- MODEM will go to checksum
+mode and send a NAK if no character is received within 3 seconds
+after sending the "C" to start CRC mode transfers).  Jim Mills
+
+12/05/81 Removed my name from Copyright notice and changed
+the call directory to my own list.  Changed call function
+time-out to 25.5 seconds (not 20 seconds).  Changed Port equate.
+Jim Mills, POB 2701, Glen Ellyn, IL 60137, (312) 469-2596.
+
+11/21/81  fixed code so byte received is on same line when
+messages "xxh rcd, not soh" or "xxh rcd, not ack"
+are displayed. also changed stack size to 50h.  p.l. kelley
+
+10/29/81 Changed receive sector routine so that on the first
+time through when CRC is being used, it only waits 3 seconds
+to receive the SOH after sending the initial 'C'.  If a
+character is not received within 3 seconds, then a NAK is
+sent and this program switches to CHECKSUM mode.  The sending
+of the NAK causes XMODEM or MODEM to start sending the file
+using checksum checking.  This allows the CRC MODEM7 program
+to be used with versions of XMODEM, MODEM, and MODEM7 that
+do not use CRC, even when MODEM7 has specified a CRC
+transmission. (John Mahr)
+
+10/18/81 Added CRC option. This is another secondary option
+that is specified by giving a 'C'.
+	MODEM RC.600 fn.ft
+	MODEM ROC.300 fn.ft etc.
+	note: cannot have more than 6 secondary options.
+When the file receive cmd. specifies CRC, the ltr. 'C' is
+sent in place of the initial NAK. This signals the sender
+(XMODEM47 or equiv.) that CRC is in effect. The sending 
+program will replace the checksum with the CRC 2 bytes.
+CRC will give better than a 99.99% probability that there
+are no data errors. Code copied from MODEM213, thanks to
+John Mahr and Paul Hansknecht for the implementation. (WDE)
+
+10/11/81 Add first NAK to RCVFIL to speed up start
+Removed monitor scroll from good block messages
+CTL-^ forces send of next char in T mode (for ctl-E, ctl-D) (WDE)
+
+07/05/81 Added BRR ctrl char chgs, my number list (Bill Earnest)
+
+06/05/81 Deleted some unneeded messages in the dial routines. (Bob Clyne)
+
+05/31/81 Added detection of framing, overrun, and parity errors for
+	  Receive file routine. (A modified version of the routines in
+	  MODEM V2.06)
+
+	  Added provisions to send and receive either even or odd parity
+	  bit with PMMI modem in the 'S'end or 'R'eceive file modes - resets
+	  to no parity in other modes. Use of the parity feature will slow
+	  transfers slightly due to the extra (parity) bit being sent with
+	  each character. Also this is the only program that I KNOW OF that
+	  actually sends, or sets up the PMMI to receive, the parity bit.
+	  Both ends must be set to the same parity for it to work. Parity
+	  is invoked by adding a '0' (ASCII) for even parity or a '1' (ASCII)
+	  for odd parity to the 'S'end or 'R'eceive command string eg. R0.600.
+
+	  Changed timing for sending 'B'reak in the terminal mode.
+
+	  Changed the code so that the 'M'enu command works from the keyboard
+	  even when in XPR (expert) mode.
+
+	  Added display of hex in addition to decimal numbers for file length
+	  and sector numbers.
+
+	  Removed provision for remote cancel of file transfers in the 'S'end
+	  and 'R'eceive modes to prevent line noise from aborting a transfer.
+	  (Bob Clyne)
+
+
+02/15/81 Patched in the ringback routines from DIAL6/23. It doesn't
+	  seem to be able to recognize when the other phone is ringing
+	  though so it is a little shakey.
+
+	  Put in routines to calculate file sizes and sector numbers in
+	  decimal.
+
+	  Put in code to transmit a "BREAK" with a PMMI for use with
+	  computers which use BREAK instead of Control S to suspend
+	  output. Control P is now the baudrate change request key
+	  and Control @ is the BREAK key.. (Bob Clyne)
+
+12/18/80  Changed disconnect timing.
+
+10/26/80  Minor revision to allow 25-second 'wait' after PMMI
+	   autodial -- longer time required for Chicago CBBS*.  Jim Mills.
+	   * CBBS is a trademark of Ward Christensen and Randy Suess.
+
+ (the idea for comm7 started with the release of modem741)
+
+	08/11/79
+PUT IN RESETTING OF DMA ADDR TO 80H AT EXIT.  WLC.
+
+	08/06/79
+ADDED EQUATES FOR EXTERNAL MODEM (NOT S-100 PLUG-IN)
+(KBP)
+
+	08/05/79
+ADDED D. C. HAYES MODEM SUPPORT BY JIM BELL  (KBP)
+
+	07/24/79
+MOVE INITIALIZE LOCAL STACK TO BEGINNING OF PROGRAM
+SO DEFAULT STACK IS NOT USED. ADD CONDITIONAL ASSEMBLY
+OPTION TO TERMINAL ROUTINE FOR TIMESHARE SYSTEMS.
+CORRECT ERROR IN LOCAL ABORT ROUTINE (WAS LOOKING FOR
+CONTROL E - NOW CORRECTLY LOOKS FOR CONTROL X). ADD
+REGISTER SAVES TO CONOUT, KEYIN AND AND KEYBOARD STATUS
+ROUTINES, AS SOME CBIOS ROUTINES CLOBBER THEM. (KBP)
+
+	07/01/79
+MODIFIED PROGRAM TO ALLOW FOR NON-STANDARD VERSIONS OF
+CP/M. ALL REFERENCES TO ENTRIES INTO CP/M SHOULD BE MADE
+RELATIVE TO THE VARIABLE SYMBOL CALL "BASE". FOR EXAMPLE,
+THE EQUATE TO BDOS SHOULD BE BASE+5 INSTEAD OF 5. BASE
+WILL BE SET TO 0 WHEN THE VARIABLE STDCPM IS SET TO TRUE.
+(BOB MATHIAS).
+
+	05/24/79
+FIX MISSING RETURN INSTRUCTION AT END OF
+INITIALIZATION ROUTINE.  (KBP)
+
+	05/22/79
+ADD FEATURE TO MAKE RECEIVE FILE ROUTINE SAY
+FILE SUCCESSFULLY OPENED, WHEN IN QUIET MODE.
+MOVE INITIAL GOBBLE GARBAGE INPUTS TO BEFORE
+COMMAND CPI'S SO ALL MODES ARE CLEARED. CHANGE
+INITIAL SEND WAIT TO 80 SECS TO ALLOW MORE TIME
+FOR RECEIVING END TO COME UP. ADD 'H' AFTER MSG
+THAT SHOWS NUMBER OF SECTORS IN EXTENT ABOUT TO
+BE SENT.  (KBP)
+
+	05/09/79
+ALLOW 'T' AND 'E' SUB-OPTIONS TO GO TO TERMINAL
+OR ECHO MODEM AFTER TRANSFERRING A FILE.  (WLC)
+
+	04/28/79
+Re-write program, making it more structured, and
+better commented.
+
+	04/26/79
+REWRITTEN BY WARD CHRISTENSEN TO COMBINE
+IMPROVEMENTS TO THE ORIGINAL MADE BY WARD
+AND BY KEITH PETERSEN, W8SDZ, AND SUGGESTIONS
+BY JIM BELL WHICH KEITH IMPLEMENTED.  SEE
+MODEM.DOC FOR ADDITIONAL HISTORICAL
+INFORMATION AND DOCUMENTATION.
+
+	04/25/79
+From Keith Petersen W8SDZ: add technique of de-
+leting garbage characters to avoid problems with
+line glitches.
+
+	04/23/79
+By Ward Christensen:  put in PMMI variable baud
+rate select, originate, answer, quiet, disconnect;
+delete sense sw codes;  add view, help, examples,
+etc.  Change garbage char collection to "in" instr.
+not "recv".  Add quit/retry from 12/78 vers which
+Keith didn't have.  Un-do the 1/5/79 correction,
+allowing the receiver to ack if a duplicate
+block is sent, such as might happen if the
+receiver's original ack was garbaged.
+
+	04/11/79
+Change send, receive, and eof ack wait times to
+10 seconds to allow for slower disk systems.
+Change send wait time to 80 seconds to allow
+receiving end more time to come up.  By
+Keith Petersen, W8SDZ.
+
+	02/19/79
+Change receive wait time to 8 seconds to allow for
+slower disk systems.  Climinate multiple cancel on
+aborting.  Add conditional assembly for clock
+frequency > 2.0 mhz. by Keith Petersen
+
+	01/05/79
+Correct error in receive file routine which did
+'ACK' when sector number was wrong.  Add wait
+routine to hold sending of file until receive end
+is ready.  by Keith Petersen, W8SDZ
+
+	12/03/78
+Add 16-sector buffer for less disk activity.  This
+version typed by keith petersen, from information
+supplied by Jim Bell, K4FUP
+
+	11/20/78
+Change send wait for ack time to 8 sec. for
+slower disk systems.  Add control-X abort so
+receiving station can stop send.  Add abort
+test to send and receive for local cancel.
+By Keith Petersen, W8SDZ
+
+12/31/77 ADD RETRY/QUIT QUESTION
+
+10/10/77 CORRECT TO SEND ANY LENGTH FILE
+
+10/01/77 CHANGE EXIT$CHAR FROM CTL-C TO
+	 CTL-E FOR USE W/TIMESHARING COMPUTERS
+
+09/26/77 ADD ERROR$LIMIT EQU
+
+09/25/77 FIRST TESTING COMPLETE
+
+09/23/77 FIRST WRITTEN BY WARD CHRISTENSEN
+

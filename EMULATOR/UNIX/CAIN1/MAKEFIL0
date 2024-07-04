@@ -1,0 +1,57 @@
+
+# Makefile for cpm
+# Written by D'Arcy J.M. Cain
+#
+
+DIST =		readme Makefile cpm-i386.h cpm.c dasm.c decode.c mk_tests.c mkbin.c
+NAME =		cpm
+CFLAGS=		-O -Wall
+BINARIES =	cpm dcpm tcpm mk_tests 
+BIN =		/usr/lbin
+LBINS =		$(foreach i, $(BINARIES), $(BIN)/$i)
+
+all:	$(BINARIES)
+
+clean:
+	rm  -f *.o *.obj core
+
+clobber:	clean
+	rm -f $(BINARIES) $(NAME).0?
+
+install:	all
+	rm -f $(LBINS1)
+	chmod 711 $(BINARIES)
+	ln $(BINARIES) $(BIN)
+
+$(NAME).01:		$(DIST)
+	shar -L300 -vxf -o $(NAME) $^
+
+gen:	$(NAME).gen
+
+$(NAME).gen:	$(DIST)
+	mkscript $^ > $(NAME).gen
+
+shar:	$(NAME).01
+
+strip:	$(BINARIES)
+	strip $(BINARIES)
+
+mcs:	$(BINARIES)
+	mcs -d $(BINARIES)
+
+cpm:	cpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) cpm.o decode.o dasm.o -o cpm
+
+tcpm:	tcpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) tcpm.o decode.o dasm.o -o tcpm
+
+tcpm.o:	cpm.c
+	$(CC) $(CFLAGS) -DCOMPILE_TEST -c cpm.c -o tcpm.o
+
+dcpm:	dcpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) dcpm.o decode.o dasm.o -o dcpm
+
+dcpm.o:	cpm.c
+	$(CC) $(CFLAGS) -DCPM_DEBUG -c cpm.c -o dcpm.o
+
+cpm.o decode.o dasm.o:	cpm.h

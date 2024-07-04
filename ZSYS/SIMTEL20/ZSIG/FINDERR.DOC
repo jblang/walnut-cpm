@@ -1,0 +1,160 @@
+                                  FINDERR
+                                VERSION 1.0
+
+                               Ted H. Emigh
+                  Departments of Genetics and Statistics
+                      North Carolina State University
+                            Raleigh, NC  27695
+                           usenet: emigh@ecsvax
+
+     One of the major advantages of ZCPR3 is the passing of messages from
+one utility to the next.  Unfortunately, almost all commercial packages do
+not have this mechanism.  This program was developed to help in the passing
+of messages from commercial programs to ZCPR3 utilities.  As an example:
+We may wish to have a compilation/assembly stop if there are errors.
+Otherwise, we may wish to link the program with a library to an executable
+program.  Microsoft's Macro-80 assembler (M80) and FORTRAN-80 compiler
+(F80) give a summary of the number of fatal and warning errors just before
+the assembler/compiler stops execution.  FINDERR looks at the fatal and
+warning errors from M80/F80 and sets the ZCPR3 registers if there have
+been any errors.
+
+     Although it was designed for M80/F80, it should be relatively simple
+to add this type of error messages for any program that gives a summary of
+errors (or a total number of errors).
+
+ZCPR3 MESSAGES:
+
+     ZCPR3 allows the passing and testing of messages using the IF #
+construct, where # is a number between 0 and 9.  If a particular register
+is 0, then an error did not occur, if it is nonzero, then an error occured
+during assembly/compilation, and the specific value designates whether the
+error was fatal or a warning error.  In this version of FINDERR, ZCPR3
+Register 0 reflects the error status of a prior M80 assembly, and ZCPR3
+Register 1 reflects the error status of a prior F80 compilation.  FINDERR
+will check memory locations for both M80 and F80 -- but will be valid only
+ONE AT A TIME, and must be executed immediately after M80/F80.
+
+THE NATURE OF SUMMARY MESSAGES:
+
+     If a program gives a summary message, it must have locations to keep
+track of the errors (or summary data).  As the program exits, it will check
+these locations and print a message if it is appropriate.  You need to find
+these locations in order to make use of the summary information.   To find
+these locations, you need a good disassembler (RES, ZDASM, etc).
+
+FINDING SUMMARY LOCATIONS:
+
+     The first thing you must look for is the message that is printed out
+when there is an error, say, "Errors Detected".  Dump memory from 100H
+until you have found the message.  The message, typically will end with a
+'$', or 0, or with the 80H bit set, or will have a single byte at the
+beginning which contains the number of characters to display:
+	db	'Errors Detected',0DH,0AH,'$'	;ending in '$'
+	db	'Errors Detected',0DH,0AH,0	;ending in 0
+	db	'Errors Detected',0DH,0AH+80H	;ending with 80H bit set
+	db	17,'Errors Detected',0DH,0AH	;character count at the start
+     Normally, there are two ways for the program to print an error
+message: 1)  Loading the address of the summary message into a register
+(e.g., LXI H,ERRMSG), then calling a routine that prints the message; or 2)
+Having a CALL just before the summary message (the address of the summary
+message is then put on the stack).  The first is the most common situation.
+
+     Once you have found the summary message, use your disassembler's
+'FIND' function to find where the beginning location of the message has
+been referenced.  In this area, you will find the code that checks for the
+error count.  The following is an example (from Microsoft's M80 macro
+assembler, version 3.44).
+
+	2EAD	LDHL	3CEDH		;Location for number of fatal errors
+	2EB0	MOV	A,H		;See if there are errors
+	2EB1	ORA	L
+	2EB2	JZ	2ECBH		;No errors, print 'No'
+	2EB5	PUSH	H		;These next
+	2EB6	CALL	1ADFH		;	statements
+	2EB9	POP	H		;		print the number
+	2EBA	LDA	40B4H		;			of errors
+	2EBD	INR	A
+	2EBE	STA	3F5BH
+	2EC1	CNZ	1ADFH
+	2EC4	XRA	A
+	2EC5	STA	3F5BH
+	2EC8	JMP	2ED1H		;Now print ' Fatal error(s)'
+	2ECB	LXI	H,2F4CH		;Point to 'No' message
+	2ECE	CALL	2FD0H		;Print it
+	2ED1	LXI	H,2F4FH		;Point to ' Fatal error(s)' message
+	2ED4	CALL	2FD0H		;Print it
+		.
+		.
+		.
+	2F4C	DB	'No',0
+	2F4F	DB	' Fatal error(s)',0
+
+     In this case, I searched for 2F4CH (the 'No' message), and found it
+referenced at 2ECBH.  The instruction just before this is an unconditional
+jump (JMP 2ED1H), so we need to 'FIND' 2ECBH as well.  This search leads to
+2EB2H, and the instructions just prior to it.  We can see now that location
+3CEDH is the 2-byte location for the number of errors (actually, from this
+segment all we know is that the word at 3CEDH is zero if there are no
+errors, and nonzero if there are errors).  Once you understand what to look
+for, it is not too difficult to find these locations.  Unfortunately, not
+all programs do this.  For example, neither ASM nor MAC keep track of the
+number of errors, so this will not work for those assemblers.
+
+     When you have found the locations, and how many bytes each takes, you
+can add them to this program by changing the system equates at the
+beginning of the program.  For the distribution version, register 0 is zero
+if M80 found no errors, is one if M80 found at least one fatal error, and
+is two if M80 found no fatal errors but did find at least one warning
+error.  In addition, register 1 is zero if F80 found no errors, is one if
+F80 found at least one fatal error, and is two if F80 found no fatal
+errors, but did find at least one warning error.
+
+USING FINDERR:
+
+     FINDERR MUST be executed immediately following the termination of the
+program that it is checking, so that no memory locations are changed.  Note
+that this means that FINDERR should lie in the path, don't use CMDRUN to
+get it out of a library, as this may change the memory locations you wish
+to test.  The ZCPR3 registers are set IN CONTEXT WITH the program executed
+prior to FINDERR.  Hence, Register 0 is a valid test with FINDERR after
+M80, but is invalid if FINDERR is executed after F80.  The following ZEX
+file will assemble an M80 file and link/load it if there are no errors.  If
+there are warning errors, it will wait for programmer intervention, and if
+there are any fatal errors it will abort the assembly.
+
+EXAMPLE:
+
+;
+;   M80.ZEX -- MACRO-80 Assembler and Linker
+;
+;   ^& Suppress FALSE IF Printout
+if nul $1 ;note Print Error Message
+echo	^G**** No Parameter Specified ****
+else	;note Perform Assembly
+if ~empty $1.MAC ;note Print File Not Found
+echo	**** File Not Found ****
+else
+M80 =$1
+FINDERR
+if 0		;note No errors found, link file
+ERA $1.BAK
+ERA $1.COM
+L80 /P:100,$1,$1/N,SYSLIB/S,/E
+else		;note on IF REG 0
+if 0 2	;note see if the errors are warnings
+echo	^G***WARNING ERROR***
+if input Type T to Continue or F to Abort (Warning Errors)
+ERA $1.BAK
+ERA $1.COM
+L80 /P:100,$1,$1/N,SYSLIB/S,/E
+fi	  ;note on IF INPUT
+else	  ;note error is fatal
+echo   ^G***FATAL ERROR IN ASSEMBLY***
+fi	  ;note IF REG 0 2
+ERA $1.REL
+fi;fi	   ;note on IF NUL and IF EMPTY
+;
+;    Assembly Complete
+;
+

@@ -1,0 +1,24 @@
+Date: Sunday, 9 September 1984
+From: Alexander M. Fraser
+To:   Keith Petersen, W8SDZ
+Cc:   Ron Fowler
+Re:   New MX-SM13A overlay for MEX/Anchor XXII modem
+
+(Please forward this to Bob Sandel to please, since I don't know his
+net address if any)
+
+The problem is that there is no pause between the ''+''s.  The
+Anchorman has either a bug, or a safeguard that if the +s pass through
+at full speed (as they would in an ESC+T type transfer), the modem
+ignores them.  I put in a patch to call a delay of 6 in the timer
+sequence between the ''+''s and doubled all the other delays in the
+disconnect sequence and it works at least 95% of the time.  The way to
+solve the ^C problem is that the Anchorman will not abort on (CR), it
+needs an A.  I modified it to send (CR), pause, ''A'', pause, ''T'',
+pause and then (CR).  Works all the time, except while the Anchorman
+is still sending back the numbers (ie still dialing) (the Anchorman
+echoes each character back as it is dialed).  Another thing that
+should be down with the MEx overlay is to increase the timeout (which
+is default 60 seconds).  Since the Anchorman waits 36 seconds before
+hanging up and some ALD pauses coul make up the rest to 60, sometimes
+it times-out too soon.

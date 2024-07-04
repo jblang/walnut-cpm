@@ -1,0 +1,1721 @@
+	subttl	comments
+	title	DIAG - disk diagnostics (C) 1982-1983 P.J.Blower
+	.comment "
+
+DIAG Vers 2.0 July 1983 - complete rewrite of Vers 1.0
+	- Drv, Trk, Sec & Blk sub-commands improved
+	- Whole sub-command added
+	- Esc & ^C low level escape commands added
+	- force Read made optional
+	- BACK command added
+	- COPY command expanded
+	- Fill command added
+
+
+	Alternate	Help		O		Verify
+	Back		I		P		Write
+	Copy		J		Quit		X
+	Display		K		Read		Y
+	Edit		List		S		Z
+	Fill		M		Translate
+	G		Next		U
+
+	"
+	subttl	equates
+	.Z80
+	ASEG
+
+	ORG	0100h
+
+WBOOT	EQU	0000h
+BDOS	EQU	0005h
+FCB	EQU	005Ch	;default File Control Block
+FCBRR	EQU	FCB+33	;random record number
+CPMBUF	EQU	0080h	;CP/M command buffer
+
+BS	EQU	08h
+CR	EQU	0Dh
+LF	EQU	0Ah
+ESC	EQU	1Bh
+LLF	EQU	8Ah	;LF with top bit set
+;-------------------------------
+	subttl	main program
+
+	JP	INIT
+
+FRC:	DB	0	;optional forcing byte for systems with volatile CBIOSs
+
+CURRT:	DB	0Ch	;video cursor right
+CURUP:	DB	0Bh	;video cursor up
+
+KBD:	DB	04h	;keyboard cursor left
+	DB	03h	;keyboard cursor right
+	DB	01h	;keyboard cursor up
+	DB	02h	;keyboard cursor down
+
+SIGNON:	DB	"DIAG 820 Pre-release V2.0  Copyright (c) July 1983
+P.J.Blower",CR,LF,LF
+	DB	"Note that CP/M 128 byte sectors are used throughout,",CR,LF
+	DC	"  these may not coincide with actual physical sectors."
+
+; current drive parameter table
+DIRBUF:	DW	0		;addr of DIR buffer
+BLKSIZ:	DW	0		;Block size = BLKSIZ *128
+SYSTRK:	DW	0		;no of system tracks
+MAXTRK:	DW	0		;max no of tracks
+BUF1:	DW	BUFF1		;buffer..
+BUF2:	DW	CPMBUF		;..addresses
+
+PPARAM:				;space for backup parameters
+	DB	0
+	DW	0
+	DW	0
+	DB	7
+	DW	0
+	DW	0
+
+PRMLEN	EQU	$-PPARAM
+
+SPARAM:			;temporary function save area
+SDRIVE:	DB	0
+STRACK:	DW	0
+SSECT:	DW	0
+SBLKSW:	DB	0
+SBLOCK:	DW	0
+SBLCKE:	DW	0
+
+TPARAM:	DS	PRMLEN		;temporary function save area
+
+CPARAM:
+CDRIVE:	DB	0		;current drive
+CTRACK:	DW	0		;current track
+CSECT:	DW	0		;current sector
+CBLKSW:	DB	7		;switch block marker
+CBLOCK:	DW	0		;current block
+CBLCKE:	DW	0		;current block extension
+
+UPARAM:			;upper limit value save area
+UDRIVE:	DB	0
+UTRACK:	DW	0
+USECT:	DW	0
+UBLKSW:	DB	0
+UBLOCK:	DW	0
+UBLCKE:	DW	0
+
+DPARAM:			;destination value save area
+DDRIVE:	DB	0
+DTRACK:	DW	0
+DSECT:	DW	0
+DBLKSW:	DB	0
+DBLOCK:	DW	0
+DBLCKE:	DW	0
+
+OPARAM:			;destination upper value
+ODRIVE:	DB	0
+OTRACK:	DW	-1		;force almost
+OSECT:	DW	-1		;..indefinate read or write
+OBLKSW:	DB	0
+OBLOCK:	DW	-1
+OBLCKE:	DW	-1
+
+EPARAM:
+;-------------------------------
+
+INIT:	LD	SP,STACK
+	LD	HL,(WBOOT+1)	;HL = addr CBIOS WBOOT
+	LD	L,06		;put CBOIS addresses into rest of prog
+	LD	BC,3		;length of JP instruction
+	LD	(CONST+1),HL
+	ADD	HL,BC
+	LD	(CONNIN+1),HL
+	ADD	HL,BC
+	LD	(CONOUT+1),HL
+	ADD	HL,BC
+	LD	(LISTP+1),HL
+	LD	L,18h
+	LD	(HOME+1),HL
+	ADD	HL,BC
+	LD	(SELDSK+1),HL
+	ADD	HL,BC
+	LD	(SETTRK+1),HL
+	ADD	HL,BC
+	LD	(SETSEC+1),HL
+	ADD	HL,BC
+	LD	(SETDMA+1),HL
+	ADD	HL,BC
+	LD	(READFF+1),HL
+	ADD	HL,BC
+	LD	(WRITF+1),HL
+	ADD	HL,BC
+	ADD	HL,BC
+	LD	(SCTRAN+1),HL
+
+	LD	HL,KBD		;put cursor controls into EDIT
+	LD	A,(HL)
+	LD	(EDIT12+1),A	;left cursor
+	INC	HL
+	LD	A,(HL)
+	LD	(EDIT17+1),A	;right cursor
+	INC	HL
+	LD	A,(HL)
+	LD	(EDIT18+1),A	;up cursor
+	INC	HL
+	LD	A,(HL)
+	LD	(EDIT16+1),A	;down cursor
+
+	INC	HL		;point to SIGNON
+	CALL	CPMSG
+	LD	A,(CDRIVE)
+	LD	C,A
+	CALL	CHK1		;get disk parameters
+	CALL	CONIN
+
+;HELP menu - print everything but ignore control bytes & jumps
+HELP:	CALL	CPRINT
+	DB	LF
+	DC	"Single letter commands available in DIAG"
+	LD	HL,MENUM
+	LD	B,CMDS+1	;number of avaible commands
+HELP1:	CALL	CPMSG		;print msg
+	LD	A,(HL)		;get control byte
+	AND	11111110b	;mask
+	OR	A		;test it
+	CALL	NZ,SUBMSG	;print sub-commands
+	INC	HL		;step over to next msg
+	INC	HL
+	INC	HL
+	DJNZ	HELP1
+
+;main command menu
+MENU:	LD	SP,STACK
+	LD	HL,COPYBK	;point ESC & ^C to COPYBK routine
+	LD	(ABORT+1),HL
+	LD	HL,MENU		;save return address
+	PUSH	HL
+	XOR	A
+	LD	(MENU7+1),A	;kill any outstanding repeat function
+	LD	(MENU9+1),A	;and CURUP calls
+	CALL	HOME		;for safety
+;CALL TEST
+MENU1:	CALL	CPRINT		;print promt
+	DC	"DIAG>>"
+MENU2:	CALL	CONIN		;get user response
+	CP	" "
+	JP	Z,HELP		;jump if space
+	CP	CR
+	JR	Z,MENU1		;go to new line
+
+	LD	HL,MENUM	;pointer to menu list
+	LD	B,CMDS		;no. of commands available
+MENU3:	CP	(HL)		;get first character
+	JR	Z,MENU4		;jump if compare
+	CALL	DMSG		;inc HL to end of msg
+	INC	HL		;skip past control byte
+	INC	HL		;.. & address
+	INC	HL
+	DJNZ	MENU3		;search for next
+	JR	MENU2		;failed, go back
+
+;command letter found - print command then call SCMD if necc. then jump
+MENU4:	LD	(MENU5+1),HL	;save msg pointer
+	CALL	SMSG		;print until space
+	CALL	DMSG		;inc HL to end of msg
+	CALL	PRINT
+	DC	">"
+	PUSH	HL		;save addr
+	LD	A,(HL)		;get control byte
+	LD	(SRPT1+1),A	;save for SRPT
+	CALL	SCMD		;get more Drv,Trk,Sec,Blk commands if necc.
+	POP	HL
+	PUSH	HL
+	CALL	SDEST		;check (& act) if destination required
+	POP	HL
+	LD	A,(SCMDX+1)	;get used control byte
+	CP	(HL)		;different?
+	CALL	NZ,CRLF		;yes, call CRLF
+	INC	HL		;point to address
+	CALL	GETADR		;get it
+	LD	(MENU6+1),HL	;save addr
+	JR	Z,MENU6		;not different, skip
+MENU5:	LD	HL,0		;command msg pointer here
+	CALL	SMSG		;print command
+	CALL	PRINT
+	DC	"-"
+MENU6:	LD	HL,0		;addr pointer stored here
+	CALL	CALADR		;call addr in HL
+
+MENU7:	LD	A,0		;repeated function indicator stored here
+	OR	A
+	RET	Z		;ret if not required
+	LD	A,(UBLKSW)	;get block switch marker
+	OR	A		;clear carry
+	JR	Z,MENUJJ
+	LD	DE,TPARAM	;copy..
+	CALL	COPYF1		;Cparam to Tparam..
+	CALL	COPYF2		;& Uparam to Cparam
+	CALL	KBLK		;translate Blk into Trk & Sec
+	CALL	SRPT2		;restore to original state
+MENUJJ:	LD	A,0		;drive whole marker stored here
+	OR	A
+	JR	Z,MENU8
+	LD	HL,(MAXTRK)
+	LD	(UTRACK),HL
+	XOR	A
+	LD	(MENUJJ+1),A
+
+MENU8:	CALL	INCSEC		;inc next sector
+	CALL	UCOMP		;compare Ctrk,Csec with Utrk,Usec
+	JR	Z,DECSEC	;ret & dec sector if limit passed
+	JR	C,DECSEC
+	CALL	SCAN		;scan for user interrupts
+MENU9:	LD	A,0		;optional CURUP char stored here
+	CALL	POUT
+	JR	MENU5		;do some more
+;-------------------------------
+SCAN:	EXX			;scan for any user interrupt
+CONST:	CALL	0		;CONST addr stored here
+	EXX
+	INC	A		;waiting char?
+	JR	NZ,SCAN1
+	CALL	HOME		;safety call
+	CALL	CONN		;yes, collect waiting char
+	CALL	CONN		;yes, wait for any i/p or ESC
+SCAN1:	JP	CRLF
+;-------------------------------
+;Decrement sector count
+DECSEC:	LD	HL,(CSECT)	;get current sector
+	DEC	HL
+	LD	(CSECT),HL
+	CALL	CHKSEC		;maximum reached?
+	RET	C		;no, ret
+	LD	HL,(CTRACK)	;get current track
+	DEC	HL
+	LD	(CTRACK),HL	;load current track
+	EX	DE,HL		;make max no. of sectors
+	DEC	HL
+	JR	INCS1		;save & ret
+;-------------------------------
+;Increment sector count
+INCSEC:	LD	HL,(CSECT)	;get current sector
+	INC	HL
+	LD	(CSECT),HL
+	CALL	CHKSEC		;maximum reached?
+	RET	C		;no, ret
+	LD	HL,(CTRACK)	;get current track
+	INC	HL
+	LD	(CTRACK),HL	;load current track
+	LD	HL,0		;make sector = 0
+INCS1:	LD	(CSECT),HL	;save
+	RET
+;-------------------------------
+JPADDR:	CALL	GETADR		;get address
+CALADR:	JP	(HL)		;jump to it
+;-------------------------------
+;examine control byte, call sub-commands upon request
+SCMD:	LD	(SCMDX+1),A
+	AND	11111110b	;mask for Drv,Trk,Sec,Blk
+	RET	Z
+	LD	C,A
+SCMD0:	LD	A,0		;last user character stored here
+	CP	CR
+	RET	Z
+	CP	"-"
+	JR	NZ,SCMD1
+	LD	A,"u"
+SCMD1:	LD	HL,SUBMM	;msg pointer
+	LD	B,NSUB		;no. of sub-commands
+SCMD2:	RLC	C
+	JR	NC,SCMD3
+	CP	(HL)		;same as first char?
+	CALL	Z,SMSG		;yes, print
+SCMD3:	CALL	DMSG		;lose rest of msg
+	JR	Z,SCMDX		;jump if match
+	INC	HL
+	INC	HL
+	DJNZ	SCMD2		;loop round for more
+	CALL	CONIN		;get user response
+SCMDX:	LD	A,0		;save control byte here
+	LD	C,2		;no. of spaces
+	CALL	Z,JPADDR	;call sub-command
+	JR	SCMD
+;-------------------------------
+;get repeated function parameters
+SRPT:	LD	(MENU7+1),A	;flag repeated function in MENU
+	LD	DE,TPARAM	;copy Cparam to Tparam
+	CALL	COPYF1		;do it
+SRPT1:	LD	A,0		;copy of control byte here
+	AND	01110000b
+	CALL	SCMD		;get upper limit track & sector values
+SRPT2:	LD	HL,UPARAM-1	;point to Uparam
+	LD	DE,DPARAM-1	;restore original values
+SRPT4:	LD	BC,2*PRMLEN	;2x
+	LDDR
+	RET
+
+SRPT5:	LD	HL,DPARAM-1
+	JR	SRPT4
+;-------------------------------
+;check if destination required, if so then get parameters
+SDEST:	LD	A,(SRPT1+1)	;get control byte
+	BIT	2,A		;destination required
+	RET	Z		;no, ret
+	AND	11110100b	;mask for Drv,Trk,Sec,Blk
+	PUSH	AF
+	LD	A,(SCMDX+1)	;get used command byte
+	CP	(HL)		;any change?
+	LD	C,15
+	CALL	NZ,CSPINC	;yes, print CRLF and 15 spaces
+	LD	A,"t"		;print "to" msg
+	LD	(SCMD0+1),A	;..& dispose of any remaining CR
+	CALL	CPYWY		;shift Dparam over the Cparam slot
+	LD	HL,SPARAM	;copy original current values for safety
+	LD	DE,CPARAM
+	CALL	COPYF2
+	POP	AF
+	CALL	SCMD		;get destination track & sector values
+SDESTE:	LD	DE,EPARAM-1	;save destination values
+	CALL	SRPT5
+	JR	SRPT4		;put back original parameters & ret
+;-------------------------------
+;get drive number
+SDRV:	AND	01111111b	;lose next Drv command
+	PUSH	AF
+	CALL	CONIN
+	PUSH	AF
+	SUB	"A"		;check if range A-P
+	JR	C,SDRV1
+	OR	10000000b	;nobble last char
+	LD	(SCMD0+1),A
+	AND	01111111b
+	CP	"P"-"A"+1
+	JR	C,SDRV2		;OK, skip
+SDRV1:	LD	A,(CDRIVE)
+SDRV2:	LD	(CDRIVE),A
+	ADD	A,"A"
+	CALL	POUT
+	POP	AF
+	CP	"W"		;Whole command?
+	JR	NZ,SDRV3	;no, skip
+	LD	(SCMD0+1),A	;put "W" in for WHOLE routine
+SDRV3:	CALL	NZ,CONIN	;get next char (Whole or SCMD)
+	CALL	WHOLE		;was it Whole?
+	JR	NZ,SRETW	;no, jump & ret
+	LD	(MENUJJ+1),A	;force MENU to put in last track after CHECK
+	XOR	A
+	LD	(CBLKSW),A	;ensure no block translation
+	LD	HL,0		;zeroise track count
+	LD	(CTRACK),HL
+	LD	HL,(MAXTRK)
+	JR	STRK1		;continue with sector
+;-------------------------------
+;get Track no. & put into CTRACK
+STRK:	AND	10101101b	;lose next Trk & Blk commands
+	PUSH	AF
+	LD	HL,(CTRACK)
+	CALL	GETDEC
+	LD	(CTRACK),HL
+	XOR	A
+	LD	(CBLKSW),A	;ensure no block translation
+	CALL	WHOLE		;was there a Whole command?
+	JR	NZ,SRETW	;no, jump & ret
+	LD	HL,(CTRACK)
+	INC	HL
+STRK1:	LD	(UTRACK),HL	;make Utrk = Ctrk+1
+	POP	AF
+	LD	HL,0		;zeroise sector count
+	LD	(CSECT),HL
+	LD	(USECT),HL
+	XOR	A		;no more commands
+	LD	(UBLKSW),A	;force Track interpretation
+	RET
+;-------------------------------
+WHOLE:	CALL	SPINC
+	LD	A,(SCMDX+1)
+	AND	00000010b
+	XOR	00000010b
+	RET	NZ
+	LD	A,(SCMD0+1)
+	CP	"W"		;was last char "W"?
+	RET	NZ
+	PUSH	AF
+	LD	(MENU7+1),A	;make it a repeated function
+	CALL	PRINT
+	DC	"Whole"
+SRETW:	POP	AF
+	RET
+;-------------------------------
+;get Block no. & block offset
+SBLK:	AND	10001101b
+	PUSH	AF
+	PUSH	BC
+	LD	B,4		;no. of i/p chars
+	XOR	A		;clear SBLK3
+	LD	HL,SBLK3+2
+	LD	(HL),A
+	DEC	HL
+	LD	(HL),A
+SBLK1:	CALL	GETHEX		;get hex i/p
+	JR	C,SBLK2		;jump if non-hex
+	RLD			;put into CBLOCK
+	INC	HL
+	RLD
+	DEC	HL
+	DJNZ	SBLK1
+SBLK2:	LD	A,4		;test if any hex i/p
+	CP	B
+SBLK3:	LD	HL,0		;hex i/p stored here
+	JR	Z,SBLK4		;skip if no hex i/p
+	LD	(CBLOCK),HL
+SBLK4:	LD	HL,(CBLOCK)
+	CALL	Z,B4HEX		;print BLK no. if no meaningful i/p
+	LD	A,":"
+	CALL	POUT
+	LD	A,(SCMD0+1)	;get last char
+	CP	CR
+	JR	Z,SBLK5
+	CP	" "
+	JR	Z,SBLK5
+	CP	"W"
+	JR	Z,SBLK5
+	LD	HL,(CBLCKE)	;get previous extension value
+	CALL	GETDEC		;get new value
+	JR	SBLK6
+
+SBLK5:	LD	A,"0"
+	CALL	POUT
+	CALL	POUT
+	LD	HL,0
+SBLK6:	LD	(CBLCKE),HL
+	LD	(CBLKSW),A
+	POP	BC		;get space value
+	CALL	WHOLE		;check for Whole command
+	JR	NZ,SRETW	;no, jump & ret
+	LD	(UBLKSW),A	;force examinatoin of Blk cmnd
+	POP	AF
+	LD	HL,(CBLOCK)
+	INC	HL
+	LD	(UBLOCK),HL	;put CBLOCK+1 in UBLOCK
+	LD	HL,0
+	LD	(UBLCKE),HL	;put in block boundary
+	XOR	A		;no more commands
+	RET
+;-------------------------------
+;get Sector no. & put into CSECT
+SSEC:	PUSH	AF
+	LD	HL,(CSECT)
+	CALL	GETDEC
+	LD	(CSECT),HL
+	XOR	A
+	LD	(CBLKSW),A	;ensure no block translation
+	POP	AF
+	AND	11001101b	;lose next Sec & Blk commands
+	JP	SPINC
+;-------------------------------
+;put Block no. & block offset into CTRACK & CSECT
+KBLK:	LD	A,(CBLKSW)
+	OR	A
+	RET	Z
+	LD	HL,(SYSTRK)
+	LD	(CTRACK),HL
+	LD	HL,(CBLCKE)	;start with Block extension sectors
+	LD	(CSECT),HL
+	LD	BC,(CBLOCK)
+	JR	KBLK2
+KBLK1:	LD	DE,(BLKSIZ)
+	INC	DE		;DE= no. of sectors/block
+	CALL	ADDSEC
+	DEC	BC
+KBLK2:	LD	A,B
+	OR	C
+	JR	NZ,KBLK1
+	XOR	A
+	LD	(CBLKSW),A	;force Trk interpretation
+	RET
+;-------------------------------
+;control byte definitions for SUBCMD
+;	X000 0000	- Drive
+;	0X00 0000	- Track
+;	00X0 0000	- Sector
+;	000X 0000	- Block
+;	0000 X000	- marker to allow repeated function
+;	0000 0X00	- marker to allow repeated function inc DRV
+;	0000 00X0	- marker to allow "Whole" command
+;	0000 000X	- no list device allowed
+MENUM:	
+	DB	"Help or",CR,LF
+	DC	"(space)   - prints this menu"
+	DB	0
+	DW	HELP
+
+	DC	"Display   - display current buffer"
+	DB	0
+	DW	DISPLY
+
+	DC	"Alternate - switch to alternate buffer"
+	DB	0
+	DW	ALT
+
+	DC	"Edit      - edit current buffer (hex or ,ascii)"
+	DB	0
+	DW	EDIT
+
+	DC	"Fill      - fill current buffer (hex or ,ascii)"
+	DB	0
+	DW	FILL
+
+READM:	DC	"Read      -"
+	DB	11111010b
+	DW	READ
+
+	DC	"Next      - read next sector"
+	DB	0
+	DW	NEXT
+
+	DC	"Back      - read previous sector"
+	DB	0
+	DW	BACK
+
+WRITEM:	DC	"Write     -"
+	DB	11111010b
+	DW	WRITE
+
+	DC	"Copy      -"
+	DB	11111110b
+	DW	COPY
+
+	DC	"Verify    -"
+	DB	11111010b
+	DW	VERIFY
+
+	DC	"List      - list directory block usage"
+	DB	10000000b
+	DW	LIST
+
+	DC	"Translate - displays sector translation table"
+	DB	10000000b
+	DW	TRANS
+
+	DC	"Quit      - exit to CP/M"
+	DB	0
+	DW	0
+
+CMDS	EQU	14		;no. of commands available
+
+	DB	"(HELP Key) - exit to CP/M at any time",CR,LF
+	DB	"(Esc)      - return to Command mode at any time",CR,LF,LF
+	DB	"notation   - d= decimal, h= hex",CR,LF
+	DB	"Whole      - is available under Drv, Trk & Blk",LLF
+	DB	0
+;-------------------------------
+;bit pattern in A organised as follows:-
+;	X000 0000	Drive
+;	0X00 0000	Track
+;	00X0 0000	Sector
+;	000X 0000	Block
+;	0000 X000	Repeated functions
+;	0000 0X00	Repeated functions including drive
+SUBMSG:
+	PUSH	HL		;save MENU msg pointer
+	PUSH	BC
+	LD	B,NSUB		;no. of messages
+	LD	HL,SUBMM
+SUBM1:	RLCA			;rotate to carry
+	CALL	C,PMSG		;print if bit set
+	CALL	NC,DMSG		;else send to dummy print routine
+	INC	HL		;inc past address
+	INC	HL
+	DJNZ	SUBM1
+	POP	BC
+	POP	HL
+SRET:	AND	11110000b	;mask for SDEST only
+	RET
+
+SUBMM:
+DRVM:	DC	"Drive A-P"
+	DW	SDRV
+TRKM:	DC	"Track d"
+	DW	STRK
+SECM:	DC	"Sector d"
+	DW	SSEC
+BLKM:	DC	"Block h:d"
+	DW	SBLK
+UNTLM:	DC	"until Trk Sec Blk"
+	DW	SRPT
+TOMSG:	DC	"to DvTkScBk"
+	DW	SRET
+NSUB	EQU	6		;no. of commands
+;-------------------------------
+LIST:	CALL	CRLF
+
+
+	RET
+;-------------------------------
+TRANS:	CALL	CHK		;get parameters
+	CALL	PRINT
+	DC	"decimal sectors"
+	LD	BC,10*256+10	;0-9, 10 spaces
+	CALL	CRLLF
+	CALL	SPINC
+TRANS1:	LD	C,4		;spaces
+	CALL	SPINC
+	LD	A,10
+	SUB	B
+	CALL	B2HEX		;print 0 - 9
+	DJNZ	TRANS1
+	CALL	CRLF
+	LD	HL,0
+
+TRANS2:	LD	BC,10*256+3	;0-9, 3 spaces
+	CALL	CSPINC
+	LD	A," "
+	CALL	B2DEC1
+	LD	C,1		;1 space
+	CALL	PRINT
+	DC	":"
+TRANS3:	CALL	SPINC
+	PUSH	HL		;CP/M sector no.
+	PUSH	BC
+	CALL	CXLT0		;translate
+	CALL	B2DEC2		;print translation
+	POP	BC
+	POP	DE		;get sect no.
+	INC	DE
+	LD	HL,(MAXSEC+1)	;sector maximum
+	SCF
+	SBC	HL,DE		;limit reached?
+	JP	C,CRLF		;yes, finished
+	EX	DE,HL		;back to HL
+	DJNZ	TRANS3		;do some more
+	JR	TRANS2		;go start another 10
+;-------------------------------
+VERIFY:	LD	A,(CURUP)
+	LD	(MENU9+1),A	;do automatic CURUP in SCAN
+	CALL	CHECK1		;get & display disk parameters
+	LD	HL,(CSECT)
+	JP	READF		;high speed read
+;-------------------------------
+;Read previous sector
+BACK:	CALL	DECSEC
+	JR	READ
+;-------------------------------
+;Read Next sector
+NEXT:	CALL	INCSEC
+;-------------------------------
+; Read <block> or <track,sector>
+READ:	CALL	CHECK
+	CALL	FORCE		;force BIOS to read every sector every time
+	JR	DSPLY0
+;-------------------------------
+;part of ^C & ESC routine, invokes EDITF in edit mode
+CONED:	CALL	EDITF
+	CALL	CRLF
+;-------------------------------
+;switch to alternate buffer
+ALT:	LD	HL,(BUF1)
+	EX	DE,HL
+	LD	HL,(BUF2)
+	LD	(BUF1),HL
+	EX	DE,HL
+	LD	(BUF2),HL
+;-------------------------------
+DISPLY:	CALL	CHECK
+DSPLY0:	CALL	CRLF
+	LD	BC,16*100h+8	;write 0-F for HEX heading & 8 spaces
+	CALL	CSPINC		;CRLF followed by C spaces
+	XOR	A
+DSPLY1:	LD	C,2
+	CALL	SPINC		;2 spaces
+	CALL	B1HEX		;print 0-9,A-F
+	INC	A
+	DJNZ	DSPLY1
+	CALL	SPINC
+
+	LD	B,16		;write 0-F for ASCII heading
+	XOR	A
+DSPLY2:	CALL	B1HEX
+	INC	A
+	DJNZ	DSPLY2
+	CALL	CRLLF
+
+;display buffer
+	LD	HL,(BUF1)
+	LD	BC,8*100h+5	;B= 8 rows, C= 5 spaces
+	LD	E,"0"		;row address character
+DSPLY3:	CALL	SPINC
+	LD	A,E		;char to A
+	CALL	POUT		;print it
+	CALL	DISPHL		;print row of HEX & ASCII
+	INC	E		;next char
+	DJNZ	DSPLY3
+	RET
+;-------------------------------
+; display 16 characters in HEX & ASCII starting at addr in HL
+DISPHL:	PUSH	BC
+	LD	C,2		;2 spaces
+	CALL	SPINC
+	LD	B,16		;B= 16 values
+	PUSH	BC
+	DEC	C		;1 space
+	PUSH	HL
+DSPHL1:	LD	A,(HL)		;get value
+	CALL	SPINC		;print 1 space
+	CALL	B2HEX		;print hex display
+	INC	HL
+	DJNZ	DSPHL1
+	POP	HL
+	POP	BC
+	CALL	SPINC		;2 spaces
+DSPHL2:	LD	A,(HL)		;get value again
+	CALL	PASC		;print ASCII only
+	INC	HL
+	DJNZ	DSPHL2
+	POP	BC
+	JP	CRLF
+;-------------------------------
+; force BIOS to do a sector read away from current sector,
+; & hence complete a pysical read or write
+FORCE:	LD	HL,(MAXSEC+1)
+	DEC	HL
+	SRL	H		;divide by 2
+	RR	L
+	EX	DE,HL
+	LD	HL,(CSECT)	;get current sector
+	LD	A,(FRC)		;get FRC byte
+	OR	A
+	JR	Z,READF		;jump if special forcing not required
+	PUSH	HL		;save
+	SBC	HL,DE		;take away half total sectors
+	JR	NC,FORCE1	;jump if still +ve
+	ADC	HL,DE		;add total sectors
+	ADC	HL,DE
+FORCE1:	CALL	READF		;do a read
+	POP	HL		;now read desired sector
+
+; read a sector via sector translation table
+READF:	PUSH	HL
+	CALL	CXLT0		;translate if neccessary
+READFF:	CALL	0		;read sector
+	POP	HL
+ERRCHK:	OR	A
+	RET	Z
+	PUSH	HL
+	CALL	PRINT
+	DC	"*** Read Error - Sector"
+	POP	HL
+	JP	B2DEC
+;-------------------------------
+; write a sector via sector translation table
+WRITEF:	LD	BC,(BUF1)	;write from first buffer
+	CALL	SETDMA
+	LD	HL,(CSECT)
+	CALL	CXLT0		;set sector via sector trans table
+	LD	C,1		;normal sector write
+WRITF:	CALL	0		;write sector
+	JR	ERRCHK		;check for errors
+;-------------------------------
+WRITE:	CALL	CHECK
+	LD	BC,(BUF2)	;read sector into alternate buffer
+	CALL	SETDMA
+	LD	HL,(CSECT)
+	CALL	CXLT0		;set sector via translation table
+	CALL	READF
+	CALL	WRITEF		;write sector
+	JP	FORCE
+;-------------------------------
+EDIT:	LD	HL,CONED	;addr for ESC & ^C handling
+	LD	(ABORT+1),HL	;modify ESC & ^C to call EDITF
+	CALL	DISPLY		;display buffer
+	LD	HL,(BUF1)	;copy data buffer
+	LD	DE,(BUF2)	;to alternate buffer
+	LD	BC,128
+	LDIR
+EDIT0:	LD	A,(CURUP)	;bring cursor over first character
+	LD	B,8
+	CALL	CURS1
+	LD	HL,(BUF1)	;first location
+
+EDIT1:	CALL	WEDIT		;get position in line in C
+	LD	A,CR
+	CALL	POUT
+	LD	A,C		;multiply by 3
+	ADD	A,A
+	ADD	A,C
+	ADD	A,9		;add 9
+	LD	B,A
+	CALL	CURS		;bring cursor to right place
+
+;get value & put in buffer
+	CALL	GETHEX		;get single hex digit in A (no carry if OK)
+	JR	C,EDIT10	;not hex, jump 
+	RLCA
+	RLCA			;rotate to upper nibble
+	RLCA
+	RLCA
+	LD	B,A		;save in B
+EDIT3:	CALL	GETHEX		;get other lo nibble
+	JR	C,EDIT3
+	ADD	A,B		;add together
+	LD	(HL),A
+
+; update ASCII representation
+EDIT4:	LD	A,C		;position in line
+	SUB	17
+	CPL
+	ADD	A,A
+	ADD	A,15
+	LD	B,A		;shift cursor to ASCII position
+	CALL	CURS
+	LD	A,(HL)
+	CALL	PASC		;print ASCII only
+
+; check if last position in line, if so goto next line
+EDIT5:	LD	A,C		;get position in line
+	CP	15		;last position?
+	JR	NZ,EDIT7
+EDIT6:	CALL	CRLF
+EDIT7:	INC	HL		;inc buffer pointer
+
+; check if still in buffer space
+EDIT8:	CALL	WEDIT		;get new positions
+	JR	NC,EDIT9	;jump if not past beginning
+	INC	HL		;inc buffer pointer
+	INC	DE
+	CALL	CRLF
+EDIT9:	EX	DE,HL		;HL= distance into buffer
+	LD	BC,128
+	SBC	HL,BC		;past end?
+	EX	DE,HL
+	JR	C,EDIT1		;no, jump
+	JR	EDIT0		;yes, start at beginning
+;-------------------------------
+;entry other than hex
+EDIT10:	CP	","		;ascii entry?
+	JR	NZ,EDIT12	;no, jump
+	CALL	POUT
+EDIT11:	CALL	CONN		;get full range ASCII i/p
+	AND	7Fh		;remove top bit
+	CP	" "-1		;cntrl char?
+	JR	C,EDIT11	;yes, do again
+	CP	7Fh		;DEL?
+	JR	Z,EDIT11	;yes, do again
+	LD	(HL),A		;put in buffer
+	CALL	POUT		;print it
+	JR	EDIT4		;print in ASCII representation
+;---------------
+EDIT12:	CP	0		;left cursor: then cursor back
+	JR	Z,EDIT13
+	CP	BS		;backspace: then cursor back
+	JR	NZ,EDIT16	;no, continue
+;do backspace
+EDIT13:	LD	A,C		;get position in line
+	OR	A		;first position?
+	JR	NZ,EDIT15	;no then skip
+EDIT14:	LD	A,(CURUP)	;go up a line
+	CALL	POUT
+EDIT15:	DEC	HL
+	JR	EDIT8
+;---------------
+EDIT16:	CP	0		;down cursor
+	JR	NZ,EDIT17	;no, continue
+	LD	DE,16
+	ADD	HL,DE		;add one line
+	CALL	WEDIT		;in range?
+	EX	DE,HL
+	LD	BC,128
+	SBC	HL,BC		;test for end
+	EX	DE,HL		;restore HL
+	DEC	HL		;adjust for space
+	JR	C,EDIT6		;in range, jump
+	LD	DE,15		;put back as it was
+	SBC	HL,DE
+;---------------
+EDIT17:	CP	0		;right cursor
+	JR	Z,EDIT5
+	CP	" "		;space: then cursor forward
+	JR	Z,EDIT5
+;---------------
+EDIT18:	CP	0		;up cursor
+	JR	NZ,EDIT19	;no, continue
+	LD	DE,16
+	SBC	HL,DE		;subract one line
+	CALL	WEDIT		;in range?
+	INC	HL		;adjust for backspace
+	JR	NC,EDIT14	;in range, jump
+	LD	DE,15		;put back as it was
+	ADD	HL,DE
+;---------------
+EDIT19:	CP	CR		;CR: then finish
+	JP	NZ,EDIT1	;nothing valid, go back
+
+;finish with edit - put cursor back underneath display
+EDITF:	CALL	WEDIT
+	LD	A,E
+	AND	11110000b
+	SRL	A
+	SRL	A
+	SRL	A
+	SRL	A
+	CPL
+	ADD	A,9
+	LD	B,A
+EDITF1:	CALL	CRLF
+	DJNZ	EDITF1
+	RET
+;-------------------------------
+; get position in buffer in DE, & position in line in C
+WEDIT:	PUSH	HL		;current buffer addr
+	OR	A		;clear carry
+	EX	DE,HL
+	LD	HL,(BUF1)	;get buffer start addr
+	EX	DE,HL
+	SBC	HL,DE
+	EX	DE,HL		;DE= position in buffer
+	PUSH	AF		;save flags
+	LD	A,E
+	AND	00001111b
+	LD	C,A		;C= position in line
+	POP	AF
+	POP	HL
+	RET
+;-------------------------------
+CURS:	LD	A,(CURRT)
+CURS1:	CALL	POUT
+	DJNZ	CURS1
+	RET
+;-------------------------------
+FILL:	CALL	GETHEX		;get single hex digit in A (no carry if OK)
+	JR	C,FILL2		;not hex, jump 
+	RLCA
+	RLCA			;rotate to upper nibble
+	RLCA
+	RLCA
+	LD	B,A		;save in B
+FILL1:	CALL	GETHEX		;get other lo nibble
+	JR	C,FILL1
+	ADD	A,B		;add together
+	JR	FILL4
+
+;entry other than hex
+FILL2:	CP	","		;ascii entry?
+	JR	NZ,FILL 	;no, jump
+	CALL	POUT
+FILL3:	CALL	CONN		;get full range ASCII i/p
+	AND	7Fh		;remove top bit
+	CP	" "-1		;cntrl char?
+	JR	C,FILL3		;yes, do again
+	CP	7Fh		;DEL?
+	JR	Z,FILL3		;yes, do again
+	CALL	POUT		;print it
+
+FILL4:	LD	HL,(BUF2)
+	LD	(HL),A
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	BC,127
+	LDIR
+	CALL	CRLLF
+	JP	ALT
+;-------------------------------
+
+SOD:	PUSH	HL
+	PUSH	BC
+	PUSH	AF
+	CALL	PRINT
+	DC	" SOD "
+	POP	AF
+	POP	BC
+	POP	HL
+	RET
+
+
+;Copy from CDRIVE, CTRACK, CSECT until UTRACK, USECT
+;	to DDRIVE, DTRACK, DSECT
+COPY:	LD	HL,(BUF1)	;save buffer pointer
+	LD	(BUF3),HL
+	CALL	CHECK		;display options
+	LD	DE,SPARAM	;save Cparam
+	CALL	COPYF1
+	LD	HL,COPYE
+	LD	(ABORT+1),HL	;direct ESC & ^C routine to COPYE
+	LD	A,(MENU7+1)	;examine repeat function indicator
+	OR	A
+	JR	Z,COPY1A	;jump if none
+	LD	HL,UPARAM	;copy Uparam to Cparam
+	CALL	COPYE1		;do it
+	CALL	KBLK		;now that CHECK is done- translate block
+	CALL	DECSEC		;adjust to show last physical sector
+	OR	A		;clear carry
+	LD	HL,(CSECT)	;get upper sector limit
+	LD	(COPY9+1),HL
+	LD	DE,(SSECT)	;get current sector
+	SBC	HL,DE		;+ve?
+	LD	BC,(MAXSEC+1)
+	LD	(COPY16+1),BC	;save max no. sectors per track
+	LD	DE,(CTRACK)	;load upper track limit
+	LD	(COPY8+1),DE
+	JR	NC,COPY1	;jump if +ve
+	ADD	HL,BC		;add maxsec sectors
+	DEC	DE		;minus 1 track
+COPY1:	LD	(COPY13+1),HL	;save sector difference
+	PUSH	HL
+	POP	BC		;save also in BC
+	OR	A		;clear carry
+	LD	HL,(STRACK)	;get current track
+	EX	DE,HL
+	SBC	HL,DE		;legal?
+	LD	(COPY14+1),HL	;save track difference
+	JR	C,COPY2		;no, skip "until" section
+	ADC	HL,BC		;Trk+Sec=0?
+	JR	NZ,COPY2	;no, do it
+COPY1A:	SCF
+COPY2:	PUSH	AF
+	JR	C,COPY4		;skip if carry set
+	CALL	CPRINT
+COPY3:	DC	"  last"
+	CALL	CHECK
+COPY4:	CALL	CRLLF
+	LD	C,4		;4 spaces
+	CALL	SPINC
+	LD	HL,TOMSG	;"to" msg
+	CALL	SMSG
+	LD	HL,DPARAM	;copy Dparam to Cparam
+	CALL	COPYE1
+	CALL	CHECK
+	POP	AF		;get those flags again
+	JP	C,COPY17	;skip next bit
+	LD	A,(SDRIVE)	;get current drive
+	LD	HL,UDRIVE	;get dest drive
+	CP	(HL)		;same drive?
+	JP	NZ,COPY12	;no, go straight to routine
+
+;check that there is enough buffer to absorb the entire read
+	OR	A
+	LD	HL,(WBOOT+1)
+	LD	L,0
+	LD	DE,BUFF2
+	SBC	HL,DE		;HL= available buffer space
+	LD	BC,128
+	LD	DE,-1		;allow for buffer
+COPY5:	SBC	HL,BC
+	INC	DE		;sector count
+	JR	NC,COPY5
+	LD	HL,(COPY13+1)	;sector difference
+	EX	DE,HL		;HL= buffer space in sectors
+	LD	(COPY10+1),HL
+	OR	A	
+	SBC	HL,DE		;+ve? (buffer space - difference
+	JR	C,COPY7		;no, don't bother checking track
+	LD	DE,(COPY16+1)	;sectors per track
+	LD	BC,(COPY14+1)	;track difference
+COPY6:	LD	A,B
+	OR	C		;track difference exhausted?
+	JR	Z,COPY12	;yes, buffer > difference, Ok to continue
+	DEC	BC
+	SBC	HL,DE
+	JR	NC,COPY6	;loop if more to go
+
+;buffer is insufficient, check whether dest is outside source area
+COPY7:	LD	DE,(STRACK)
+	LD	HL,(SSECT)
+	CALL	COMP		;compare
+	JR	NC,COPY12	;dest < source, continue
+COPY8:	LD	DE,0		;Utrack stored here
+COPY9:	LD	HL,0		;Usect stored here
+	CALL	COMP
+	JR	C,COPY12	;dest > source upper limit, continue
+	CALL	CRLF
+	CALL	CPRINT
+	DC	"*** Source sector(s) would be overwritten (buffer holds"
+COPY10:	LD	HL,0		;buffer length stored here
+	CALL	B2DEC
+	CALL	PRINT
+	DC	" Sectors)"
+COPY11:	CALL	COPYE
+	JP	MENU
+;---------------
+COPY12:	LD	HL,COPY3	;"last" msg again
+	CALL	CPMSG
+	LD	HL,CPARAM
+	CALL	COPYE1
+COPY13:	LD	DE,0		;sector difference stored here
+COPY14:	LD	BC,0		;track difference stored here
+COPY15:	CALL	ADDSEC		;add DE sectors & adjust
+COPY16:	LD	DE,0		;previous maxsec value
+	LD	A,B
+	OR	C
+	DEC	BC		;lose a track
+	JR	NZ,COPY15	
+	CALL	CHECK
+
+COPY17:	LD	HL,SPARAM	;put back current parameters
+	CALL	COPYE1
+	CALL	CRLF
+	CALL	CONIN		;scan for ESC & ^C
+	CP	"N"
+	JR	Z,COPY11
+	LD	A,(CURUP)
+	LD	(MENU9+1),A	;do automatic CURUP in SCAN
+	LD	HL,COPYRD	;ensure that COPYW routine jumps..
+	LD	(COPYW2+1),HL	;..back to COPYRD
+	LD	HL,CPYWX	;addr COPY end
+	EX	(SP),HL		;exchange ret addr & COPYE
+	PUSH	HL		;restore ret addr
+
+;Read section - adjust MENU to show Read command & jump to COPYR
+COPYRD:	LD	HL,BUFF2	;put new pointer in
+	LD	(BUF1),HL
+	LD	HL,READM	;put Read msg in MENU routine
+	LD	(MENU5+1),HL
+	LD	HL,COPYR
+	LD	(MENU6+1),HL	;direct menu to jump to COPYR
+	CALL	HOME		;for safety
+	CALL	CRLF
+	POP	HL		;lose return
+	JP	MENU5
+;---------------
+COPYR:	CALL	CHECK1		;get & display disk parameters
+	LD	HL,(CSECT)
+	CALL	READF		;high speed read
+;check buffer overflow
+	OR	A		;clear carry
+	LD	HL,(BUF1)	;get current DMA addr
+	LD	BC,128		;buffer length
+	ADD	HL,BC		;add
+	LD	(BUF1),HL	;save next buffer start addr
+	LD	(COPYW1+1),HL	;save hi ram
+	EX	DE,HL		;DE = next addr
+	LD	HL,(WBOOT+1)	;get RAMTOP
+	LD	L,0		;..to the nearest Kbytes
+	SBC	HL,BC		;new RAM limit
+	SBC	HL,DE		;subtract ram used so far
+	RET	NC		;get some more if ram available
+
+;Write section - adjust MENU to show Write command & jump to COPYW
+COPYWR:	CALL	CRLF
+	LD	HL,WRITEM	;put Write msg in MENU routine
+	LD	(MENU5+1),HL
+	LD	HL,COPYW
+	LD	(MENU6+1),HL	;direct menu to jump to COPYW
+	LD	HL,BUFF2	;start again at ram base
+	LD	(BUF1),HL
+	CALL	HOME		;for safety
+	CALL	CPYWY		;copy dest params into current params slot
+	POP	HL		;lose return
+	JP	MENU5
+;---------------
+COPYW:	CALL	CHECK1
+	LD	HL,(CSECT)
+	CALL	WRITEF
+;check buffer overflow
+	OR	A		;clear carry
+	LD	HL,(BUF1)	;get current DMA addr
+	LD	BC,128		;buffer length
+	ADD	HL,BC		;add
+	LD	(BUF1),HL	;save
+	ADD	HL,BC
+	EX	DE,HL		;DE = next addr
+COPYW1:	LD	HL,0		;hi ram saved here
+	SBC	HL,DE		;subtract ram used so far
+	RET	NC		;not exhausted, get some more
+	CALL	SDESTE		;copy back Cparams
+COPYW2:	JP	COPYRD		;do another read
+;---------------
+CPYWX:	LD	HL,CPYWGG	;point to CPYWGG
+	LD	(COPYW2+1),HL	;make COPYW routine jump there when finished
+	CALL	COPYWR		;this is a sort of call!
+
+CPYWGG:	CALL	COPYFD		;save Cparam into Pparam
+COPYE0:	LD	HL,(BUF3)
+	LD	(BUF1),HL
+	EX	DE,HL
+	LD	HL,(COPYW1+1)
+	LD	BC,128
+	OR	A
+	SBC	HL,BC
+	LDIR			;read into current buffer
+	JP	CRLF
+;---------------
+COPYE:	CALL	COPYE0
+	LD	HL,SPARAM	;put back current parameters
+COPYE1:	LD	DE,CPARAM
+	JP	COPYF2
+;---------------
+CPYWY:	LD	DE,SPARAM	;put dest values into current
+	LD	HL,CPARAM
+	LD	BC,4*PRMLEN
+	LDIR
+	RET
+;---------------
+BUF3:	DW	0
+;****************************************
+; check validity of track, sector
+CHK:	LD	BC,(BUF1)
+	CALL	SETDMA		;call	SETDMA
+	LD	HL,DRVM
+	CALL	SMSG
+	LD	A,(CDRIVE)	;get current drive
+	LD	C,A		;save for SELDSK
+	ADD	A,"A"
+	CALL	POUT
+	CALL	PRINT
+	DC	" "
+CHK1:
+SELDSK:	CALL	0		;call SELDSK in BIOS
+	LD	A,H		;HL= addr Disk Parameter Header
+	OR	L		;..if drive exists
+	JP	Z,CHKERR	;jump if drive doesn't exist
+	CALL	GETADR
+	LD	(CXLT+1),HL	;save addr of translation table
+	EX	DE,HL
+	LD	DE,6
+	ADD	HL,DE		;HL= pointer to addr of DIRBUF
+	CALL	GETADR
+	LD	(DIRBUF),HL	;save
+	EX	DE,HL
+	CALL	GETADR		;get addr of disc parameter block
+	CALL	GETADR		;get SPT
+	LD	(MAXSEC+1),HL	;HL= max no of sectors per track
+	EX	DE,HL
+	INC	HL
+	LD	A,(HL)		;BLM (blocksize*128
+	LD	(BLKSIZ),A	;Blocksize = BLKSIZ * 128
+	LD	B,A
+	INC	HL
+	INC	HL
+	CALL	GETADR		;HL= value of DSM
+	PUSH	DE		;save next addr
+	LD	D,H
+	LD	E,L		;DE=HL= DSM (data storage max in blocks)
+CHK2:	ADD	HL,DE		;multiply DSM by BLKSIZ
+	DJNZ	CHK2
+	LD	BC,0
+MAXSEC:	LD	DE,0		;max no of 128 byte sectors per track
+	INC	BC
+	SBC	HL,DE		;devide DSM*BLKSIZ by MAXSEC
+	JR	NC,MAXSEC
+	POP	HL		;get next addr
+	LD	DE,6
+	ADD	HL,DE		;HL= addr OFF (no of sys tracks)
+	CALL	GETADR
+	LD	(SYSTRK),HL	;save no of system tracks
+	ADD	HL,BC		;HL= max no of tracks
+	LD	(MAXTRK),HL	;save
+	RET
+;-------------------------------
+HOME:	JP	0		;addr HOME stored here
+;-------------------------------
+CHECK:	CALL	HOME
+CHECK1:	CALL	CHK
+	CALL	KBLK
+	LD	HL,TRKM
+	CALL	SMSG
+	LD	HL,(CTRACK)	;current track
+	PUSH	HL		;save
+	CALL	B2DEC		;print decimal
+	LD	DE,(MAXTRK)
+	OR	A		;clear carry
+	SBC	HL,DE		;in range?
+	POP	BC		;current track
+	JP	NC,CHKERR	;no, jump
+SETTRK:	CALL	0		;call SETTRK
+	CALL	PRINT
+	DC	" "		;2 spaces
+	LD	HL,SECM
+	CALL	SMSG
+	LD	HL,(CSECT)	;current sector
+	CALL	B2DEC		;print decimal
+	CALL	CHKSEC		;check sector in range
+	JP	NC,CHKERR
+	CALL	PRINT
+	DC	" "		;2 spaces
+	LD	HL,BLKM
+	CALL	SMSG
+	LD	HL,(SYSTRK)
+	EX	DE,HL
+	LD	HL,(CTRACK)
+	OR	A		;clear carry
+	SBC	HL,DE
+	LD	(CPMTRK+1),HL	;no. of CP/M tracks
+	LD	DE,0		;zero sector count
+	LD	BC,0		;zero block count
+	JR	NC,CPMTRK
+	CALL	PRINT
+	DC	"-system"
+	JR	COPYFD
+CPMTRK:	LD	HL,0		;current count of tracks to go
+	LD	A,H
+	OR	L
+	JR	Z,CHECK4	;jump if no more
+	DEC	HL
+	LD	(CPMTRK+1),HL
+	LD	HL,(MAXSEC+1)
+	DEC	HL
+	ADD	HL,DE
+	EX	DE,HL		;DE= cumulative sector count
+	LD	HL,(BLKSIZ)
+	INC	HL
+	EX	DE,HL		;divide no. sectors this track
+CHECK3:	SBC	HL,DE		;by no. sectors per block
+	INC	BC		;increment block count
+	JR	NC,CHECK3
+	DEC	BC
+	ADC	HL,DE		;put straight again
+	EX	DE,HL
+	JR	CPMTRK
+CHECK4:	LD	HL,(CSECT)
+	ADD	HL,DE
+	EX	DE,HL
+	LD	HL,(BLKSIZ)
+	INC	HL
+	EX	DE,HL
+CHECK5:	SBC	HL,DE
+	INC	BC
+	JR	NC,CHECK5
+	ADC	HL,DE
+	PUSH	HL
+	DEC	BC
+	LD	H,B
+	LD	L,C
+	LD	(CBLOCK),HL
+	CALL	B4HEX
+	LD	A,"h"
+	CALL	POUT
+	LD	A,":"
+	CALL	POUT
+	POP	HL
+	DEC	HL
+	LD	(CBLCKE),HL	;save extension
+	CALL	B2DEC
+
+; all done, copy CDRIVE, CBLOCK, CTRACK & CSECT to previous buffer
+COPYFD:	LD	DE,PPARAM
+COPYF1:	LD	HL,CPARAM
+COPYF2:	LD	BC,PRMLEN
+	LDIR
+	RET
+
+; all wrong, copy previuos buffer back to CDRIVE, CBLOCK, CTRACK &
+CSECT 
+CHKERR:	CALL	PRINT
+	DC	" does not exist"
+	CALL	COPYBK
+	JP	MENU
+
+COPYBK:	LD	HL,PPARAM
+	LD	DE,CPARAM
+	JR	COPYF2
+;-------------------------------
+CHKSEC:	LD	HL,(MAXSEC+1)
+	EX	DE,HL		;DE= MAXSEC
+	LD	HL,(CSECT)	;current sector
+	OR	A		;clear carry
+	SBC	HL,DE		;in range?
+	RET			;Ok if carry set
+;-------------------------------
+;add no. of sectors in DE then adjust sector count
+ADDSEC:	LD	HL,(CSECT)	;get current destination
+	ADD	HL,DE		;new sector total
+	LD	(CSECT),HL	;save
+	CALL	CHKSEC		;subtract maxsec & test in range
+	RET	C		;ret if in range
+	LD	(CSECT),HL	;save new sector count..
+	LD	HL,(CTRACK)
+	INC	HL		;inc track count
+	LD	(CTRACK),HL
+	LD	DE,0		;nil sectors
+	JR	ADDSEC		;loop round till all sectors done
+;-------------------------------
+UCOMP:	LD	HL,(USECT)	;upper sector limit
+	LD	DE,(UTRACK)	;upper track limit
+;Compare DE with CTRACK & HL with CSECT
+;return with carry if less, zero if same
+COMP:	PUSH	HL		;save sector
+	OR	A		;clear carry
+	LD	HL,(CTRACK)	;current track
+	EX	DE,HL
+	SBC	HL,DE		;in range?
+	POP	DE		;restore sector
+	RET	NZ		;not same track, ret
+	LD	HL,(CSECT)
+	EX	DE,HL
+	SBC	HL,DE		;in range?
+	RET
+;-------------------------------
+SETDMA:	JP	0		;call setdma
+;-------------------------------
+; get physical sector from BIOS and transform
+CXLT0:	LD	B,H
+	LD	C,L
+CXLT:	LD	DE,0		;addr of sector translation table
+	LD	A,D
+	OR	E
+	JR	Z,SETSEC
+SCTRAN:	CALL	0		;call SECTRAN
+	LD	B,H
+	LD	C,L
+SETSEC:	JP	0		;call SETSEC (set sector)
+;-------------------------------
+GETADR:	LD	E,(HL)		;get contents of (HL) into HL
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	EX	DE,HL
+	RET			;DE points to next address
+;-------------------------------
+TEST:	CALL	CPRINT
+	DC	" Drv   Trk    Sec    Mkr    Blk    ext     PSTCUD"
+	LD	B,6
+	LD	HL,PPARAM
+
+TEST2:	PUSH	BC
+	CALL	CRLF
+	LD	A,B
+	ADD	A,"0"
+	CALL	POUT
+	LD	A,(HL)
+	ADD	A,"A"
+	CALL	POUT
+	CALL	TEST0
+	CALL	TEST1
+	CALL	TEST1
+	LD	A,(HL)
+	CALL	B2HEX
+	CALL	TEST0
+	CALL	TEST1
+	CALL	TEST1
+	POP	BC
+	DJNZ	TEST2
+	RET
+
+TEST1:	CALL	GETADR
+	CALL	B2DEC
+	EX	DE,HL
+	JR	TEST3
+
+TEST0:	INC	HL
+TEST3:	PUSH	HL
+	CALL	PRINT
+	DC	"    "
+	POP	HL
+	RET
+;-------------------------------
+; multiply previous contents of HL by 10 then
+; get a decimal number value from GETN & add into HL
+GETDEC:	LD	B,4
+	PUSH	HL
+	LD	HL,0
+GDEC1:	CALL	GETN
+	JR	C,GDEC2
+	ADD	HL,HL		;*2
+	PUSH	HL
+	ADD	HL,HL		;*4
+	ADD	HL,HL		;*8
+	POP	DE
+	ADD	HL,DE		;*10
+	LD	D,0
+	LD	E,A
+	ADD	HL,DE		;HL= previous *10 + present
+	DJNZ	GDEC1
+GDEC2:	POP	DE
+	LD	A,4		;check value stored here
+	CP	B
+	RET	NZ		;new value returned in HL
+	EX	DE,HL		;put old value back
+	CALL	B2DEC		;print it
+GDEZ:	SCF
+	RET
+;-------------------------------
+GETN:	CALL	CONIN
+GETN1:	CP	"0"
+	RET	C
+	CP	"9"+1
+	JR	NC,GDEZ
+	CALL	POUT
+	SUB	"0"
+	RET
+;-------------------------------
+GETHEX: CALL	CONIN
+	CP	"F"+1
+	JR	NC,GDEZ
+	CP	"A"
+	JR	C,GETN1
+	CALL	POUT
+	SUB	"A"-10
+	RET
+;-------------------------------
+CONN:	EXX
+CONNIN:	CALL	0		;console input address stored here
+	EXX
+	CP	1EH		;^C
+	JP	Z,ABORT0
+	CP	ESC
+	RET	NZ
+ABORT0:	PUSH	AF		;save flags
+ABORT:	CALL	MENU		;local abort routine addr stored here
+	POP	AF
+	CP	ESC
+	JP	Z,MENU
+	JP	WBOOT
+;-------------------------------
+CONIN:	CALL	CONN
+	CP	"@"
+	JR	C,CON1		;skip if number
+	AND	5Fh		;make upper case
+CON1:	LD	(SCMD0+1),A	;put in SCMD routine
+	RET
+;-----------------------
+;dummy message routine
+DMSG:	PUSH	AF
+DMSG1:	LD	A,(HL)	;go though string until bit 7 found
+	INC	HL	;inc address
+	OR	A
+	JP	P,DMSG1	;loop if bit 7 unset
+	POP	AF
+	RET
+;-----------------------
+;print message until a space is found
+SMSG:	PUSH	AF
+SMSG1:	CALL	POUTI
+	CP	" "
+	JR	NZ,SMSG1
+	POP	AF
+	RET
+;-----------------------
+CPRINT:	CALL	CRLF	;print CRLF followed by string
+PRINT:	EX	(SP),HL	;point to message
+	CALL	PMSG
+	EX	(SP),HL	;restore return addr
+	RET
+;-----------------------
+PASC:	AND	7Fh	;print only ASCII chars
+	CP	" "
+	JR	NC,PASC1
+PASC2:	LD	A,"."
+PASC1:	CP	7Fh
+	JR	Z,PASC2
+	JR	POUT
+;-----------------------
+CRLLF:	CALL	CRLF
+CRLF:	LD	A,CR	;print CRLF
+	CALL	POUT
+	LD	A,LF
+	JR	POUT
+;-----------------------
+CPMSG:	CALL	CRLF
+PMSG:	PUSH	AF
+PMSG1:	CALL	POUTI	;print char
+	OR	A
+	JP	P,PMSG1	;loop if bit 7 unset
+	LD	A," "	;print space
+	JR	POUT1
+;-----------------------
+
+POUTI:	LD	A,(HL)	;get char
+	INC	HL
+POUT:	PUSH	AF
+POUT1:	EXX		;output char in A
+	AND	7Fh	;reduce to normal ASCII chars
+	LD	C,A	;char to C
+	PUSH	BC
+CONOUT:	CALL	0	;address stored here
+	POP	BC
+LISTSW:	LD	A,1	;print/not print switch byte 
+	OR	A
+LISTP:	CALL	Z,0	;LIST address stored here
+	POP	AF
+	EXX
+	RET
+;-----------------------
+B4HEX:	LD	A,H	;convert HL to hex
+	CALL	B2HEX
+	LD	A,L
+B2HEX:	PUSH	AF	;save
+	RRCA		;rotate hi nibble to low
+	RRCA
+	RRCA
+	RRCA
+	CALL	B1HEX
+	POP	AF
+B1HEX:	PUSH	AF
+	AND	0Fh	;low nibble only
+	ADD	A,90h	;convert
+	DAA
+	ADC	A,40h
+	DAA
+	JR	POUT1	;print it
+;-----------------------
+; HL= binary value, print decimal ignoring leading zeros
+B2DEC:	XOR	A
+B2DEC1:	LD	(BDEC4+1),A	;replace leading zero's
+B2DEC2:	LD	A,0Fh
+	LD	(BDEC1+1),A	;enable leading zero detection
+	PUSH	HL
+	LD	DE,1000		;divide by 1000
+	XOR	A
+	CALL	BDEC		;do it & print 2 most sig chars
+	LD	DE,10		;divide by 10
+	XOR	A
+	CALL	BDEC		;do it & print next 2 chars
+	LD	A,L	
+	POP	HL
+	JR	B1HEX		;print remainder
+
+BDEC0:	INC	A		;inc counter
+	DAA			;adjust to decimal
+BDEC:	SBC	HL,DE		;entry point to circular subtract loop
+	JR	NC,BDEC0	
+	ADD	HL,DE		;undo last subtraction
+BDEC1:	CP	0Fh		;most sig non-zero bit exist? (this changes)
+	CALL	NC,B2HEX	;yes, print both digits
+	JR	NC,BDEC2	;yes, kill further leading zero replacement
+	CALL	BDEC3		;no, replace leading zero
+	OR	A		;lower digit zero?
+	JR	Z,BDEC3		;yes, jump & replace
+	CALL	B1HEX		;print lower digit
+BDEC2:	XOR	A
+	LD	(BDEC1+1),A	;kill further zero replacement
+	RET
+
+BDEC3:	PUSH	AF
+BDEC4:	LD	A," "		;replace leading zero by char stored here
+	CALL	POUT
+	POP	AF
+	RET
+;-----------------------
+CSPINC:	CALL	CRLF
+SPINC:	PUSH	AF		;print no. of spaces defined by C
+	PUSH	BC
+	LD	B,C
+	LD	A," "
+SPINC1:	CALL	POUT
+	DJNZ	SPINC1
+	POP	BC
+	POP	AF
+	RET
+;-----------------------
+$END	EQU	$
+STACK	EQU	$END+78h	;stack space
+BUFF1	EQU	STACK		;alternative buffer space
+BUFF2	EQU	BUFF1+128	;start memory buffer
+
+	END
+
+;///////////////////////////////////////////////////////////////////////////
+
+;-----------------------------
+	LD	HL,LISTM
+	CALL	PRN
+	LD	HL,DIRM
+	CALL	PRINTY
+	LD	HL,(SYSTRK)
+	INC	HL
+	LD	(CTRACK),HL
+	RET
+
+DIRM:	DB	" Directory",CR,LF
+	DB	"Entry User     File    Ext Size    Disc Space Allocation"
+	DB	CR,LF,0
+DIREM:	DB	"*********** End of Directory ********",CR,LF,0
+DAMM:	DB	CR,LF,LF,"           Disc Allocation Map",CR,LF,LF,"    ",0
+

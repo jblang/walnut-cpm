@@ -1,0 +1,101 @@
+               Notes on the Turbo Modula-2 "Monitor" Function
+                            by D. McCord, Echelon
+
+
+1. Overview
+
+Turbo  Modula-2  possesses,  as per the  Modula-2  language  definition,  the 
+feature of "coroutines".  Coroutines are an important feature of Modula-2, as 
+they  incorporate  into  the language itself the concepts  of  concurrency  - 
+multiple  software processes executing, apparently or actually, at  the  same 
+time.  This is a quite useful feature for situations where there may be  more 
+than  one  central processing unit (CPU) available, or when  a  situation  of 
+needing multiple programs operating simultaneously occurs.
+
+Of course, in the context of Turbo Modula-2, which operates on a single  Z80-
+compatible  microprocessor, multiple CPU's are not a consideration.  But  the 
+capability  of using multiple Modula-2 programs simultaneously can  be  quite 
+useful.  A good example of this is software which utilizes hardware interrupt 
+functions.    Turbo  Modula-2  implements  generic  Modula-2  features,   via 
+coroutine-oriented functions, to provide interrupt handlers which operate  in 
+a  clearly defined, yet autonomous manner from whatever the  Modula-2  "main" 
+module  may  be doing.  This is quite unusual among high  level  languages  - 
+typically,  interrupt  handlers  are done in assembly language  and  must  be 
+"kludged"  into  an  application written in a high  level  language  such  as 
+Modula-2.
+
+In  an interrupt environment, it is sometimes necessary to control the  state 
+of  the host CPU's interrupt handling.  In the case of Turbo  Modula-2,  this 
+control  is best thought of as simply enabling or disabling  interrupts,  and 
+the  generic Modula-2 "monitor" function is implemented in order  to  provide 
+this function.
+
+This  note  is  not  intended  to be  a  tutorial  on  usage  of  interrupts, 
+coroutines,  and interrupt handlers with Turbo Modula-2.  For  more  detailed 
+information on those topics, see Steve Hirch's informative notes contained in 
+the  file TM2NOT10.LBR, available from Echelon on SUS disk or on most  Z-Node 
+Remote Access Systems.
+
+This  note  is intended to supplement the information given  in  the  product 
+documentation regarding the operation of Turbo Modula-2 monitors.
+
+
+2. What is a monitor?
+
+A  monitor  under  Turbo  Modula-2 is a module  which  locks  out  (disables) 
+hardware interrupts.  Refer to the Turbo Modula-2 User's Guide (TM2UG),  page 
+192,  for  the  information  contained  on the  topic  of  monitors  (in  the 
+discussion of the IOTRANSFER procedure from the SYSTEM module).
+
+A  monitor's  capability  of disabling interrupts can  be  useful,  and  even 
+necessary  in certain situations.  Consider a type-ahead  keyboard  function.  
+Typically, an interrupt handler for this kind of function will be written  in 
+a  simple way which presumes interrupts will be disabled while the  interrupt 
+handler  is  executing; to write it in such a way that interrupts  would  not 
+have  to  be disabled could be very "expensive" in terms of  code  speed  and 
+memory usage (it would have to be written to be reentrant).
+
+
+3. Incomplete information in TM2UG
+
+TM2UG  indicates  on page 192 how the monitor function may be enabled  for  a 
+module.   An  important  bit of information not included there  is  that  the 
+monitor  function  is  only active during execution of  procedures  and  sub-
+modules;  thus, interrupts are not disabled during the "initialization  code" 
+section  of  a module, which is cometimes referred to as the  "module  body", 
+defined as the code between the BEGIN and END statements of the module.
+
+The following code example should clarify this.
+
+MODULE Monitor[1];  (* monitor function invoked here *)
+
+(* This procedure disables interrupts when it executes, also any *)
+(* procedures called from this procedure will also have interrupts *)
+(* disabled *)
+PROCEDURE Pr;
+BEGIN
+  WRITELN("Interrupts are disabled here");
+END Pr;
+
+(* This is the initialization code.  Interrupts are not disabled here *)
+BEGIN
+  WRITELN("Interrupts are enabled here");
+  Pr;
+END Monitor.
+
+
+4. Summary
+
+The  programmer  using the monitor function of Turbo Modula should  be  aware 
+that, contrary to what is implied in the manual, hardware interrupts are  not 
+disabled  at  all  places  in  a module declared  as  a  monitor.   Only  the 
+procedures and sub-modules of a monitor module have interrupts disabled.  The 
+initialization  code or module body will have interrupts enabled,  unless  it 
+has been called from a procedure or sub-module of another monitor module.
+
+Echelon, Inc.
+885 N. San Antonio Road
+Los Altos, CA  94022  USA
+415/948-3820 order line/tech support
+415/958-6656 Z-Node Central (data)
+

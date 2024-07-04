@@ -1,0 +1,561 @@
++
+                                   -1-
+ 
+ 
+                                                    File: PCPFAST.MEX
+                                                    Rev:  Jan 26, 1987
+ 
+ 
+              FAST AUTOMATIC PC PURSUIT CONNECTIONS USING MEX
+              ----------ooooooooooOOOOOOOoooooooooo----------
+ 
+                           by Laurence J. Lavins
+ 
+ 
+  1. P C P F A S T   A B S T R A C T
+  ----------------------------------
+ 
+     A simple user-friendly method has been developed for automatically
+     accessing a PC Pursuit city, using the MEX v.1.14 PD communication
+     terminal program, running under CP/M-80 (v.2.2). If a BUSY signal 
+     is received, the access string will be AUTOMATICALLY retransmitted
+     every 5-6 seconds until a CONNECT signal is received from Telenet.
+     The user may then send commands to the remote Telenet modem in the
+     normal manner. This method does not involve any use of a keystring
+     file, thus allowing the user to retain the entire capacity of that
+     keystring file for other purposes.
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+  2. I N T R O D U C T I O N
+  --------------------------
+ 
+     Over the past few months, the number of customers using Telenet's
+     PC Pursuit Service has increased dramatically, thus making it very
+     difficult to place a call, especially during the few hours of peak
+     system usage each day.
+ 
+     As a consequence of the often prolonged, repetitive and wearisome
+     transmissions which must be entered by a caller seeking to estab-
+     lish a connection with a distant PC Pursuit city, some means were
+     sought to facilitate this process.
+ 
+     My own computer system is a modified TRS-80 Model 4 equipped with
+     a hard disk, a Hayes compatible 300/1200 baud modem, and both the
+     TRSDOS 6.2 and CP/M operating systems. With TRSDOS, I usually use
+     the XT4 (v.1.6.8) communications terminal program (Copyright 1985
+     by Bill Andrus, Fairfax, VA). And with CP/M, my program of choice
+     is MEX v.1.14  (Copyright 1984 by Ronald G. Fowler, Ft. Atkinson,
+     WI). Both of these communication programs have many nice features,
+     and they're both in the public domain for non-commercial private 
+     use. I understand that the authors of both these programs may now
+     also have released other commercial or proprietary versions, with
+     added features. Unfortunately, these aren't in the public domain.
+ 
+     What I attempted to do, therefore, was to see if I could develop 
+     some rather simple means of adapting either of these two communi-
+     cations programs to enable faster and/or more automatic means of 
+     establishing a PC Pursuit trunk connection to the called city.
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+ 
+ 
+ 
+ 
+-
++
+                                    -2-
+ 
+  3. T H E   S P E C I F I C   P R O B L E M
+  ------------------------------------------
+ 
+     When making a call via PC Pursuit, it's first necessary to access
+     a Telenet node by calling the local phone number of that Telenet 
+     node. This presents no problem. Almost all communications terminal
+     programs now in wide use provide excellent capabilities for making
+     such phone calls. Once a connection has been established with that
+     Telenet node, however, the PC Pursuit caller must then request the
+     system to set up a connection from that local node to a modem port
+     in the city being called. Therein lies the heart of the problem.
+ 
+     Since there may be hundreds of customers (callers) trying to gain
+     access to some limited number of modem ports in any one of the 25
+     PC Pursuit cities, the usual response from the system is a "BUSY"
+     signal. The callers must then keep calling, and as each port may 
+     become available, some lucky caller will be connected. Obviously,
+     the more access requests a caller can initiate in a given period 
+     of time, the better will be his chances of getting connected.
+ 
+     Unfortunately, this element of a call isn't a trivial matter. The
+     Telenet protocol requires the following string to be sent out, in
+     response to the Telenet network command prompt symbol, "@":
+ 
+          "C DIALaaa/bb,uuuuuuuu,pppppppp" [cr]
+ 
+     where: aaa      is the Area Code of the city being called.
+            bb       is the baud rate in hundreds, either 3 or 12.
+            uuuuuuuu is the User ID (usually 8 bytes).
+            pppppppp is the Password (usually 8 bytes).
+ 
+     Typing this string isn't bad once, or maybe twice. But just think
+     what it would be like to manually enter such a string 100 or more
+     times in succession! Well OK, you might say, all anyone has to do
+     is to set up a macrokey, or function key, or whatever name your  
+     communications terminal program uses for such things. And both of
+     my own two terminal programs, named above, certainly do have such
+     features, as do most others in wide use today. I agree. Now we're
+     much better off, not having to manually type in such long strings,
+     over and over, repetitively.
+ 
+     But I'm lazy. And I also get mighty fed up just having to keep on
+     pressing [CLR] [KEY] or [ESC] [KEY], over and over, in response to
+     each and every BUSY signal from Telenet. Even this, done 100, 150
+     or 200 times in rapid succession, is enough to drive me away from
+     all this high-tech stuff, back to the wastelands of TV.
+ 
+     Moreover, the XT4 program is limited to a maximum of 10 macrokey 
+     strings in each data file. Since I insist on using at least 5 of 
+     these for other purposes, then only a maximum of 5 are available 
+     in any one data file for these PC Pursuit city strings. Even then
+     there's no capacity left for local phone numbers in those cities 
+     once all 10 keys are used up. So realistically, I'd have to put up
+     with the continuous loading, back and forth, among 5 or more data
+     files. Not too accomodating.
+ 
+     MEX fares somewhat better in this regard, although it's not quite
+     as convenient for general communication purposes as is XT4, in my
+     opinion. Theoretically, MEX allows you to have as many keystrings
+     in a single keystring file as there are keys on the keyboard. But
+ 
+ 
+-
++
+                                    -3-
+ 
+     there seems to be a 404 byte limit on each such file, according to
+     my arithmetic, which DOES include the two sets of quotes that MEX
+     requires to define a string, but DOESN'T include the key symbols 
+     themselves and equal signs. So maybe you can put 8 or 9 of these 
+     city strings into each keystring file, using the rest of the 404 
+     bytes for other commonly used strings, telephone numbers, etc. So
+     now, with MEX, we're down to only 3 of these files. For example, 
+     PCP1.KEY, PCP2.KEY and PCP3.KEY. Not much of an improvement, but a
+     little bit maybe. But it's still a crude approach to the problem.
+ 
+     Another awkward option, of course, is not to prestore any of these
+     city strings. But rather, to type them individually, as required, 
+     just prior to calling a PC Pursuit city, and then storing only that
+     one string. The advantage of this, of course, is that you may then
+     be able to get by with a single data file. But as far as all that 
+     continuous typing of 35 byte keystring sequences every time a new 
+     city has to be called  ... . no thanks!
+ 
+     And now, finally, that everyone understands that I really am quite
+     lazy, the problem boils down to developing an easier, faster and  
+     more efficient means for dealing with these PC Pursuit city access
+     calls, especially in the high-traffic busy hours conditions.
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+  4. S E L E C T I O N   O F   M E X
+  ----------------------------------
+ 
+     Despite my own personal preferences for XT4 over MEX for general 
+     communications purposes, I did decide, for a variety of technical
+     reasons, that XT4 in its present form wasn't a suitable candidate
+     for this exercise. Conversely, however, and also out of technical
+     considerations, MEX seemed to offer some viable possibilities. So
+     the remainder of this paper will deal only with MEX.
+ 
+     I did, of course, reveal my little project to several of my close
+     associates. The most profound advice and counsel elicited from all
+     these experts was that I wouldn't ever achieve salvation until my
+     obsolete "TRASH 80" machines were replaced by Big Blue or one of 
+     its clones. With a machine of such a color, and software to match,
+     I was told, all problems such as this rapidly disappear. Or at the
+     very least, I was also advised, if I insisted upon remaining loyal
+     to CP/M (shudder!) why not just purchase the expanded proprietary
+     version of MEX from Ron Fowler, which might be able to handle this
+     class of problem. As a natural born rebel, I now became even more
+     obsessed with the problem, and refused to stop thinking about it,
+     and continued on, trying out several different approaches.
+ 
+     So now we're down to the following ground rules:
+ 
+       (1) A standard CP/M-80 (v.2.2) operating system.
+ 
+       (2) MEX Version 1.14 PD release. (The earlier v.1.12 would  
+           probably do just as well for this application, however.)
+ 
+       (3) Maintain a simple user-friendly approach, using inherent
+           features of MEX and CP/M. Minimize changes & additions. 
+ 
+       (4) Nothing of a commercial or proprietary nature is to be  
+           utilized. Everything shall be in the public domain (PD).
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+-
++
+                                    -4-
+ 
+  5. T H E   B A S I C   A P P R O A C H
+  --------------------------------------
+ 
+     After much analysis of the MEX commands and stat variables plus a
+     great deal of trial and error, it seemed like it might be possible
+     to play some tricks on MEX, using the SENDOUT command and/or the 
+     READ command, along with some other associated commands and stat 
+     variables. 
+ 
+     What we'd like to do is to set up the equivalent of some logic of
+     the "IF ...   THEN ... " type. Now, it's quite clear that the PD 
+     version 1.14 of MEX doesn't include such sophisticated commands. 
+     Specifically, we need to do the following:
+ 
+       (1) Pre-store a complete set of city access strings. Or as an
+           alternative, a single string with symbolic variables. They
+           should reside in a data file of semi-permanent nature.
+ 
+       (2) Initiate the transmission of any one specified access
+           string in a simple manner with minimum keystrokes.
+ 
+       (3) IF a "BUSY" signal is received, THEN repeat the previous
+           transmission after a network command prompt appears. This
+           is to be done completely automatically, without the user's
+           manual intervention, for some specified number of retrans-
+           missions. The user should be able to abort this process at
+           any time.
+ 
+       (4) IF a "CONNECT" signal is received, THEN do not repeat the
+           previous transmission, but rather allow the user to enter
+           the data transfer mode and send commands to the modem at
+           the distant PC Pursuit city, in the normal manner.
+ 
+ 
+     At first glance, MEX 1.14 doesn't appear to support the commands 
+     needed to implement this logical sequence, but closer examination 
+     reveals that it does, in fact, have the capability. We'll have to
+     perform some sleight of hand in order to fool the system, but it 
+     really can be done. Trust me!
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+  6. T H E   S P E C I F I C   S O L U T I O N
+  --------------------------------------------
+ 
+     Here's what we're going to do now to weave our bit of magic with 
+     MEX. First, the logical structure, then the details. In hindsight
+     it seems so simple. So how come it took so long for someone to
+     figure it out, dummy?
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+  6.1  THE LOGICAL STRUCTURE
+  --------------------------
+ 
+     The logical basis of the solution here is to use the WTECHO stat 
+     variable in conjunction with a SENDOUT command. When WTECHO is ON,
+     all characters transmitted to the remote terminal (Telenet) via a
+     SENDOUT command are compared with the characters echoed back from
+     the remote. Since Telenet does echo back whatever we send out, as
+ 
+ 
+-
++
+                                    -5-
+ 
+     any good host terminal should, that cooperation is what makes our
+     trickery work. If there's a discrepancy (error) between what we've
+     sent out and what's echoed back, then MEX further provides us with
+     the means to retransmit. Not only must WTECHO be turned ON, but we
+     must also specify a CANCEL character to be sent out to the remote
+     upon discovery of the error, and also a TRIGGER character which we
+     must look for from the remote to trigger our retransmission of the
+     SENDOUT string. Lest I forget, the "error" character that's added 
+     to the SENDOUT string in order to create the discrepancy between  
+     the SENDOUT string and its echo in the first place, along with the
+     CANCEL and TRIGGER characters are extremely critical and specific.
+     It took lots of educated guesswork, plus trial and error, before a
+     set of values for these 3 characters  was found that would permit
+     a completely workable solution. Unless all the values are set up in
+     exactly the correct way, either one of the following may occur:
+ 
+       (1) There may be no retransmission of the initial call after a
+           "BUSY" signal is received.
+ 
+       (2) There will be continued retransmissions of the original call
+           as long as "BUSY" signals are received from Telenet. But then
+           after a "CONNECT" signal is received, MEX will "freeze", and
+           CP/M must be rebooted to restore your system.
+
+     Additionally, the REPLY and RETRY stat variables should be set up
+     properly, but these aren't critical.
+ 
+     The "error" character mentioned above is a single character which
+     is appended to the SENDOUT string IMMEDIATELY FOLLOWING the final
+     "^M" carriage return in that string. My theory here, which proved
+     to be correct, was that such a character would be saved by MEX for
+     comparison purposes when WTECHO is ON, but that it wouldn't really
+     be transmitted out via our own modem or echoed back by Telenet in 
+     the unlikely event that it did get transmitted. Since MEX has been
+     designed to save the contents of the string prior to transmission,
+     whatever they may be, for comparison purposes, that's exactly what
+     we're now going to take advantage of for our own purposes here.
+ 
+     So far, so good. Now let's go back to the SENDOUT string itself, 
+     which conforms to the format described back in Section 3. The way
+     to make it simpler, at this time, is to execute PREFIX and SUFFIX
+     commands as soon as MEX is booted up. Like this, for example:
+ 
+          PREFIX "C DIAL"
+          SUFFIX "//12,uuuuuuuu,pppppppp^Me"
+ 
+     where  uuuuuuuu is the User ID
+            pppppppp is the Password
+            e        represents the appended error character
+ 
+     To initiate transmission, just key in "SENDOUT aaa" for the area 
+     code of the city you're calling, and hit your [cr] key. The whole
+     string, including the PREFIX and SUFFIX, will then be correctly
+     sent out by MEX. Note that if a "BUSY" response comes back from
+     Telenet, MEX logic will cause a retransmission, provided that all
+     the appropriate stat values have been entered. Have patience now,
+     we're still developing the logical structure. The specific values
+     for the error character and those stat variables will be revealed
+     below, shortly.
+ 
+ 
+ 
+-
++
+                                    -6-
+ 
+     Now, if everything being done is clearly understood, let's go one
+     step further beyond the basic SENDOUT command. This brings us to 
+     the READ command. It may appear to be a little difficult to grasp
+     at first, but it's quite simple. Look at it like this: All we're 
+     doing is to take the SENDOUT command, along with its whole string
+     (no need here for PREFIX and SUFFIX commands) and enter it into a
+     file on disk. Let's use the default drive (usually A:), and also 
+     let's arbitrarily (because I say so) name this file P.MEX. You can
+     use any old word processor or text editor of your choice to create
+     and store this file. It'll look like this:
+ 
+       File Name: P.MEX
+ 
+       Contents:  SENDOUT "C DIALaaa//12,uuuuuuuu,pppppppp^Me"
+ 
+     See, nothing to it. The contents of this file are all included on
+     a single text line. After you've saved this file on the disk, key
+     in the command "TYPE P" directly from MEX,  or "TYPE P.MEX" from 
+     CP/M, in order to verify that this file really contains what you 
+     think you wrote and saved. Since we used the MEX default extension
+     for this filename, we don't need to use the extension when calling
+     this file from within MEX. (Ain't that clever now, huh?) If you're
+     still hangin' in there, don't let go. You've almost got both feet
+     up onto this step now.
+ 
+     So guess what needs to be done now to execute the SENDOUT command
+     that's written into file P.MEX?  If you said READ P, you're right
+     on! Congratulations! If you didn't guess correctly, please review
+     what we've done so far and also review the MEX documentation. And
+     now we've only got two steps left to reach the top landing.
+ 
+     Everybody aboard now? Alright, let's move on up. And here's where
+     you might have just a wee bit more difficulty. MEX has a marvelous
+     bit of its own duplicity that permits us to say one thing when we
+     really mean another, kinda like some females I've known. Just look
+     again at that one line SENDOUT command in the P.MEX file:
+ 
+       SENDOUT "C DIALaaa//12,uuuuuuuu,pppppppp^Me"
+ 
+     I'm going to surgically remove the 3-digit area code, "aaa", and 
+     in its place, let's put something else, like "{1}". This numeral,
+     ENCLOSED WITHIN BRACES, is called a formal parameter. It may also
+     be referred to as a variable symbol. Whatever you want to call it
+     is OK with me. Just remember that IT MUST BE ENCLOSED WITHIN THOSE
+     BRACES. Now, go back to your word processor and change the SENDOUT
+     command, and then save it to filename P.MEX, like this:
+ 
+       SENDOUT "C DIAL{1}//12,uuuuuuuu,pppppppp^Me"
+ 
+     As you might have guessed, there's no free lunches around here. So
+     the payment has to be made up at the READ command by appending the
+     "aaa", where it's now referred to as an actual parameter. Whatever
+     numbers we enter into the actual parameter will be substituted for
+     the formal parameter when the READ command is executed. So our READ
+     command will now look like this:
+ 
+       READ P aaa [cr]    instead of    READ P [cr]
+ 
+     The numerals used for variable symbols refer back to the actual  
+     parameters in the READ command, in sequential order. If you had a
+ 
+ 
+-
++
+                                    -7-
+ 
+     mind to do so, you could replace the baud rate 12 with {2}, as an
+     example. Then you would have to follow the aaa in the READ command
+     with a 3 or a 12. (I personally always use 12, even for 300 baud 
+     transmission. It works, and a 1200 baud port seems easier to come
+     by than a 300 baud port.)
+ 
+     Whew! I'm all out of breath. So let's take a short breather, just
+     long enough to make sure that everything so far is clearly under-
+     stood. OK?  Everyone still here?
+ 
+     Ready now for the final push. The top landing is only a small step
+     away. This last step takes us to the EXTEND stat switch variable.
+     We're going to turn it on. And you ask me how come? And I say back
+     to you because I say so, and also because I'm lazy, and if we turn
+     on this switch, then MEX will let us forget to write the READ into
+     the READ command line. How's that for doublespeak, huh? So try it,
+     you'll like it! And so we now can use just:
+ 
+        P aaa [cr]    instead of    READ P aaa [cr]
+ 
+     It should be very clear to you readers at this point that MEX has
+     allowed us to make up a phantom command, which will be executed by
+     MEX like any other legitimate intrinsic MEX command. What's more,
+     even if you still don't understand how it works, you don't have to.
+     All you gotta do, dummy, is press a P and an Area Code number. OK?
+     Now that's simple enough to satisfy the original groundrules!
+ 
+     Moreover, none of the valuable 404 bytes in the MEX keystring file
+     needs to be used for city access strings. You can use the entire 
+     file for all your other strings, like commands, names, telephone 
+     numbers, BBS passwords, or whatever else. So you see, we don't have
+     to pay a penalty in that department anymore either.
+ 
+                  -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+ 
+ 
+  6.2   HERE'S THE FINAL DETAILS  -  NOW GO GETTUM, KEMOSABE!
+  -----------------------------------------------------------
+ 
+     If you waded through all the preceding stuff, and understand any 
+     of it, you've earned the right to the final critical details and 
+     values. And even if none of it makes sense to you, just take your
+     numbers and good riddance! I also once thought about saying "to be
+     continued next month." But I don't want to be bothered with doing
+     another paper any more than anyone out there really wants to bother
+     reading one. So here's the goodies:
+ 
+ 
+       Error character:  @   (Critical value. Others may cause freeze.)
+ 
+       Stat CANCEL:      ^M  (Critical value. Others may cause freeze.)
+       Stat ERRID:       Switch OFF (Not critical, but may save time.)
+       Stat EXTEND:      Switch ON (Needed for the phantom command.)
+       Stat REPLY:       6 sec. (Timeout factor. Not critical.)
+       Stat RETRY:       255  (Max retransmissions. User may change.)
+       Stat TRIGGER:     @  (Critical value. Telenet command prompt.)
+       Stat WTECHO:      Switch ON  (Mandatory setting.)
+ 
+       Abort the loop:   CTRL-C  (This can be done at any time)
+ 
+ 
+ 
+-
++
+                                    -8-
+ 
+ 
+  7. S O M E   W O R D S   O F   W I S D O M
+  ------------------------------------------
+ 
+     Here's just a few more finishing touches now, plus review of some
+     of the lessons learned. There's some important new information in
+     here too, regarding the actual operation of this PCPFAST method of
+     accessing a PCP city, so please read it all very carefully to make
+     sure that you have a clear understanding of what you must do.
+ 
+     (1)  Set up a READ file P.MEX, or whatever other name you want to
+          use, and store it on disk. It should contain the one-line   
+          SENDOUT command and string described above, with the formal 
+          parameter {1} in place of the area code. Remember the braces!
+          Also, don't forget to append the error character, "@", to the
+          end of the string, immediately following the "^M".
+
+     (2)  Set up the principal stat variables, as shown just above. 
+          Make sure that there are no active PREFIX or SUFFIX strings.
+ 
+     (3)  Set up and load your PCP.PHN and PCP.KEY files into MEX for
+          use with PCP. Enter all your phone numbers, strings, etc.
+          Don't forget to execute COLD first to clear out other data.
+ 
+     (4)  CLONE this MEX config for exclusive use with PCP. And name it
+          MEXP.COM, perhaps. Then, when you want to use MEX for calling
+          PC Pursuit, just call up MEXP from CP/M, and you're all set.
+ 
+     (5)  After a connection has been established with a local Telenet
+          node, use ESC-E to return to MEX command mode. Then key in  
+          P aaa [cr] to initiate the SENDOUT command in the READ file,
+          for area code aaa. If all modem ports in the destination PCP
+          city are occupied, you'll get a "BUSY" response, and MEX will
+          retransmit an access request approximately every 5.6 seconds.
+          You may abort at any time with a CTRL-C, or equivalent key. 
+ 
+     (6)  When a "CONNECT" is received, you'll see it. Now do a CTRL-C
+          to abort the READ file. You'll probably time out, and go into
+          the command mode. Enter T [cr] to go into terminal mode, then
+          follow up with one or two [cr] entries until you see the "@"
+          network command prompt symbol. Now THIS IS IMPORTANT for you
+          to understand, so PLEASE READ CAREFULLY: As a result of what
+          was done to manipulate MEX, you ARE connected to the called
+          city at this point, but can't send any commands to its modem
+          because you're now in the network command mode, as indicated
+          by the "@" prompt.  You must be in the data transfer mode to
+          send commands to that modem. To go to the data transfer mode,
+          enter CONT [cr]. Then you may send commands to that modem in
+          the normal manner. Hint: Put "CONT^M" into your PCP.KEY file.
+          (CONT isn't a generally published Telenet command, so please
+          make a note of it somewhere.)
+ 
+     (7)  It's probably a good idea to switch WTECHO OFF after you've 
+          established connection, but not essential. The ON state can 
+          possibly disrupt the normal operation of some keystrings. You
+          can easily set up READ files for turning Stat WTECHO ON and
+          OFF. They're much easier and faster to use than entering the
+          full STAT commands. I use W.MEX and WF.MEX for filenames. If
+          you do this, don't forget to turn WTECHO ON again before the
+          next PC Pursuit call is initiated.
+ 
+ 
+-
++
+                                    -9-
+ 
+ 
+  8. T H E   F I N A L   W O R D
+  ------------------------------
+ 
+     Good luck to everyone using this method of accessing PC Pursuit  
+     with MEX. It works just fine for me, and I see no reason why it  
+     shouldn't work just as well for anyone else. 
+ 
+     Hopefully, others will do some of their own experimentation, and 
+     perhaps come up with improvements, suggestions, etc. which may be
+     beneficial to the entire CP/M - MEX user community. Constructive 
+     comments and feedback along such lines are sincerely requested.  
+ 
+ 
+     If anyone wants to reach me, I can be contacted as follows: 
+ 
+        By U.S. Mail:    P.O. Box 1503, Havertown, PA 19083
+ 
+        By voice phone:  (215) 878-9608  or 878-9609 
+ 
+        By E-Mail:    Drexel Hill Northstar RCP/M  (215) 623-4040 
+                      Exclusive-80                 (215) 739-9512 
+                      (Both BBS's are accessible via PC Pursuit)
+ 
+ 
+                      -----------   Larry Lavins
+                                    Philadelphia, PA
+                                    Jan 26, 1987
+END OF FILE
+

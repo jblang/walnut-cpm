@@ -1,0 +1,165 @@
+; B3ZB-3.INS	- Bye3 / Zorba routines for BYE 	- 08/06/85
+;
+;	This version is for a 8251a i/o with ctc timer to set speed
+;
+;	These routines will allow the easy patching of bye3 for any
+; type of modem/serial port combination.  certain routines must return
+; status flags, so please be careful to set the flags as directed.
+;
+; This version is for the intel 8251 chip that is hooked up to an
+; external modem.
+;
+;=======================================================================
+;
+; 08/06/85  Upgraded for bye337 			- pst
+; 07/09/85  Modified to work with bye335		- f.e. clayton
+; 10/04/82  Routines added, no fuss, mess, or frills.	- pst
+;
+;=======================================================================
+;
+; The following define the port address to use.
+;
+BASEP	EQU	20H		; Modem base port
+DPORT	EQU	BASEP		; Data port
+SPORT	EQU	BASEP+1		; Status/Control port
+CTCCMD	EQU	003H		; Timer control/status port
+CTC0	EQU	000H		; Timer 0 (port A)
+LSB1200	EQU	0D0H
+MSB1200	EQU	000H
+;
+; the following are sport commands (output these to sport)
+;
+MODINS	EQU	01001110B	; 8 bits, no parity, 1 stop bit, 16x
+OFFINS	EQU	00010000B	; Drop DTR and disable RCV/XMT
+ONINS	EQU	00010111B	; Reset flags, send DTR, enable rx & tx
+RSTINS	EQU	01000010B	; Reset USART and send DTR
+;
+; the following are sport status masks
+;
+TBMT	EQU	00000001B	; Transmitt buffer empty
+DAV	EQU	00000010B	; Data available
+DCD	EQU	10000000B	; Data carrier detect
+FE	EQU	00100000B	; Framing error
+OE	EQU	00010000B	; Overrun error
+PE	EQU	00001000B	; Parity error
+ERR	EQU	00111000B	; Overrun and framing error
+;
+BD300	EQU	0683H		; 300 baud
+BD1200	EQU	01A1H		; 1200 baud
+BD2400	EQU	00D0H		; 2400 baud
+;
+;----------------------------------------------------------------
+;
+; Initialize modem
+;
+MDINIT:	MVI	A,OFFINS	; Clear DTR
+	OUT	SPORT		; Causing hangup
+;
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finnished
+	POP	B		; Restore BC
+;
+	MVI	A,ONINS		; DTR so that modem can answer phone
+	OUT	SPORT
+	CALL	SET1200
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Init modem
+	 ENDIF
+;
+	RET
+;
+; The following routine sets dtr low to turn off the modem when done.
+;
+MDQUIT:
+	 IF	IMODEM
+	CALL	IMQUIT
+	RET
+	 ENDIF
+;
+MDSTOP:	MVI	A,10H
+	OUT	SPORT		; Turn off DTR to hang up the phone
+	RET
+;
+; The following is a routine to determine if there is a character wait-
+; ing to be received,  if none, the zero flag will be set, otherwise it
+; returns with 255 in register A.  Remember that the system will like you
+; a little more if you also mask out framing, parity, and overrun errors.
+;
+MDINST:	IN	SPORT		; Get status
+	ANI	DAV		; Got a character?
+	RZ			; Return if none
+	IN	SPORT		; Get status again
+	ANI	ERR		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,ONINS		; Reset error flags
+	OUT	SPORT
+	XRA	A		; Return false
+	RET
+;
+MDINST1:ORI	255		; We have a character
+	RET
+;
+; The following is a routine to determine if the transmit buffer is
+; empty.  If it is, it will return with the zero flag clear.  If the
+; transmitter is busy, then it will return with the zero flag set.
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT
+	RZ
+	ORI	255
+	RET
+;
+; The following is a routine that will check to make sure we still have
+; carrier.  If there is no carrier, it will return with the zero flag
+; set.
+;
+MDCARCK:IN	SPORT		; Get status
+	ANI	DCD		; Check if carrier is on
+	RZ
+	ORI	255
+	RET
+;
+; The following is a routine that will input one character from the
+; modem port.  If there is nothing there, it will return garbage...
+; So use the mdinst routine first.
+;
+MDINP:	IN	DPORT		; Get character
+	RET
+;
+; The following is a routine that will output one character in register
+; a to the modem.  Remember, that is register A, not register C.
+;
+; ** use MDOUTST first to see if buffer is empty **
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET
+;
+; These next routines set the proper baud rates for the modem.
+;
+SET300:	LXI	H,BD300		; Set 300 baud
+	JMP	LOADBD
+;
+SET1200:LXI	H,BD1200	; Set 1200 baud
+	JMP	LOADBD
+;
+SET2400:LXI	H,BD2400	; Set 2400 baud
+	JMP	LOADBD
+;
+LOADBD:	MVI	A,36H		; Set command mode
+	OUT	CTCCMD
+	NOP	! NOP !	NOP
+	MOV	A,L		; Send LSB of baud
+	OUT	CTC0
+	NOP	! NOP !	NOP
+	MOV	A,H		; Send MSB of baud
+	OUT	CTC1
+	NOP	! NOP !	NOP
+	XRA	A		; Return saying we're ok
+	RET
+;
+;***********************************************************************
+

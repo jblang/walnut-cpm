@@ -1,0 +1,177 @@
+ 6-Feb-85 20:41:52-MST,3533;000000000000
+Return-Path: <rbloom@apg-1>
+Received: from apg-1 by SIMTEL20.ARPA with TCP; Wed 6 Feb 85 20:41:31-MST
+Date:  6 Feb 1985 22:38:00 EST (Wednesday)
+From: Robert Bloom AMSTE-TOI 3775 <rbloom@apg-1>
+Subject: autoinstall of pubpatch
+To: wancho@simtel20
+Cc: northstar-users@simtel20, rbloom@apg-1
+
+Frank:
+
+Advice wanted:
+
+I've just found the PUBPATCH.LBR and starting to work on it. 
+Although I've had some difficulty getting it to work on the home, 
+much-patched machine (ArcPatch, NewFrm, Zusr, ZCpr2 or 3) in both 
+continous and split BIOS systems; it apparently works just fine 
+on TSS/C.  Using the .hex relocator included, I set up a .hex 
+file for a 56k cp/m system with bios at D600 and loaded it via 
+ddt.  The pubpatch.hex file created and loaded is:
+
+:15CF2D002100002299CF4CCD05CECDF5CD28662AD9D5EB1AFE60
+:15CF4200E52807D5CD7FCDD13056CD5ECD3AD8D5470E00B7286E
+:15CF57004779FE0D28361AFE3F2005329ACF182C7EFEE579283F
+:15CF6C0014B720112323CB7E2B2B2809783D28B13299CF18124C
+:15CF8100FE0C1A280596E67F1806C54ECD07CFC1209A13230CBE
+:16CF960010C02100007DA4208EC3AED1CDFECD7DC301CBCD54CDF1
+:12CFAC000E0CCD18CFCDF5CDC8CD44CDCD5ECDC3EED5F2
+:10D5EE0036E50E00CD6BCECDC6CDCD2DCFC3B1CF92
+:15D171002815473AC5D5A021D2D5A62812CD5AD0CDBBCCAFC34C
+:15D1860001CB2323347EE60F28180E0FCD18CFCDF5CD20E43AFD
+:16D19B00D3D53C2808CD24D1CDF5CD20D9CD05CBC378CD3AEAD582
+:0AD1B100E6033245CB21D4D577C93F
+:03D4DA00CDA9CF0A
+:0000000000
+
+I list it here just to show that it is not continuous.  
+
+My question is:  How can I load it in without resorting to ddt?  
+Preferably by including it in the zcpr3 loader program, but a 
+separate program would be ok too.
+
+The first couple lines of the zcpr2 loader are:
+
+     ld   hl,0120
+     ld   de,e000
+     ld   bc,07ff
+     ldir
+     ld   a,e7
+     ld   (d764),a
+     ld   a,80
+     ld   (d763),a
+     jp   e780
+
+Which obviously moves the (continuous) zcpr from 0120h up to e000h 
+and does some initialization at d763.  (path?)  Just as 
+obviously, the same method will not work for the pubpatch.  What 
+do you suggest?
+
+This (pubpatch) could be a great advance for hard disks and large 
+floppies - has anyone thought of adding the applicable code to 
+the standard distribution sd or nswp?  Note that with the bdos 
+patch installed, public files are not displayed at all in 
+standard sd or nswp; but are displayed by nswp if given the 
+wildcard user (*) number.  Path search works as expected; if file 
+is marked public, it will be found if the drive is in the path, 
+regardless of user number.
+
+Right now I have TSS/C execute the command "zex b:login" which 
+does the following:
+
+     type a:login.msg    types the message of the day and 
+                         intercepts any wayward characters.
+     zcpr2               loads zcpr2 system per your program
+     path $$$$ A0        sets up path (double $'s to process one)
+     ddt
+     ipubpatch.hex
+     r                   reads in the public file patch
+     ^C
+     b:                  switch to working drive
+     a:ws                start application
+
+There must be an easier way, but I don't know what.  Do you have 
+any suggestions?
+
+Any areas I should look for problems/bugs with pubpatch?  I'd 
+hate to find a bug that made half my files go away like somebody 
+reported.  (That particular problem did not occur on my system[s] 
+- I checked.)  Anywhat, why can't the relocator also check the 
+bdos to see if it's a 'standard' bdos and issue a warning if not?
+
+-bob bloom
+
+14-Feb-85 14:35:19-MST,3544;000000000000
+Return-Path: <BOMBERGER@OFFICE-2.ARPA>
+Received: from OFFICE-2.ARPA by SIMTEL20.ARPA with TCP; Thu 14 Feb 85 14:35:05-MST
+Date: 14-Feb-85 13:34 PST
+From: Alan Bomberger  <ACB.TYM@OFFICE-2.ARPA>
+Subject: New Blood
+To: Northstar-users@simtel20.ARPA
+Message-ID: <TYM-ACB-6D7JP@OFFICE-2.ARPA>
+
+I am a long time Horizon owner (1980) with a custom BIOS (I originally got my 
+BIOS from LIFEBOAT from some unknown author and when I wanted to make some 
+changes found that I did not have any source, so I wrote one from scratch) with
+many features that this list might be interested in.  I know nothing about the 
+Northstar BIOS.  My  Horizon controller does not generate so originally I lost 
+the top 8 k.  I added external phantom generation so that I could wedge my BIOS
+around the Disk controller and eventually the 8 inch controller ROM as well.
+
+I will give you an idea of the BIOS features and will wait for requests to 
+discuss them.  I added 96TPI drives and sent my saga to INFO-CPM.  I had to add
+them more carefully as my BIOS did not support them without changes.
+
+   Virtual Drives - I use different Logical drive addresses that map onto the 
+   same physical drives for different formats.  I do not go for the automatic 
+   disk type recognition (not having the standard Northstar formatter means 
+   that I don't have the foggiest idea how to recognize DS vs SS "standard" 
+   disks).  With virtual drive code, the BIOS requests a disk swap should a new
+   logical drive be selected for the same physical drive.  This can be used to 
+   copy disks changing formats on the same drive.
+
+   Interrupt driven Console - I use clock interrupts and poll the console each 
+   interrupt.  This allows me to use the ND DOS system without modifiying it 
+   for interrupts (the mother board has no software way to disable the console 
+   interrupts except by disabling the 8251 which of course also disables the 
+   character ready line).
+
+   A mouse input on the parrallel input port.  This software simulates cursor 
+   keys as the mouse moves, making the mouse useful for my text editors without
+   touching them.  Great!.
+
+   Disk Sector cache -  Using a CCS 2066 board, I use the extra memory to cache
+   recently read disk sectors.  Combiniation of LRU and LFU.   Cache is a write
+   through variety.
+
+   Separate deblocking buffers  for read and write
+
+   Correct logic to support Writes without Read verify - I have NEVER had a 
+   disk read error that was not attributed to direct disk damage, and read 
+   after write is just too slow.  Whatever the bug is (TM100 or controller) 
+   that doesn't allow the heads to move if the last operation is a write can be
+   bypassed more quickly than losing a whole revolution to read the sector over
+   again.
+
+   Support for Morrow Disk Jockey I 8 inch controller.
+
+   RAM disk again using the CCS 2066 board.  I rarely use this because the 
+   Cache is more effective.  64K of RAM disk isn't worth much yet 64K of Cache 
+   makes it like a Hard disk.   (I had ordered another 2066 board but US Micro 
+   Sales nosedived before they delivered,  That makes the one board I do have 
+   Very Expensive)
+
+   I thought of writing Soft Secotr support for the NS disk controller but 
+   bought an Ampro Little board instead.
+
+Well no one may care a twit about all that drivel, but if you do just ask and I
+will share.  I may lose my network connection within a month or so!   The 
+Interrupt Console was in DDJ and the Mouse will be soon!
+
+15-Feb-85 09:37:15-MST,638;000000000000
+Return-Path: <Thieret.WBST@Xerox.ARPA>
+Received: from Xerox.ARPA by SIMTEL20.ARPA with TCP; Fri 15 Feb 85 09:36:52-MST
+Received: from Aurora.ms by ArpaGateway.ms ; 15 FEB 85 08:36:29 PST
+Date: Fri, 15 Feb 85 11:35 EST
+From: Thieret.WBST@XEROX.ARPA
+Subject: New Disk Controller ROMS
+To: Northstar-users@SIMTEL20.ARPA
+cc: Thieret.WBST@XEROX.ARPA
+
+Some time ago there was a message on this list about someone who had
+reprogrammed the N* disk controller roms to FC00H.  I am looking for the
+individual who sent that message or anyone else who has done this task
+before I try doing it myself.
+
+Tracy (Thieret.WBST@Xerox.ARPA)
+

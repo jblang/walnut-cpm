@@ -1,0 +1,396 @@
+[ KAY*FOG RBBS | INTE8251.ART | published 05/30/85 | 379 lines  13k ]
+
+INTEL8251:  Programming the Intel 8251A USART
+       by:  Ed Greenberg
+            Kay*Fog
+            CompuServe:    76703,1070
+            MCIMAIL:       EDG
+
+Preface
+=======
+
+This document was inspired by my collection of Intel data books.
+Of the three databooks, only one contains the following
+information.  Most microcomputer users do not have this
+information in their computer manuals and do not have access to
+the Intel manuals.  Murphy's law also states that the hobbyist
+will not have the required manuals at midnight on Saturday when
+he is busily trying to debug his communications program.
+[Press ENTER key for more]
+
+
+Introduction
+============
+
+In order to communicate via a serial port, a computer is equipped
+with a device called a Universal Asynchronous Receiver/Transmitter
+or UART.  This device converts a byte (written to an output port)
+to a series of bits sent one at a time (serially) from a
+communications port.  It also scans the input line on the serial
+port and, detecting the beginning and end of each character,
+assembles incoming characters and presents them on an input port.
+
+Other names for this part are SIO's (serial input/output) or
+Communications adapters and USARTS (Universal Synchronous/
+Asynchronous Receiver/Transmitters).
+
+This document deals with one common part - the Intel I8251a
+USART. That usart is used in the North Star Horizon, the Morrow
+Micro Decision, and other common computers.  This discussion deals
+with the 8251A only in asynchronous mode.  It is the mode used
+when communicating with a printer, a modem, a terminal and
+usually, another microcomputer.
+
+
+Using your USART
+================
+
+In order to use a communications port with a usart, one must
+first initialize it.  By doing so, one sets parameters that tells
+the USART how to do it's job.  One defines the parity, the number
+of stop and data bits, and the divisor (if any) to be applied to
+the incoming clock signal.
+
+After the USART is initialized, one can read and write characters
+on the data port of the usart. One can also check the status of
+the usart on the status port.
+
+Things to know before you start
+===============================
+
+Before you can write code for your usart, you must know the port
+locations on which the usart appears.  There are two ports,
+called the DATA port and the STATUS port.  Commands are written
+to the status port, and the condition of the port is read from
+it.  Actual characters are written to and read from the data
+
+port.  A good place to find the port numbers is a published I/O
+MAP in your manual.  Another place is in a program listing of the
+BIOS or a communications program.  You will see something like
+this:
+
+STATUS    EQU       80H
+DATA      EQU       81H
+
+or the like.  Sometimes, the word MODEM is worked into the label
+(e.g. MODDATP for MODem DATa Port.)  Be certain that you find the
+correct set of ports in the case where your computer has more
+than one usart.
+
+A Note About Interrupts
+=======================
+
+Some computers use the facility called interrupts to signal the
+processor that a character is ready.  In this case, it is
+important for the amateur programmer to avoid messing up the
+interrupt structure of the machine.  You should not read or write
+your USART directly when it's interrupt is enabled.  Doing so may
+cause spurious interrupts of the processor.  The result is that
+
+nothing will work.  Determining whether your computer uses
+interrupts on the communications line is beyond the scope of this
+document.
+
+Initializing the usart
+======================
+
+The following code fragment is taken from the MEX overlay for the
+Morrow Micro Decision.  MEX is written and copyrighted by Robert
+Fowler.  The comments are my own.
+
+INITMOD:  ...
+          ...
+          MVI   A,087H          ;Take the usart out of
+          OUT   MODCTL1         ; the condition for
+          OUT   MODCTL1         ;  setting the mode (*)
+          MVI   A,40H           ;Put it back into that
+          OUT   MODCTL1         ; condition.  This resets
+                                ;  just about everything for
+                                ;   new commands.
+INITMOD1: MVI   A,4EH           ;This is the MODE BYTE (*)
+          OUT   MODCTL1         ;Send it to the  control/status port
+
+          MVI   A,37H           ;This is the COMMAND BYTE (*)
+          OUT   MODCTL1         ;Send it to the control/status port
+          IN    PORT            ;Clear out the DATA port
+
+          RET                   ;Return
+
+(*)  See the definition below
+
+Input and Output of Characters
+==============================
+
+Below are sample routines for input and output of characters on
+the 8080 (or Z80) using an 8251A.
+
+;Input character routine.  Character is returned in A.
+INPUT:    IN   STATUS         ;Get the status of the usart
+          ANI  2              ;turn off all bits but RxR (**)
+          JZ   INPUT          ;go back and check again because
+                              ; there is no character ready
+          IN   DATA           ;There is a character ready,
+                              ; so go get it.
+;OPTIONAL STEP
+
+          ANI  7FH            ;Remove the high bit
+
+          RET                 ;Go back to the caller
+
+;Output character routine.  Character is provided in C.
+OUTPUT:   IN   STATUS         ;Get the status of the usart
+          ANI  1              ;turn off all bits but TxR (**)
+          JZ   OUTPUT         ;Go back and check again because
+                              ; the USART isn't ready for another
+                              ;  character.
+          MOV  A,C            ;The USART is ready, so get the
+                              ; character in A for output
+          OUT  DATA           ;Now output it and...
+          RET                 ;Return to the caller.
+
+(**)  See the definition of the Status byte below
+
+The remainder of this document is concerned with defining the
+actual bytes sent to (and received from) the usart.
+
+-----------------------------------------------------------------
+
+
+Format of the Mode Byte
+=======================
+
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+|s(2)|s(1)| ep |pen |l(2)|l(1)|b(2)|b(1)|
++----+----+----+----+----+----+----+----+
+
+Content of the Mode byte
+========================
+
+s(2) and s(1) - the stop bit indicators:
+----------------------------------------
+
+        s(2)    s(1)    meaning
+        ----    ----    -------
+         0       0      Invalid
+         0       1      1 stop bit
+         1       0      1.5 stop bits
+         1       1      2 stop bits
+
+ep - the parity bit
+
+--------------------
+
+        ep              meaning
+        --              -------
+         0              Odd parity is generated and checked
+         1              Even parity is generated and checked
+
+                Note: this bit is only active when pen is set
+                to 1.
+
+pen - the parity enable bit
+---------------------------
+
+        pen             meaning
+        ---             -------
+         0              parity disabled
+         1              parity enabled
+
+l(2) and l(1) - the word length bits
+------------------------------------
+
+        l(2)    l(1)    meaning
+
+        ----    ----    -------
+         0       0      5 bits
+         0       1      6 bits
+         1       0      7 bits
+         1       1      8 bits
+
+                Note:  For ASCII, we usually use only 7 or 8 bits.
+                Hams and TTY/TDD (for the deaf) use 5 bits.  The only
+                thing that 6 bits is used for is a colloquialism for
+                seventy five cents.
+
+b(2) and b(1) - the baud rate divisor bits
+------------------------------------
+
+        b(2)    b(1)    meaning
+        ----    ----    -------
+         0       0      synchronous
+         0       1      1x
+         1       0      16x
+         1       1      64x
+
+                Note:  This should be left alone.  Whatever
+
+                your system comes equipped for... that's it.
+
+Format of the Command Byte
+==========================
+
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+|EH  |IR  |RTS |ER  |SBRK|RxE |DTR |TxEN|
++----+----+----+----+----+----+----+----+
+
+Content of the Command Byte
+===========================
+
+EH - the Enter Hunt Mode bit
+----------------------------
+
+This bit has no effect in async mode!
+
+IR - Internal Reset
+-------------------
+
+        1 Returns 8251A to Mode Instruction format.
+
+
+RTS - Request to Send
+---------------------
+
+        1 will force RTS high on the RS-232 connector.
+
+        Note:  This assumes that the designer hooked all
+        the signals up on the PC board.  This is not
+        necessarily true.
+
+        On some computers, where the port is wired backwards,
+        this will control CTS rather than RTS.
+
+ER - Error Reset
+----------------
+
+        1 Will reset error flags in the status word
+        (PE OE and FE will be reset.)  See the definition
+        of the status word below.
+
+SBRK - Send a break
+-------------------
+
+
+        1 Will send a break
+
+        Note: Usually, one sends a command with this bit set
+        and then, after a delay that equals the length of a
+        break, one sends another command that does not have
+        the break bit on.
+
+RxE - Receive Enable
+--------------------
+
+        1 will enable the receiver.  If you are going to disable
+        the receiver for any reason, you should have a data book
+        in front of you and know what you're doing.  This bit
+        should almost always be on for any command you send.
+
+DTR - Data Terminal Ready
+-------------------------
+
+        1 will turn on Data Terminal Ready at the RS-232 connector.
+
+        Note:  This assumes that the designer hooked all
+
+        the signals up on the PC board.  This is not
+        necessarily true.
+
+        On some computers, where the port is wired backwards,
+        this will control DSR rather than DTR.
+
+TxE - Transmitter Enable
+------------------------
+
+        1 will enable the transmitter.  If you are going to disable
+        the transmitter for any reason, you should have a data book
+        in front of you and know what you're doing.  This bit should
+        almost always be on for any command you send.
+
+Format of the Status Byte
+=========================
+
+  7    6    5    4    3    2    1    0
++----+----+----+----+----+----+----+----+
+|DSR |SDET|RE  |OE  |PE  |TxE |RxR |TxR |
++----+----+----+----+----+----+----+----+
+
+
+Content of the Status Byte
+==========================
+
+DSR - Data Set Ready
+--------------------
+
+        1 Indicates that DSR is low!  That's right, Low!
+
+        Note that this bit may be (a) not wired at all or (b)
+        wired to DTR or some other pin on the RS-232 connector.
+        The only way to tell for sure is to look at a schematic.
+
+SDET - SYNC Detect/ BREAK Detect
+--------------------------------
+(In the Intel documentation this is called SYNDET, not SDET.)
+
+In async mode, this bit "will go high whenever an all zero word
+of the programmed length (including start bit, data bit, parity
+bit and *one* stop bit) is received." (***)  In other words, when
+the other end sends *you* a break.
+
+This bit stays high until a reset command is issued.
+
+
+FE - Framing Error
+------------------
+
+This bit is set when "A valid stop bit is not detected at the end of
+every character."
+
+This bit stays high until a reset command is issued.
+
+OE - Overrun Error
+------------------
+
+This bit is set when a character has been pending on the USART buffer
+and another character comes in before the first one has been read.
+The first character is lost and this bit is set to alert the CPU to
+the problem.
+
+This bit stays high until a reset command is issued.
+
+PE - Parity Error
+-----------------
+
+
+This bit is set when a parity error is detected.
+
+This bit stays high until a reset command is issued.
+
+TxEMPTY - Transmit Buffer Empty
+-------------------------------
+
+"When the 8251A has no characters to transmit, the TxEMPTY ...
+[bit will be set to 1.]  ... " (***)
+
+RxRDY - Receiver Ready
+----------------------
+
+"This ... [bit set to 1] ... indicates that the 8251A contains
+a character that is ready to be input to the CPU." (***)
+
+This is the usual bit to test to see if a character is available.
+Usually one sees ANI 2 (on 8080) when this bit is tested.
+
+TxRDY - Transmitter Ready
+-------------------------
+
+
+"This ... [bit set to a 1] ... signals the CPU that the transmitter
+is ready to accept a data character."
+
+This is the usual bit to test to see if a character may be sent.
+Usually one sees ANI 1 (on 8080) when this bit is tested.
+
+----------------------- End of INTE8251.ART Text -----------------------
+ ï

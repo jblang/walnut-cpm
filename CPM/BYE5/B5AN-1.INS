@@ -1,0 +1,493 @@
+; B5AN-1.ASM - Apple // with PCPI Applicard and MTN CPS Serial Card
+;
+;		2651 with internal baudrate generator
+;
+; This insert version is for the Apple ][+ with the Mountain Computer
+; CPS Serial Interface Card and PCPI Applicard. Additional routines
+; are included to support the TIME routines in BYE5nn.
+;
+; Thanks to Norman Beeler for previous versions of this insert.
+;
+;-----------------------------------------------------------------------
+;
+; 12/23/85  Written for BYE5		- H. Middlebrook
+;
+;-----------------------------------------------------------------------
+;
+;		     BYE5xx Insert Information
+;
+; The following information regarding BYE5xx inserts is included for
+; reference purposes and may be removed and saved in a separate file.
+;
+; HARDWARE (Serial I/O) --
+;
+; BYE5 program calls a number of hardware routines, listed below:
+;
+; MODEM Specific --
+;
+; If IMODEM is set true in BYE5nn, then MDINIT and MDQUIT routines
+; should should call IMxxxx routines in BYE5xx core program.
+;
+; USEFUL BYE ROUTINES --
+;
+;	DELAY:	  100 msec delay routine (uses BC and A registers)
+;	KDELAY:   1 msec delay routine (uses BC and A registers)
+;
+; ROUTINES called from BYE core program code --
+;
+;	** Routines may use A register but must preserve all others
+;	   (if used).  Flags must be set as indicated for status
+;	   routines.
+;
+; MDCARCK	Carrier check.
+;		Flags:	Set Zero if No Carrier is present
+;
+; MDQUIT	Leaving BYE...reset modem.  Called when SYSOP types
+;		Ctrl-C.  If IMODEM is TRUE then call IMQUIT and
+;		fall through to MDSTOP; else just fall through to
+;		MDSTOP.
+;
+; MDSTOP	Drop DTR permanently.
+;		Disable DTR...MDINIT and SETnnnn will re-enable DTR.
+;
+; MDINIT	Initialize modem (serial I/O).
+;		For CPS card, drop then raise DTR, set PSW = 8N1,
+;		and set baud to current HSnnnn. If IMODEM is TRUE,
+;		then CALL IMINIT after initializing CPS card.
+;
+; MDINP 	Receive character from serial (modem) interface.
+;		Regs:	A = Character received
+;
+; MDOUTP	Send character to serial (modem) interface.
+;		Regs:	A = Character to send to modem
+;
+; MDOUTST	Output status of serial (modem) interface.
+;		Flags:	Set Zero if I/O not ready for character
+;
+; MDINST	Input status of serial (modem) interface.
+;		Flags:	Set Zero if I/O does not have character
+;		Regs:	A = 00H if I/O does not have character
+;		This routine requires that both A = 00H and zero
+;		set if a character is not available.  Your routine
+;		should clear zero and return with A = 0FFH if
+;		character is available.
+;
+; MDCRDL	Carrier check with 2 second delay.  Returns with
+;		carrier status ON or BEFORE about a 2 second delay.
+;		This routine may be required for modems which are
+;		slow in returning carrier status after ATA command.
+;		Replace the following code in BYE502:
+;
+;	Was --		FINISH: CALL	MDCARCK
+;
+;	Now --		FINISH: CALL	MDCRDL
+;
+; SETnnnn	Set serial I/O to specified baud rate.	Only one
+;		routine is called depending on HSnnnn EQUATE in
+;		BYE core.  Should init CPS card to PSW=8N1 and
+;		Baud = nnnn.
+;
+;
+;-----------------------------------------------------------------------
+;
+;		CPS Serial Interface Routines
+;
+SLOT	EQU	2			; CPS card slot number
+;
+;
+; CPS Serial Port and Register Equates
+;
+DATREG	EQU	0C0FAH + SLOT *	100H	;Serial Data Register
+STAREG	EQU	0C0FBH + SLOT *	100H	;Serial Status Register
+SCRCTL	EQU	0C0FEH + SLOT *	100H	;CPS Serial Ctl Register
+CLKREG	EQU	0C0F9H + SLOT *	100H	;CPS Clock Data Register
+;
+RDBYTEAPPL	EQU	0FFE0H		;Read byte from Apple
+WRBYTEAPPL	EQU	0FFE3H		;Write byte to Apple
+RDWORD		EQU	0FFE6H		;Read 2 bytes  (DE = Bytes)
+WRWORD		EQU	0FFE9H		;Write 2 bytes (DE = Bytes)
+;
+PEEK1BYTE	EQU	6		;Command to Peek 1 byte to Apple
+POKE1BYTE	EQU	7		;Command to Poke 1 byte to Apple
+;
+;
+; The following routines communicate with hardware in Apple Slots
+; directly from Applicard.
+;
+; Read the UART Status Register
+;
+RD$STAREG:
+	PUSH	D
+	LXI	D,STAREG
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the UART Status Register
+;
+WR$STAREG:
+	PUSH	D
+	LXI	D,STAREG
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the UART Command Port
+;
+WR$SCRCTL:
+	PUSH	D
+	LXI	D,SCRCTL
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+; Read the UART Data Register
+;
+RD$DATREG:
+	PUSH	D
+	LXI	D,DATREG
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; Write to the UART Data Register
+;
+WR$DATREG: PUSH	D
+	LXI	D,DATREG
+	CALL	POKE
+	POP	D
+	RET
+;.....
+;
+;
+; Read a byte from CPS clock register
+;
+RD$CLKDATA:
+	PUSH	D
+	LXI	D,CLKREG	; Select clock data
+	CALL	PEEK
+	POP	D
+	RET
+;.....
+;
+;
+; PEEK at 1 byte in Apple address space
+;    ENTRY  DE = Address in 6502 RAM/ROM
+;    EXIT   A  = Data from 6502
+;
+PEEK:	PUSH	B
+	MVI	C,PEEK1BYTE
+	CALL	WRBYTEAPPL
+	CALL	WRWORD
+	CALL	RDBYTEAPPL
+	POP	B
+	RET
+;.....
+;
+;
+; POKE 1 byte to Apple address space
+;    ENTRY  DE = Address in 6502 RAM/ROM
+;    EXIT   A  = data to 6502
+;
+POKE:	PUSH	B
+	MOV	B,A
+	MVI	C,POKE1BYTE
+	CALL	WRBYTEAPPL
+	CALL	WRWORD
+	MOV	C,B
+	CALL	WRBYTEAPPL
+	POP	B
+	RET
+;.....
+;
+;
+;----------------------------------------------------------------------
+;
+; This routine intializes Serial Port of CPS card and (optionally)
+; initializes ASCII commanded modem.  NOTE: PSW and BAUD must be set
+; by two sequential writes to DATREG with SCRCTL access open.
+;
+MDINIT:	MVI	A,80H
+	CALL	WR$SCRCTL
+	MVI	A,15H		; Drop DTR and reset serial I/O
+	CALL	WR$STAREG
+	MVI	B,20
+;
+MDDLOP:	CALL	DELAY		; 2 second delay
+	DCR	B
+	JNZ	MDDLOP
+	MVI	A,27H		; Now re-enable serial port
+	CALL	WR$STAREG
+	MVI	A,4EH		; Set PSW = 8N1  (1st DATREG write)
+	CALL	WR$DATREG
+	MVI	A,03AH		; Default to 2400 baud
+;
+	 IF	HS1200
+	MVI	A,037H
+	 ENDIF			; HS1200
+;
+	 IF	HS300
+	MVI	A,035H
+	 ENDIF			; HS300
+;
+	CALL	WR$DATREG	; Set baud (2nd DATREG write)
+	XRA	A		; Close BAUD/PSW access
+	CALL	WR$SCRCTL
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; This routine is called when BYE is to go off the air
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; This routine will shut everything down permanently.
+;
+MDSTOP:	MVI	A,80H		; Enable UART command register
+	CALL	WR$SCRCTL
+	MVI	A,05H		; Disable DTR and RTS (UART Cmd Reg)
+	CALL	WR$STAREG
+	XRA	A		; Enable CPS status register
+	CALL	WR$SCRCTL
+	CALL	DELAY		; 100 msec delay
+	RET
+;.....
+;
+;
+; The following is a routine to determine if there is a character wait-
+; ing to be received.  If none are there, the Zero flag will be set,
+; otherwise, 255 will be returned in register A.
+;
+MDINST:	CALL	RD$STAREG	; Read UART command register
+	ANI	02H		; Mask everything but RxRDY, char ready?
+	RZ			; No, then return
+	ORI	0FFH		; Yes, be sure to set flag and A reg
+	RET
+;.....
+;
+;
+; The following is a routine to determine if the transmit buffer is
+; empty.  If it is empty, it will return with the Zero flag clear.  If
+; the transmitter is busy, then it will return with the Zero flag set.
+;
+;
+MDOUTST:CALL	RD$STAREG	; Read status register
+	ANI	01H		; Mask everything but TxRDY and...
+	RET			; Return with flags set
+;.....
+;
+;
+; The following is a routine that will check to make sure we still have
+; carrier.  If there is no carrier, it will return with the Zero flag
+; set.	There are two entry points to this section: the 1st MDCRDL delays
+; for 2 seconds or until carrier is detected.  The second is the normal
+; entry for carrier check.
+;
+MDCRDL:	PUSH	B
+	MVI	B,20		; Set for 2 sec delay max
+;
+MDCK2:	CALL	DELAY		; Wait 100 msecs
+	CALL	MDCARCK
+	JNZ	MDCK1		; If carrier, then return
+	DCR	B
+	JNZ	MDCK2		; If not 2 secs, then continue timing
+;
+MDCK1:	POP	B		; When done fall thru to carrier check
+;
+;
+; This is normal carrier check routine.
+;
+MDCARCK:CALL	RD$STAREG	; Read status register
+	ANI	080H		; Use DSR bit instead of DTR bit
+	RET
+;.....
+;
+;
+; The following is a routine that will input one character from the
+; CPS UART register.
+;
+MDINP:	CALL	RD$DATREG	; Get character
+	RET
+;.....
+;
+;
+; The following is a routine that will output one character in register
+; A to the CPS UART data register.
+;
+MDOUTP:	CALL	WR$DATREG	; Send character to CPS UART
+	RET
+;.....
+;
+;
+; The following routines set the CPS card to a specified baud rate. A
+; common setup routine is jumped to after baud setup byte in local
+; storage.
+;
+SET300:	MVI	A,35H		; 300 baud setup byte
+	STA	MBSET
+	JMP	BPSET		; Jump to psw/baud set routine
+;
+SET1200:MVI	A,37H		; 1200 bps byte
+	STA	MBSET
+	JMP	BPSET
+;
+SET2400:MVI	A,3AH		; 2400 bps byte
+	STA	MBSET
+;
+BPSET:	MVI	A,80H		; Open command register
+	CALL	WR$SCRCTL	; By storing 80H in SCRCTL
+	MVI	A,27H		; Initialize the serial chip
+	CALL	WR$STAREG	; By storing 27H in STAREG
+	MVI	A,4EH		; Set default format 8N1
+	CALL	WR$DATREG
+	LDA	MBSET		; Get baud rate byte from local storage
+	CALL	WR$DATREG
+	XRA	A
+	CALL	WR$SCRCTL	; Close command port by storing 0
+	RET
+;.....
+;
+;
+MBSET:	DB	0		; Storage for baud setup byte
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; WARNING:  This section uses code in the PORT insert above.  Use care
+;	    care if altering it or if you change the code above.
+;
+; This TIME routine is adapted from TIME14.ASM (Nov 85 - HMM).	The
+; routine uses a burst read of time from CPS clock chip (OKI 5832).
+; The raw data is stored in CLKBUF then assembled and placed into
+; RTCBUF in BYE.
+;
+; Real-Time clock buffer is organized as HH:MM:SS  YYYY/MM/DD
+;
+;RTCBUF:DB	99H,99H,99H	;HH:MM:SS (BCD 24hr) 00:00:00-23:59:59
+;	DB	19H,84H,01H,31H ;YYYY/MM/DD  (BCD ISO DATE)
+;
+;
+; BYE5 save and restores registers before/after calling TIME.
+;
+	 IF	CLOCK OR RSPEED
+TIME:	MVI	A,040H		; Get byte to stop clock
+	CALL	WR$SCRCTL	; Send to CPS card
+	LXI	D,CLKBUF	; Put CLKBUF address in DE
+	MVI	B,0		; Set clock index to 0
+;
+TMLOOP:	MVI	A,050H		; Get byte to read clock
+	ORA	B		; Add clock index to read (50H - 5CH)
+	CALL	WR$SCRCTL	; Send to CPS card
+	CALL	RD$CLKDATA	; Read clock (SEC1 --> YEAR10)
+	ANI	0FH		; Mask garbage in high nibble
+	STAX	D		; Save value read in CLKBUF
+	INX	D		; Bump CLKBUF address value in DE
+	INR	B		; Bump clock index in BC
+	MVI	A,0DH		; Fetch table length + 1
+	CMP	B		; Are we beyond end of table...
+	JNZ	TMLOOP		; No, then go back again
+	XRA	A		; Yes, then zero A reg to turn on clock
+	CALL	WR$SCRCTL
+;
+;
+; Now move data from CLKBUF to RTCBUF.
+;
+FIXRTC:	LDA	CLKBUF+1	; Seconds
+	ANI	7
+	MOV	B,A
+	LDA	CLKBUF+0
+	CALL	SHFTIT
+	STA	RTCBUF+2
+	LDA	CLKBUF+3	; Minutes
+	ANI	7
+	MOV	B,A
+	LDA	CLKBUF+2
+	CALL	SHFTIT
+	STA	RTCBUF+1
+	LDA	CLKBUF+5	; Hours
+	ANI	3
+	MOV	B,A
+	LDA	CLKBUF+4
+	CALL	SHFTIT
+	STA	RTCBUF+0
+	MVI	A,19H		; Century
+	STA	RTCBUF+3
+	LDA	CLKBUF+12	; Year
+	MOV	B,A
+	LDA	CLKBUF+11
+	CALL	SHFTIT
+	STA	RTCBUF+4
+	LDA	CLKBUF+10	; Month
+	ANI	1
+	MOV	B,A
+	LDA	CLKBUF+9
+	CALL	SHFTIT
+	STA	RTCBUF+5
+	LDA	CLKBUF+8	; Day
+	ANI	3
+	MOV	B,A
+	LDA	CLKBUF+7
+	CALL	SHFTIT
+	STA	RTCBUF+6
+	LDA	RTCBUF		; Put current hour
+	CALL	BCDBIN
+	STA	CCHOUR		; And minute into CCHOUR
+	LDA	RTCBUF+1
+	CALL	BCDBIN		; And CCMIN in Binary
+	STA	CCMIN
+	RET			; To BYE
+;
+SHFTIT:	PUSH	PSW		; Routine to put A & B registers
+	MOV	A,B		; Together (low order nibbles)
+	RLC
+	RLC			; Return with result in A.
+	RLC
+	RLC
+	MOV	B,A
+	POP	PSW
+	ANI	0FH
+	ORA	B
+	RET
+;.....
+;
+;
+; The CLKBUF is fixed, initialized area used to store time as
+; read from CPS clock hardware.  Must be DB 0 for proper relocation
+; when using BYE.
+;
+CLKBUF:	DB	0		; S1
+	DB	0		; S10
+	DB	0		; MIN1
+	DB	0		; MIN10
+	DB	0		; H1
+	DB	0		; H10
+	DB	0		; Day of Week (not used here in BYE)
+	DB	0		; D1
+	DB	0		; D10
+	DB	0		; MON1
+	DB	0		; MON10
+	DB	0		; Y1
+	DB	0		; Y10
+	 ENDIF			; CLOCK OR RSPEED
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

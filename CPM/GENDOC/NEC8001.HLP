@@ -1,0 +1,162 @@
+               ***NEC PC-8001 COMPUTER BITS AND PIECES***
+
+                   ***NEComaniac 4-8-84 at 5:00 AM***
+
+After obtaining what was probably one of the first of these animals
+in the Detroit area, I started trying to do something with it.
+Quickley I discovered that not only was the documentation a bit
+sparse, so was the hope of any help.
+This situation is probably true for most computer hobbyists and is
+what inspires the drive for user-groups and CBBS's.
+The following information is donated in the hope that it will answer
+some questions about this system and aim the PC-8001 user in a
+direction where he might obtain further information.
+
+
+Naturally it is impossible to cover all hardware and software of any
+system in great detail without writing a book. What I'll try and do
+is to explain some interesting and useful features.
+
+                            ***HELLO56.COM***
+If you examine the listing in your Operating System handbook (The
+nice soft one with the pages that fall out.) you'll see that just
+following the statement 'CALL   CALBOOT' there is a bunch of NOP's.
+These NOP's were set aside so you can add CALL's to additional
+routines of your own design. The following is an example routine
+which initializes the USART at your built-in RS-232 serial port.
+
+Add this routine to 'HELLO.ASM' and assemble it into your new
+HELLO56.COM. Remember that any useful routine that configures your
+hardware on Cold Boot can be accomplished this way.
+
+Insert CALL INT8251 (or whatever) where those NOP's are.
+Add this routine (or yours) just before the END directive.
+You can find out how to program the 8251 USART in nearly any book
+or data catalog that covers chips associated with the 8080 family.
+This routine sets the USART for 'devide by 64 Baudrate, 1 stop bit,
+even parity.
+
+INT8251  LDA 0EA66H        ;This routine tells the machine that you
+         ANI 0CFH          ;want the serial port used for I/O instead
+         ORI 20H           ;of the Cassette interface.
+         OUT 30H           ;System control port
+         STA 0EA66H
+         NOP
+         MVI A,40H         ;Get 8251 ready for Mode word
+         OUT 21H           ;Serial Status and Command Port
+         NOP
+         MVI A,7BH         ;Devide by 64, 1 stop bit, even parity
+         OUT 21H
+         NOP
+         MVI A,15H         ;TXEN,RXEN,ERROR RESET
+         OUT 21H           ;Oh, by the way the data port is 20H
+         RET               ;incase you want to go around CP/M.
+
+Remember that the routine could of been anything. How about a start-
+up to get the screen going a different color or different format?
+Don't forget to make back-ups of what you do and document it.
+
+Do you use 'FNCKEY.STR' to get your function keys set up? Why not
+just change HELLO56.COM to use different definitions and save disk
+space?
+
+                             ***LIGHT PEN***
+
+Did you know that pin 5 on the Din connector for the B/W monitor is
+connected directly to the light pen input on the CRT Controller chip?
+This one is too complicated to really go into, but here's the info to
+get you going on this project.
+
+1. input is positive going (Hi = true)
+2. 51H is the CRTC command port. Send 60H to tell chip you want to
+   read the light pen.
+3. Read 50H twice to get the location
+   a. first read = Character position in Row
+   b. second read = Row number
+4. the CRTC is a uPD3301 (Later I'll tell you how to get the manual)
+5. Maybe you can find a simple light pen circuit in one of those old
+   magazines you keep hesitating to throw out.
+
+                          ***Heath Software***
+
+Did you know that just about any Heath software that doesn't depend
+on the H-19 video terminal can be run on your machine?
+It's true, Where else can you get C/80 so cheap or how about MACRO-80
+that fancy macro assembler?
+
+Here is one way you can do it.
+1. Find someone with a new Z-100 that likes to help.
+2. Format one of your disks.
+3. Using one of those handy disk-dump programs gratefully recieved
+   from the CBBS (don't forget your donation-money is good) do the
+   following.
+   a. on the first sector, first track write the following:
+      E5 E5 E5 E5  00 22 E5 02  08 E5 E5 00  E5 20 00 03
+      07 00 97 00  3F 00 C0 00  10 00 02 00  6D E5 E5 E5
+   b. This data allows the Z-100 to configure its second drive to
+      the same format as your computer.
+   c. Now it is a simple matter for the Z-100 to transfer that
+      Heath software to your disk.
+4. Remember that bootlegging is illegal and not very nice. (I got to
+   learn not to preach.)
+
+                  ***Some unresolved 'Did you knows'***
+
+Unresolved means that I definitely now it will work but I haven't
+figured it out totally.
+1. The PC-8031 Disk unit can be programed to read and write just
+   about every mini disk format. Ya it's true, it has its own Z-80
+   and its own ram and a very nice controller chip that likes being
+   programed all kinds of different ways.
+   This is what I got so far:
+   a. We're dissasembling the rom and we made some discoveries.
+      The unit can be reprogramed, can support double sided drives,
+      and can probably use the new 80 track drives.
+   b. The units operating system is kind of wierd, so is the hardware
+      but if I can figure it out to a usable extent I'll pass on the
+      information.
+   c. The unit uses the uPD765.
+   d. The units power supply could support four half-height double-
+      sided drives. That would be a breakthrough in disk space!
+
+2. By changing the console I/O driver in CP/M the computer could
+   definitly emulate the H-19. Now we got just about all the H-89-90
+   software.
+3. A simple circuit could allow switching the character generator to
+   a 2K ram (6116) for a programmable character generator. Hooray
+   Hi-Res graphics, different fonts.
+
+                     ***Where to get information***
+
+Boy, has this part been frustrating!! Everyone acts like I'm a spy
+trying to get TOP-SECRET information. I've even tried bribing service
+technicians and computer stores. NEC hasn't been all that helpful
+either, they can answer questions about what key do you hit to enter
+information but little else. You can do better getting information
+on a MIG fighter. Here's what I did:
+
+1. See what you can get out of NEC.
+   a. Nec Consumer Electronics Div.
+      Elkgrove, Ill.
+      312-228-5900
+2. This division is good - There manuals are free and come UPS!
+   This is for data sheets and manuals on chips.
+   a. Nec Semiconductor Div
+      One Natick Executive Park
+      Natick, Mass. 01760
+      617-655-8833
+3. I found a computer store that used to carry NEC and they were
+   helpful and sympathetic. They ordered the service manuals for
+   me.
+   a. PC-8001A System Service Manual
+   b. PC-8031A/32A Disk Service Manual
+   c. PC-8012A Service Manual
+   d. PC-8023A-C Printer Troubleshooting Manual
+   Each manual cost $20.00 and aren't the best I've seen!
+   They are vague, but still worth it because what else can you do?
+4. I have a friend that doesn't get tired of my problems and knows
+   alot about electronics. (I didn't say anyone can figure this out
+   by himself).
+5. The RoyalOak CBBS, The insight obtained here was great!
+
+***Thanks, Keith and all you fellow computerists out there.***

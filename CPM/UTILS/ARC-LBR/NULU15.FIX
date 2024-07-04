@@ -1,0 +1,47 @@
+;
+;		     FIX FOR NULU VERSION 1.5
+;		   A Message from Martin Murray
+;		     with acknowledgements to
+;			 Howard Goldstein
+;			     01/09/86
+;
+; A fix has been found for NULU v1.5.  Like all good fixes, however, it
+; causes its own share of problems and can only stand as a temporary fix
+; until I can get version 1.6 out.  The problem was BDOS function 37,
+; which NULU15 uses before writing to a drive in case it has been
+; changed.  Under certain circumstances, BDOS loses its mind when this
+; function is called and starts giving away previously allocated disk
+; blocks.  This is no good for anyone.	The "solution" lies in NOT USING
+; BDOS 37.  The problem now is that you cannot tell NULU to log in a new
+; disk.  Oh well, try to live with it until I get the new one out that
+; will support the fix.
+;
+; Assemble with your favorite assembler and merge the resulting .HEX
+; file into NULU15 with MLOAD.
+;
+;	     MLOAD NULU151.COM=NULU15.COM,NULUFIX.HEX
+;
+; The result will be NULU 1.51 and will have the date of 01/09/86.
+;
+; More than special thanks are due to Howard Goldstein for this fix.  He
+; found the problem.  He tested the fix.  He waded through all my self-
+; modifying code.  His family will appreciate any help in paying the
+; psychiatrist's bills.
+;
+;
+	ORG	010CH
+	DB	'1'
+;
+	ORG	0110H
+	DB	'01/09/86'
+;
+	ORG	0150H
+	DW	9832H
+;
+	ORG	32B9H
+	RET
+;
+	ORG	32BCH
+	RET
+;
+	END

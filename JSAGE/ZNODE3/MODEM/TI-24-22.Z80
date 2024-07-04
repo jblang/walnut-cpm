@@ -1,0 +1,602 @@
+
+;
+; MODULE: T3TI24-2 (Telephone Interface) for Hayes-compatible 2400 bps
+;         modems
+; Author: David McCord/Richard Conn
+; Version: 2.2
+; Date: 25 Feb 88
+
+; Version 2.2:   Tested with EMEX 2400 modem from NAOG, P.O.  Box 
+;                2781, Warminister, PA 1897, 215/443-9031.   Code 
+;                cleaned-up a little.  fg.
+
+; Version 2.1:  This Version has been modified by Ron Bush, Hanahan, SC for 
+;		U.S. Roboutics Courier 2400 Modem.  The Courier Modem will not 
+;		Auto-Baud below 1200 bps. There fore you have to check baud 
+;		rate selected on ZCPR3 Message buffer before going to auto-
+;		baud mode, Page 4-1 Term III Manual.  Also added M3 to 
+;		Telephone Interface Initialization.  Speaker On after last
+;		digit dialed, Off at Connect. 
+				
+  		
+; Previous Versions: Richard Conn wrote T3TI-SM v1.2, which this is based on.
+;                    v1.2 (2 Jan 86)
+;
+; Comments: This TI supports 300/1200/2400 bps Hayes-compatible modems.  A key
+;           compatibility point is that the modem return the terse result code
+;           "10" on CONNECT 2400.  Modems that should work with this TI include
+;           the Hayes 2400, USR Courier 2400, and Racal-Vadic 2400V.  Developed
+;           and tested on a Courier 2400.  Baud rate is automatically set upon
+;           connection in answer or originate modes.  The answer routines have
+;           been rewritten from the original to NOT use modem auto-answer
+;           functions, as this can lead to the modem answering the phone when
+;           it shouldn't.
+
+; History:  v2 fixes a few minor bugs.  Now console- abort during
+;           dialing will always work, in v1 it didn't.  T3ANSWER
+;           sometimes ended up with the serial port at 2400 bps and
+;           the modem at 300 or 1200 in v1, and this has been fixed also.
+;           Also set the speaker off during answer routines as a nice touch.
+
+
+;	    Set COURIER equate below; if using COURIER place your Z3BASE file
+; 	    on default drive.  Rename file to TI.Z80; assemble to
+;           Hex and load to BIN file type, ready to be used with install
+;           "T3INS INSTALL.T3I<cr>" command, using ZAS and MLOAD:
+;
+;                             ZAS TI H;MLOAD TI.BIN=TI
+;
+
+	ORG	700H		; BASE ADDRESS (700H - 9FFH)
+
+;
+;  ACCESS TO FILER$SERVER WITHIN T3ANSWER, T3DIAL, T3HANGUP, T3INIT
+;
+FILER$SERVER	EQU	11AH	; ADDRESS OF ADDRESS
+FS$GETSPEED	EQU	0	; GET PROCESSOR SPEED
+FS$WAIT1S	EQU	1	; WAIT 1 SEC
+FS$WAITP1S	EQU	2	; WAIT 0.1 SEC
+FS$WAIT1MS	EQU	3	; WAIT 0.001 SEC
+FS$CST		EQU	4	; CONSOLE STATUS (Z=RDA)
+FS$CIN		EQU	5	; CONSOLE INPUT
+FS$COUT		EQU	6	; CONSOLE OUTPUT (CHAR IN C)
+;
+;  ACCESS TO MODEM OVERLAY ROUTINES
+;
+M1$INIT		EQU	600H		; INITIALIZE MODEM
+M1$ISTAT	EQU	M1$INIT+3	; INPUT STATUS
+M1$OSTAT	EQU	M1$ISTAT+3	; OUTPUT STATUS
+M1$IN		EQU	M1$OSTAT+3	; INPUT BYTE
+M1$OUT		EQU	M1$IN+3		; OUTPUT BYTE
+M1$BREAK	EQU	M1$OUT+3	; SEND BREAK
+M1$CST		EQU	M1$BREAK+3	; CARRIER STATUS DETECT
+M1$SPTAB	EQU	M1$CST+3	; SPEED BYTE
+;
+;  ASCII CONSTANTS
+;
+CR	EQU	0DH
+CTRLC	EQU	'C'-'@'
+;
+COURIER	EQU	000H		 ; IF YES, USE 0FFH FOR COURIER 2400
+
+       IF COURIER
+	.XLIST
+	.IN	Z3BASE
+	.LIST
+       ENDIF
+;
+;  Telephone System Interface Routines
+;
+TI$INIT:
+	JP	STI$INIT	; INITIALIZATION
+TI$ANS:
+	JP	STI$ANS		; SET ANSWER MODE
+TI$HANG:
+	JP	STI$HANG	; HANG UP PHONE
+TI$RST:
+	JP	STI$RST		; RING STATUS DETECT
+TI$DSTRT:
+	JP	STI$DSTRT	; START DIALING
+TI$DSTOP:
+	JP	STI$DSTOP	; STOP DIALING
+TI$DIGIT:
+	JP	STI$DIGIT	; DIAL DIGIT
+TI$PREPANS:
+	JP	STI$PREPANS	; PREPARE FOR ANSWERING PHONE
+TI$GETBAUD:
+	JP	STI$GETBAUD	; RETURN CURRENT BAUD RATE VALUE
+;
+;  FILER$SERVER INTERFACE FOR TELEPHONE INTERFACE OVERLAY
+;  FILER$SERVER CODE IS IN A
+;
+TI$FS:
+	PUSH	HL		; SAVE HL
+	LD	HL,TI$FSRET	; SET RETURN ADDRESS
+	PUSH	HL		; ... ON STACK
+	LD	HL,(FILER$SERVER) ; GET ADDRESS OF FILER$SERVER
+	JP	(HL)		; "CALL" ROUTINE
+TI$FSRET:
+	POP	HL		; RESTORE HL
+	RET
+;
+;  SEND 'ATx' COMMAND TO MODEM
+;
+CMD$SEND:
+	PUSH	AF		; SAVE CMD
+	LD	A,FS$WAIT1S	; CODE TO WAIT 1 SECOND
+	CALL	TI$FS		; FILER$SERVER
+	LD	A,'A'		; SEND 'AT'
+	CALL	CMD$SEND1
+	LD	A,'T'
+	CALL	CMD$SEND1
+	POP	AF		; GET CMD
+;
+;  SEND FURTHER COMMAND CHARS TO MODEM
+;
+CMD$SEND1:
+	PUSH	AF		; SAVE CHAR
+	CALL	M1$OUT		; SEND CHAR IN A
+	PUSH	BC
+	IF	COURIER
+	LD	B,30		; do this 30 times...
+	ELSE
+	LD	B,10		; do this 10 times...
+	ENDIF
+CMD$SEND2:
+	LD	A,FS$WAIT1MS
+	CALL	TI$FS		; wait a millisecond
+	DJNZ	CMD$SEND2	; if courier 2400 wait 30ms
+	POP	BC		; when we get here, we waited 10ms for echo
+	CALL	FLUSH		; flush the echo
+	POP	AF
+	RET
+;
+;  END MODEM COMMAND SEQUENCE
+;
+CMD$END:
+	PUSH	AF		; SAVE A
+	LD	A,0DH		; SEND <CR> AND WAIT FOR <CR>
+	CALL	CMD$SEND1	; SEND CHAR WITH ECHO
+	POP	AF		; RESTORE A
+	RET
+;
+;  WAIT FOR RESPONSE FROM MODEM COMMAND
+;    RETURN DIGIT UNLESS ERROR:
+;	A=0FFH if TIMEOUT
+;	A=0FEH if USER ABORT
+;
+SSRESPONSE:
+	PUSH	HL
+	LD	HL,500		; super short delay for response (.5 sec)
+	JR	RESPE
+SRESPONSE:
+	PUSH	HL
+	LD	HL,2000		; SHORT DELAY FOR RESPONSE (2 secs)
+	JR	RESPE
+RESPONSE:
+	PUSH	HL		; SAVE HL
+	LD	HL,30000	; LARGE DELAY FOR RESPONSE (30 secs)
+RESPE:
+	LD	(RESP$DELAY),HL
+RESP1:
+	LD	HL,(RESP$DELAY)	; DELAY FOR RESPONSE
+RESP2:
+	CALL	M1$ISTAT	; INPUT CHAR FROM MODEM?
+	JR	NZ,RESPM
+	LD	A,FS$CST	; CONSOLE STATUS
+	CALL	TI$FS		; USER ABORT?
+	JR	Z,RESP3
+	LD	A,FS$WAIT1MS
+	CALL	TI$FS		; wait 0.001 sec
+	DEC	HL		; COUNT DOWN
+	LD	A,H		; DONE?
+	OR	L
+	JR	NZ,RESP2
+	POP	HL
+	OR	0FFH		; TIMEOUT CODE
+	RET
+RESP$DELAY:
+	DS	2		; RESPONSE DELAY
+;
+; PROCESS USER CHAR
+;
+RESP3:
+	LD	A,FS$CIN	; GET USER INPUT
+	CALL	TI$FS		; USE FILER$SERVER
+	AND	7FH		; MASK
+	CP	CTRLC		; ABORT?
+	JR	NZ,RESP2
+	POP	HL		; RESTORE HL
+	LD	A,0FEH		; USER ABORT
+	OR	A
+	RET
+;
+; PROCESS MODEM CHAR
+;
+RESPM:
+	CALL	M1$IN		; GET CHAR
+	AND	7FH		; MASK
+	JR	Z,RESP1		; FLUSH NULL
+	POP	HL		; RESTORE HL
+	RET
+;
+;  ATTRACT ATTENTION OF MODEM
+;
+ATTENTION:
+	CALL	M1$CST		; DO NOTHING IF NO CARRIER
+	RET	Z
+	CALL	FLUSH		; FLUSH ANY CHAR
+	LD	A,0		; SEND AT LEAST ONE CHAR FIRST
+	CALL	M1$OUT
+	LD	A,FS$WAIT1S	; WAIT 1 SEC
+	CALL	TI$FS		; USE FILER$SERVER
+	LD	A,'+'		; ATTRACT MODEM'S ATTENTION
+	CALL	M1$OUT
+	CALL	M1$OUT
+	CALL	M1$OUT
+	CALL	SRESPONSE	; WAIT FOR RESPONSE OR TIMEOUT
+	RET
+;
+;  FLUSH ANY GARBAGE CHARS FROM COMMAND LINE
+;
+FLUSH:
+	CALL	M1$ISTAT	; ANY CHARS?
+	RET	Z		; RETURN IF NONE
+	CALL	M1$IN		; GET CHAR
+	RET
+;
+;  Telephone Interface Initialization
+;	Function:  Initialize the Modem/UART Interface
+;	Input Parameters:  None
+;	Output Parameters:  None
+;
+STI$INIT:
+	PUSH	AF		; SAVE A
+	CALL	ATTENTION	; GET MODEM'S ATTENTION
+	LD	A,'Z'		; RESET MODEM
+	CALL	CMD$SEND	; SEND COMMAND
+	CALL	CMD$END		; SEND <CR>
+	CALL	OK		; GET OK/USER ABORT
+	CP	0FEH		; USER ABORT?
+	JR	Z,STI$INI1
+	LD	A,'V'		; SET NON-VERBOSE MODE
+	CALL	CMD$SEND	; SEND COMMAND
+	LD	A,'0'		; V0 COMMAND
+	CALL	CMD$SEND1
+	LD	A,'X'		; SET EXTENDED COMMAND SET
+	CALL	CMD$SEND1	; SEND COMMAND
+	LD	A,'4'		; Enable result codes 0 thru 10
+	CALL	CMD$SEND1
+
+	IF	COURIER
+
+	LD	A,'M'		; Speaker On after last digit, Off at Connect
+	CALL	CMD$SEND1
+	LD	A,'3'
+	CALL	CMD$SEND1
+		ENDIF
+
+	LD	A,'S'		; disable auto-answer if turned on somehow
+	CALL	CMD$SEND1
+	LD	A,'0'
+	CALL	CMD$SEND1
+	LD	A,'='
+	CALL	CMD$SEND1
+	LD	A,'0'
+	CALL	CMD$SEND1
+	CALL	CMD$END		; SEND <CR>
+	CALL	OK1		; GET OK/USER ABORT
+STI$INI1:
+	CALL	FLUSH		; FLUSH RESPONSES
+	POP	AF		; RESTORE A
+	RET
+;
+; GET RESPONSE CODE OF 'OK' OR '0'
+;
+OK:
+	CALL	SRESPONSE	; GET FIRST CHAR
+	CP	0FEH		; USER ABORT?
+	RET	Z
+	CP	'0'		; DIGIT '0'?
+	JR	Z,OK1A
+	CP	'O'		; LETTER 'O'?
+	JR	NZ,OK
+	CALL	SRESPONSE	; GET 'K'
+	CP	0FEH		; USER ABORT?
+	RET	Z
+	CALL	SRESPONSE	; GET <CR>
+	CP	0FEH		; USER ABORT?
+	RET	Z
+	CALL	SRESPONSE	; GET <LF>
+	RET
+;
+; GET RESPONSE CODE OF '0'
+;
+OK1:
+	CALL	SRESPONSE	; GET FIRST CHAR
+	CP	0FEH		; USER ABORT?
+	RET	Z
+	CP	'0'		; OK?
+	JR	NZ,OK1
+OK1A:
+	CALL	SRESPONSE	; GET <CR>
+	RET
+;
+;  Prepare Modem to Answer Phone
+;	Function:  To condition modem for answering phone
+;	Input Parameters:  None
+;	Output Parameters:  None
+;
+STI$PREPANS:
+	PUSH	AF
+	LD	A,3		; set serial port to 2400 SPEED
+      IF COURIER
+	LD	(Z3MSG+3AH),A	; SET BAUD RATE ZMSG BYTE
+      ENDIF
+	LD	(STI$BRATE),A	; SET FLAG
+	CALL	M1$INIT
+	LD	A,'M'		; shut off speaker when recieving calls and
+	CALL	CMD$SEND	; also set modem to 2400 as a side effect
+	LD	A,'0'
+	CALL	CMD$SEND1
+	CALL	CMD$END
+	POP	AF
+	RET
+;
+;  Set Modem to Answer
+;	Function:  Set Modem to Answer Mode
+;	Input Parameters:  None
+;	Output Parameters:  A=0 IF NOT SUCCESSFUL, A=0FFH IF SUCCESSFUL
+;
+STI$ANS:
+	XOR	A		; SET NO BAUD RATE
+      IF COURIER
+	LD	(Z3MSG+3AH),A	; SET BAUD RATE ZMSG BYTE
+      ENDIF
+	LD	(STI$BRATE),A	; SET FLAG
+	LD	A,'A'		; prepare to send ATA command
+	CALL	CMD$SEND	; send it
+	CALL	CMD$END
+STI$ANS1:
+	CALL	RESPONSE
+	CP	CR		; <CR>?
+	JR	Z,STI$ANS1
+	CP	'1'		; is it "1" or "10" (300 or 2400)?
+	JR	Z,STI$ANS324	; If Z, process further
+	CP	'5'		; CONNECT 1200?
+	JR	Z,STI$ANS12
+	XOR	A		; make A 0 (we didn't get a connect)
+	RET
+STI$ANS324:
+	CALL	SSRESPONSE	; we should have at least a CR or a 0 pending
+	CP	CR		; is it CR?
+	JR	Z,STI$ANS3	; must be 300 if Z
+STI$ANS24:
+	LD	A,3		; select 2400 bps
+	JR	STI$ANSSET
+STI$ANS3:
+	LD	A,1		; SELECT 300 BAUD
+	JR	STI$ANSSET
+STI$ANS12:
+	LD	A,2		; SELECT 1200 BAUD
+STI$ANSSET:
+      IF COURIER
+	LD	(Z3MSG+3AH),A	; SET BAUD RATE ZMSG BYTE
+      ENDIF
+	LD	(STI$BRATE),A	; SET BAUD RATE
+	CALL	M1$INIT		; INIT USART BAUD RATE
+	LD	A,FS$WAITP1S	; wait 0.1 sec
+	CALL	TI$FS
+	CALL	FLUSH		; gobble possible pending CR
+	OR	A,0FFH		; RETURN CONNECT CODE
+	RET
+;
+;  Hang up telephone
+;	Function:  Place the telephone on hook
+;	Input Parameters:  None
+;	Output Parameters:  None
+;
+STI$HANG:
+	PUSH	AF
+	CALL	M1$CST		; DO NOT HANG UP IF NO CARRIER
+	JR	Z,STI$HANG1
+	CALL	STI$HANG3	; HANG UP PHONE
+	CP	0FEH		; USER ABORT?
+	JR	Z,STI$HANG1
+	CALL	M1$CST		; STILL CARRIER?
+	JR	Z,STI$HANG1
+	CALL	STI$HANG3	; TRY A SECOND TIME TO HANG UP
+STI$HANG1:
+	CALL	CMD$END		; send a CR to be safe
+	POP	AF
+	RET
+STI$HANG3:
+	CALL	ATTENTION	; GET MODEM'S ATTENTION
+	LD	A,'H'		; HANG UP PHONE
+	CALL	CMD$SEND
+	CALL	CMD$END		; END OF COMMAND
+	CALL	SRESPONSE	; FLUSH RESPONSE DIGIT
+	CP	0FEH		; USER ABORT
+	RET	Z
+	CALL	SRESPONSE	; FLUSH RESPONSE <CR>
+	RET
+;
+;  YES and NO Return Codes
+;
+STI$YES:
+	OR	0FFH		; SET FLAGS
+	RET
+STI$NO:
+	XOR	A		; NO ANSWER
+	RET
+;
+;  Ring Status Detect
+;	Function:  Determines if phone is ringing or not.
+;	Input Parameters:  None
+;	Output Parameters:  A=0FFH no ring, A=0 ring, A=0FEH user abort
+;
+STI$RST:
+	CALL	SSRESPONSE	; GET RETURN CODE
+	CP	0DH		; cr?
+	JR	Z,STI$RST
+	CP	'2'		; RING?
+	JR	Z,STI$RST3
+	CP	0FEH		; USER ABORT?
+	JR	Z,STI$RST2
+STI$RST1:
+	LD	A,0FFH		; RETURN NO RING
+STI$RST2:
+	OR	A		; SET FLAGS
+	RET
+STI$RST3:
+	CALL	SSRESPONSE	; get trailing CR
+	CP	0FEH		; user abort?
+	JR	Z,STI$RST2
+	XOR	A
+	RET
+;
+;  Start Dialing
+;	Function:  Initiate the dialing process
+;	Input Parameters:  None
+;	Output Parameters:  A=0 if no dial tone, A=0FFH if dial tone
+;
+STI$DSTRT:
+	CALL	FLUSH		; FLUSH CHAR IF PRESENT
+
+	IF 	COURIER
+	LD	A,(Z3MSG+3AH)	; CHECK BAUD RATE
+	CP	2		; IF LESS THAN 1200 
+	JR	C,STI$DSTR1	; NO AUTO BAUD
+		ENDIF
+ 
+	LD	A,3		; SELECT 2400 BPS
+STI$DSTR1:
+      IF COURIER
+	LD	(Z3MSG+3AH),A	; SET BAUD RATE ZMSG BYTE
+      ENDIF
+	LD	(STI$BRATE),A	; SET FLAG
+	CALL	M1$INIT
+	LD	A,'D'		; START DIALING
+	CALL	CMD$SEND	; SEND COMMAND
+	LD	A,'T'		; TOUCH TONE DIALING
+	CALL	CMD$SEND1
+	JP	STI$YES		; fake dial tone OK, even though we aren't
+				; off-hook yet
+;
+;  Stop Dialing
+;	Function:  Terminate the dialing process with answer or user abort,
+;                  and set baud rate based on result code if answer.
+;	Input Parameters:  None
+;	Output Parameters:  A=0 and Z if answer, NZ and error code if no ans
+;				Error Code: 0FFH=Timeout, 0FEH=User Abort
+;					Other=TI Return Code
+;
+STI$DSTOP:
+	LD	A,CR
+	CALL	CMD$SEND1	; send CR
+STI$DS1:
+	LD	A,FS$CST	; CHECK CONSOLE STATUS
+	CALL	TI$FS		; USE FILER$SERVER
+	JR	Z,STI$DS2	; NO CONNECTION IF USER ABORT
+STI$DSLOOP:
+	CALL	RESPONSE	; ANSWER?
+	CP	0FFH		; TIMEOUT?
+	JR	Z,STI$DS1
+	CP	0FEH		; USER ABORT
+	JR	Z,STI$DS2E
+	CP	'2'		; RING?
+	JR	Z,STI$DSLOOP
+	CP	CR		; <CR>
+	JR	Z,STI$DSLOOP
+	CP	'9'+1		; CHECK RANGE
+	JR	NC,STI$DS1
+	CP	'0'		; CHECK RANGE
+	JR	C,STI$DS1
+	CP	'1'		; is it a "1" or "10"?
+	JR	Z,STI$DS324	; process more if so
+	CP	'5'		; CONNECTED AT 1200 BAUD?
+	RET	NZ
+	LD	A,2		; SELECT 1200 BAUD
+STI$DSB:
+      IF COURIER
+	LD	(Z3MSG+3AH),A	; SET BAUD RATE ZMSG BYTE
+      ENDIF
+	LD	(STI$BRATE),A	; SET FLAG
+	CALL	M1$INIT		; SET BAUD RATE
+	XOR	A		; RETURN CONNECT CODE
+	RET
+STI$DS2:
+	LD	A,FS$CIN	; GET CHAR
+	CALL	TI$FS		; USE FILER$SERVER
+	AND	7FH
+	CP	CTRLC		; ABORT?
+	JR	NZ,STI$DS1
+STI$DS2E:
+	LD	A,0FEH		; SET USER ABORT
+	OR	A
+	RET
+STI$DS324:
+	CALL	SSRESPONSE	; there is at least a CR or 0 pending
+	CP	CR		; was it cr, not 0?
+	JR	Z,STI$DS3	; if yes, go set 300 baud
+STI$DS24:
+	LD	A,3		; select 2400 bps
+	JR	STI$DSB
+STI$DS3:
+	LD	A,1		; SELECT 300 BAUD
+	JR	STI$DSB
+;
+;  Dial Digit
+;	Function:  Dial an individual digit
+;	Input Parameters:  A=ASCII for digit to dial
+;	Output Parameters:  None
+;
+STI$DIGIT:
+	PUSH	AF
+	CP	' '		; DON'T SEND SPACES
+	JR	Z,STI$DIGIT1
+	CP	'-'		; don't send dashes
+	JR	Z,STI$DIGIT1
+	CP	'('		; don't send parenthesis
+	JR	Z,STI$DIGIT1
+	CP	')'		; other kind
+	JR	Z,STI$DIGIT1
+	CALL	CMD$SEND1	; SEND DIGIT WITH ECHO
+STI$DIGIT1:
+	POP	AF
+	RET
+;
+;  Get Baud
+;	Function:  Return current baud rate value (from answer or dial)
+;	Input Parameters: None
+;	Output Parameters: A = Baud Rate and Z flag set
+;		A = 0 means undefined
+;		A = 1 means  300 baud
+;		A = 2 means 1200 bps
+;		A = 3 means 2400 bps
+;
+STI$GETBAUD:
+	LD	A,(STI$BRATE)	; SET FLAG
+	OR	A		; SET FLAGS
+	RET
+;
+;  BAUD RATE FLAG
+;	A = 0 IF NONE
+;	A = 1 IF  300 BAUD
+;	A = 2 IF 1200 bps
+;	A = 3 IF 2400 bps
+;
+STI$BRATE:
+	DB	0		; FLAG BUFFER
+;
+;		END of Telephone Interface Routines
+;
+	DB	'End of TI-2400'
+
+	END
+ IF 2400 bps
+;
+STI$BRATE:
+	DB	0		; FLAG BUFFER
+;
+;		END of Telephone Interface Routines

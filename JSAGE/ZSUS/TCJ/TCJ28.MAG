@@ -1,0 +1,817 @@
+                               Z-System Corneò (c)
+                                 by Jay Sage
+                        The Computer Journal, Issue 28
+                          Reproduced with permission
+                           of author and publisher
+
+
+                     The ZSIG Column #4, March 9, 1987
+
+     For  this  issue I will finally get to my long promised  discussion  of
+techniques  for customizing the Z-COM automatic installation version of  the
+Z-System.   Before turning to the main subject, however, there are two other
+items  I  would  like to cover.   One is some follow-on  discussion  to  the
+material  I  presented  last  time on recursive  aliases;  the  other  is  a
+description of the latest ZSIG releases.
+
+
+                         More on Recursive Aliases
+                         -------------------------
+
+
+     Art  Carlson forwarded to me a letter he received from Dreas Nielsen in
+response  to  my discussion of recursive alias techniques using  VALIAS  and
+ARUNZ.   Dreas,  well  known in the ZCPR community for his  excellent  shell
+utility  programs,  GETVAR and RESOLVE,  took me to task for doing something
+the  hard  (and  not quite correct) way when there was  a  not-too-hard  and
+completely correct way to do it.   And he proved it by offering a  marvelous
+technique for 'recursing' aliases without any of the problems I warned about
+with  my  technique.   To me this is a wonderful example of the richness  of
+ZCPR3.   No matter how thoroughly one knows it, there are always significant
+new  techniques  and  applications  to  be  discovered.   The  learning  and
+excitement never ends!
+
+     We  will illustrate the technique using a simple example based  on  the
+following script that is designed to display a message on the screen showing
+how many times it has been run already.  The script is
+
+        alias ONELOOP:          ECHO THIS IS LOOP NUMBER
+                                REG P6
+
+As  the  ZCPR3 user register number 6 is incremented using the  'P'-for-plus
+option, its new value is displayed on the screen.
+
+     If we wanted to make the alias operate recursively, our first instinct,
+as described in my previous column, would be to expand it to the following:
+
+        alias MANYLOOP:         ECHO THIS IS LOOP NUMBER
+                                REG P6
+                                ECHO DO IT AGAIN?
+                                IF IN
+                                MANYLOOP
+                                FIŠ
+As  I explained last time,  the trouble with this is that each time  we  run
+through  the  loop by answering the input prompt affirmatively we go one  IF
+level  deeper  and  accumulate another FI on the end of  the  command  line.
+Eventually  either the command line becomes too long  or,  more  likely,  we
+exceed the allowed eight levels of IF nesting.
+
+     Dreas's  idea is based on turning this alias around so that there is no
+FI on the end to accumulate.   He permutes it to the beginning of the script
+and writes the alias this way:
+
+        alias RECURSE2:         FI
+                                ECHO THIS IS LOOP NUMBER
+                                REG P6
+                                ECHO DO IT AGAIN?
+                                IF IN
+                                RECURSE2
+
+If this alias is invoked with a 'true' IF level already in effect, this will
+work just fine.   The alias will drop one IF level lower at the FI  command,
+do  its  main  work,  and return to the original IF level with the  "IF  IN"
+prompt.   If the answer is affirmative,  we will be back in the very same IF
+state we were in when the alias was invoked the first time.   The alias will
+be re-invoked,  and the whole operation will repeat.   On the other hand, if
+the answer to the prompt is negative,  the alias will stop running,  and  we
+will  fall out the bottom at the same IF level as we entered originally  but
+in the 'false' state.
+
+     To deal with the need to enter one IF level higher and to terminate the
+'false'  IF  state at the end,  we simply call the above alias from  another
+alias with the following script:
+
+        alias RECURSE:          IF TRUE
+                                RECURSE2
+                                FI
+
+The  "IF  TRUE"  command will push us one IF level deeper and put  us  in  a
+'true' state.   (This, by the way, is the first time that I have ever seen a
+use  for the "TRUE" option with the IF command.   If,  like  me,  you  never
+implemented  that  option because you could not figure out what on earth  it
+could  possibly  be used for,  you can substitute any other option  that  is
+guaranteed to return a 'true' state, such as "IF NULL" with nothing after it
+or "IF A=A").   The RECURSE2 alias will now run as we described earlier, and
+when  the recursion is terminated by a negative answer,  the FI  in  RECURSE
+will  terminate the resulting 'false' IF state and return us to the original
+IF level that we were at when RECURSE was invoked.
+
+     One  has to stretch things a bit to come up with any  disadvantages  to
+this technique.  The best I can do is the following two minor points. First,
+two  aliases are required to get things started,  and this will slow  things
+down a bit,  especially on a floppy-disk system.   Secondly,  the technique,
+while simple in principle, may not be easy to remember when one wants to setŠup  a  quick recursive alias,  as in the application I described in my  last
+article.   The VALIAS/ARUNZ-type recursive alias may still be useful in such
+a case.
+
+     If you are a purist and have a strong,  perhaps even irresistible, urge
+to  do things right (and especially if you have a RAM disk so that  you  can
+afford  to  indulge  such  compulsions),  Dreas's technique  can  be  nicely
+automated   by  creating  the  following  two  slightly  more  complex   and
+generalized aliases:
+
+        alias RECURSE           IF NULL $1
+                                ECHO SYNTAX: $0 ALIASNAME PARAMETERS
+                                ELSE
+                                RECURSE2 $*
+                                FI
+
+        alias RECURSE2          FI
+                                $*
+                                ECHO RUN "$1" AGAIN?
+                                IF IN
+                                $0 $*
+
+Now  suppose we have our edit/assemble/link alias as follows (where  it,  in
+turn, calls on the SYSLINK alias to perform the linkage with the libraries):
+
+        alias WORK              EDIT $1.Z80
+                                Z80ASM $1/R
+                                IF ~ERROR
+                                SYSLINK $1
+                                FI
+
+     If  we  enter  the command "RECURSE" all by itself,  we  will  get  the
+message  "SYNTAX:  RECURSE ALIASNAME PARAMETERS".   If we enter the  command
+"RECURSE  WORK MYPROG",   the "IF NULL" test in RECURSE will be 'false'  but
+will be toggled 'true' by the ELSE command.   Then RECURSE2 will be invoked,
+and the command line and IF status will progress as shown in  Fig.  1.   The
+"..."  in the IF states designates any IF levels in effect at the time  that
+RECURSE  was called.   Similarly,  the command text 'pending' designates any
+command-line text following the invocation of RECURSE.
+
+     The  figure  does  not  show  the  operation  of  every  command.   The
+edit/assemble/syslink  sequences are not shown in detail.   Between steps  8
+and  9  we assume that the "IF IN" prompt was answered  with  a  'Y'.   This
+brings us at step 9 back to the exact state we were in at step 4,  and steps
+4  through 8 will be repeated over and over so long as the "IF IN" prompt is
+answered affirmatively.
+
+     Between steps 10 and 11 we assume that the "IF IN" prompt was  answered
+with 'N',  so we get the state shown in step 11.  Since the current IF state
+is  'false',  the command "RECURSE2 WORK MYPROG" is flushed,  leaving us  at
+step 12.   The FI command terminates the 'false' IF and drops the flow state
+one  level lower.   Any pending commands that were on the command line afterŠthe invocation of RECURSE are now free to run at step 13.
+
+     I  just  tested out these aliases on my SB180 by putting them  into  my
+ALIAS.CMD file,  which lives on the RAM disk.  The scripts had to be altered
+slightly,  with all invocations of RECURSE2 from within RECURSE and RECURSE2
+being replaced by "ARUNZ RECURSE2 ..." or "ARUNZ $0 ...".   They worked like
+an absolute charm.  Thank you Dreas Nielsen!!!
+------------------------------------------------------------------------------
+
+        Step    IF state        Command Buffer Contents
+        ----    --------        -----------------------
+
+          1     ...             RECURSE WORK MYPROG;pending
+
+          2     ...             IF NULL WORK MYPROG;ECHO SYNTAX: RECURSE
+                                ALIASNAME PARAMETERS;ELSE;RECURSE2 WORK
+                                MYPROG;FI;pending
+
+          3     F...            ELSE;RECURSE2 WORK MYPROG;FI;pending
+
+          4     T...            RECURSE2 WORK MYPROG;FI;pending
+
+          5     T...            FI;WORK MYPROG;ECHO RUN "WORK" AGAIN?;
+                                IF IN;RECURSE2 WORK MYPROG;FI;pending
+
+          6     ...             WORK MYPROG;ECHO RUN "WORK" AGAIN?;IF IN
+                                RECURSE2 WORK MYPROG;FI;pending
+
+          7     ...             EDIT MYPROG.Z80;Z80ASM MYPROG/R;IF ~ERROR;
+                                SYSLINK MYPROG;FI;ECHO RUN "WORK" AGAIN?;
+                                IF IN;RECURSE2 WORK MYPROG;FI;pending
+
+          8     ...             ECHO RUN "WORK" AGAIN?;IF IN;RECURSE2 WORK
+                                MYPROG;FI;pending
+
+          9     T...            RECURSE2 WORK MYPROG;FI;pending
+
+         10     ...             ECHO RUN "WORK" AGAIN?;IF IN;RECURSE2 WORK
+                                MYPROG;FI;pending
+
+         11     F...            RECURSE2 WORK MYPROG;FI;pending
+
+         12     F...            FI;pending
+
+         13     ...             pending
+
+Fig. 1.  Evolution of the command line and IF states as the operation of the
+command "RECURSE WORK MYPROG" unfolds.
+
+------------------------------------------------------------------------------
+
+Š                            A Z-Letters Feature
+                            -------------------
+
+
+     Thanking Dreas Nielsen for his letter reminds me that Art Carlson and I
+would  like  very much to start up a Z-Letters feature in  TCJ,  a  kind  of
+letters-to-the-editor section specializing in Z-System questions,  comments,
+discussion,  and  ideas.   I  am  willing to handle answering  or  otherwise
+responding to those letters,  but I will depend on you readers to send  them
+in.   And rest assured that we are not looking only for letters like Dreas's
+containing  brilliant  suggestions.   A good set of  simpleminded  questions
+would be quite well appreciated, thank you.  They would help us a great deal
+in  learning what aspects of Z-System are confusing to users so that we  can
+try to clarify them.
+
+
+                             New ZSIG Releases
+                             -----------------
+
+
+     We have quite a few excellent new programs to release on ZSIG diskettes
+this  month.   I  have  not yet finalized exactly what will be  included  on
+release diskettes #2 and #3, but I don't want to pass up this opportunity to
+publicize them.
+
+     First  of  all,  I  am very happy to report that  all  the  programs  I
+proposed  two  issues back have now been written,  and I will describe  them
+first.
+
+FCP10.LBR
+
+        This  is  the  new  flow control package (FCP)  that  I  wrote  with
+valuable assistance from Howard Goldstein (New Haven, CT).  This program was
+described  in  some detail in the last column,  so I will not say  too  much
+about  it here.   The two most important innovations are 1) the addition  of
+AND and OR commands and 2) the FCP's ability to load and run IF.COM in  high
+memory  where  it  will  not interfere with data in  the  beginning  of  the
+transient program area at 100H.
+
+COMIF10.LBR
+
+        This  is  the companion transient IF processor that is  intended  to
+replace IF.COM.   Also described last time,  it offers an enormous number of
+new  test  conditions  and syntax forms.  This one was also  written  by  me
+together with Howard Goldstein.
+
+SETPATH1.LBR
+
+        This is an extended version of the original PATH command.  It allows
+one optionally to add and remove path elements from the beginning or the end
+of the existing path.   The path display is also improved.  Robert Demrow, a
+fellow member of the Boston Computer Society CP/M Group wrote this one.Š
+EDITND.LBR
+
+        Al  Hawley (Z-Node #3 in Los Angeles) really went all out with tools
+to work with the named directory register (NDR).   EDITND lets one edit  the
+names  directly in the NDR.   Names and/or passwords can be added,  deleted,
+and changed.
+
+SAVNDR.LBR
+
+        After you've edited the NDR,  this program lets you save the results
+to an NDR file.  Again by Al Hawley.
+
+LOADND12.LBR
+
+        The  last in the Hawley set,  this program can automatically  update
+the names in the NDR using either the special file name system in LDSK or by
+loading an NDR file whose names are applied to the current floppy disk only.
+
+
+The next ZSIG release will also include the following programs.
+
+ZPATCH11.LBR
+
+        This  is another masterpiece from Steve Cohen  (Chicago,  author  of
+'W', the wildcard shell, on the first ZSIG diskette).  It is by far the best
+file  patcher I have ever seen -- a real joy to use.   Steve sure is  clever
+when it comes to shells!  Who would have thought to make a file patcher into
+a  shell?   But  this way one can run a command from inside ZPATCH and  then
+return to one's exact place to continue working.   The 'X' command in ZPATCH
+automatically runs the file one is currently patching (provided it is a  COM
+file) so that one can see the effect of the changes.  Marvelous!
+
+MEX2Z.LBR
+
+        This  is yet another brainstorm of NAOG chief Bruce Morgen (who  has
+quite a stormy brain).   MEX2Z and my adaptation of it for MEX-Plus, MEX+2Z,
+give the MEX communication programs the ability to 'shell',  that is, to run
+a  Z-System command apparently from within MEX.   For example,  if you enter
+the MEX command line "CPM;CRUNCH FN.FT",  you will exit from MEX,  the  file
+will be crunched,  and then you go right back into MEX.   This is especially
+handy  when  you are trying to debug a MEX script.   Bruce picked up on  the
+very  clever trick introduced by Ted Emigh in  FINDERR,  namely,  running  a
+program  that examines information left behind in memory by the program that
+ran  before  it.   In this case it is the MEX command line  buffer  that  is
+picked up.  Even if you don't use MEX, it is worth looking at these programs
+just for their educational value.
+
+FF10.LBR
+
+        I  finally decided to do something about the shortcomings of  FINDF,
+the utility for determining where files are located in your system.   FF hasŠa 16-bit configuration word that can be patched (roll out ZPATCH!) to define
+which drives should be searched by default (this is particularly useful when
+your constellation of drives has a hole in it, such as A, B, C, and F).  You
+can override the default drive list by specifying a set of drives to scan on
+the  command line.   A whole list of file specifications can be  given,  and
+each one is automatically wildcarded,  saving the user a lot of typing.   If
+you want to find all programs starting with "SD",  just enter "FF SD".   The
+"SD" turns into "SD*.*" automatically.   Similarly,  "FF .LBR" will find all
+library files.  "FF SD,.LBR" will find both.
+
+PPIP15.LBR
+
+        This  is  the next step in the evolution of PPIP (PPIP14 is on  ZSIG
+diskette  #1).   The main addition is support for DateStamper time and  date
+stamping.   Having fallen in love with DateStamper,  I just had to have some
+file copying tools that would preserve the time and date information,  so  I
+added that capability to PPIP and to ZFILER.
+
+ERRSET11.LBR
+
+        This  little  tool lets you either display the current  or  directly
+enter a new error handler command line.   Strictly speaking,  error handling
+in  ZCPR3  is  not  performed by loading an error handling  program  but  by
+executing an error handling command line.   This command line is stored in a
+16-byte string in the message buffer.  When an error handler is installed by
+invoking  its name manually from the command line,  it writes only its  name
+alone  into  that buffer.   ERRSET lets you enter a complete  error  command
+line,  such as A15:VERROR.   By including an explicit DU:  or DIR: form, the
+error handler will be found and loaded faster.   On the other  hand,  ERRSET
+will  let you enter the name of a nonexistent error handler,  so watch  out.
+Power has its price.  Written by yours truly.
+
+
+                             Customizing Z-COM
+                             -----------------
+
+
+     We now turn to the piece-de-resistance for this article -- a discussion
+of  techniques  for customizing Echelon's automatically installing  Z-System
+package known as Z-COM.   This will be the first of a two-part series.  This
+time  I  will  cover  the more elementary  aspects  of  the  subject,  those
+modifications that can be made by changing only data structures in the Z-COM
+files.   Next  time I will delve into customization techniques that  involve
+serious hacking (such as modifying the Z-COM code itself).
+
+     I will begin with an overview of what Z-COM is,  the philosophy  behind
+it,  the  procedure for installing it on a particular computer,  and how one
+uses it to create a Z-System automatically.   Then I will give an elementary
+discussion of how it works and the structure of the COM file that  magically
+transforms one's ordinary CP/M machine into a 'Z' machine.  Next I will show
+you  how  to  make  some simple patches that  eliminate  the  initialization
+operations  that  are performed by the startup file and make Z-COM  come  upŠready to go instantly.   This includes setting the wheel byte,  defining the
+symbolic command search path,  putting in the terminal capability descriptor
+(TCAP)  for the user's terminal,  installing the user's  named  directories,
+installing an external error handler, and even setting up an initial shell.
+
+     With  those techniques mastered,  we can then go on to make changes  to
+the  system modules.   The simplest of these is replacing the standard ZRDOS
+that comes with Z-COM with the latest-and-greatest Public-ZRDOS-Plus version
+1.7.     Slightly  more  complex  is  the  replacement  of  the  environment
+descriptor  (ENV)  and the two command modules:  the RCP  (resident  command
+package) and the FCP (flow control package).   For these changes we have  to
+edit  some configuration files,  assemble new code modules,  and install the
+new  modules  into  the Z-COM file.   By this point you  will  be  ready  to
+generate  and  install  a new version of the  ZCPR3  command  processor,  an
+operation that requires one important extra step (a simple one, but one that
+must not be overlooked).
+
+
+                                 Why Z-COM
+
+
+     Consider  this situation.   The Z-System is a wonderful replacement for
+CP/M,  one that greatly enhances the utility and ease of operation of an  8-
+bit Z80-compatible computer.   I can't understand why anyone would not enjoy
+and benefit from its features and capabilities.   However,  installing it in
+the  conventional  fashion  required changing the BIOS (Basic  Input  Output
+System), the hardware-dependent part of the operating system. Unfortunately,
+many (actually most) manufacturers consider their BIOS to be proprietary (or
+embarrassingly poorly written),  and they refuse to release the source code.
+And even if they do make it available, perhaps for an extra fee, what if you
+do  not know how to make the required changes to support the  ZCPR3  command
+processor?  Well, enter Z-COM.
+
+     Z-COM  was  the  brilliant  conception  of  Joe  Wright,  the  nation's
+preeminent  BIOS  writer (author of the BIOSes for the Ampro  Little  Board,
+Micromint SB180, and the soon-to-be-available ON! computer from Oneac). With
+Z-COM one does not need the BIOS source code because there are no changes to
+make  in  it.   One  doesn't even need MOVCPM.   Z-COM runs  on  almost  any
+standard CP/M 2.2 system,  converting it in situ to a Z-System.  There are a
+few  CP/M  2.2  computers on which Z-COM will not work (usually  because  at
+least  some  part of their memory space operates in a funny  way),  but  the
+great majority will.  For those of you with CP/M version 3 (aka CP/M-Plus --
+a real misnomer in my opinion),  I'm afraid you are out of luck.   CP/M 3 is
+fundamentally  different  from CP/M 2.2,  and no one has yet  been  able  to
+concoct magic powerful enough to transform it into a Z-System.
+
+     I  hope my discussion here will inspire some of you to purchase  Z-COM.
+If  it does,  then see the ads in TCJ by Sage Microsystems East and  Echelon
+for more information.   I personally think that a modified Z-COM is the best
+way to implement Z-System, because, as we will see by the end of this series
+of  articles,  it  gives  one far greater flexibility than with  a  manually
+installed system.Š
+
+                              Installing Z-COM
+
+
+     Here  is  a brief description of how one gets Z-COM  running  on  one's
+system.   The  standard procedure goes like this.   Take a freshly formatted
+disk,  'sysgen'  the CP/M 2.2 operating system to it,  copy onto it all  the
+files on the Z-COM release disk,  put this disk into drive A, and reboot the
+system either with the reset button or by entering control-c.  Now enter the
+command  "SUB ZCCOM".   This starts a batch operation,  and you can now  sit
+back, relax, and watch your computer do all the work.  Toward the end of the
+process, which takes a couple of minutes, a program called TCSELECT will run
+and ask you to choose your terminal from a large menu.  The result will be a
+file  called  MYTERM.Z3T  containing information about  your  terminal  that
+permits Z-System programs to perform screen operations without installation.
+
+
+                    What's Going On During Installation
+
+
+     In  the  first  part of the  installation  process,  the  Z-COM  system
+creation  program ZCLD.COM determines the memory address at which your  BIOS
+operates and generates a corresponding Z-System.   To do this, it reads in a
+number  of special relocatable files (most with file type SPR,  which stands
+for system page relocatable) and produces four new files:  ZC.COM,  ZCX.COM,
+ZC.ENV,  and  ZC.CP.   The first file,  whose operation we will describe  in
+detail  below,  is  the one that transforms the vanilla CP/M system  to  the
+amaretto-double-chocolate  almond Z-System with jimmies (if you  don't  know
+what jimmies are, ask someone from Boston).
+
+     The second file,  ZCX.COM, is a program that transforms you back.  Why,
+you ask, would one ever go back to vanilla after experiencing the ecstasy of
+amaretto-double-chocolate-almond?   Well, Z-System does have one significant
+drawback.   You  don't get all those great features for free.   They cost  a
+considerable chunk of TPA (transient program area) -- 5.5K in the case of Z-
+COM  (though we will see next time how to reduce this if you are willing  to
+forego  some of the features).   The smaller TPA has almost never caused any
+problem with the programs I use, but some people do have problems, and it is
+nice  to know that a simple "ZCX" command will bring back the old CP/M  with
+its  full-sized TPA.   Next time I will explain how we can even change to  a
+different Z-COM system with a larger TPA.
+
+     The  third file,  ZC.ENV,  is the environment descriptor file  for  the
+system  that ZCLD created.   It is automatically included in ZC.COM,  so  it
+does not have to be loaded using LDR, but it is used by Z3INS to install the
+environment information into the utilities.
+
+     The last file,  ZC.CP,  does not even appear in a directory listing; it
+is hidden up in user area 15,  out of harm's way.   The user is not normally
+concerned with this file,  though if you want to create another Z-COM system
+disk,  you  have  to remember to copy it,  as well as the  others  mentionedŠabove, to the new diskette.  We will discuss its purpose later.
+
+
+                              How ZC.COM Works
+
+
+     As  we said above,  ZC.COM is the program that transforms your  mundane
+CP/M  system  into an exciting and powerful Z-System.   How does it  do  it?
+Several simple principles are involved.
+
+     ZC.COM is basically a loader program.   The file itself consists of two
+parts.   The  first  page of code (100H to 1FFH) is the  loader  code.   The
+second part (200H to 2DFFH) is the memory image of a Z-System that is copied
+into  place  by the loader.   The process is like the 'big bang'  theory  of
+creation -- the whole Z-System just appears complete in one operation!
+
+     The memory map of the ZCOM-System generated for my BigBoard I computer,
+on which I performed these experiments,  is shown in Fig.  2.  Its real CP/M
+BIOS  is  at E800H.   The Z-System addresses were determined by running  the
+utility SHOW.COM after Z-COM was loaded.  The corresponding addresses in the
+ZC.COM  file  were obtained by inspecting it with a debugger.   Once  a  few
+addresses  (like  the  RCP  and  FCP,  which  have  obvious  headers),  were
+determined,  the rest was obvious.  The ZC.COM system image is at a constant
+offset from the real system.   In this example, that offset is BA00H.  If Z-
+COM  is installed on a different system,  the real system addresses and  the
+offset value will be different,  but the addresses of the system segments in
+the  ZC.COM  image will be the same.   In general,  the offset  between  the
+corresponding  addresses will be 2E00H less that the address of  the  native
+BIOS.
+
+-----------------------------------------------------------------------------
+
+System Component                ZC.COM Address          System Address
+----------------                --------------          --------------
+
+  CPR                             0200 - 09FF             BC00 - C3FF
+  ZRDOS                           0A00 - 17FF             C400 - D1FF
+  Virtual BIOS                    1800 - 19FF             D200 - D3FF
+  Named Directory Register        1A00 - 1AFF             D400 - D4FF
+  Shell Stack                     1B00 - 1B7F             D500 - D57F
+  Z3 Message Buffer               1B80 - 1BCF             D580 - D5CF
+  External FCB                    1BD0 - 1BF3             D5D0 - D5F3
+  PATH                            1BF4 - 1BFE             D5F4 - D5FE
+  Wheel Byte                      1BFF - 1BFF             D5FF - D5FF
+  Environment Descriptor          1C00 - 1C7F             D600 - D67F
+  TCAP                            1C80 - 1CFF             D680 - D6FF
+  Multiple Command Line           1D00 - 1DCF             D700 - D7CF
+  External Stack                  1DD0 - 1DFF             D7D0 - D7FF
+  Resident Command Package        1E00 - 25FF             D800 - DFFF
+  Flow Control Package            2600 - 27FF             E000 - E1FF
+  I/O Package                     2800 - 2DFF             E200 - E7FF
+ŠFig. 2.  Addresses of system components in the ZC.COM file and in the
+example system for which it was generated.
+
+-----------------------------------------------------------------------------
+
+     How does this system function?  If you are familiar with Z systems, you
+probably  recognize  all of the system components above except for  the  one
+called 'virtual BIOS'.   That is where the key to Z-COM lies.   Remember, we
+needed  a  BIOS  that would run below the Z buffers,  but we had no  way  to
+relocate the actual BIOS.  So instead we create a virtual BIOS -- a block of
+code structured just like a real BIOS.  It has a table of jump instructions,
+one after the other, that perform the required BIOS functions: CBOOT, WBOOT,
+CONST,  CONIN, CONOUT, LIST, and so on.  How does this virtual BIOS actually
+carry  out  those  functions  without  knowing  anything  about  the  system
+hardware?   Easy!   It simply jumps to the corresponding entry points in the
+real BIOS!
+
+     Well,  it  actually is not quite that easy.   There are a  few  special
+details that have to be taken care of.   Most of the functions are performed
+as  described  above,  but there are some important  exceptions.   The  most
+important one is the WBOOT,  or warm boot,  function.   Normally when a warm
+boot is performed, the CPR (and often the BDOS as well) is reloaded from the
+system  tracks  of  the A diskette.   If that were allowed to  happen  here,
+goodbye  Z-System!   ZC.COM  would  only  work until  the  first  warm  boot
+occurred, and then we would have to run it again.  Not very satisfactory!
+
+     To prevent that from happening and to keep Z-COM running,  the  virtual
+BIOS 'traps' warm boot calls.  That is a fancy way of saying that instead of
+simply passing the call to the real BIOS it does the work itself.  What does
+it  do?   Well,  it has to reload the ZCPR3 command processor to the  proper
+address,  BC00H in this example.   Since the ZCPR command processor does not
+reside  on the system tracks,  we have to get it from somewhere  else.   Joe
+Wright  could  have gotten it from records 2 through 17 in  ZC.COM,  but  he
+chose instead to maintain a separate file with just the image of the command
+processor.   Remember  the  file ZC.CP that we mentioned  earlier,  the  one
+stashed away in A15:?  That's it.
+
+     Although  I don't know of any reason why CBOOT,  the cold boot routine,
+would  ever be called once the computer was initially booted up,  the  CBOOT
+routine  is  also trapped by the virtual BIOS and  vectored  (another  fancy
+word) to the same code as the virtual warm boot.
+
+     In  Echelon's simpler auto-install package Z3-DOT-COM,  which does  not
+have  support  for  Input/Output Packages (IOPs),  the story  would  now  be
+complete.   The IOP,  however, has to get first shot at some of the BIOS I/O
+routines, namely console status, console input, console output, list output,
+list status, punch output, and reader input.  In a manual installation of Z-
+System with IOP support,  the BIOS code would have to be modified.   With Z-
+COM  this  is  quite  straightforward.   The virtual  BIOS  calls  to  these
+functions  simply  go (are vectored) to the appropriate entry points in  the
+IOP  module.   The initial IOP code included in ZC.COM is just a  dummy  IOP
+that  simply  turns around and forwards the calls from the IOP to  the  realŠBIOS entry points.
+
+
+                             Easy Z-COM Patches
+
+
+     Now that we understand what Z-COM is and how it works,  we can start to
+make  some changes.   If you look at the STRT startup alias with Z-COM,  you
+will see that it turns on the wheel byte, loads the TCAP and named directory
+register,  and  sets  up the symbolic search path.   For our  first  set  of
+patches,  we will eliminate the need for a startup alias.   We will make the
+system come up fully tailored to our preferences,  and we will save the time
+wasted by the STRT alias.
+
+     The  first step is to get Z-COM running and to use the utility programs
+to set it up as we like it.   We will generally turn the wheel byte on  (the
+STRT  alias presumably already ran WHEEL to do that for us).   We can set up
+our  named directories using MKDIR and LDR or the new ZSIG  named  directory
+editor  EDITND.   We  can choose our path using the PATH command or the  new
+ZSIG  SETPATH  utility.   An external error handler can be  defined  in  the
+message buffer by invoking the desired error handler manually at the command
+line  or  by  running  the  ERRSET utility (this can include  a  DU  or  DIR
+specifier  to speed up the search for the error handler).   Finally,  if  we
+want to, we can even invoke a shell, such as the history shell HSH.
+
+     Now all we have to do is clone this system using our favorite debugger.
+If you can afford Echelon's DSD,  I cannot recommend it highly  enough.   It
+will  quickly  spoil  you.   On the other hand,  I will  describe  here  the
+procedure using Prof. Falconer's lovely DDTZ, a public-domain Zilog-mnemonic
+version of DDT.  Here is the sequence of commands to use.  Don't forget that
+the  addresses  that refer to the real system are the ones for my  BigBoard.
+You  should  make a table like that in Fig.  2 with the addresses  for  your
+system and make the appropriate substitutions in the commands below.
+
+    A0:SYS>ddtz zc.com          ; Run debugger and load ZC.COM
+    -md400,d6ff,1a00            ; Copy running NDR, Shell Stack, MSG
+                                ; ..buffer, PATH, WHL, ENV, and TCAP
+                                ; ..into ZC.COM image
+    -g0                         ; Exit from debugger
+    A0:SYS>save 2dh zcnew.com   ; Save new version of ZC
+
+If  you have a shell running while this process is being  carried  out,  you
+have to include the SAVE command on the same line as the DDTZ command, since
+when  the shell loads it wipes out the memory image in the TPA.   By putting
+the SAVE command on the same line, it is run before the shell is reloaded.
+
+     I have used the above technique and found it to work very nicely, but a
+word of caution is in order.   A purist would copy the memory areas only for
+the specific segments to be modified.   The external file control block  and
+the parts of the message buffer other than the byte at offset 0 (D580, where
+the  error-handler-flag is kept) and bytes at offsets 10H to 1FH (D590-D59F,
+where the error handler command line is kept) would not be copied.   CopyingŠthe entire message buffer works as described above, but if you try to make a
+ZEX batch file to do this,  you will get into trouble,  since ZCNEW.COM will
+then contain an image of the message buffer with the ZEX-running flag set.
+
+     To  test  ZCNEW,  make a new STRT.COM alias that just echoes  a  signon
+message (first rename the old one in case you want it back later),  run  ZCX
+to  exit  from Z-COM,  and then run ZCNEW.   Your own personalized  Z-System
+should pop (almost) instantly to life.   After determining that it is really
+working correctly,  you can rename ZCNEW.COM to ZC.COM.   Again, I recommend
+keeping  old versions with names like ZC1.COM,  ZC2.COM,  and so on,  on  an
+archive disk.
+
+
+                            Putting in a New DOS
+
+
+     Now  let's make a change that could not be accomplished  using  utility
+programs,  as  all of the above changes could be.   Let's replace the older,
+non-public  version of ZRDOS that comes with Z-COM with the  latest  version
+1.7 of Public-ZRDOS-Plus.   The first part of the process is same as that in
+a  manually  installed  Z-System.   One takes the ZRDOS  generating  program
+ZRDINS17.COM,  installs it using Z3INS, and runs it.  Having been installed,
+it will automatically know the three facts it needs: where the DOS, ENV, and
+wheel byte are located.   After it finishes running,  there will be a binary
+image file called ZRDOS17.BIN.
+
+     With  a manually installed Z-System we would now have to go  through  a
+somewhat  complex  process  involving 'sysgening' a system  image  from  the
+system tracks, patching in the new DOS using a debugger, and 'sysgening' the
+image  back  onto  the  system  tracks.   With  Z-COM  things  are  actually
+considerably easier,  since the two 'sysgening' steps can be skipped.   Here
+is the command sequence:
+
+    A0:SYS>ddtz zc.com          ; Run debugger and load ZC.COM
+    -izrdos17.bin               ; Initialize the file control block
+    -r900                       ; Read with offset 900h so that the object
+                                ; ..file will load at A00h
+    -g0                         ; Warm boot out of debugger
+    A0:SYS>save 2dh zcnew.com   ; Save new version
+
+As  before,  exit from Z-System with the ZCX command (or just hit the  reset
+button  if that is more convenient).   Then load the new system and run  the
+DOSVER utility.  Voila!  There is version 1.7.
+
+     Now let me show you a trick that makes patching even easier and doesn't
+require a debugger at all.  Just use the following command sequence:
+
+    A0:SYS>get 100 zc.com       ; Load ZC.COM at address 100H
+    A0:SYS>get a00 zrdos17.bin  ; Load ZRDOS17.BIN at address A00H
+    A0:SYS>save 2dh zcnew.com   ; Save the new memory image
+
+With this technique there is no computing of offsets, and it uses only ZCPR3Šbuilt-in  commands  (GET and SAVE).   The one thing you have to remember  is
+that the GET command loads entire files,  and so this technique can only  be
+used to patch in things that come in contiguous blocks with a length that is
+an  integral  multiple  of 128 bytes.   If you look at the memory  table  of
+ZC.COM,  however,  you  will see that this includes all system modules  that
+ever exist in the form of files: the CPR, DOS, NDR, ENV, TCAP, RCP, FCP, and
+IOP.   These  patches  can  be done very nicely  from  alias  scripts.   For
+example, since one might often change one's named directories, the following
+alias might be handy:
+
+        alias PUTNDR:
+
+                IF NULL $1
+                ECHO SYNTAX: $0 NDR-FILE-NAME
+                ELSE
+                ERA ZCNEW.COM
+                GET 100 ZC.COM
+                GET 1A00 $1.NDR
+                SAVE 1DH ZCNEW.COM
+                ECHO TEST ZCNEW.COM
+                FI
+
+Similar  aliases could be used for replacing other modules such as RCPs  and
+FCPs.
+
+
+                       New Command and System Modules
+
+
+     Speaking  of RCPs and FCPs,  let's talk a little about how we  generate
+new versions of these and other system modules.  There is no need to discuss
+the  patching techniques.   They are the same as what we have already  seen.
+The question is:  how do we generate the new SYS.RCP,  SYS.FCP,  and SYS.ENV
+modules?
+
+     The procedure is the same as in a manual install system, except that in
+a manual install system we already had the necessary Z3BASE.LIB file that is
+required for the assembly of new system modules.   So far we have not needed
+one with Z-COM.   To make things easier,  Joe Wright has kindly provided  us
+with  a generalized Z3BASE.LIB file.   All we have to do to adapt it to  our
+system  is  to  use  an editor to fill in the  address  of  the  environment
+descriptor in the "Z3ENV SET ..." definition near the top of the file.   One
+further  hint:  while you are at it,  change the SET to an EQU.   If you use
+Z3BASE.LIB  to assemble a file in Zilog mnemonics,  the assembler  will  not
+accept  SET,  since that is a Zilog opcode.   You would have to change it to
+ASET in that case, but there is no reason not to use the universal EQU. Some
+programs also require definitions for YES and NO,  so you might want to  add
+the lines:
+
+                YES     EQU     TRUE
+                NO      EQU     FALSE
+ŠOne last addition.   The RCP, FCP, and ENV modules do not need it, but other
+files,  and  most notably the command processor code,  require an equate  to
+define  the address of the entry point to the command processor.   This is a
+part  of  the  normal  Z3BASE file,  but Joe Wright forgot  to  put  it  in.
+Someplace after the Z3ENV equate, add the line:
+
+                CCP     EQU     Z3ENV - 1A00H
+
+Now  you should be all set to assemble up new system modules,  like the  new
+FCP10 from ZSIG.   You might also want to assemble a customized SYS.ENV with
+the  correct values of maxdrive and maxuser and your own choice  of  printer
+and console definitions (see "ZCPR3, The Manual" for details).
+
+     "ZCPR3, The Manual" explains in detail how to carry out the assemblies,
+though  I  find  that  the  discussion there makes  the  process  look  more
+complicated than it really is.   Basically, you assemble the module to a HEX
+file,  convert the HEX file to a COM file using MLOAD,  and then rename  the
+COM  file to the proper name for the module (e.g.,  "REN SYS.FCP=FCP10.COM).
+If  you have the SLR assemblers,  you can assemble the module directly to  a
+COM in a single pass and skip the MLOAD step.   Finally you test the  module
+by loading it using LDR.
+
+
+                      Replacing the Command Processor
+
+
+     Replacing  the command processor is no more difficult than changing any
+of the other modules in the system.   In fact,  as we will soon see,  it  is
+much  easier  to  test  a new CPR with Z-COM than it is  with  the  manually
+installed Z-System.
+
+     The basic procedure is as we described for the RCP or FCP.   As  usual,
+edit the configuration LIB file (Z3HDR.LIB or Z31HDR.LIB if you are using my
+experimental version ZCPR315D) and assemble the code.   One additional hint.
+Again,  if you have the fabulous SLR Systems assemblers SLRMAC,  Z80ASM,  or
+SLR180,  select the option to assemble directly to a COM file,  not to a HEX
+file.   It  is  a  shame  that so many books and articles  have  taught  the
+unnecessarily  complex  patching  method  based  on  HEX  files  with  their
+extremely tricky offset calculation.   It is much easier to work with a  COM
+file where the load offset in the debugger is quite straightforward, namely,
+100H  below  where you want the file to go,  no matter what address  it  was
+assembled  for.   If you are using an assembler that can produce only a  HEX
+file,  then  use the public-domain MLOAD to convert it to a COM file just as
+was done to make the RCP and FCP files.
+
+     Now  that you have ZCPR3.COM or some such file,  all you have to do  is
+substitute it for the file ZC.CP in A15:.   It would be a sign of  foolhardy
+optimism  to destroy the original ZC.CP.   I would recommend renaming it  to
+something  like  ZCOLD.CP  and then copying the new one into  place  with  a
+command  like  "PPIP A15:ZC.CP=ZCPR3.COM".   Now just hit control-c to  warm
+boot, and the new CPR will be running!
+Š     If  things did not work out as you intended (and especially if the  new
+CPR just crashed the system),  you can reboot and reload ZC.COM.   Remember,
+you did not change the CPR image in ZC.COM yet,  and things will be fine  so
+long  as  you  don't warm boot.   Before that  happens,  you  should  rename
+ZCOLD.CP back to ZC.CP.   Then you can try again.  That is sure a lot easier
+than  all  the  'sysgening'  required to test a new CPR  with  the  manually
+installed Z-System.
+
+     If all went well,  the system is now running just the way you hoped  it
+would.   Once  you've tested it and are satisfied that it really is  working
+correctly,  you  can patch the new CPR into ZC.COM so that it will be  ready
+immediately after Z-COM loads.  The following commands will do it:
+
+        A0:SYS>get 100 zc.com
+        A0:SYS>get 200 a15:zc.cp
+        A0:SYS>save 2dh zcnew.com
+
+As usual, once you have verified that ZCNEW is working, rename it to ZC.COM.
+
+
+                             Summary and Plans
+                             -----------------
+
+
+     That  wraps things up for this time.   You now know how to make  enough
+patches to mold a Z-COM system pretty well to your own tastes.   If you have
+Z-COM,  I hope you will experiment some before the next column appears.   In
+that  column we will really dig into Z-COM and do some wild things.   If you
+have any suggestions or questions,  please send them along.   My address and
+phone numbers are listed below.
+
+     As a little reward for those of you who plowed through this whole piece
+(or who were taught the trick I was as a freshman in college to read the end
+of  a paper or essay before you start at the beginning),  here is  a  little
+tidbit.   ZCPR  version  3.3 is coming very soon.   I already have a  nearly
+complete version of it patched into the Z-COM I worked up for this  article.
+I  expect that Z33 will have been released or will be very close to  release
+by  the  time  this  column  appears,  and I will devote  some  space  to  a
+discussion of its new features in the next column.
+
+                                        Jay Sage
+                                        1435 Centre Street
+                                        Newton Centre, MA 02159
+                                        voice: 617-965-3552
+                                        modem: 617-965-7259
+
+[This article was originally published in issue 28 of The Computer Journal,
+P.O. Box 12, South Plainfield, NJ 07080-0012 and is reproduced with the
+permission of the author and the publisher. Further reproduction for non-
+commercial purposes is authorized. This copyright notice must be retained.
+(c) Copyright 1987, 1991 Socrates Press and respective authors]
+

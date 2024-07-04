@@ -1,0 +1,468 @@
+.op
+.cw 10
+.po 9
+                    THE Z-SYSTEM:  8-bit Software Grows Up
+
+               By David McCord, Staff Consultant, Echelon, Inc.
+
+
+     Remember CP/M 2.2?  Sure you do! After all, it was the de facto standard 
+operating system for microcomputers before IBM invaded the arena with their 
+PC.  However, over the past two years or so, the 8-bit computer market that 
+CP/M 2.2 represents has been steadily losing ground to the 16-bit market 
+represented by the MS-DOS operating system.
+     One of the major reasons for this shift has been because CP/M 2.2 has 
+been perceived as being outdated and difficult to use, especially in turnkey 
+applications.  Other reasons abound, such as having to warm boot the system 
+whenever a disk is changed, lack of a named directory capability, and more.  
+And, although the 8-bit system has always had the advantages of lower hardware 
+cost and a large body of developed software, the disadvantages were forcing 
+developers and users to move to the 16-bit systems.
+     At Echelon, we see 8-bit hardware as the natural solution to most 
+personal computing and process control requirements.  In terms of performance, 
+a Z80 based system has the same throughput as an 8088 based system, without 
+the overhead of the large amounts of RAM required by 8088 based software.  We 
+have developed a new operating system, called the Z-System, to free 8-bit 
+hardware from the constraints imposed by the old (and archaic) CP/M 2.2 
+operating system.
+     The Z-System is a natural evolution of 8-bit operating systems, to the 
+point where the Z- System has a greater utility and functionality than MS-DOS.  
+Yet it remains compatible with any CP/M-2.2  applications software available.  
+This allows you to take advantage of the low hardware cost of 8-bit systems 
+and the large body of software already developed for use under CP/M 2.2.
+
+Structure
+     The memory map of a Z-System is presented in Figure 1.  The BIOS is 
+basically the same as that used under CP/M, with a modification to the Cold 
+Boot routine to do some additional initialization.
+     The Z-System consists of two major parts: 1) ZCPR3, and 2) ZRDOS.  ZCPR3 
+is an acronym for Z80 Console Processor Replacement, version 3, and it 
+replaces the portion of CP/M known as the Console Command Processor (CCP).  
+(Some of you may be familiar with ZCPR2; ZCPR3 is a major revision of ZCPR2.)  
+ZRDOS is an acronym for Z80 Replacement Disk Operating System, and it replaces 
+the portion of CP/M known as the Basic Disk Operating System (BDOS).  The 
+combination of these two items replaces all of the software that make up the 
+CP/M 2.2 operating system supplied by Digital Research, and Echelon offers it 
+at substantial savings by comparison.
+     The key elements that differentiate the Z system from CP/M are the 
+sections shown in Figure 1 that contain "segment" as part of their names; 
+these are known as "system segments", and each is dynamically changeable, or, 
+may be omitted if the features they contain are not desired.  A loader utility 
+facilitates dynamic changes of all of these segments, "on the fly".
+     An interesting point to note is that ZCPR3 can be implemented into a 
+standard Digital Research operating system without having to acquire ZRDOS; 
+many of the features discussed in this article are derived from ZCPR3.  The 
+modification to the original BIOS so that ZCPR3 can be used is very easy to 
+implement in either case.
+.pa
+.pn 2
+.fo                               Page #
+Intrinsic Features
+     There are a wealth of important features available under the Z-System, 
+far more than I can touch on in this brief article.  Some of the major ones 
+are shown in Table 1, and compared with CP/M 2.2 and MS-DOS.  The system 
+segments of the Z-System contribute most of these features.
+     Some of the unique features of the Z-System are:
+     -Conditional testing and execution of commands at the operating system 
+level.  This facility allows a single batch processing program to execute 
+differently depending on the results of tests; for instance if a command 
+parameter is supplied, perform the batch commands using that parameter, or if 
+no parameter was supplied, use a default parameter.  Another example is a 
+branch within a SUBMIT file depending on whether or not a particular filename 
+is present.  This conditional testing functionality is provided by the Flow 
+Control Package Segment.
+     -Named directories with optional password security.  Under ZCPR3, a named 
+directory is a symbolic name assigned to a drive/user area combination.  The 
+system may be configured such that the system prompt (usually of the form DU> 
+where D is the active drive and U the active user area) can report the name of 
+the directory in the prompt, such as A15:ROOT>.  The systems integrator may 
+take this a step farther, and omit the drive/user code in the prompt, 
+resulting in a prompt of ROOT>.  This is a very effective tool in turnkey 
+systems as the end user no longer has to deal with arbitrary drive and user 
+numbers; instead he may use mnemonic names that are self descriptive, as  
+BASIC or HELP.  It is also ideal where a large hard disk is being used, and 
+can partition the storage into smaller, more manageable parts.  In situations 
+where security is a concern, the directories can be passworded so that a 
+password is required to log into the directory.  Programs and files that must 
+be kept secure can be kept in a passworded directory, inaccessible without the 
+proper password.  This function is provided by the Named Directory Segment.
+     -Dynamically variable user privilege levels.  The facility of ZCPR3 known 
+as the WHEEL can allow you to disable commands, such as ERA (erase a file) and 
+others, to nonprivileged users.  This is also available from within 
+application programs as well.  This concept improves system security 
+substantially.
+     -Searching of alternate directories for invoked programs and files.  This 
+is known as the PATH function of ZCPR3.  It liberates the user from one of the 
+more glaring "user unfriendly" aspects of CP/M 2.2: always needing to specify 
+what drive the program to be invoked is residing on.  The PATH is dynamically 
+variable to offer maximum flexibility.
+     -Multiple dynamically loadable command packages included.  The best 
+example of this in the MS-DOS environment is the COMMAND.COM program.  
+However, this is the only command package included with MS-DOS.  ZCPR3 
+includes up to four command packages, and their source code, which allows you 
+to tailor your commands to suit your needs.
+     -Terminal independence.  The ZCPR3 Environment Descriptor contains what 
+is known as the Terminal Capabilities (TCAP) Segment.  This segment contains 
+data about the type of terminal being used on the system, consisting mainly of 
+the escape sequences to perform functions such as clear screen, cursor 
+addressing, sequences generated by the terminal's arrow keys, highlighting 
+on/off, and etc.  The 70+ utility programs supplied with the Z-System take 
+full advantage of this information to enhance interaction with the user.  The 
+end result is that programs do not need to be changed or patched when a 
+different terminal is connected to the system; only a different TCAP segment 
+is loaded.  The Z-System presently is supplied with data for over 50 terminal 
+types.
+.pa
+     -Multiple commands per line.  This is an excellent productivity 
+enhancement.  Users can enter a sequence of commands all at once, and go on to 
+other things while the machine executes those multiple commands.  And because 
+the commands are stored in a defined buffer area within the Z-System, 
+application programs may insert operating system level commands into the 
+buffer to allow program chaining without having to resort to the "tricks" 
+necessary under CP/M.
+     -Communication between Z-System utilities for status information and 
+messages.  The ZCPR3 message buffers allow programs to communicate with each 
+other without necessitating the use of data files.  This permits sharing of 
+information between programs without the code and disk space overhead of the 
+shared data file approach.
+     All of the above features and more are intrinsic to the Z-System.
+
+Utility Features
+     There are many additional features possible once the Z-System is 
+installed, based on various utility programs supplied with the Z-System.  Some 
+of these features are:
+     -ALIAS capability.  ALIASes are short programs with a filetype of .COM 
+which contain a command or sequence of commands.  For example, I could create 
+an ALIAS with the name of CLEANUP.COM that contained the commands:
+
+                        ERA *.BAK;ERA *.HEX;ERA *.SYM
+
+Then, when I enter CLEANUP<cr> at the system prompt, it will clean up (erase) 
+all files in the current directory with filetypes of COM, HEX, and SYM.
+     -Integrated HELP facility.  The HELP.COM utility program is designed to 
+work within the Z System environment, and uses the TCAP data to enhance 
+presentation of help information to the user.  Multiple files are supplied 
+with the Z-System for use with the HELP program, so that a large amount,
+(over 400k-bytes) of documentation can be online to assist the user, disk 
+space permitting.
+     -Multiple Shells.  Several of the utilities available under the Z-System 
+are SHELLS (MENU, VMENU, VFILER, etc.).  Programs that are shells are capable 
+of calling other programs, and when that program finishes executing, then 
+control is returned to the shell that called the program.  Shells may also be 
+nested, that is, have the capability of having multiple shells active at any 
+given time.  See the discussion of MENU in the applications section of this 
+article for a detailed discussion of the capability of shells.
+     -Dynamic re-assignment of system devices from the command line using 
+device driver names.  This is a very powerful facility for assigning different 
+printers, system consoles, modems, and other peripherals via names instead of 
+IOBYTE values under CP/M 2.2.  The systems integrator can choose the device 
+names, and is not restricted to arbitrary designations like LST:, CON:, etc., 
+but can use names like ADM3A, EPSON, etc., if he chooses.
+     -Integrated error handling.  Under CP/M 2.2, if a user enters an 
+unrecognized command or file name, CP/M simply repeats the input back to the 
+user, and adds a question mark.  This is not very user friendly!  The Z-System 
+allows various programs to be installed as error handlers for this type of 
+situation, and offer a variety of options to the user as to what to do next.
+     There are over 70 utilities designed for use under the Z-System.  Each 
+adds unique and exciting features; disk editors, memory utilities, device 
+programming tools, unerase programs, and much, much more.
+.pa
+Applications
+     The Z-System has an enormous potential for increasing efficiency in all 
+applications of microcomputers.  Tasks such as software development which have 
+multiple steps can be automated using ALIASes and the command processor 
+ZEX.COM, so that a single command may compile, assemble, link, cleanup, and 
+execute a program under development, yet determine if errors occurred in the 
+process  and terminate the process if this is the case.  For turnkey 
+applications, shells such as the MENU.COM program can go a long way in 
+enhancing user interaction and system performance.
+
+Software Development
+     For an example of the kind of tools available under the Z-System to 
+improve software development productivity, see Listing 1.  The file shown is a 
+command file for ZEX.COM, which is a third generation command processor based 
+on the SUBMIT and XSUB programs that are bundled with standard CP/M 2.2.  Note 
+in the example file the use of '$1' to represent command line parameter 
+substitution, just as with SUBMIT and XSUB.  This command file for ZEX makes 
+extensive use of the Flow Control Package of the Z-System, as shown in the use 
+of IF, ELSE, and FI (ENDIF) statements.  Through the use of these Flow 
+Controls, the system is capable of detecting errors such as no parameter to 
+substitute for $1, no file existing to use as source, and whether or not to 
+continue on the the link stage if warning errors were detected depending on 
+operator input.  This type of intelligent batch processing is light years 
+ahead of standard CP/M 2.2, and even ahead of many mainframe computer 
+operating systems!
+     Also available at very low cost (and no royalty fees) are the assembly 
+language "building blocks" used to write major portions of the Z-System, 
+called SYSLIB3.  SYSLIB3 consists of hundreds of assembly language routines, 
+written for use with a Z80 processor.  Programmers developing software for use 
+under the Z-System will have the advantage of having the common routines used 
+in most programming tasks already written, and will not have to build 
+applications software from scratch.  A detailed discussion of SYSLIB3 is 
+beyond the scope of this article, but it remains a very powerful tool to 
+enhance programmer productivity.
+
+Turnkey Systems
+     For the systems integrator who is designing turnkey systems, the various 
+shells of ZCPR3 offer an unprecedented capability of integrating stand-alone 
+programs into a cohesive system.  An example of this is shown in Listing 2, 
+which is the input to the MENU.COM shell for use with the Z-System utility 
+called DISCAT, a disk cataloging system.
+     To introduce you to the way that MENU works, first a few words about the 
+structure of the DISCAT system used in the example.  DISCAT is a collection of 
+modular .COM programs, the largest of which is 8k bytes long.  Each module is 
+dedicated to a specific function, such as putting a disk name into a disk 
+directory, updating the master catalog file from a target disk, creating the 
+master catalog file, etc.  This modular approach greatly reduces RAM 
+requirements and was very helpful in the program development phase, since each 
+program is small, and there is little or no code interaction between the 
+functions of the system.  The MENU shell is the element that unifies these 
+small programs into a cohesive unit.
+     The file shown in Listing 2, which is referred to as a .MNU filetype, is 
+created with any standard word processing program.  The MENU program also 
+ignores the high-order bits of the characters contained, so if the word 
+processing program used to create the file sets the high bits of characters 
+(like WordStar), this does not create a problem.
+     The structure of a .MNU file is divided into two major parts; the first 
+is the section of the file that is displayed to the user when the program is 
+invoked.  This is the section of the example between the single '#' symbols.  
+This section, when displayed, is capable of using the data in the TCAP segment 
+of the Z-System to highlight sections of the display and enhance interaction 
+with the user; I have omitted these highlight commands in the interest of 
+clarity, but the capability exists.  The second part of the file is the 
+section between the second single '#' symbol and the double '##' symbol.  This 
+section is used by the MENU shell to generate commands based on a single 
+keystroke by the user.  The way that these commands are then acted on is by 
+sending them to the ZCPR3 Command Processor for execution.  For instance, in 
+our example there there is a line in the second section that contains "2era 
+working.cat".  This means that if the user types the "2" key, the command "era 
+working.cat" will be generated and sent to the ZCPR3 Command Processor for 
+execution.  The command will be executed, and then the MENU program will 
+regain control, and wait for the next keystroke by the user.  This is the 
+simplest command lines that can be generated by the MENU program in 
+conjunction with this .MNU file.  Things are more sophisticated in the example 
+line in the second section that contains 'ccatmake "Name of Catalog File to 
+Create--"'.  This line will be used to generate a command when the user types 
+a 'C' (upper or lower case is equivalent).  We can also see that the program 
+named CATMAKE is going to be invoked.  But what does the MENU program do with 
+the characters enclosed with quotation marks?  The answer is that MENU uses 
+this as a prompt to the user, and and gives the user the opportunity to enter 
+some data, followed by a <cr>.  Then MENU substitutes this operator input for 
+the text enclosed by quotation marks into the command line it is building.  In 
+this example, where the user had typed a 'C', and when prompted with 'Name of 
+Catalog File to Create --' had responded with 'MASTER.CAT', the resulting 
+command line generated and sent to the ZCPR3 Command processor for execution 
+would be:
+
+                              CATMAKE MASTER.CAT
+
+The program CATMAKE.COM would be invoked by the ZCPR3 Command Processor 
+(because CATMAKE is not an intrinsic command), and CATMAKE expects a command 
+line parameter of the filename to be created, so it will then create 
+MASTER.CAT.  When CATMAKE terminates, the first section of the .MNU file will 
+be presented to the user, and MENU will await another keystroke to generate 
+the next command.
+     The MENU system does not require that programs used within it be 
+specially designed for use under the Z-System as the DISCAT programs are: any 
+executable program may be called from within a MENU.  MENU also offers options 
+to the systems integrator as to whether end users will be allowed to terminate 
+the MENU program or not, and has a debug mode of operation as well.  The net 
+result of using MENU in your turnkey system is that no longer will users have 
+to be highly trained in the commands necessary to run the system; instead, the 
+MENU system can function as a command "translator" so that even users who are 
+not trained at all can use the system, without having to go through the 
+training necessary to accomplish the same result in your application.  Also, 
+your system can become modular, with a array of small programs, instead of one 
+large program with overlays, etc.  It is even possible that you could cut back 
+on the RAM required in your system, and reduce hardware costs.
+.pa
+                                S U M M A R Y
+
+     The Z-System is a genuine third generation operating system that is 
+extremely flexible and possesses features found in no other operating system.  
+It can greatly enhance the efficiency of microcomputers no matter what 
+application.
+     For information about the Z-System, contact:
+
+                                Echelon, Inc.
+                                101 First Street
+                                Los Altos, CA  94022
+                                Phone (415) 948-3820
+                                Modem 212-type (415) 489-9005
+.pa
+                   Memory Map of the Z-System
+
+----------------------------- Top of RAM (RAMTOP)
+| ZCPR3 External Stack      |
+----------------------------- RAMTOP - 30 Hex
+| ZCPR3 Multiple Command    |
+|   Line Buffer             |
+----------------------------- RAMTOP - 100 Hex
+| ZCPR3 Named Directory     |
+|   Segment                 | 
+----------------------------- RAMTOP - 200 Hex
+| ZCPR3 External File       |
+|   Control Block           |
+----------------------------- RAMTOP - 230 Hex
+| ZCPR3 Message Buffers     |
+----------------------------- RAMTOP - 280 Hex
+| ZCPR3 Shell Stack         |
+----------------------------- RAMTOP - 300 Hex
+| ZCPR3 Environment         |
+|   Descriptor Segment      |
+----------------------------- RAMTOP - 400 Hex (ENVBASE)
+| ZCPR3 Flow Control Package|
+|   Segment                 |
+----------------------------- ENVBASE - 200 Hex
+| ZCPR3 Input/Output        |
+|   Package Segment         |
+----------------------------- ENVBASE - 800 Hex
+| ZCPR3 Resident Command    |
+|   Package Segment         |
+----------------------------- ENVBASE - 1000 Hex (SEGMENTBASE)
+| BIOS with modified Cold   |
+|   Boot Routine            |
+----------------------------- SEGMENTBASE - Length of BIOS (BIOSBASE)
+| ZRDOS (Z80 Replacement    |
+|   Disk Operating System)  |
+----------------------------- BIOSBASE - E00 Hex (BDOSBASE)
+| ZCPR3 Command Processor   |
+|   (Replaces CP/M's CCP)   |
+----------------------------- BDOSBASE - 800 Hex
+| TPA (Transient Program    |
+|      Area)                |
+----------------------------- 0100 Hex
+| Page 0 Buffers and        |
+|   Reserved Locations      |
+----------------------------- 0000 Hex
+
+Figure  1.   The  Z-System  uses up to 5 kbytes more RAM  than  a 
+conventional CP/M-80 system.  Many of the Segments may be omitted 
+to reduce this overhead.
+.pa
+         Comparison of the Z-System, CP/M-80, and MS-DOS
+
+                                      Z-System  CP/M 2.2  MS-DOS
+1) Compatible with CP/M 2.2 software    Yes       Yes      No
+
+2) Terminal-independent video
+                    capabilities        Yes       No       No
+
+3) No warm boot required when changing
+                    disks               Yes       No       Yes
+
+4) User-definable shell capability      Yes       No       Yes
+
+5) Multiple ASCII-programmable shells
+     included                           Yes       No       No
+
+6) Integration of stand-alone
+     executable programs via menus      Yes       No       No
+
+7) Multiple dynamically loadable ram-
+     resident command packages included Yes       No       No
+
+8) Named directories with optional
+     password security                  Yes       No       No
+
+9) Searching of alternate directories
+     for invoked programs and files     Yes       No       No
+
+10) Conditional testing and execution
+     at the operating system level
+          (IF/ELSE/ENDIF)               Yes       No       No
+
+11) Dynamically variable user
+     privilege levels for commands      Yes       No       No
+
+Table 1.  The Z-System possesses many advanced features, of which 
+MS-DOS contains only a few.
+.pa
+
+;
+;   M80.ZEX -- MACRO-80 Assembler and Linker
+;              with M80 Error Checking
+;
+;      ^& Suppress FALSE IF Printout
+;
+if nul $1 ;note Print Error Message
+echo	^G**** No Parameter Specified ****
+else	;note Perform Assembly
+if ~exist $1.MAC ;note Print File Not Found
+echo	**** File Not Found ****
+else
+M80 =$1
+FINDERR
+if 0    ;note No errors found, link file
+ERA $1.BAK
+ERA $1.COM
+L80 /P:100,$1,A:VLIB/S,A:Z3LIB/S,A:SYSLIB/S,$1/N,/U,/E
+else
+if 0 2  ;note see if the errors are warnings
+echo    ^G***WARNING ERROR***
+if input Type T to Continue or F to Abort (Warning Errors)
+ERA $1.BAK
+ERA $1.COM
+L80 /P:100,$1,A:VLIB/S,A:Z3LIB/S,A:SYSLIB/S,$1/N,/U,/E
+fi      ;note on IF INPUT
+else    ;note error is fatal
+echo    ^G***FATAL ERROR IN ASSEMBLY***
+fi;fi      ;note IF REG 0 and IF REG 0 2
+ERA $1.REL
+fi;fi   ;note on IF NUL and IF ~EXIST
+;
+; Assembly Complete
+;
+
+Listing 1.  An example ZEX file that automates the assembly and 
+link process using the Microsoft M80/L80 assembler/linker.  This 
+example makes use of the Z-System's conditional testing 
+capability (IF/ELSE/ENDIF) to determine various error conditions.
+.pa
+
+
+-dxp
+#
+
+
+                    DISCAT Menu SubSystem 1
+
+
+-- MASTER Catalog Functions --      -- WORKING Catalog Functions --
+
+ F - Free Space Scan		     1 - Update WORKING Catalog
+ M - Merge WORKING Catalog into      2 - Delete WORKING Catalog
+      MASTER Catalog		     3 - Cleanup WORKING Files
+ S - Scan MASTER Catalog
+ U - Update MASTER Catalog
+ V - Verify MASTER Catalog
+
+
+ -- General Catalog Functions --    -- Miscellaneous Functions --
+
+ B - Backup the MASTER Catalog	     W - VFILER
+ C - Create a New Catalog File	     X - Dir
+ N - Place a Name on a Disk   	     Z - ZCPR3 Cmd
+
+#
+f!catfree "Names of Disks -- "
+m!catmerge working
+s!catscan "Input Files and Disks to Scan For -- "
+ucatupd /r
+v!catcheck master
+bmcopy master.cat m
+ccatmake "Name of Catalog File to Create -- "
+ncatname B31:"Name of Disk -- "
+1catupd /wr
+2era working.cat
+3era *.bak;era working.cat
+wvfiler
+x!xd
+z!"Enter Command Line -- "
+##
+
+Listing 2.  An input file to the MENU.COM Shell.  The file 
+consists of two sections.  The first section is displayed to the 
+user, and the second section is used by the MENU.COM Shell to 
+interpret the input by the user.
+

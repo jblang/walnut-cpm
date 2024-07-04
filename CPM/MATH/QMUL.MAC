@@ -1,0 +1,143 @@
+	TITLE	'QMUL  -  Quick 16 x 16 multiply'
+	NAME	('QMUL')
+	.Z80
+
+;****************************************************************
+;								*
+;  QMUL  -  Quick 16 x 16 Multiply				*
+;								*
+;===============================================================*
+;								*
+;         By:           Jon Tara				*
+;                      	MicroControl Software			*
+;			1300 E. Lafayette #2808			*
+;			Detroit, Michigan  48207		*
+;			(313) 393-2916				*
+;								*
+;        This software is placed in the public domain.		*
+;								*
+;===============================================================*
+;								*
+;  On entry:  DE = Multiplicand					*
+;	      HL = Multiplier					*
+;								*
+;  On exit:   BCDE = Product					*
+;								*
+;  Time:  Worst case - 704 cycles = 176 uSec (4 mHz Z80)	*
+;								*
+;  AF destroyed							*
+;								*
+;  Revision 1.00  01/21/82  JT  Initial Release			*
+;								*
+;****************************************************************
+ 
+	PUBLIC	QMUL
+	CSEG
+
+QMUL:
+	PUSH	HL		; Save multiplier.
+	LD	C,H		; Save MSBs of multiplier.  
+	LD	A,L		; LSBs to A for an 8 x 16 multiply. 
+
+	LD	B,0		; Handy 0 to B for carry propagation.
+	LD	H,B		; Init LSBs of product.
+	LD	L,B
+
+	ADD	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,B		; (Product in AHL)  
+	ADD	HL,HL
+	ADC	A,A
+
+	PUSH	HL		; Save LSBs in stack. 
+	LD	H,B		; Zero second product.
+	LD	L,B		; .
+	LD	B,A		; Save MSBs of first product in B
+	LD	A,C		; Get MSBs of multiplier. 
+	LD	C,H		; Handy 0 in C this time.
+ 
+	ADD	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL		; Shift product left.
+	ADC	A,A		; Test multiplier bit.
+	JR	NC,$+4   
+	ADD	HL,DE		; Add multiplicand to product. 
+	ADC	A,C		; (Product in AHL)  
+	ADD	HL,HL 
+	ADC	A,A
+
+	POP	DE		; Fetch LSBs of 1st product. 
+	LD	C,A		; Add partial products.
+	LD	A,D		; .
+	ADD	A,L		; .
+	LD	D,A		; .
+	LD	A,B		; .
+	ADC	A,H		; .
+	LD	H,A		; .
+	LD	A,C		; .
+	ADC	A,0		; .
+	LD	B,A		; .
+	LD	C,H		; .
+	POP	HL		; Restore multiplier.
+	RET	
+
+	END
+

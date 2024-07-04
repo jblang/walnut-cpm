@@ -1,0 +1,67 @@
+
+; M7SY-3.ASM   - SANYO MBC-1000 computer overlay file for MDM722+.  2/17/84
+;
+; You will want to look this file over carefully. There are a number of
+; options that you can use to configure the program to suit your taste.
+;
+; This file adapts the Sanyo MBC-1000 computer to the modem program.
+; 
+;
+;  THIS MODIFICATION MAKES USE OF TIMER 2 ON THE 8253 TIMER IC (IC4)
+;  OF THE SERIAL I/O BOARD OF THE SANYO MBC-1000.
+;
+;  To use this program, the serial I/O board must be modified as follows:
+;
+;  1. Cut etch from IC18 Pin 1 to JP2 Pin 8.
+;  2. Install jumper from IC18 Pin 1 to IC4 Pin 18.
+;  3. Install jumper from IC4 Pin 17 to JP2 Pin 8.
+;  4. Install jumper from IC4 Pin 16 to IC4 Pin 14.
+;  5. Move jumper strap to JP2 Pin 8 for programmable baud rate, other
+;     pins (1-7) can still be used for standard baud rate selections.
+;  6. Hardware modification is now complete.
+;
+;  *** THIS VERSION SETS UP THE USART FOR 8 BITS, NO PARITY, 1 STOP BIT ***
+;
+; Edit this file for your preferences then follow the "TO USE:" example
+; shown below.
+;
+; Use the "SET" command to change the baudrate when desired.  It starts
+; out at 1200 baud when the program is first called up.  Because of tem- 
+; perature and component variations, you mave have to alter the timing
+; parameters in OK300 and OK1200, plus or minus 1 or 2 numbers, if CRC
+; errors occur to frequently during transmission and reception.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 02/17/84 - Renamed  M7SY-3.ASM with improvements on 3 bugs. (1) Use
+;            MDM722 or later to eliminate the problems with Contol X when
+;            dialing.  (2) Altered the parameter for 300 baud set for 0240h
+;            to 0241h to eliminate overwhelming CRC errors during Send.
+;            (3) Irv Hoff et al take note.  For some reason, the Sanyo's
+;            lock up after a connect.  When the message "hit any key to
+;            stop the bell" occurs, there is a subsequent CALL STAT and
+;            CALL KEYIN that gets the Sanyo's in a tight loop.  Change
+;            the CALL STAT to a JMP RETURN (goes directly to the Terminal
+;            mode without waiting for a keystroke) to avoid the problem
+;            while waiting for someone more astute than me to fix the bug.
+;            I even tried patching in my specific BIOS addresses in a num-   
+;            ber of places, figuring the problem was in INITADR--but to no
+;            avail.
+;
+;               Bob Sandel  Canton, MI (leave msg with TCBBS 1-313-846-6127
+;                         or Keith Peterson's Royal Oak CP/M 1-313-759-6569 )
+;
+;
+; 02/01/84 - Blended MDM711SN w the top of MDM719.ASM
+;          - Made Default Baud Rate 1200; Added back LOADBD to update MSPEED
+;	   - ^P back on at LSTTST;changed LOGON back to ^L;set TOUCHPULSE
+;	   - back to P=Pulse;added cosmetic remarks;BUFSIZ=XFRSIZ=16K
+;          -     Bob Sandel    Canton, MI                             
+;
+; 08/01/83 - Altered MDM711NE for the Sanyo MBC-1000
+;	     computer using an external modem	- Dave Hardy
+;
+; 07/01/83 - Revised for use with MDM711	- Irv Hoff
+; 06/22/83 - Revised for use with MDM710	- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =

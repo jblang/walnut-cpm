@@ -1,0 +1,211 @@
+...14 Jul 85... (see end of file for update info)
+
+ESKAY SOFTWARE presents....
+
+
+            FANLED - a FANcy Line EDitor for TurboDOS
+
+
+
+FANLED is a TurboDOS module designed to allow sophisticated line editing
+capabilities on the TurboDOS command line.  It completely replaces the
+INPLN module supplied by Software 2000.  FANLED has been tested on TurboDOS
+version 1.41 systems and may not work in pre-1.4x versions.
+
+
+=========================================================================
+THIS IS THE RELEASE VERSION OF FANLED.  PLEASE FOLLOW ALL INSTRUCTIONS TO
+BRING IT UP.  PASS IT ON TO A FRIEND.  IF YOU USE IT COMMERCIALLY, YOU'RE
+WELCOME TO DO SO, BUT PLEASE LET ME KNOW.  THANKS.
+S. KLUGER, 7120 SKILLMAN #2104, DALLAS TX 75231  (214) 553-1363 1200 BAUD
+=========================================================================
+
+
+1. INSTALLATION
+
+FANLED can be installed two ways: (8 bit version)
+1 If you have PACKAGE.COM and all kernel modules, simply replace "INPLN"
+  in the .PKG files with "FANLED" and use the PACKAGE command to generate
+  new STDxxxxx.REL files.
+2 If you do not have PACKAGE.COM, you will need a library manager, such as
+  Digital Research's LIB.COM (comes with RMAC and CB80) to replace INPLN
+  with FANLED in all STDxxxxx.REL files.  Example:
+  0A}LIB STDSLAVE=STDSLAVE<INPLN=FANLED>
+
+Method 1 above also works for 16 bit systems.  If you don't have the PKG
+files and PACKAGE.CMD, you are almost out of luck unless your OEM or
+systems house can supply DELINK and RELINK.  DELINK changed a .O file into
+its mapping information, while RELINK restores the .O file.  You would have
+to use DELINK and an editor to remove the INPLN module, put the DELINKed
+version of FANLED in its place (be sure to remove the EOF) and then RELINK
+the whole mess.  It may be better to just RELINK STDSLAVE.O without
+FANLED and put FANLED in the GEN file so it can be updated easier.
+
+
+In your PAR file, be sure to include FORSPC = "^n" where "^n" is the 
+control character that causes your video display to space forward non-
+destructively. The default is:
+FORSPC = "^L"
+which is common to many terminals.
+
+In order to save space, your command line buffer should not exceed 160
+characters.  If you do not use "CLBLEN = " in your PAR file, you are
+safe, else be sure CLBLEN = 9B (default value).  Future versions of FANLED
+will allocate buffer space dynamically.
+
+Now re-GEN your SYS files and you're ready to roll...
+
+
+2. FEATURES
+
+FANLED provides the following editing features on the command line:
+- recall of last command line (only if recall executed before anything
+  else is typed)
+- cursor movement forward and backward character-wise, as well as move
+  cursor to beginning or end of line
+- delete character forward or backward
+- delete all characters left of cursor
+- delete all characters right of cursor
+- insert character at cursor position
+- yank kill buffer (undo last delete, inserting at current cursor
+  position).
+
+
+3. DETAILED COMMAND DESCRIPTION
+
+The FANLED command set is based on the EMACS command set as used in the
+MINCE editor and other Mark Of The Unicorn products.
+
+3.0 The cursor
+	The cursor is defined as placed BETWEEN two characters.  The
+	character displayed to the left of the cursor is the character
+	assumed to be to the left, the character displayed above the
+	cursor (or overstriking the cursor, whichever cursor mode
+	your terminal may be in) is considered to be to the right
+	of the cursor.
+	Note that if your command line is longer than can be displayed on
+	one terminal line, the terminal must be in WRAPAROUND mode for
+	FANLED to work properly!
+3.1 Entering a command line
+	A command line is entered as usual with a RETURN terminating it
+	and causing it to be executed.
+3.2 Recalling previous command line
+^R	The previous command line can be recalled by typing ^R at the
+	system prompt.  Typing ^R as any character other than the first
+	causes the ^R to be ignored and not acted upon.  After a line
+	recall, the cursor is positioned at the end of the line.
+3.3 Cursor movement
+^F ^B	The cursor is moved forward by pressing ^F and backward by
+	pressing ^B.  If the cursor is at the beginning of a line, ^B
+	will be ignored.  If the cursor is at the end of a line,
+	^F will be ignored.
+^A ^E	The cursor is moved to the beginning of the line by pressing ^A.
+	The cursor is moved to the end of the line by pressing ^E.
+3.4 Delete character
+^D ^H	Pressing ^D causes the character in front of the cursor to be
+	deleted, moving the remainder of the line to the left by one
+	character.  Pressing ^D at the end of a line will be ignored.
+	Pressing ^H (or the BACKSPACE or DELETE key) causes the character
+	to the left of the cursor to be deleted.  Attempts to delete
+	past the beginning of the line will be ignored.
+3.5 Kill characters
+^K ^X	Pressing ^K will cause all characters to the right of the cursor
+	to be deleted and placed into the kill buffer, overwriting the
+	current contents of the kill buffer.  Pressing ^X causes all
+	all characters to the left of the cursor to be deleted and placed
+	in the kill buffer, overwriting the previous contents of the kill
+	buffer and moving all characters to the right of the cursor to
+	the beginning of the line.
+	^K and ^X become invalid if there is nothing to be killed, without
+	altering the kill buffer contents.
+3.6 Unkill characters
+^Y	Typing ^Y will cause the contents of the kill buffer to be
+	inserted at the current cursor position.  Note that the contents
+	of the kill buffer will be retained until the next ^K or ^X is
+	executed.  This allows for a simple 1-line storage...
+3.7 Inserting editing characters as control characters
+^Q	Typing ^Q will cause the NEXT character to be inserted into the
+	command line.  Use it to insert one of the edit command characters
+	into the command line.  A RETURN cannot be inserted.
+3.8 Terminate and execute
+RET	Typing RETURN (ENTER, ^M) causes the whole command line to be
+	sent to TurboDOS for execution, even if the cursor is positioned
+	somewhere other than at the end of the line.
+3.9 USE OF FANLED
+	FANLED is invoked automatically at the operating system prompt
+	and (!!) when C-function 10 is executed.  Many programs use
+	C-function 10 to obtain string-oriented input!
+
+
+4. COMPATIBILITY
+
+FANLED's advanced features can, of course, only be used on video terminals.
+If the terminal has an AUTO-CRLF or WRAPAROUND mode, it should be enabled
+so the editing features can be used on a command line longer than what fits
+on one terminal line.
+
+
+5. LEGAL STUFF AND SUCH
+
+FANLED was written for unlimited distribution.  Its object code is placed
+into the Public Domain with the only restriction that it be used only by
+licensed users of the TurboDOS operating system.  Companies wishing to
+include FANLED into systems sold to their customers should notify me of
+such use, however, no royalties, license agreements and other such useless
+junk will be necessary.  I just want to know who uses it.
+OEM houses and large volume system integrators with competent systems level
+programmers may obtain the source to FANLED by sending me a diskette with
+sufficient return postage.  8" SSSD CP/M or any ICM format (8") is fine.
+
+
+Send praise, complaints, comments and donations (if you have the desire to
+contribute a few bucks) to:
+
+S. Kluger
+7120 Skillman #2104
+Dallas, TX  75231
+
+Or call (214) 553-1363 at 1200 baud to leave your comments.
+
+UPDATE INFO:
+
+ver 1.00  4-2-85	initial release
+ver 1.10  4-4-85	fixed minor bug in insert routine
+ver 1.20  4-9-85	added globals for edit keydefs:
+	GLOBAL PATCH POINTS AND THEIR DEFAULTS:
+
+FANBG	= "^A"		; MOVE CURSOR TO BEGINNING OF LINE
+FANBK	= "^B"		; MOVE CURSOR BACKWARD 1 CHARACTER
+FANEL	= "^E"		; MOVE CURSOR TO END OF LINE
+FANFC	= "^F"		; MOVE CURSOR FORWARD 1 CHARACTER
+FANDF	= "^D"		; DELETE CHARACTER FORWARD
+FANDB	= "^H"		; DELETE CHARACTER BACKWARD
+FANKF	= "^K"		; KILL ALL CHARACTERS FORWARD
+FANQU	= "^Q"		; INSERT NEXT CHARACTER (QUOTE)
+FANRC	= "^R"		; RECALL PREVIOUS COMMAND LINE
+FANKB	= "^X"		; KILL ALL CHARACTERS BACKWARD
+FANYA	= "^Y"		; YANK KILL BUFFER INTO COMMAND LINE
+
+Thanks to Chris Loelke for his suggestions.  Multiline storage is a
+question of memory and I may not implement it.
+
+The source to FANLED will be available soon.
+
+Continued update info as of 14 Jul 85:
+
+v1.40 fixes the ^Y problem, the obscure 16-bit bugs and adds the
+      ^U command (cancel current command line).
+v1.40 16 bit ONLY adds the following new commands:
+
+	^G	PUSH current kill buffer
+	^T	POP current kill buffer
+
+This is a 1-level stack, if the stack is in use, nothing may be pushed.
+If the stack is empty, nothing may be popped. It can be used as a means
+to save the current contents of the kill buffer.
+This set of commands may at one point be expanded to allow multi-line
+storage through a "push" and a "pop n" command.
+I have made no effort to incorporate these features into the 8-bit version.
+NQU	= "^Q"		; INSERT NEXT CHARACTER (QUOTE)
+FANRC	= "^R"		; RECALL PREVIOUS COMMAND LINE
+FANKB	= "^X"		; KILL ALL CHARACTER

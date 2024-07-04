@@ -1,0 +1,1274 @@
+;
+;
+;			 	 "zdir"
+;
+;			  (C)  P.F.Ridler 1982
+;
+;	Last change
+;			29 Apr 84  d.d. blocks fixed
+;			 7 Apr 84  directory write flag added?
+;			26 Jan 84  disc size generalised
+;			20 Aug 82  disc name added
+;	Original	10 Aug 82
+;
+;	Licence is freely granted only for non-commercial educational use.
+;
+;
+;******************************************************************************
+;
+;   for NCR DM5 change	"E"  to ":"
+;			"Y"  to "="
+;			"K"  to " "  ???????? 
+;			 4   to  2
+;
+clrch	equ	'E'	;clear screen sequence is <esc>,"E"
+cposch	equ	'Y'	;cursor posn  sequence is <esc>,"Y",row+32,col+32
+eeolch	equ	'K'	;eeol sequence is <esc>,"K"
+maxdrv	equ	4	;maximum no of drives in system.
+;
+;******************************************************************************
+;
+warm	equ    0000H
+bdos	equ    0005H
+;
+bel	equ	 7
+tab	equ	 9
+lf	equ	10
+cr	equ	13
+esc	equ	27
+;
+;
+	org	100H
+;
+;
+newdir	ld	sp,stack
+	call	init
+newdr1	call	getdrv		;ask for drive name
+newdr2	call	rdvol
+	call	rddir
+	ld	a,(nnames)
+	or	a,a
+	jr	z,newdr3
+	call	sort
+	call	size
+	call	disply
+	jr	newdr4
+newdr3	call	empty
+newdr4	call	dspnxt
+	db	esc,cposch,23+32,0+32,esc,'K'
+	db	'Display, Rename, Erase, Name_disc or Quit => '
+	db	0
+	call	getch
+	and	5FH
+	cp	a,'D'		;display directory
+	jr	z,newdr1
+	cp	a,'R'
+	jr	nz,newdr5	
+	call	rename		;rename a file
+	jr	newdr2
+newdr5	cp	a,'E'
+	jr	nz,newdr6
+	call	erase		;erase a file
+	jr	newdr2
+newdr6	cp	a,'N'
+	jr	nz,newdr7
+	call	namvol		;name a disc volume
+	jr	newdr2
+newdr7	cp	a,'Q'
+	jp	z,exit		;leave the program
+	call	warn
+	jr	newdr4
+;
+;
+exit	ld	a,(cdrive)	;restore current drive
+	ld	(0004),a
+	jp	warm
+;
+;
+init	ld	a,(0004)	;store current drive
+	ld	(cdrive),a
+	call	dspnxt
+	db	esc,clrch,0
+	call	dspnxt
+	db	esc,cposch,10+32,20+32
+	db	'Zimsoft directory utility'
+	db	esc,cposch,12+32,23+32
+	db	'(C) P.F.Ridler 1984',0
+	ret
+;
+;
+getdrv	push	af
+gtdrv1	call	dspnxt
+	db	esc,cposch,23+32,0+32,esc,eeolch
+	db	'Directory for which drive?  => '
+	db	0
+	call	getch		;get drive letter
+	call	lctouc		;turn into U/C
+	sub	a,'A'		;A=0, B=1 etc
+	jr	c,gtdrv2	;not letter
+	cp	a,maxdrv+1	;see if in range
+	jr	c,gtdrv3	;o.k.
+gtdrv2	call	warn		;not in range
+	jr	gtdrv1
+gtdrv3	ld	(drive),a	;select drive
+	ld	c,14
+	ld	e,a
+	call	bdos
+	ld	(0004),a	;make selected drive the current one
+				;  to get correct dpb
+	call	gtdpar		;get disc parameters
+	pop	af
+	ret
+;
+;
+rdvol	push	af		;read volume name
+	push	hl
+	push	de
+	push	bc
+	call	ntfcb0		;initialise fcb0
+	ld	c,26		;set transfer address
+	ld	de,buffer
+	call	bdos
+	ld	c,17		;search for file
+	ld	de,fcb0
+	call	bdos
+	cp	a,255
+	jr	nz,rdvol1
+	ld	hl,volnam
+	ld	(hl),0
+	jr	rdvol9
+rdvol1	add	a,a
+	add	a,a
+	add	a,a
+	add	a,a
+	add	a,a
+	ld	e,a
+	ld	d,0
+	ld	hl,buffer+1
+	add	hl,de
+	ld	de,volnam	;transfer name from read buffer
+	ld	bc,11
+	ldir
+rdvol9	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+dspvol	push	af
+	push	hl
+	ld	hl,volnam	;volume name
+dspvl1	ld	a,(hl)
+	inc	hl
+	or	a,a		;name terminator
+	jr	z,dspvl2
+	call	dspch
+	jr	dspvl1
+dspvl2	pop	hl
+	pop	af
+	ret
+;
+;
+dspnam	push	af		;debugging routine
+	push	hl
+	push	bc
+	call	crlf
+	ld	b,11
+	ld	hl,(dirptr)
+	inc	hl
+dspnm1	ld	a,(hl)
+	inc	hl
+	call	dspch
+	djnz	dspnm1
+	pop	bc
+	pop	hl
+	pop	af
+	ret
+;
+;
+ntfcb0	push	af
+	push	hl
+	push	bc
+	ld	a,'?'
+	ld	b,12
+	ld	hl,fcb0
+ntfcb1	ld	(hl),a
+	inc	hl
+	djnz	ntfcb1
+	ld	a,0
+	ld	b,24
+ntfcb2	ld	(hl),a
+	inc	hl
+	djnz	ntfcb2
+	pop	bc
+	pop	hl
+	pop	af
+	ret
+;
+;
+rddir	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	hl,0
+	ld	(nnames),hl	;no. of distinct names
+	ld	(nentry),hl	;no. of directory entries
+	ld	de,dirbuf	;start of sort buffer
+	ld	(dirptr),de
+	ld	ix,buffer	;buffer for directory read
+	ld	c,26		;set transfer address
+	ld	de,buffer	;directory names
+	call	bdos
+	ld	c,17		;search for name
+	ld	de,fcb0		;fcb holds '????????????'
+	call	bdos
+rddir1	cp	a,255
+	jr	z,rddir9
+	ld	hl,buffer
+	ld	d,0
+	add	a,a
+	add	a,a
+	add	a,a
+	add	a,a
+	add	a,a
+	ld	e,a
+	add	hl,de		;start of name in read buffer
+	push	hl
+	pop	ix
+	ld	a,(ix)		;buffer[0]=E5 if deleted file
+	cp	a,0E5H		;  if so, discard altogether
+	jr	z,rddir8
+	ld	a,(ix+12)	;name[12]<=exm if first entry of name
+	ld	b,a
+	ld	a,(exm)
+	cp	a,b
+	jr	nc,rddir3
+	ld	(ix),0E4H
+	jr	rddir5
+rddir3	ld	a,(ix+10)	;bit 7 of extn char 2 set if "SYS" file
+	and	a,80H		;if so, mark it as well
+	jr	z,rddir4
+	ld	(ix),0E3H
+	jr	rddir5
+rddir4	ld	de,(nnames)	;no. of names to display + 1
+	inc	de
+	ld	(nnames),de
+rddir5	ld	de,(dirptr)	;fas in name buffer
+	ld	bc,32
+	ldir			;transfer name to name buffer
+	ld	(dirptr),de
+	ld	de,(nentry)
+	inc	de
+	ld	(nentry),de
+rddir8	ld	c,18
+	ld	de,fcb0
+	call	bdos
+	jr	rddir1
+rddir9	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+empty	push	af
+	call	dspnxt
+	db	esc,clrch,esc,cposch,5+32,17+32
+	db	'Directory for "'
+	db	0
+	call	dspvol
+	call	dspnxt
+	db	'" on drive '
+	db	0
+	ld	a,(drive)
+	add	a,'A'
+	call	dspch 
+	call	dspnxt
+	db	' empty'
+	db	0
+	pop	af
+	ret
+;
+;
+sort	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	hl,index	;set up index[*]
+	ld	de,dirbuf
+	ld	bc,32
+	ld	a,(nentry)	;{Shell sort of all entries}
+sort0	ld	(hl),e		;for i=0 to nentry-1 do
+	inc	hl		;  index[i]=^name[index[i],0]
+	ld	(hl),d
+	inc	hl
+	ex	de,hl
+	add	hl,bc
+	ex	de,hl
+	dec	a
+	jr	nz,sort0
+	ld	a,(nentry)	;  jump=nentry
+	ld	e,a
+sort11	ld	a,e		;  while jump>1
+	cp	a,2
+	jr	c,sort15
+	srl	e		;    jump=jump div 2
+sort12	xor	a,a		;    repeat
+	ld	d,a		;      done=true
+	ld	(low),a		;      low=0
+	ld	a,(nentry)	;      for low=0 to nnames-jump-1
+	sub	a,e		;	 {nnames-jump loops}
+	ld	b,a
+sort13	ld	a,(low)		;        high=low+jump
+	add	a,e
+	ld	(high),a
+	call	compar		;        if name[index[high]]<name[
+	jr	nc,sort14	;			  index[low]]
+	call	swop		;         swop_indices
+	inc	d		;         done=false
+sort14	ld	hl,low		;       low=low+1
+	inc	(hl)
+	djnz	sort13
+	ld	a,d		;     until done
+	or	a,a
+	jr	nz,sort12
+	jr	sort11
+sort15	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+debug	push	af
+	push	de
+	push	hl
+	ex	de,hl
+	call	dspnxt
+	db	'No. of blocks=',0
+	call	dspval
+	call	cont
+	pop	hl
+	pop	de
+	pop	af
+	ret
+;
+;
+gtdpar	exx
+	ld	c,31		;find no. of non-system blocks
+	call	bdos
+	inc	hl
+	inc	hl
+	ld	a,(hl)		;BSH
+	ld	(bsh),a		;right shift to turn records into blocks
+	dec	a
+	dec	a
+	dec	a
+	ld	(kperbl),a
+	inc	hl
+	ld	a,(hl)		;BLM
+	ld	(blm),a
+	inc	hl
+	ld	a,(hl)		;***** EXM
+	ld	(exm),a		;*****
+	inc	hl		;HL<=^DSM
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	inc	de		;DE<=no. of non-system blocks
+	ld	c,(hl)
+	inc	hl
+	ld	b,(hl)
+	inc	hl
+	ld	(drm),bc	;max. no. of directory entries-1
+	ld	c,2		;subtract directory blocks
+gtdpr1	ld	b,8
+	ld	a,(hl)		;"all00" then "all01"
+	inc	hl
+gtdpr2	rlca			;count bits set
+	jr	nc,gtdpr3
+	dec	de		;subtract one block for each
+gtdpr3	djnz	gtdpr2
+	dec	c		;get "all01"
+	jr	nz,gtdpr1
+	ld	(blocks),de
+	ld	a,(exm)
+	or	a,a
+	jr	z,gtdpr5
+	ld	b,a
+	xor	a,a
+gtdpr4	scf
+	rla
+	djnz	gtdpr4
+gtdpr5	ld	(extmsk),a
+	exx
+	ret
+;
+;
+size	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	hl,(blocks)	;no. of blocks left
+	ld	(left),hl
+	ld	a,(nnames)
+	ld	b,a
+	ld	a,(nentry)
+	sub	a,b
+	ld	(temp1),a
+	ld	hl,00		;for ndx=0 to nnames-1 do
+size1	xor	a,a		;  size=0
+	ld	(nblcks),a
+	call	indexi		;  size=size+(name[index[ndx],15]+7) div 8
+	ld	(ndxndx),de
+	call	getsiz
+	push	hl
+	push	bc
+	ld	a,(temp1)	;  for i=nnames to nentry-1 do
+	or	a,a
+	jr	z,size4
+	ld	b,a
+	ld	hl,(nnames)
+size2	call	indexi
+	call	same		;    if name[index[i],*]=name[index[ndx],*]
+	jr	nz,size3	;      size=size+name[index[i],15]+7) div 8
+	call	getsiz
+size3	inc	hl
+	djnz	size2
+size4	ld	a,(nblcks)	;  name[index[ndx],13]=size
+	ld	ix,(ndxndx)
+	ld	(ix+13),a
+	ld	c,a
+	ld	hl,(left)	;  left=left-size
+	ld	b,0
+	or	a,a
+	sbc	hl,bc
+	ld	(left),hl	;remember to turn this into k later
+	pop	bc
+	pop	hl
+	inc	hl
+	djnz	size1
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+erase	call	dspnxt
+	db	cr,lf,lf,'Erase which file? => ',0
+	call	getbuf
+	ld	de,fcb1
+	call	makfcb
+	jr	z,erase2		;invalid filename
+	call	exists
+	jr	z,erase1
+	call	dspnxt
+	db	cr,lf,lf,'Erase  ',0
+	call	dspbuf
+	call	dspnxt
+	db	'? (y/n) ',0
+	call	getch
+	cp	'Y'
+	jr	nz,erase3
+	ld	a,(stars)
+	cp	11H
+	jr	nz,eras05
+	call	dspnxt
+	db	'  EVERYTHING',0
+	call	dspnxt
+	db	'? (y/n) ',0
+	call	getch
+	cp	'Y'
+	jr	nz,erase3
+eras05	exx
+	ld	de,fcb1
+	ld	c,19			;delete a file
+	call	bdos
+	exx
+	jr	erase3
+erase1	call	warn			;filename not in directory
+	call	crlf
+	call	dspbuf
+	call	dspnxt
+	db	' doesn''t exist',0
+erase2	call	cont
+erase3	ret
+;
+;
+rename	call	dspnxt
+	db	cr,lf,lf,'Original name? => ',0
+	call	getbuf
+	ld	de,fcb1
+	call	makfcb
+	jr	z,renam2
+	ld	a,(stars)
+	or	a
+	jr	nz,renm25
+	call	exists
+	jr	z,renam2
+	call	dspnxt
+	db	cr,lf,lf,'New name? => ',0
+	call	getbuf
+	ld	de,fcb2
+	call	makfcb
+	jr	z,renam2
+	ld	a,(stars)
+	or	a
+	jr	nz,renm25
+	call	exists
+	jr	nz,renm27
+	jp	renam3
+renam2	call	warn
+	call	crlf
+	call	dspbuf
+	call	dspnxt
+	db	'  doesn''t exist',0
+	jr	renm29
+renm25	call	warn
+	call	crlf
+	call	dspbuf
+	call	dspnxt
+	db	'  is ambiguous',0
+	jr	renm29
+renm27	call	warn
+	call	crlf
+	call	dspbuf
+	call	dspnxt
+	db	'  already exists',0
+renm29	call	cont
+	jr	renam4
+renam3	ld	de,fcb1
+	ld	c,23		;rename it
+	call	bdos
+renam4	ret
+;
+;
+namvol	push	af
+	exx
+	call	dspnxt
+	db	cr,lf,lf,'Present disc name is "',0
+	call	dspvol
+	call	dspnxt
+	db	'"  Change? (y/n) ',0
+	call	getch
+	and	a,5FH
+	cp	a,'Y'
+	jr	nz,namvl9
+	ld	de,fcb1
+	ld	a,0
+	ld	(de),a
+	inc	de
+	ld	hl,volnam
+	ld	bc,11
+	ldir
+	ld	b,4
+namvl1	ld	(hl),a
+	inc	hl
+	djnz	namvl1
+	call	dspnxt
+	db	cr,lf,lf,'New name? ',0
+	call	getbuf
+	ld	de,fcb2
+	call	makfcb
+	ld	c,23
+	ld	de,fcb1
+	call	bdos
+	ld	hl,fcb2
+	ld	de,fcb1
+	ld	bc,12
+	ldir
+	ld	a,0
+	ld	b,22
+namvl2	ld	(hl),a
+	inc	hl
+	djnz	namvl2
+	ld	hl,fcb1+10
+	ld	a,(hl)
+	or 	a,80H
+	ld	(hl),a
+	ld	c,30		;set up as "sys" file
+	ld	de,fcb1
+	call	bdos
+namvl9	exx
+	pop	af
+	ret
+;
+;
+blktok	push	af
+	ld	a,(kperbl)
+	or	a,a
+	jr	z,blktk2
+blktk1	sla	l
+	rl	h
+	dec	a
+	jr	nz,blktk1
+blktk2	pop	af
+	ret
+;
+;
+disply	push	af
+	push	hl
+	call	dspnxt
+	db	esc,clrch,esc,cposch,2+32,21+32
+	db	'Directory for "',0
+	call	dspvol
+	call	dspnxt
+	db	'" on drive ',0
+	ld	a,(drive)
+	add	a,'A'
+	call	dspch
+	call	crlf
+	call	crlf
+	ld	a,(nnames)	; diff=(nnames+3) div 4
+	add	a,3
+	srl	a
+	srl	a
+	ld	(diff),a
+	xor	a,a		; count=0
+	ld	(count),a
+	ld	(row),a		; row=0
+	ld	(ndx),a		; ndx=row
+	ld	(nrow),a	; nrow=0
+dsply1	ld	a,(ndx)		; repeat
+	ld	hl,nnames	;   if ndx<nnames then begin
+	cp	a,(hl)
+	jp	p,dsply0
+	call	wrtnam		;     write(name[index[ndx]])
+	ld	hl,count	;     count=count+1
+	inc	(hl)
+	ld	a,(nrow)	;     nrow=nrow+1
+	inc	a
+	ld	(nrow),a	;     if (nrow=4)or(ndx>=nnames) then begin
+	cp	a,4
+	jr	nz,dsply2
+dsply0	call	crlf		;       writeln
+	ld	a,(row)		;       row=row+1
+	inc	a
+	ld	(row),a
+	ld	(ndx),a		;       ndx=row
+	xor	a,a		;       nrow=0 end
+	ld	(nrow),a
+	jr	dsply3
+dsply2	call	dspnxt		;     else begin
+	db	'  |  ',0	;       write(' |  ')
+	ld	a,(ndx)		;       ndx=ndx+diff end end
+	ld	hl,diff
+	add	a,(hl)
+	ld	(ndx),a
+dsply3	ld	a,(count)	;   until count=nnames
+	ld	hl,nnames
+	cp	a,(hl)
+	jr	nz,dsply1
+	call	dspnxt
+	db	cr,lf,lf,'Space left = ',0
+	ld	hl,(left)
+	call	blktok
+	call	dspval
+	ld	a,'k'
+	call	dspch
+	pop	hl
+	pop	af
+	ret
+;
+;
+seldrv	exx			;select the disc drive
+	ld	c,14
+	ld	a,(drive)
+	ld	e,a
+	call	bdos
+	exx
+	ret
+;
+;
+getch	exx			;get a character from the keyboard
+	ld	c,1		;  and return the U/C version
+	call	bdos
+	call	lctouc
+	exx
+	ret
+;
+;
+lctouc	cp	a,'a'
+	ret	c
+	cp	a,'z'+1
+	ret	nc
+	sub	a,20H
+	ret
+;
+;
+getbuf	exx
+	ld	de,inbuff
+	ld	c,10
+	call	bdos
+	ld	a,(inbuff+1)	;character count
+	ld	b,a
+	ld	hl,inbuff+1	;start of buffer
+getbf1	inc	hl		;turn buffer into u/c
+	ld	a,(hl)
+	call	lctouc
+	ld	(hl),a
+	djnz	getbf1	
+	exx
+	ret
+;
+;
+dspch	push	af		;send a character to the console
+	exx
+	ld	e,a
+	ld	c,2
+	call	bdos
+	exx
+	pop	af
+	ret
+;
+;
+dspnxt	ex	(sp),hl
+	push	af
+dspnx1	ld	a,(hl)
+	inc	hl
+	or	a,a
+	jr	z,dspnx2
+	call	dspch
+	jr	dspnx1
+dspnx2	pop	af
+	ex	(sp),hl
+	ret
+;
+;
+dspbuf	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	a,(inbuff+1)
+	or	a
+	jr	z,dspb3
+	ld	b,a
+	ld	hl,inbuff+2
+dspb1	ld	a,(hl)
+	inc	hl
+	cp	' '
+	jr	nc,dspb2
+	ld	a,'_'
+dspb2	call	dspch
+	djnz	dspb1
+dspb3	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+cont	push	af
+	call	dspnxt
+	db	cr,lf,'Press < > to continue',0
+	call	getch
+	pop	af
+	ret
+;
+;
+warn	push	af
+	ld	a,bel
+	call	dspch
+	pop	af
+	ret
+;
+;
+crlf	call	dspnxt
+	db	cr,lf,0
+	ret
+;
+;
+space	push	af
+	ld	a,' '
+	call	dspch
+	pop	af
+	ret
+;
+;
+getsiz	push	af
+	push	hl
+	push	de
+	push	bc
+	push	de
+	pop	ix
+	ld	a,(ix+12)	;<ex>
+	ld	b,a
+	ld	a,(extmsk)
+	and	a,b		;records in extent=<ex> mod (EXM+1)
+	ld	h,a		;*256
+	ld	l,0
+	srl	h		;/2
+	rr	l		;128*[<ex> mod (EXM+1)]
+	ld	e,(ix+15)	;+record count <rc>
+	ld	d,0
+	add	hl,de
+	ld	de,(blm)	;+BLM
+	add	hl,de		;total no. of records in entry
+	ld	a,(bsh)
+	ld	b,a
+getsz1	srl	h		;records div 2**BSH
+	rr	l
+	djnz	getsz1
+	ld	de,(nblcks)
+	add	hl,de
+	ld	(nblcks),hl
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+same	push	hl		;if name[index[high]=name[index[low]]
+	push	de		;  returns Z set
+	push	bc
+	ld	hl,(ndxndx)
+	ld	b,11		;compare name, type
+same1	inc	hl
+	inc	de
+	ld	a,(de)
+	cp	a,(hl)
+	jr	nz,same2
+	djnz	same1
+same2	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+compar	push	hl		;if name[index[high]<name[index[low]]
+	push	de		;  returns carry set
+	push	bc
+	ld	hl,(low)	;^name[index[low]]
+	call	indexi		
+	push	de
+	ld	hl,(high)	;^name[index[high]]
+	call	indexi
+	pop	hl		;^name[index[low]]
+	ld	b,13		;compare 13 bytes."dr,name,typ,ext"
+compr1	ld	a,(de)		;high
+	cp	a,(hl)
+	jr	c,compr2	;high<low
+	jr	nz,compr2	;high>low
+	inc	hl
+	inc	de
+	djnz	compr1
+compr2	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+;
+swop	push	af
+	push	hl
+	push	de
+	push	bc
+	ld	hl,(low)	;temp1=index[low]
+	call	indexi
+	ld	(temp1),de
+	ld	hl,(high)	;temp2=index[high]
+	call	indexi
+	ld	(temp2),de
+	ld	hl,(high)	;index[high]=temp1
+	add	hl,hl
+	ld	bc,index
+	add	hl,bc
+	ld	de,(temp1)
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	ld	hl,(low)	;index[low]=temp2
+	add	hl,hl
+	ld	bc,index
+	add	hl,bc
+	ld	de,(temp2)
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret	
+;
+;
+indexi	push	af
+	push	hl		;given HL=i returns DE=index[i]
+	push	bc
+	add	hl,hl		;^index[i]
+	ld	bc,index
+	add	hl,bc
+	ld	e,(hl)		;^name[index[i]]
+	inc	hl
+	ld	d,(hl)
+	pop	bc
+	pop	hl
+	pop	af
+	ret
+;
+;
+fillch	ld	(de),a
+	inc	de
+	djnz	fillch
+	ret
+;
+;
+makfcb	;makes a file control block at (DE)
+	;
+	push	hl		;save registers
+	push	de
+	push	bc		;squeeze out any blanks in filename
+	ld	(fcbx),de	;address of pseudo fcb
+	ld	hl,9
+	add	hl,de
+	ld	(fcbxx),hl	;address of extension	
+	xor	a
+	ld	(stars),a	;position of '*' in name and extension
+	ld	(ndots),a	;number of '.'s in filename
+	ld	(lextn),a	;assumed
+	ld	a,' '		;initialise fcb[0..11]=' '
+	ld	b,12		;           fcb[12..15]=0
+mkfc01	ld	(de),a
+	inc	de
+	djnz	mkfc01
+	ld	a,0
+	ld	b,4
+mkfc02	ld	(de),a
+	inc	de
+	djnz	mkfc02
+	ld	a,(inbuff+1)	;character count for 'inbuff'
+	or	a
+	jp	z,mkfc13	;error if name is null
+	ld	hl,inbuff+2	;source pointer
+	ld	de,inbuff+2	;destination pointer
+	ld	c,0		;new character count
+	ld	b,a
+mkfcb1	ld	a,(hl)		;get a character
+	inc	hl
+	cp	' '
+	jr	z,mkfcb2
+	call	valid		;returns Z set if invalid character
+	jp	z,mkfc13
+	ld	(de),a
+	inc	de
+	inc	c
+mkfcb2	djnz	mkfcb1
+	ld	a,c		;put new character count into buffer
+	ld	(inbuff+1),a
+	ld	(lname),a	;assuming no extension
+	xor	a,a		;put a null at the end in case length=1
+	ld	(de),a
+	ld	a,c		;new character count
+	or	a
+	jp	z,mkfc13	;error if name was all spaces
+	ld	de,(fcbx)	;destination pointer
+	ld	a,(drive)	;get drive number and
+	inc	a
+	ld	(de),a		;put it into fcb[0])
+	ld	hl,inbuff+3
+	ld	a,(hl)		;look at 2nd character in buffer
+	cp	':'
+	jr	nz,mkfcb3
+	dec	c		;shift name left 2 characters
+	dec	c		;alter character count
+	jp	z,mkfc13	;no name if count now zero
+	ld	a,c
+	ld	(inbuff+1),a	;new character count
+	ld	(lname),a	;assuming no '.'
+	ld	hl,inbuff+4	;source address
+	ld	de,inbuff+2	;destination address
+	ld	b,0		;for LDIR
+	ldir
+mkfcb3	ld	a,(lname)	;get length of 'name'
+	ld	b,a
+	ld	d,0		;counts length of name
+	ld	hl,inbuff+2	;start of name
+mkfcb4	ld	a,(hl)
+	inc	hl
+	inc	d
+	cp	'.'		;look for '.'
+	jr	nz,mkfcb5
+	ld	a,(ndots)	;see how many we've had
+	cp	1
+	jp	z,mkfc13	;shouldn't have more than one '.'
+	inc	a		;count them
+	ld	(ndots),a
+	ld	a,d		;length of name part
+	dec	a		;allow for '.'
+	ld	(lname),a
+	ld	e,a
+	ld	a,(inbuff+1)
+	sub	a,e
+	dec	a		;for '.'
+	ld	(lextn),a	;length of extension
+mkfcb5	djnz	mkfcb4
+	ld	a,(lname)	;now check the lengths
+	cp	8+1
+	jp	nc,mkfc13
+	ld	a,(lextn)
+	cp	3+1
+	jp	nc,mkfc13
+	ld	hl,inbuff+2	;see if there are any '*'s
+	ld	b,c
+	ld	d,0		;position in filename
+mkfcb6	ld	a,(hl)
+	inc	hl
+	inc	d
+	cp	'*'
+	jr	nz,mkfcb8
+	ld	a,(lname)	;see if we're in name or extension
+	cp	d
+	jr	c,mkfcb7
+	ld	a,(lname)	;in name. See if length is 1
+	cp	1
+	jp	nz,mkfc13	;if not then it's an error
+	ld	a,10H		;if so set flag to 10H
+	ld	(stars),a
+	jr	mkfcb8			
+mkfcb7	ld	a,(lextn)	;we're in extension. see if length is 1
+	cp	1
+	jp	nz,mkfc13	;if not then it's an error
+	ld	a,(stars)	;if so, add 01H to flag
+	or	01H
+	ld	(stars),a
+mkfcb8	djnz	mkfcb6
+	ld	hl,inbuff+2	;now make up the fcb		
+	ld	de,(fcbx)
+	inc	de		;allow for drive number
+	ld	a,(stars)	;look at '*' flags to see how to make up name
+	and	10H		;if (stars) is 1X then put in 7 '?'
+	jr	z,mkfcb9
+	ld	a,'?'
+	ld	b,8
+	call	fillch
+	inc	hl		;skip the '.' following
+	jr	mkfc10
+mkfcb9	ld	b,0		;else transfer name from 'inbuff'
+	ld	a,(lname)
+	ld	c,a
+	ldir
+mkfc10	ld	a,(lextn)	;see if extension exists
+	or	a
+	jr	z,mkfc14	;no extension	
+	inc	hl		;skip '.' in name
+	ld	de,(fcbxx)	;pointer to extension
+	ld	a,(stars)
+	and	01H		;if (stars) is X1 then put in 3 '?'
+	jr	z,mkfc11	;else transfer extension from 'inbuff'
+	ld	a,'?'
+	ld	b,3
+	call	fillch
+	jr	mkfc14
+mkfc11	ld	b,0
+	ld	a,(lextn)
+	ld	c,a
+	ldir
+	jr	mkfc14		;all done
+mkfc13	call	crlf
+	call	dspnxt
+	db	cr,lf,'Invalid filename',cr,lf,0
+	xor	a,a		;return with Z set if error
+	jr	mkfc15
+mkfc14	xor	a
+	inc	a
+mkfc15	pop	bc
+	pop	de
+	pop	hl
+	ret 	
+;
+;
+valid	cp	','		;returns Z set if A has valid character
+	ret	z
+	cp	':'
+	ret	z
+	cp	';'
+	ret	z
+	cp	'<'
+	ret	z
+	cp	'='
+	ret	z
+	cp	'>'
+	ret	z
+	cp	'['
+	ret	z
+	cp	']'
+	ret
+;
+;
+exists	;DE points to a pseudo fcb
+	;return Z set if error
+	;
+	push	de
+	exx
+	pop	de
+	ld	c,17		;search for filename
+	call	bdos
+	cp	0FFH
+	exx
+	ret
+;
+;
+wrtnam	push	af		;write(name[index[ndx,*]])
+	push	hl
+	push	de
+	push	bc
+	ld	hl,(ndx)	;^index[ndx]
+	add	hl,hl
+	ld	de,index
+	add	hl,de
+	ld	e,(hl)		;name[index[ndx]]
+	inc	hl
+	ld	d,(hl)
+	ex	de,hl
+	inc	hl		;skip "dr"
+	ld	b,8
+wrtnm1	ld	a,(hl)		;name[index[ndx],i]
+	inc	hl
+	call	dspch
+	djnz	wrtnm1
+	ld	a,' '
+	call	dspch
+	ld	b,3		;type
+wrtnm2	ld	a,(hl)
+	inc	hl
+	call	dspch
+	djnz	wrtnm2
+	inc	hl		;^length in blocks
+	ld	l,(hl)
+	ld	h,0
+	call	blktok
+	call	space
+	call	dspval
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+dspval	push	af		;display the 3-digit decimal value of 
+	push	hl		;  binary in HL
+	push	de
+	push	bc
+	xor	a,a
+	ld	(temp1),a	;leading zero flag
+	ld	c,a
+	ld	de,100
+dspv1	inc	c
+	or	a,a
+	sbc	hl,de
+	jp	p,dspv1
+	add	hl,de		;restore
+	dec	c
+	jr	nz,dspv2
+	call	space
+	jr	dspv3
+dspv2	ld	a,'0'
+	add	a,c
+	call	dspch
+	ld	(temp1),a
+dspv3	ld	c,0
+	ld	de,10
+dspv4	inc	c
+	or	a,a
+	sbc	hl,de
+	jp	p,dspv4
+	add	hl,de
+	dec	c
+	jr	nz,dspv5
+	ld	a,(temp1)
+	or	a,a
+	jr	nz,dspv5
+	call	space
+	jr	dspv6
+dspv5	ld	a,'0'
+	add	a,c
+	call	dspch
+dspv6	ld	c,0
+	ld	de,1
+dspv7	inc	c
+	or	a,a
+	sbc	hl,de
+	jp	p,dspv7
+	dec	c
+	ld	a,'0'
+	add	a,c
+	call	dspch
+	pop	bc
+	pop	de
+	pop	hl
+	pop	af
+	ret
+;
+;
+dspbyt	push	af
+	push	bc
+	ld	b,8
+	ld	c,a
+dspbt1	rl	c
+	ld	a,'0'
+	jr	nc,dspbt2
+	ld	a,'1'
+dspbt2	call	dspch
+	djnz	dspbt1
+	pop	bc
+	pop	af
+	ret
+;
+;
+cdrive	ds	2		;store for current drive
+drive	dw	0		;A=0, B=1 etc.
+track	dw	0		;track number
+psect	dw	0		;physical sector number
+lsect	dw	0		;logical setor number
+secmap	dw	0
+vlnmm2	db     16		;buffer size
+vlnmm1	db	0		;char count
+volnam	ds     12		;volume name
+buffer	ds    128
+nnames	dw	0		;no. of distinct directory names
+nentry	dw	0		;total no. of directory entries
+bsh	dw      0		;log2(block size/record size)
+blm	dw 	0		;(block size/record size) -1
+exm	dw	0		;extents/directory entry -1
+extmsk	dw	0
+dsm	dw	0
+drm	dw	0
+kperbl	dw	0
+blocks	dw	0
+nblcks	dw	0
+left	dw	0
+row	dw	0
+diff	dw	0
+count	dw	0
+ndx	dw	0
+ndxndx	dw	0
+nrow	dw	0
+low	dw	0
+high	dw	0
+temp1	dw	0
+temp2	dw	0
+;
+inbuff	db	48
+	ds	41
+ndots	ds	1
+stars	ds	1
+lname	ds	1
+lextn	ds	1
+fcbx	ds	2
+fcbxx	ds	2
+fcb1	ds	16
+fcb2	ds	16
+	ds	4
+fcb0	db	36
+index	ds	128
+	ds	100
+stack	equ	$
+dirptr	ds	2	;dw 0
+dirbuf	ds	1
+;
+	end
+

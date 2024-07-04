@@ -1,0 +1,106 @@
+; MAC-CHAL.Z80
+; A solution to the Jay Sage/Ben Grey "Macro Challenge"
+; R. A. Freed, 26 May 1989
+;_______________________________________________________________________
+;
+; This is an INCLUDE file for use with SLR Systems' Z80ASM+ macro
+; assembler.  It has not been tested with SLR's Z80ASM or Microsoft's
+; M80, but it should work with those also.
+;
+; The author submits this bit of fluff for its intellectual curiosity
+; value only.  He certainly would not advocate use of such an obscure
+; macro parameter convention.  Mainly, he can't resist a good
+; programming puzzle.  (The original "challenge" message from Jay
+; Sage's Newton Centre Z-Node, 617/965-7259, is reproduced below.)
+;_______________________________________________________________________
+;
+; Preliminaries
+;
+; The macro MSTR builds a string argument for an assembler pseudo-op.
+; The macro MCHR adds the next character to the string (if OP is MSTR),
+;  or it generates the final pseudo-op (specified by OP).
+; The major "trick" here is that MCHR is defined by MSTR.  Hence, MCHR
+;  causes its own redefinition when invoked with OP=MSTR.
+
+MSTR	MACRO	STR
+MCHR	MACRO	OP,CHR
+	OP	STR&&CHR	;; see note below
+	ENDM
+	ENDM
+
+; Note the double ampersands above:  The first is stripped during the
+; expansion of MSTR (definition of MCHR); the second is stripped
+; during the expansion of MCHR.
+;_______________________________________________________________________
+;
+; The "Solution"
+;
+; The macro DWB generates either a DW or DB, depending upon the first
+; character of its single arbitrary parameter string.  If the leading
+; character of STR is a pound sign (#), it is stripped and a DW is
+; generated using the remaining characters of STR.  Otherwise, a DB is
+; generated.
+
+DWB	MACRO	STR
+FIRST	DEFL	NOT 0
+  IRPC CHR,<STR>
+    IF FIRST
+      IFDIF <CHR>,<#>
+	DB	STR
+	EXITM
+      ELSE
+FIRST	DEFL	0
+	MSTR
+      ENDIF
+    ELSE
+	MCHR	MSTR,<CHR>
+    ENDIF
+  ENDM
+  IF NOT FIRST
+	MCHR	DW
+  ENDIF
+ENDM
+;_______________________________________________________________________
+;
+; The "Challenge"
+;
+	.COMMENT	|
+
+Msg 382 is 18 line(s) on 05/24/89 from JAY SAGE
+to ALL about MACRO CHALLENGE
+
+Here is a challenge for macro assembler programmers.  It was posed to me
+by Ben Grey.  So far I have not come up with a solution.
+
+A macro is to be passed a parameter which is a number with or without a
+leading "#" character.  If the "#" is present, one thing is to be done
+with the remaining numerical part (e.g., make it the argument of a DB).
+If the "#" is absent, then something else will be done with the number,
+such as making it the argument of a DW.
+
+This is all part of a more general problem of coming up with a macro that
+can be passed a string that the macro splits into two parts.
+
+Any ideas?
+
+P.S.  I think I can solve the problem if I know that the numerical part
+of the parameter is a DECIMAL number, but I cannot figure out how to
+handle the general case, where it might be hex or binary or even a general
+symbolic token.
+
+
+Msg 388 is 08 line(s) on 05/25/89 from BOB FREED
+to JAY SAGE about MACRO CHALLENGE
+
+Unfortunately, most Z80 assemblers (notably M80 and Z80ASM) lack the
+necessary assembly-time string processing operations that would make this
+sort of thing easy (if not at all possible) to do.  SLR's MS-DOS
+assembler OPTASM allows text equates via certain forms of the EQU
+pseudo-op, that makes the solution a snap.  Lacking such a feature, I
+think I may have a somewhat complex (and certainly inelegant) way to
+solve the challenge for the general case you described.  (I can't resist
+a puzzle.)  I'll let you know after I have a chance to test it out.....
+
+|
+;_______________________________________________________________________
+

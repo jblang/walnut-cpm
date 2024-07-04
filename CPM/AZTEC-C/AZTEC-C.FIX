@@ -1,0 +1,49 @@
+Date: Monday, 26 March 1984  10:28-MST
+From: hplabs!tektronix!teklds!azure!keithr at Ucb-Vax.ARPA
+To:   info-cpm at Brl-Aos.ARPA
+Re:   Aztec CII I/O Redirection (Reposted with new info)
+
+(Reposting)
+ 
+The problem of slow redirected I/O  in Aztec C is caused  by
+I/O  being  unbuffered. This causes each byte of output that
+is redirected to a file to be written seperately (Read  sec-
+tor, place byte, write sector). No wonder is so slow.
+ 
+The solution I've been using is simply changing  the  unbuf-
+fered  I/O  into  buffered I/O. I've also added a few exten-
+tions  which  are  "2>"  (redirect  stderr),  "2>>"  (append
+stderr) and ">>" (append stdout).
+ 
+To implement the fix find the file called "CROOT.C"  in  the
+source   to  your  library.  It  contains  a  function  call
+"Croot()".  Replace the while loop that starts  with  "while
+(Argc < MAXARGS)" with the following--
+ 
+ 
+        while (Argc < MAXARGS) {
+                while (*cp == ' ' || *cp == '')
+                   ++cp;
+                if (*cp == NULL)
+                   break;
+                k = -1;
+                switch (*cp) {
+                   case '>':
+                        if (*(cp+1)=='>') {
+                           ++cp;
+                           k = 1;
+                        } else
+                           k = 1;
+                        break;
+                   case '<':
+                        k = 0;
+                        break;
+                   case '2':
+                        if (*(cp+1)) == '>') {
+                           ++cp;
+                           if (*(cp+1) == '>') {
+                              ++cp;
+                              k = 5;
+                           } else
+                              k = 2;
+                        }

@@ -1,0 +1,188 @@
+                                                              30 December 1985
+                                  Z-NEWS 401
+
+Background Tasks.   Echelon on the move!   (1) We finish Phase 2 of TERM3 with 
+addition of T3DO,  T3SERVER,  and T3MASTER,  and porting to SCSI/Plus bus.  It 
+should  be  in hands of users by mid-January 1986.   (2)  ZCPR,  Version  3.3, 
+should  be  ready  for distribution sometime in February.   It  has  many  new 
+features suggested by Jay Sage, Z-Node #3, and others, plus more enhancements:
+no  re-assembly of CCP source or installation  of utilities required,  and ex-
+panded TCAP database, including straight-line drawing ability,  and WHEEL byte 
+functions.  (3) At same time we will offer ZCPRS3, a simple Z-System for those 
+situations not requiring full OS capabilities, but full TPA.  (4) ZCPRB3, with 
+banked memory capability and usable TPAs of 62k-bytes,  should be available in 
+late March.   (5)  ZRDOS, Version 3.0, adds about 15 new function calls, e.g., 
+get and set file date and time and file stamping,  modem control,  get and set 
+memory bank,  load or execute a program,  get free disk space,  etc.  This new 
+DOS  should  be ready in late February.   (6) Full integration of  Z-MSG  with 
+TERM3 by mid-January.   (7) Multitasking, single user, multiuser through TERM3 
+master-server distributed OS networking,  ZCPRM3 should be ready for  delivery 
+to OEMs by summer.   (8) Real Time multitasking Executive,  called QUICK-TASK, 
+should  be  ready by end of January.   Uses re-usable task concepts and  high-
+level language; powerful and  easy to use!  (9) Major upgrade to DISCAT out by 
+end of March.  Wow!  Lots of OS and application activity.  High performance 8-
+bit systems continue to be enhanced, staying up with hardware technology.
+     All  programs continue to run on Z80 based machines.   Our super OS  with 
+multitasking  and  extended  DOS  functions  runs  natively  on  HD64180-based 
+computers,  some  porting  required on banked  Z80  systems.   Implementations 
+include concurrent processing as well as background task  suspension.   Number 
+of  tasks active is controlled by available memory,  64k-bytes per task.   Run 
+WordStar  printing  formatted  text,  monitor your  modem  answer  the  phone, 
+assemble  and  link a program under development,  while you edit a text  file, 
+with,  e.g., five open but suspended files, working with one then another:  Z-
+System concurrent processing!
+
+DISCAT  SALE.   Purchase present $39.99 Version 1.3 of Discat between now  and 
+end  of March and receive free new version in April...changes  coming  include 
+many  asked-for enhancements...but price goes back to original $49.00.   Order 
+now, save $9.01.
+
+Z  TIPS.    Interactive  Code (or  menu  script)  Writing.   Several  compiler 
+packages  are  now  including built-in or bundled  compatible  editors.   Such 
+programs  provide  for quick change-over speeding  program  development,  long 
+recognized as desirable by Echelon staff.  Assembler and menu program develop-
+ment  (and Pascal or C) under Z-System can be automated by using  available  Z 
+utilities.   (1)  From  a  simple  menu declare file  name  using  one-of-four 
+resident  system file names,  then go from edit to assemble to  run,  back  to 
+edit.   Or  (2) make two chaining command line aliases that loop from function 
+to  function for iterative source modifications.   Here's how (we  use  VMENU, 
+SAK, IF, and SETFILE as tool set):
+
+(1) The VMENU method --
+#x
+  Arrow Key Move File Pointer               Enter "+" and "-" if More Files
+
+              +++ INTERACTIVE PROGRAM DEVELOPMENT MENU +++
+                                                 Current File is $f2Š     1 - EDIT Current File (non-document mode)          (WordStar) - 1
+     2 - ASSEMBLE Current File:  (.Z80's only)       (ZAS & ZLINK) - 2
+     3 -                         (.ASM's only)       (MAC & MLOAD) - 3
+     4 -                         (.MAC's only)         (M80 & L80) - 4
+
+     5 - Enter Pointer File Library (file must be LBR type) (NULU) - 5
+
+     C - Current File to Edit and Run (System File #2)   (SETFILE) - C
+     D - Delete Pointer File
+     E - Execute (run) Current File
+#
+1get 100 ws.com;poke 392 ff;go $f2
+2!zas $n2;sak /p6 Errors, cancel link (^C)? ;era $n2.bak;
+      zlink $d:$n2,A:VLIB/,A:Z3LIB/,A:SYSLIB/;era $n2.rel
+3!mac $n2 $$-s pz;sak /p6 Errors, cancel link (^C)? ;era $n2.bak;mload $n2;
+      era $n2.hex
+4!m80 =$n2;sak /p6 Errors, cancel link (^C)? ;era $n2.bak;
+      l80 /p:100,$n2,A:VLIB/S,A:Z3LIB/S,A:SYSLIB/S,$n2/N,/U,/E;era $n2.rel
+5!if $pt=lbr;nulu -o $pn -f;else;echo --> file is not a library <-- ;fi
+e!if $pt=com;$n2;else;echo --> file is not com type <-- ;fi
+dera $pf
+csetfile 2 "Enter file name (fn.ft) to edit (and later run): "
+##
+
+More  is  added to produce a complete menu--we show edit,  assemble and  link, 
+run-file aspects.  Incidentally, we included enter-library-file command.  This 
+VMENU  VMN  is great for developing itself--real  recursion!   Run  VMENU  *.* 
+fn.VMN,  then  try  setting Current File to name of VMN file and go from  your 
+editor to menu.  Add your own ideas.  Chapter 5 of ZCPR3: The Manual describes 
+menu  production.   Using $f3 as your current file is interesting  since  that 
+system file number is used to return to VMENU after a menu execution.   Try it 
+and  see what happens.   Using $f2,  as we have done here,  makes pointer file 
+same as system (current) file; more details in Manual.
+     It's  simple to make an infinite loop between commands 2,  3,  or  4  and 
+command E,  with SAK used to permit breaking out.  Notice how it's done in the 
+aliases below.
+
+(2)  The TWO-ALIAS method (using BALIAS or VALIAS to create) -- first the Edit 
+Alias and Assemble File Alias;  let's call it BUILD.   Command syntax:   BUILD 
+<filename><cr>.
+
+get 100 ws.com;poke 392 ff;go %1.z80;zas $1;sak /p6 Errors, cancel link (^C)?;
+    era $1.bak;zlink $d:$1,A:VLIB/,A:Z3LIB/,A:SYSLIB/;era $1.rel;try $1
+
+Second,  make  the  Run  Alias  which  we  call  TRY.   Command  syntax:   TRY 
+<filename><cr>.
+
+$1;sak --> any keypress continues development, ^c cancels <-- ;build $1
+
+     You  may  wish to put above aliases into  file  COMMAND.LBR,  using  NULU 
+library  manager.   Rename  your  LRUNZ3  file  to  default  extended  command 
+processor  name  of  CMDRUN  (see Z-News 209 for more  description  of  CMDRUN 
+usage).   By the way,  all your aliases can be used from such a command  file. 
+(New  ZCPR33  permits  use of ECPs,  like  ARUNZ,  simultaneously  with  error 
+handlers,  like VERROR, and declaring with ECPSET which ECP is default.)  Such 
+techniques permit small floppy systems to shine.   Yes,  we appreciate what it Štakes to effectively use small computers.
+     Many other ways exist within Z-System context to automate tasks.  Send in 
+your ideas and we will publish them; others benefit from seeing your work.
+
+We_Get_Letters.   Ronald L.  Hiles, Dale City, VA, writes, "OK, so I am hooked 
+on  Z!    Finally,  a  system  is  here  that  provided  the  flexibility  and 
+adaptability  that was needed in the Z80 microprocessor environment...last but 
+not  least  you will find my 'free-ware' contribution...  "  Thanks  for  kind 
+words  and financial support,  Ronald.   We need more like you who  understand 
+what  we do.   New things on the drawing boards should get lots  of  attention 
+and, hopefully, approval.
+     Glenn  Brooke,  a  molecular  biologist,  corrects us on our  Z-News  308 
+description of drug effect in the brain.  He states individual neurons are not 
+programmed by genetics but by each person's experience.   Scientists  continue 
+to learn about these matters. 
+
+Boost  For  Print Quality.   QMS Inc.,  P.O.  Box  81250,  Mobile,  AL  36689, 
+205/633-4300,  offer  Cannon  LBP-CX  laser printer with 40  stored  character 
+styles and sizes.   Diablo, Qume, and Epson FX-80 software compatibility, with 
+256k-bytes  of  ROM  and 78k-bytes of user RAM,  sells for  only  $1,995  with 
+Centronics parallel interface,  serial RS-232C optional.  Printer--named KISS, 
+Keep It Smart and Silent--makes Apple LaserWriter at $5,995 look foolish; even 
+HP's LaserJet at $3,495 doesn't effectively compete.
+
+THE COMPUTER JOURNAL.   "For Those Who Interface,  Build,  and Apply  Micros." 
+Stated purpose of the magazine on its cover makes sense.  The more we read TCJ 
+the  more we are impressed.   Both software and hardware is covered from  more 
+than  how-to-use  but how does it do what it does perspectives.   At $14.00  a 
+year,  6 issues,  it's hard to go wrong.   Subscribe by calling or writing Art 
+Carlson or Donna Carlson,  190 Sullivan Crossroad,  Columbia Falls,  MT 59912, 
+406/257-9119.
+
+Big Dealer of Z Software.   Larry Herring and Tamara Watson,  The Micro Store, 
+610 James Street,  Richardson,  TX,  75080,  214/231-1096, become enthusiastic 
+sellers of Echelon Z-System software.   TMS,  a major computer book store, are 
+dealers  for Kaypro and Bondwell CP/M machines.   North Texas  8-bit  computer 
+users interested in expanding should drop-in and visit.   Here,  see demo of Z 
+fly like eagles.
+
+Year's  End.   We waiver not,  continue to learn;  you drive us...puffed  with 
+pride from opportunity and successes, we move ahead.  We trust 1985 has been a 
+good year for you,  that you have much,  as we have,  to be thankful for.   We 
+appreciate opportunity and privilege of serving you during this past year, and 
+hopeful  we will be able to say the same at this time next year.   Without you 
+we are nothing.
+     Now, we order bottles of 1981 White Zinfandel and prepare with family for 
+year's change-over.   Happy New Year!  See you down the lines...
+
+                                                                 Echelon, Inc.
+				                              101 First Street
+			                                  Los Altos, CA  94022
+				                       Telephone: 415/948-3820
+				                  Z-Node Central: 415/489-9005
+
+Trademarks:    SB180,   COMM180,  TKBBS,  Micromint;  HD63484/64180,  Hitachi; 
+Z80/800,  Zilog;  NSC800,  National;  WY-30/50/75/85/350,  Wyse Technology; Z-ŠSystem,  ZCPR3,  ZRDOS,  Z-Tools,  Z-Com, Zas, Zlink, ZDM, Revas4, Z-Msg, DSD, 
+Term3,  Lasting-Value  Software,  Echelon  and  their  respective  owners  and 
+authors;   CP/M,   Digital  Research;  PropStar,  Civil  Computing;  WordStar, 
+MicroPro; SCSI/Plus, AMPRO Computers.
+
+
+
+                                                        big thumb
+                     *                                     here
+
+
+                                F L Y   w i t h   Z !
+
+
+                     +                                        *
+
+
+
+
+Z-News 401 is Copyright 1985 Echelon,  Inc.   All Rights Reserved.  Permission 
+to  reprint,  wholly or partially,  automatically granted if source credit  is 
+given to Echelon.
+

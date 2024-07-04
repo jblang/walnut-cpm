@@ -1,0 +1,76 @@
+                             Kaypro 1 Video
+
+     The Kaypro 1 video section was designed to imitate most of the
+control sequences of a Lear-Siegler ADM-3A terminal.  For most public
+domain and commercial software that require you to install or customize
+the display or terminal characteristics, you can choose the ADM-3a from
+the menu.  If no choice of "ADM-3A" or "Kaypro" is available on the
+menu, you may use the values listed below:
+
+
+         Escape Sequences, Control Codes, and Port Commands
+
+
+ Function                             ASCII   Decimal  Hex
+
+Cursor left                             ^H       7      08
+Cursor right                            ^L      12      0C
+Cursor down                             ^J      10      0A
+Cursor up                               ^K      11      0B
+
+Erase from cursor to end of screen      ^W      23      17
+Erase from cursor to end of line        ^X      24      18
+Clear screen (cancels special effects)  ^Z      26      1A
+Home cursor                             ^^      30      1E
+
+The following are all preceded by ESC, character #27:
+
+Insert line                        E            | Contrary to the
+Delete line                        R            | Kaypro 1 manual
+
+Inverse video on/off               B0/C0
+Reduced intensity on/off           B1/C1
+Blinking on/off                    B2/C2
+Underlining on/off                 B3/C3
+Cursor visible/invisible           B4/C4
+Video mode on/off                  B5/C5
+Remember/recover cursor position   B6/C6
+Status line preservation on/off    B7/C7
+
+Cursor address                     =, row + 32, col + 32
+
+Where row and col refer to the matrix of 100 by 160:
+
+Write pixel            *, row + 31, col + 31
+Erase pixel            #32 (space), row + 31, col + 31
+Draw line              L, row1 + 31, col1 + 31, row2 + 31, col2 + 31
+Erase line             D, row1 + 31, col1 + 31, row2 + 31, col2 + 31
+
+The following two commands are shown in their MBASIC format:
+
+Stop cursor blinking     OUT 28, 10: OUT 29, 0
+Turn cursor to underline OUT 28, 10: OUT 29, 15*
+
+                         (* or 79 or 111 for blink rate)
+
+In Pascal these commands would take the form port[28]:= 10; etc.
+
+
+     The Kaypro 1 (and all 1984 and up models) has 16k of static video
+ram controlled by a Synertek 6845.  If you have software for the early
+Kaypros that tries to write to video ram, strange things will happen.
+The Kaypro 1 uses the additional ram to provide video attributes.
+
+     Note: The ESCape sequences, given on page 27 of the Kaypro 1
+manual, for "insert line" and "delete line" are reversed.
+
+     The ASCII chart on page 28 lists only the characters from decimal
+32 to 127.  Control characters do not display.  Characters ranging from
+decimal 128 to 255 display graphic characters.  The easiest way to
+display these characters is with the following Mbasic program.
+
+10 FOR I=32 to 255
+11 PRINT I;" - ";CHR$(I)
+12 NEXT
+13 STOP
+

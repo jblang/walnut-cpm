@@ -1,0 +1,101 @@
+
+Date: Tuesday, 10 April 1984  20:59-MST
+From: ABN.ISCAMS at Usc-Isid.ARPA
+To:   INFO-CPM at Amsaa.ARPA
+Re:   MBASIC Printer/Console Switching
+
+How often have you wished you could find an easy way to switch your
+BASIC to direct PRINT statements to the printer or the console as
+you or the user desires, without the typical
+
+IF HARDCOPY THEN LPRINT "FOOBAR" ELSE PRINT "FOOBAR"
+
+This sure can get tiresome - I have some programs that permit the user
+to elect screen display and/or printer display, and perhaps 1/3
+of the code is that sort of redundancy!
+
+The one-page article in "Programmer's Guide to CP/M" (Creative
+Computing Press, Morris Plains NJ, 1982), entitled "Choosing Between
+CRT & Printer Output" gave me hope, but the bloody Sample Program
+just wouldn't work!
+
+I suspect some problems with the POKEing and PEEKing being limited to
+one byte and returning an integer between -32768 and +32768.  I KNOW
+the BASIC-80 manual says the Extended and Disk versions permit POKEing
+and PEEKing integers in the range 0 to 65536, but damned if mine will!
+Try POKEing a large value (like 60000 or so) anywhere, and then PEEK at
+the same place (if you get that far), and you'll see what I mean.
+
+The following little piece of code can be patched into your BASIC
+programs.  It'll find YOUR Console Out and List Out jumps in your
+BIOS jump table (using the BIOS jump table location found at 0001 and
+0002 of CP/M), and will plug them in to the appropriate place in BASIC.
+
+I got this idea from CPM-PERT.BAS, out at SIMTEL20's Public Domain
+library in MICRO:<CPM.BASIC>.  Unfortunately the location of the Call
+to Console Out for Microsoft BASIC-80 Version 5.21 is different from my
+Version 5.1.  However both values are given below.
+
+If it doesn't work, use DDT's T(race) utility to track through your
+MBASIC as it initializes its BIOS calls.  It takes about 50 or so steps,
+but eventually you'll see a series of moving bytes from high memory (in
+my system the EA00h area) into D and E , XCHGing them, and SPHLing them
+to a serious of locations in the 4100h area.  The LAST one of this series
+of very similar storage moves will be the storing of LIST (list device out),
+and the NEXT to last one will be the CONOUT (console out) jump.  Watch
+where BASIC stores that BIOS CONOUT location -- that's the location of
+BASIC's CONOUT call.  (Sorry - a little hard to explain DDT's T(race)
+function; you gotta see it to believe it!)  Never had much use for the T
+function, but found it handy this time.
+
+If you know the location of your BIOS jump table's jumps to CONOUT and
+LIST, that alone won't be enough.  BASIC doesn't use the location of
+the JMP in the BIOS jump table itself, but the address of that JMP!
+Saves one JMP, but kind of tricky unless you know what to expect!
+I didn't mess with that with my PEEKs and POKEs - just used the actual
+JMP in the jump table itself.
+
+Have fun - hope this works OK for you.  It sure is saving me a lot of
+redundant BASIC code, and the sheer bloody elegance of BASIC looking
+at CP/M, and then poking itself a new belly button really tickles me!
+
+
+David Kirschbaum, Toad Hall
+7573 Jennings Lane, Fayetteville NC 28303  (919)868-3471/396-6862
+ARPANet ABN.ISCAMS@USC-ISID
+
+
+130 '== Locate CONOUT (console out) and LIST in CP/M BIOS Jump Table ==
+140 '
+150 ' Location of warm boot in BIOS jump table can be found at bytes 0001
+160 ' (Least Significant Byte, LSB), and 0002 (Most Significant Byte, MSB).
+170 '
+180 COUT1% = PEEK(1) : COUT2% = PEEK(2)	'get LSB and MSB of warm boot jump
+190 COUT1% = COUT1% + 9	'bump up 9 bytes from warm boot to COUT
+200   IF COUT1% < 256 THEN 220		'no need to increase MSB
+210 COUT2% = COUT2% + 256 : COUT1% = COUT1% - 256	'inx MSB, dx LSB
+220 LST2% = COUT2% : LST1% = COUT1% + 3	'bump up 3 bytes from COUT to LIST
+230   IF LST1% < 256 THEN 280		'no need to increase MSB
+240 LST2% = LST2% + 256 : LST1% = LST1% - 256		'inx MSB, dx LSB
+290 CONOUT% = &H41B8	'Loc in MBASIC 5.1 of call to CONOUT
+300 '			 (value for MBASIC 5.21 is &H41E4)
+
+				- - - - - - - -
+           Here's where you switch the printer/console display
+
+390 PRINT "Do you want a HARD-COPY record?  (Y/N):  ";
+400 HC$=INKEY$:IF LEN(HC$)<1 THEN 400 ELSE PRINT HC$
+410   IF HC$<>"Y" AND HC$<>"N" THEN PRINT "ERROR!  Try again.":GOTO 390
+
+				- - - - - - - -
+       Here's where you switch BASIC's CALL to CONOUT to the LIST device
+
+620   IF HC$<>"Y" THEN 660
+630 POKE CONOUT%, LST1% : POKE CONOUT%+1, LST2%		'Turn printer on
+640 PRINT "This should be a hardcopy printout on your printer."
+650 POKE CONOUT%, COUT1% : POKE CONOUT%+1, COUT2%	'Turn console back on
+660 PRINT "This should be a display on your CRT."
+
+- - - - - - - -
+
+800 END

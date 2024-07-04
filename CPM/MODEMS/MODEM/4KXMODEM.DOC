@@ -1,0 +1,397 @@
+
+Date: 4 Jul 88 13:16:38 GMT
+From: pnet01!pro-sol!mdavis@nosc.mil (Morgan Davis)
+Subject: 4K XMODEM EXTENSION REFERENCE
+
+                       THE 4K XMODEM EXTENSION REFERENCE
+                       =================================
+
+                A significant but simple upgrade for 1K XMODEM
+
+                                 Developed by
+
+                                 Morgan Davis
+
+
+                            Document Revision 1.00
+                                 July 4, 1988
+
+                       Distribute as widely as possible.
+
+
+
+
+                                   CONTENTS
+                                   ========
+
+
+
+             I. INTRODUCTION
+                General Description and Background........ 1.1
+                Features.................................. 1.2
+                Why 4K?................................... 1.3
+
+            II. PROTOCOL SPECIFICATIONS
+                Symbol Definitions........................ 2.1
+                Initial Handshaking -- Receiver........... 2.2
+                Initial Handshaking -- Sender............. 2.3
+                The Transfer.............................. 2.4
+                Handling Errors........................... 2.5
+                Buffer Considerations..................... 2.6
+                Longer Timeout Option..................... 2.7
+
+           III. APPLE-SPECIFICS
+                ASCII Express "Pro" Extension............. 3.1
+                AE Pro Mode Compatibility................. 3.2
+
+                ACKnowledgments
+                Feedback and Line Noise
+
+
+
+
+                            PART ONE: INTRODUCTION
+                            ======================
+
+
+
+1.1:  General Description and Background
+
+This document describes the 4K (kilobyte) extension to 1K XMODEM protocol.
+1K XMODEM is a widely used and accepted standard in transferring information
+between terminals and communications equipment.  This document does not,
+however, delve into the details of XMODEM protocol.  Plenty of documentation
+has been written about XMODEM and its number of head-spinning variations.
+
+Perhaps the most complete, yet concise reference describing this protocol is
+by Chuck Forsberg who improved upon XMODEM by developing YMODEM, a 1K
+variation of the standard 128-byte packet used in XMODEM.  Forsberg's
+_XMODEM/YMODEM_PROTOCOL_REFERENCE_ is widely distributed and available on
+most information services and local bulletin board systems.  If you can't
+locate a copy for yourself, write to:
+
+        Omen Technology, Inc.
+        17505-V Sauvie Island Road
+        Portland, Oregon  97231
+        503/621-3406
+
+or contact Chuck Forsberg at one of these addresses:
+
+        Compuserve: 70715,131
+        UUCP: tektronix!reed!omen!caf
+        Telegodzilla BBS: 503/621-3746
+
+
+1.2:  Features
+
+Transferring a file with large data packets means it takes less time to
+send than if small packets were used.  This is because after each packet
+is sent, the sender must wait for an acknowledgement from the receiver.  This
+acknowledgement tells the sender "everything is fine" and to continue sending
+the next packet.
+
+An ideal delay between packets (with no disk-access) is usually less than 200
+milliseconds, about 1/5th second.  But the delay can vary depending on
+environmental factors.  Most significant is the type of connection between
+the sender and receiver.  If a packet-switched network is utilized, such as
+Telenet or Tymnet, this delay can be quite lengthy -- from a half second on
+up to five seconds, perhaps longer.  Even if two modems are connected
+directly through the phone system delays can also occur, especially with
+error-correcting modems like the USRobotics Courier HST 9600.  Buffered
+multi-user systems are also a source of unwanted delays.  You can't
+arbitrarily speed up your modem to get around this problem, but you can make
+use of a larger data block size through software.
+
+For example, if a 32K file is being sent using 4K data blocks, only eight of
+these inter-packet delays takes place during the course of the transfer.  But
+if a smaller packet is used, say the standard 128-byte size employed in
+regular XMODEM, 256 acknowledgements would transpire.  If it takes one second
+between each packet for this brief chat, you save about 4.25 minutes using a
+4K data block as opposed to a 128-byte block, at the SAME baud rate.
+
+As the size of the file increases, so does the improvement factor when larger
+data blocks are used.  In addition, the faster the transfer rate (2400 bps
+and higher), the better the performance with a larger block.
+
+
+1.3:  Why 4K?
+
+Using larger packets in XMODEM is nothing new.  This was realized as soon as
+1200 bps modems became popular.  The step up from 128-byte packets to 1K
+packets became even more significant as 2400 bps modems became affordable.
+But now, with error-correcting 9600 bps modems and a wider use of
+packet-switched networks like Telenet's PC Pursuit, the 1K data block is no
+longer an optimal method.
+
+             If a larger data block is better, why not use
+             something really big, like a 16K packet?
+
+Three reasons:
+
+One.  To be widely accepted and compatible with most microcomputers, a
+dedicated 16K packet buffer would bestow a major burden on most terminal
+programs, especially on 64K-RAM machines.  The 4K packet proves to be a
+significant improvement over smaller sizes while being reasonable in its
+demands on most machines.
+
+Two.  Having to resend just one 16K packet due to an error at 2400 bps or
+lower (very popular speeds at the time of this writing) would nullify any
+improvement in using a large packet.  Even 8K would be unreasonable.
+
+Three (and this is a technical problem).  Many computers just aren't fast
+enough to handle a constant 16K stream of data at speeds faster than 2400
+bps.  As each character is received, the computer might have to service more
+than one interrupt, manage buffering, handle events from the user, as well as
+perform CRCs and other calculations.  A lot of computers just couldn't keep
+up since there is no software flow control during an 8-bit, asynchronous
+transfer.
+
+Data communications involves transactions between many different types of
+computers.  So when 19,200 bps speeds and one megabyte RAM machines become
+standard issue, we will have definitely outgrown the 4K packet size and can
+consider something more robust.  But until that time . . .
+
+
+
+
+                        PART TWO: PROTOCOL SPECIFICATION
+                        ================================
+
+
+
+2.1:  Symbol Definitions
+
+<SOH>  = 01h = Start of header (128-byte block)
+<STX>  = 02h = Start of header (1K block)
+<EOT>  = 04h = End of transfer
+<ACK>  = 06h = Acknowledge (good block)
+<NAK>  = 15h = Negative ACK (bad block)
+<CAN>  = 18h = Cancel transfer
+ <C>   = 43h = CRC request character
+ <K>   = 4Bh = 1K data block request character
+ <L>   = 4Ch = 4K data block request character ("L" for "Large").
+<SSTX> = 82h = Special Start of header (4K block)
+
+
+2.2:  Initial Handshaking -- Receiver
+
+To transfer a file with 1K or 4K data blocks, the receiver must request the
+CRC-16 option, as a cyclic redundancy check is required to use 1K and 4K
+packets.  This is done by sending <C> every three seconds instead of <NAK>.
+The sender will look for a <NAK> or <C> from the receiver as a cue to begin
+the transfer.
+
+Though not required but as a consideration to the sender, the receiver
+should send <C><K><L> rather than just <C>.  This tells a 4K-compatible
+sender that 1K and 4K blocks can be handled by the receiver.  (The sending of
+<C><K> is an accepted standard for requesting 1K blocks).
+
+The order of the letters <K> and <L> shouldn't be significant to the sender,
+but they should be sent as <K><L> as a matter of convention.  This will avoid
+any problems if 4K blocks are requested from a sender that only understands
+128-byte and 1K data blocks, as it will see <C><K> and ignore the following
+<L>.
+
+The receiver should send these request characters every three seconds and
+wait for either <SOH>, <STX>, or <SSTX> to come in from the sender.  These
+characters denote the start of a 128-byte, 1K, or 4K packet being delivered,
+and CRC-16 is assumed.
+
+If the receiver has sent the request characters three or four times and
+nothing has come back from the sender, it reverts to standard XMODEM and
+begins sending <NAK> once every ten seconds for at least a minute.  At this
+point, the receiver will only recognize 128-byte, checksum packets.  It
+ignores any start of header character other than <SOH>, as anything else
+could be garbage from line noise.
+
+Should the receiver get two <CAN>s in a row while waiting for the start of a
+packet, it can abort the receive attempt.
+
+
+2.3:  Initial Handshaking -- Sender
+
+If the sender gets a <NAK> while waiting to begin the transfer, it knows that
+a standard, 128-byte, checksum XMODEM is requested and can begin sending
+right away.
+
+If the sender gets a <C>, it prepares to use the CRC-16 option.  At this
+point, it should set up a one-second timeout and wait for either a <K> or
+<L>.  If a <K> is detected, it should wait one more second for the
+possibility of an <L> to come in.  To effect this in an elegant manner, a
+loop can be created which simply waits one second per character until a
+timeout occurs.  When a character comes in it is examined to see if it is a
+<K> or <L> (the other shouldn't matter) and, if so, the appropriate flags are
+set.  It then loops back for more characters.  When a timeout occurs, the
+loop terminates and the transfer begins immediately.
+
+With some implementations, the receiver will only send a <C> and the block
+size is already assumed to be 1K or 4K.  Therefore, the sender should begin
+sending blocks using a size specified by the operator of the sending program.
+
+Should the sender detect two <CAN>s in a row, it can elect to abort the
+transfer.
+
+
+2.3:  The Transfer
+
+After each side has introduced itself, the transfer begins.  At this point,
+all the rules that apply to standard 128-byte and 1K XMODEM are applicable to
+4K mode as well.  The only difference is that a 4K packet begins with <SSTX>,
+which simply is <STX> with bit 7 set to 1.  This alerts the receiver that
+4096 bytes of data are contained in the data block of the packet being sent.
+The transfer continues as you would expect.
+
+When the sender nears the end of the file, it ought to begin tapering down
+the data block sizes using the "best fit" logic.  For example, if there is
+less than 4K left to send, it should fall back to 1K or 128-byte blocks,
+whichever is most efficient.  This will insure that the resulting file will
+not contain any more than 127 padding characters (usually nulls, 00h).
+Imagine the great injustice to the receiver if nearly 4K of unnecessary
+padding was delivered.
+
+
+2.4:  Error Handling
+
+Bad block retries due to errors can really degrade performance, especially
+with 1K and 4K blocks.  So it is recommended that the implementation of the
+sender include "fall-back" and "step-up" block size logic.
+
+A fall-back occurs after too many consecutive errors.  This causes subsequent
+data blocks to be sent out using the next smallest size block (i.e. from 4K
+down to 1K, and from 1K down to 128-bytes).  If the current block size is 4K,
+only two consecutive errors should be allowed before the sender falls back to
+1K.  At 1K, three consecutive retries are allowed, and then 128-byte blocks
+are used.
+
+A step-up occurs after a run of successful packets are sent, usually eight or
+more.  In a software implementation, this could be known by incrementing a
+counter each time a packet is successfully sent.  Should the receiver ever
+NAK a packet, the sender must reset this counter.
+
+The sender must also maintain a variable that defines the largest block size
+allowed so that it cannot step-up to a size that the receiver is not prepared
+to handle.  In addition, consideration must be given to the exact moment when
+stepping up is done.  (This is described in the next section).
+
+If a transfer is cancelled by too many consecutive errors, or by operator
+intervention, several <CAN> characters, five are adequate, should be sent to
+the other side, followed by an equal number of backspaces (08h) to clean up
+the display.
+
+
+2.5:  Buffer Considerations
+
+To handle a 4K packet, a receiver must allocate at least 4K of contiguous
+memory in which to store the data portion of the largest sized packet.
+However, since a mixture of 128-byte, 1K and 4K packets can be sent during
+the transfer, it is possible to overrun the end of the buffer.  Imagine that
+a 4K buffer is already 75% full and a 4K block is sent.  Since there is no
+way to know how large the next block will be until it starts coming in, it
+could easily wipe out information beyond the end of the buffer.
+
+This situation can occur when a sender employs block size "step-up" logic.
+As a consideration to the receiver, the sender should never transmit a 4K
+block unless the amount sent so far is a multiple of 4096 (1000h), or zero.
+A simple way for the sender to handle this is by performing the step-up
+checking during its own 4K file buffer refresh sequence.  This will ensure
+that the receiver will be able to handle a step up to 4K without overrunning
+its packet buffer.
+
+If the receiver detects a 4K packet coming in at an inconvenient time, the
+best way to handle it is to write the previously buffered blocks to disk, NAK
+the sender's 4K packet and prepare to receive it again into the empty buffer.
+This can severely degrade the performance of the transfer, but it should
+never occur if the sender's implementation is done properly.
+
+
+2.6:  Longer Timeout Option
+
+Timeout errors can occur frequently when transferring files with a
+packet-switched network.  A timeout happens when a certain amount of time
+passes and no activity has taken place.
+
+Since standard XMODEM implements a one-second timeout during the reception of
+characters in the data block portion of a packet, the larger data block size
+could cause some delays with hosts that buffer outgoing data.  A host's
+buffering-related delay could cause the receiver to time out in mid-packet.
+
+The programmer should allow the user to specify increased timeout durations.
+This should be employed during both sending and receiving so that
+transferring files over a network, such as Telenet or Tymnet, will result in
+fewer timeout errors.
+
+
+
+
+                         PART THREE: APPLE-SPECIFICS
+                         ===========================
+
+
+
+3.1:  ASCII Express "Pro" Extension
+
+An adopted standard for transmitting files in the Apple world involves the
+exchange of a special packet of file information.  This resource information
+is external to the data included in the file and is stored in the file's
+directory entry.  Since standard XMODEM makes no provision for sending this
+extra but important information, the ASCII Express "Pro" (AE Pro) technique
+was developed by United Software Industries, Inc.  Documentation for this
+special extension to XMODEM is available from most information services or
+bulletin boards.
+
+
+3.2  AE Pro Mode Compatibility
+
+To maintain AE Pro compatibility with the extended CRC, 1K and 4K modes, the
+following guidelines apply:
+
+  o   The initial AE Pro exchange is not made until the normal
+      sender/receiver handshaking is done to determine CRC or checksum,
+      and requested block sizes.
+
+  o   The initial AE Pro packet is sent using these three bytes:
+      <SOH>+80h (81h), the Apple DOS 3.3 filetype byte (or 00h if
+      using ProDOS), and a complement byte of the filetype value
+      when exclusive-OR'd with $FF.
+
+The rest of the transfer ensues as described in the AE Pro Extension
+reference.  When the AE Pro file information packet is sent at the end of a
+ProDOS-based transfer, it uses a 128-byte data block, and CRC-16 or checksum
+depending on how the transfer had been established.
+
+
+
+
+                               ACKnowledgments
+                               ===============
+
+Special thanks to Don Elton for providing the proving grounds with his own
+terminal program for this new specification as it was being conceptualized.
+Thanks also to United Software Industries, Inc., for letting me develop this
+on their time (while getting paid, no less).
+
+
+                           Feedback and Line Noise
+                           =======================
+
+Questions and comments about the 4K extension can be sent to:
+
+    BIX:       mdavis
+    MCI Mail:  mdavis
+    AppleLink: mdavis
+    ProLine:   mdavis@pro-sol
+    UUCP:      crash!pnet01!pro-sol!mdavis
+    ARPANet:   crash!pnet01!mdavis@pro-sol.nosc.mil
+    InterNet:  mdavis@pro-sol.cts.com
+    US Mail:   Morgan Davis, PO Box 4313, La Mesa, California 92044
+    Modem BBS: pro-sol: 619/281-7222; Speeds: 9600, 2400, 1200, 300
+
+Morgan developed the ModemWorks telecommunications language software and has
+used it to create ProLine, a world-wide, networked message and conferencing
+system.  He has also written several books on how to program Apple computers,
+his most recent being "Mastering the Apple IIGS Toolbox", and "Advanced
+Programming Techniques for the Apple IIGS Toolbox".  Currently, he is manager
+of product development at United Software Industries, an author of the
+MouseTalk terminal program, and a founder of Living Legends Software.  Morgan
+is also moderator of the Apple conference on the BYTE Information Exchange.
+

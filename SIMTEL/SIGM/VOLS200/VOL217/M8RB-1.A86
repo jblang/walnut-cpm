@@ -1,0 +1,395 @@
+; M8RB-1.A86 -- Overlay file for MDM8xx to run with DEC RAINBOW
+;		Communications port.			10/06/84
+;
+; This overlay adapts the MDM8xx program to the DEC Rainbow Communications
+; port.
+;
+; You will want to look this file over carefully. There are a number of
+; options that you can use to configure the program to suit your taste.
+; This file places particular emphasis on using an external modem.
+;
+; Edit this file for your preferences then follow the "TO USE:" example
+; shown below.
+;
+;	TO USE: First edit this file filling in answers for your own
+;		equipment.  Then assemble with ASM86.CMD or equivalent
+;		assembler.  Then use M8CNFG to overlay the the results
+;		of this program to the original MDM8xx.H86 file:
+;
+;			ASM86 M8IN-1
+;			PIP MDM.H86=MDM8xx.H86,M8RP-1.H86
+;			GENCMD MDM 8080 CODE[MFF0]
+;
+;			xx in MDM8xx represents the Version number of MDM8
+;			e.g.: MDM830,  xx=30
+;
+;		 Now run MDM.  Have Fun
+;
+; =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =
+;
+; 10/06/84 - Configured from M8GP-1 for Rainbow - Alex Soya
+; 04/04/84 - First version of this file		- Irv Hoff
+;
+; =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =   =	  =
+;
+BELL		EQU	07H		;bell
+CR		EQU	0DH		;carriage return
+ESC		EQU	1BH		;escape
+LF		EQU	0AH		;linefeed
+;
+YES		EQU	0FFH
+NO		EQU	0
+;
+;
+; Change the following information to match your equipment
+;
+PORT		EQU	040H
+MODCTL1		EQU	PORT+2	;MODEM CONTROL PORT
+MODDATP		EQU	PORT	;MODEM DATA IN PORT
+MODDATO		EQU	PORT	;MODEM DATA OUT PORT
+MODDCDB		EQU	10h	;CARRIER DETECT BIT
+MODDCDA		EQU	0	;VALUE WHEN ACTIVE
+BAUDRP		EQU	06h	;BAUD RATE PORT
+MODCTL2		EQU	02h	;2ND MODEM CONTROL PORT
+MODRCVB		EQU	1	;BIT TO TEST FOR RECEIVE
+MODRCVR		EQU	1	;VALUE WHEN READY
+MODSNDB		EQU	04h	;BIT TO TEST FOR SEND
+MODSNDR		EQU	04h	;VALUE WHEN READY
+;
+;	Special DEC and Z80 SIO stuff
+;
+;
+DECDTR		EQU	0CH	;DTR for special DEC DTR port
+RSTINS		EQU	18H	;RESET SIO reg. 0
+REG1INS		EQU	0	;no interrupts - register 1
+REG3INS		EQU	0C1H	;8 Rx bits, Rx enable -register 3
+REG4INS		EQU	44H	;16X baud rate, 1 stop bit, no parity - register 4
+REG5INS		EQU	0EAH	;8 Tx bits, Tx enable, RTS, DTR - register 5
+;
+	ORG	100H
+;
+; Change the clock speed to suit your system
+;
+	RS	3			;(for  "JMP   START" instruction)
+;
+PMMIMODEM	DB	NO		;yes=PMMI S-100 Modem			103H
+SMARTMODEM	DB	YES		;yes=HAYES Smartmodem, no=non-PMMI	104H
+TOUCHPULSE	DB	'T'		;T=touch, P=pulse (Smartmodem-only)	105H
+CLOCK		DB	47		;clock speed in MHz x10, 25.5 MHz max.	106H
+					;20=2 MHh, 37=3.68 MHz, 40=4 MHz, etc.
+MSPEED		DB	1		;0=110 1=300 2=450 3=600 4=710 5=1200	107H
+					;6=2400 7=4800 8=9600 9=19200 default
+BYTDLY		DB	5		;0=0 delay  1=10ms  5=50 ms - 9=90 ms	108H
+					;default time to send character in ter-
+					;minal mode file transfer for slow BBS.
+CRDLY		DB	5		;0=0 delay 1=100 ms 5=500 ms - 9=900 ms 109H
+					;default time for extra wait after CRLF
+					;in terminal mode file transfer
+NOOFCOL		DB	5		;number of DIR columns shown		10AH
+SETUPTST	DB	YES		;yes=user-added Setup routine		10BH
+SCRNTEST	DB	YES		;Cursor control routine			10CH
+ACKNAK		DB	YES		;yes=resend a record after any non-ACK	10DH
+					;no=resend a record after a valid-NAK
+BAKUPBYTE	DB	NO		;yes=change any file same name to .BAK	10EH
+CRCDFLT		DB	YES		;yes=default to CRC checking		10FH
+TOGGLECRC	DB	YES		;yes=allow toggling of CRC to Checksum	110H
+CONVBKSP	DB	NO		;yes=convert backspace to rub		111H
+TOGGLEBK	DB	YES		;yes=allow toggling of bksp to rub	112H
+ADDLF		DB	NO		;no=no LF after CR to send file in	113H
+					;terminal mode (added by remote echo)
+TOGGLELF	DB	YES		;yes=allow toggling of LF after CR	114H
+TRANLOGON	DB	YES		;yes=allow transmission of logon	115H
+					;write logon sequence at location LOGON
+RESERVED	DB	NO		; Resevered for future release		116H
+LOCONEXTCHR	DB	NO		;yes=local command if EXTCHR precedes	117H
+					;no=external command if EXTCHR precedes
+TOGGLELOC	DB	YES		;yes=allow toggling of LOCONEXTCHR	118H
+LSTTST		DB	YES		;yes=printer available on printer port	119H
+XOFFTST		DB	NO		;yes=checks for XOFF from remote while	11AH
+					;sending a file in terminal mode
+XONWAIT		DB	NO		;yes=wait for XON after CR while	11BH
+					;sending a file in terminal mode
+TOGXOFF		DB	YES		;yes=allow toggling of XOFF checking	11CH
+IGNORCTL	DB	NO		;yes=CTL-chars above ^M not displayed	11DH
+EXTRA1		DB	0		;for future expansion			11EH
+EXITCHR		DB	'E'-40H		;^E = Exit to main menu			11FH
+BRKCHR		DB	'@'-40H		;^@ = Send 300 ms. break tone		120H
+NOCONNCT	DB	'N'-40H		;^N = Disconnect from the phone line	121H
+LOGCHR		DB	'L'-40H		;^L = Send logon			122H
+LSTCHR		DB	'P'-40H		;^P = Toggle printer			123H
+UNSAVE		DB	'R'-40H		;^R = Close input text buffer		124H
+TRANCHR		DB	'T'-40H		;^T = Transmit file to remote		125H
+SAVECHR		DB	'Y'-40H		;^Y = Open input text buffer		126H
+EXTCHR		DB	'^'-40H		;^^ = Send next character		127H
+;
+;
+;
+	RS	3			;				128H
+;
+IN@MODCTL1:
+	IN	AL,MODCTL1 ! RET	;in modem control port		12BH
+	DB	0,0,0,0,0,0,0		; spares
+;
+OUT@MODDATP:
+	OUT	MODDATO,AL ! RET	;out modem data port		135H
+	DB	0,0,0,0,0,0,0		; spares
+;
+IN@MODDATP:
+	IN	AL,MODDATP ! RET	;in modem data port		13FH
+	DB	0,0,0,0,0,0,0		; spares
+;
+ANI@MODRCVB:
+	AND	AL,MODRCVB ! RET	;bit to test for receive ready	149H
+;
+CPI@MODRCVR:	
+	CMP	AL,MODRCVR ! RET	;value of rcv. bit when ready	14CH
+;
+ANI@MODSNDB:	
+	AND	AL,MODSNDB ! RET	;bit to test for send ready	14FH
+;
+CPI@MODSNDR:	
+	CMP	AL,MODSNDR ! RET	;value of send bit when ready	152H
+;
+	RS	6			;				156H
+;
+OUT@MODCTL1:	OUT MODCTL1,AL ! RET	;out modem control port #2	15BH
+;
+OUT@MODCTL2:	OUT MODCTL2,AL ! RET	;out modem control port #1	15EH
+
+
+
+
+;
+;
+LOGONPTR DW	(Offset LOGON)		;for user message.		161H
+	RS	6			;				163H
+JMP@GOODBYE:JMP GOODBYE			;				169H
+JMP@INITMOD:JMP INITMOD			;go to user written routine	16CH
+	RET	
+	NOP				;(by-passes PMMI routine)	170H
+	NOP
+	RET	
+	NOP				;(by-passes PMMI routine)	173H
+	NOP
+	RET	
+	NOP				;(by-passes PMMI routine)	176H
+	NOP
+JMP@SETUPR:    JMP  SETUPR		;				178H
+JMP@SPCLMENU:  JMP  SPCLMENU		;				17BH
+JMP@SYSVER:    JMPS SYSVER		;make sure this is SHORT Jump	17EH
+JMP@BREAK:     JMP  SENDBRK		;				180H
+
+;
+; Do not change the following eight lines.
+;
+JMP@ILPRT:
+		RS	3		;				183H
+JMP@INBUF:
+		RS	3		;				186H
+JMP@INLNCOMP:
+		RS	3		;				189H
+JMP@INMODEM:
+		RS	3		;				18CH
+JMP@NXTSCRN:
+		RS	3		;				18FH
+JMP@TIMER:
+		RS	3		;				192H
+JMP@CTYPE:
+		RS	3		;				195H
+JMP@KEYIN:
+		RS	3		;				198H
+;
+;
+; Routine to clear to end of screen.  If using CLREOS and CLRSCRN, set
+; SCRNTEST to YES at 010AH (above).
+;
+CLREOS: CALL	JMP@ILPRT		;				19BH
+	DB	ESC,'[','0','J',0	;				19EH
+	RET				;				1A3H
+;
+CLRSCRN:JMP	DEC@CLRSC		;				1A4H
+	DB	0,0,0,0,0		;				1A7H
+	DB	0			;				1ACH
+;
+SYSVER: CALL	JMP@ILPRT		;				1ADH
+	DB	'Version for DEC Rainbow Communications Port',0
+	DB	CR,LF,0
+	RET
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;
+; NOTE:	 You can change the SYSVER message to be longer or shorter.  The
+;	 end of your last routine should terminate by 0600H if using the
+;	 Hayes Smartmodem or by address 0C00H otherwise.
+;
+;-----------------------------------------------------------------------
+;
+DEC@CLRSC:
+	CALL	JMP@ILPRT
+	DB	ESC,'[','2','J',ESC,'[','H',0
+	RET
+;
+;
+; You can put in a message at this location which can be called up with
+; CTL-O if TRANLOGON has been set TRUE.	 You can use several lines if
+; desired.  End with a 0.
+;
+LOGON		DB	'Time for a beer, a smoke and a .... !',CR,LF,0
+;.....
+;
+;
+; Add your own routine here to send a break tone to reset some time-share
+; computers, if desired.
+;
+SENDBRK:	RET
+;.....
+;
+;
+; Add your own routine here to put DTR low and/or send a break tone.
+; Check other routines such as M8IN-1.A86 which is using this feature.
+;
+GOODBYE:MOV	AL,DECDTR
+	OUT	MODCTL2,AL
+	MOV	CH,3		; Turn off DTR for 300 ms
+	MOV	AL,DECDTR
+	NOT	AL
+	OUT	MODCTL2,AL
+	RET
+;
+;.....
+;
+;
+;The following is used to initialize the Z80 SIO on execution
+;of MDM8xx.
+;
+INITMOD:
+	MOV	AL,MSPEED	; get inital baudrate value
+	MOV	CS: Byte Ptr .INITSPD,AL
+INITMOD1:
+	MOV	AL,0
+INITSPD EQU	OFFSET $ -1
+	MOV	Byte Ptr MSPEED,AL
+	MOV	BX,Offset BDTBL
+	MOV	AH,0
+	ADD	BX,AX
+	MOV	AL,Byte Ptr [BX]
+	MOV	CS: Byte Ptr .SETBD,AL
+;
+	MOV	AL,DECDTR
+	NOT	AL
+	OUT	MODCTL2,AL
+;
+	MOV	AL,0		;select register 0
+	OUT	MODCTL1,AL
+	MOV	AL,RSTINS
+	OUT	MODCTL1,AL
+	MOV	AL,1		;select register 1
+	OUT	MODCTL1,AL
+	MOV	AL,REG1INS
+	OUT	MODCTL1,AL
+	MOV	AL,3		;select register 3
+	OUT	MODCTL1,AL
+	MOV	AL,REG3INS
+	OUT	MODCTL1,AL
+	MOV	AL,4		;select register 4
+	OUT	MODCTL1,AL
+	MOV	AL,REG4INS
+	OUT	MODCTL1,AL
+	MOV	AL,5		;select register 5
+	OUT	MODCTL1,AL
+	MOV	AL,REG5INS
+	OUT	MODCTL1,AL
+	MOV	AL,0
+SETBD	EQU	OFFSET $ -1
+	OUT	BAUDRP,AL
+	RET
+;
+;
+; Use the 'SET' command to select a desired baud rate
+;
+SETUPR: MOV	DX,(Offset BAUDBUF)	;point to new input buffer
+	CALL	JMP@ILPRT
+	DB	'Input Baud Rate (300, 600, 1200, 2400, 4800, 9600): ',0
+	CALL	JMP@INBUF
+	MOV	DX,(Offset BAUDBUF)+2
+	CALL	JMP@INLNCOMP		;compare BAUDBUF+2 with characters below
+	DB	'300',0
+	JNB	OK300			;go if got match
+	CALL	JMP@INLNCOMP
+	DB	'600',0
+	JNB	OK600
+	CALL	JMP@INLNCOMP
+	DB	'1200',0
+	JNB	OK1200
+	CALL	JMP@INLNCOMP
+	DB	'2400',0
+	JNB	OK2400
+	CALL	JMP@INLNCOMP
+	DB	'4800',0
+	JNB	OK4800
+	CALL	JMP@INLNCOMP
+	DB	'9600',0
+	JNB	OK9600
+	CALL	JMP@ILPRT		;all matches failed, tell operator
+	DB	'++ Incorrect entry ++',CR,LF,BELL,0
+	JMP	SETUPR			;try again
+;
+OK300:	MOV	AL,1			;MSPEED 300 baud value
+	JMPS	LOADBD			;go load everything
+;
+OK600:	MOV	AL,3
+	JMPS	LOADBD
+;
+OK1200: MOV	AL,5
+	JMPS	LOADBD
+;
+OK2400: MOV	AL,6
+	JMPS	LOADBD
+;
+OK4800: MOV	AL,7
+	JMPS	LOADBD
+;
+OK9600: MOV	AL,8
+;
+;
+LOADBD: 
+	MOV	CS: Byte Ptr .INITSPD,AL
+	JMP	INITMOD1		;reinitialize to new baudrate, then done
+;...
+;
+
+
+; TABLE OF BAUDRATE PARAMETERS
+;
+BD110	EQU	0			;110  baud NOT SUPPORTED
+BD300	EQU	66H			;300  baud
+BD450	EQU	0			;450  baud NOT SUPPORTED
+BD600	EQU	77H			;600  baud
+BD710	EQU	0			;710  baud NOT SUPPORTED
+BD1200	EQU	88H			;1200 baud
+BD2400	EQU	0BBh			;2400 baud 
+BD4800	EQU	0DDh			;4800 baud
+BD9600	EQU	0EEH			;9600 baud
+BD19200 EQU	0			;19200 baud NOT SUPPORTED
+;
+BAUDBUF DB	10,0
+	RS	10
+
+BDTBL	DB BD110,BD300,BD450,BD600,BD710,BD1200,BD2400,BD4800,BD9600,BD19200
+;
+;
+;
+; If using the Hayes Smartmodem this is unavailable without a special
+; change.
+;
+SPCLMENU:  RET
+;
+;
+; NOTE:	 MUST TERMINATE PRIOR TO 0600H (with Smartmodem)
+;				 0C00H (without Smartmodem)
+;.....
+;
+	  END
+

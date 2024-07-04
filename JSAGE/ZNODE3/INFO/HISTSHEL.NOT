@@ -1,0 +1,185 @@
+This is an extract of a wish list I sent Rob Friefeld a few weeks 
+ago.  Rob is working on a new ZCPR3 history shell that will be 
+full-screen, so one will (optionally) be able to not only recall 
+but actually see at a glance the last, say, 23 or so commands 
+issued and then move to the cursor to the one desired for 
+execution.  When I heard he was working on such a program I was 
+reminded of a feature I had long wanted to see in a command 
+shell.  I wrote him a note detailing my wish, thinking however 
+that it was too far out and sophisticated to be done on our 8-bit 
+machines.  He responded, unbelievably, that he feels it could be 
+done in about 100-150 bytes.  He was, however, concerned about 
+code size and was interested to know how valuable such a feature 
+would be for others, and requested I make this note public for 
+the purpose of soliciting comment from other history-shell users. 
+I herewith do so.  Please note that I believe the implementation 
+of such a feature would be an extraordinary advance for ZCPR3.  
+Your comments are very strongly solicited; I will forward them to 
+Rob.
+
+                                         - Rick Charnes
+                                         January 1, 1989
+
+[...]
+
+(3) This is the trickiest.  I'm sure you're going to say it's 
+impossible.  But I'm hoping you're like a Marine for whom "the 
+difficult we do immediately, the impossible takes a little 
+longer."
+
+In my use of ZCPR3 I have settled into a regular and consistent 
+pattern of issuing multiple commands, separated by a semicolon, 
+from the command line.  It is silly to limit the use of our 
+wonderful MCL buffer to aliases and the like; it is fairly easy 
+for me to anticipate my next 1 or 2 or 3 moves.  Just now I was 
+about to issue a multiple command and I was frustrated at my 
+inability to do something that has bothered me for quite a while 
+and I thought that this time I'd at least describe it to someone. 
+I'm sure it's a fairly regular and common thing, but I've never 
+heard anyone bring it up for public discussion.
+
+All I was doing was renaming a file, then loading it up for 
+editing with VDE:
+
+RENAME DAY.CMD TODAY.CMD;VDE TODAY.CMD
+
+OK.  ** I'M TIRED OF HAVING TO TYPE THAT SECOND 'TODAY.CMD'.  ***
+
+There are of course a number of ways one can deal with this and 
+keep the string of characters 'TODAY.CMD' somewhere in memory or a 
+disk file or on the shell stack, so that you don't need to retype 
+it.  You can make an alias (I actually wrote and released one 
+probably two years ago, called RCOM, short for Repeat COMmand).  
+You can use, as I often do, Dreas Nielsen's FOR.COM and 
+PERFORM.COM, that I guess respectively store it on and then 
+access it from the shell stack:
+
+         FOR TODAY.CMD;PERFORM RENAME DAY.CMD $X$|VDE $X
+
+(The '$X' 'holds' the name of the 'FOR'-ed string and the '$|' is 
+PERFORM.COM's substitute command separator)
+
+Etc., etc.  But the worst problem with the above approaches is 
+not even that they involve an extra step and command and some 
+consequent and inevitable slowness due to extra disk access 
+(which I wouldn't mind that much and would accept as the price to 
+pay for the feature), but that THEY REQUIRE YOU TO KNOW BEFORE 
+YOU START TYPING YOUR FIRST COMMAND THAT YOU *ARE* GOING TO LATER 
+DO SOME SORT OF ITERATION.  
+
+Generally I don't.  It just hit me AFTER I'd typed
+
+                    RENAME DAY.CMD TODAY.CMD
+
+that I was next going to enter:
+
+                          VDE TODAY.CMD
+
+If I'd decided *beforehand* I could have used FOR and PERFORM, 
+though these programs of Dreas' that access the named shell 
+variables are sometimes noted for their slowness.  Or with my 
+RCOM alias which takes as its first parameter the file that is 
+going to be repeated and the second as a token to one of the 
+command verbs I could have done:
+
+RCOM TODAY.CMD DAY.CMD RENAME VDE
+
+But the point is that THIS ALL ACTS AS A DRAG TO ONE'S 
+SPONTANEITY IN USING THE COMPUTER.
+
+So, I was thinking: how could a command editor/history shell play 
+a role in this?  We have been quite adept at packing these 
+programs with a good number of nifty features.  Any chance this 
+kind of thing could be added?  Some scheme whereby the program 
+AUTOMATICALLY, AS THE USER IS TYPING, "records" the keystrokes 
+(I guess it would have to be to memory, rather than a disk file) 
+and allows him to access these very same keystrokes later IN THE 
+SAME COMMAND LINE?
+
+If it would have to take up TPA -- and I imagine it would since 
+we cannot have yet opened up a file since we haven't yet hit <CR> 
+-- I for one would be willing to sacrifice a k or two for this 
+feature.  
+
+I am reminded of a program that was floating about a year or two 
+ago called ZX.  It was written by a fellow named Mike Yarus of 
+Boulder, Colorado in January 1986.  It's not a ZCPR program (the 
+Z' stands for horiZontal sort because that's how it does its 
+directory function, but rather an all-purpose CP/M 
+directory/copy/erase/rename utility.  It's one of those many 
+actors that have come and go on the great CP/M utility stage.  
+It had a really nifty feature, though, that I've never seen 
+duplicated anywhere since: "filename memory," in which recently 
+used filenames can be re-entered with a single keystroke during 
+later operations.  A '1' represents the first parameter of the 
+previous operation, a '2' the second.  So if the user first 
+entered:
+
+ZX JOE.LTR JOSEPH.LTR R   ; the 'r' parameter is for R)ename
+
+then 
+
+ZX 2 SECOND.FIL C         ; the 'c' is for C)opy
+
+would then rename JOSEPH.LTR to SECOND.FIL
+
+I never really used it much -- never did like the horiZontal 
+sort -- but I always liked the "filename memory" idea.  In the 
+documentation Mike mentions "The stored filenames are kept in a 
+seldom-used place.  But they are in memory, of course..."
+
+Of course what I'm suggesting for the command editor/history 
+shell would be different and probably harder to do, since I'm 
+talking about writing stuff to memory even before the user hits 
+the carriage return and the command processor is invoked.  But 
+ideally I would like, in my example above which started me on 
+this whole thing, to be able to enter something like:
+
+RENAME DAY.CMD TODAY.CMD;VDE 3
+
+where the 3 would represent the 3rd token on the command line, so 
+it would translate into 'VDE TODAY.CMD'.  Or $3, or something 
+like that, if we were worried about files named '3'.  Nice would 
+be defining tokens as anything separated by EITHER a semicolon OR 
+a space, so that:
+
+VDE LOVE.LTR;RENAME PROG.ASM PROG.Z80;VDE 5
+
+would call up VDE to edit PROG.Z80. 
+
+Or, of course:
+
+VDE LOVE.LTR;RENAME PROG.ASM PROG.Z80;1 5
+
+would do the same thing.
+
+This is all off the top of my head and I have no idea if this 
+kind of instant 'character recording' and playback is possible on 
+our humble machines.  2k TPA?  3k TPA?  50k?  Shell stack?  I 
+don't know.
+
+Dreas Nielsen works always within the SH.COM shell (he never 
+bothered with the low-grade history shells such as HSH and EASE), 
+wherein if LOVE.LTR is already and previously assigned (inside 
+SH.VAR) to the shell variable 'L', for instance, then:
+
+RENAME LIKE.LTR %L;VDE %L
+
+entered at the command line already works turns into:
+
+RENAME LIKE.LTR LOVE.LTR;VDE LOVE.LTR
+
+As I point out in my upcoming TCJ article, running inside SH.COM 
+is like having RESOLVE.COM permanently running without it being 
+there at all.  But this of course requires forethought and 
+planning: LOVE.LTR must have already been previously stored as a 
+shell variable to the SH.VAR file.  My idea is to have the 
+recording done as the user types...
+
+Well, I've just been doing a lot of work with named shell 
+variables and they're on my mind.  They're probably not 
+appropriate to this job at all; the concept and syntax just got 
+me thinking.
+
+Semper fidelis.
+

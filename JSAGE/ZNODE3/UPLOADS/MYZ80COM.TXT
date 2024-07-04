@@ -1,0 +1,57 @@
+
+Public Message # 5364  CPMTECH Area  Entered 16:39 Monday    22-Jun-92
+From:  SIMEON CRAN
+  To:  NICK GIBBS
+  Re:  Myz80...
+
+Thanks for being such a happy customer!
+ Serial handling in MYZ80 goes like this:
+ You have direct access to the COM1 and COM2 ports on your PC via the Z80 i/o 
+instructions. As such you can write a polling routine to send and receive 
+characters. I have an overlay done for ZMP which works perfectly here, and you 
+are welcome to the source code (I will upload it to Z-Node 62 soon for all to 
+see).
+ Because MYZ80 is multi-tasker aware, it is always trying to work out when it 
+is safe to give up processing time to the host computer. When transferring 
+files, it is possible that MYZ80 will think it is OK to give up time, and your 
+communications program will end up not getting enough processing time, so will 
+drop characters. As such, in the loop where you poll the serial port, you must 
+(or rather should) make a special BIOS call to tell MYZ80 that the loop is 
+time critical. This doesn't matter on non-multitasking systems, but does 
+matter if a multitasker such as OS/2, Desqview or even Windows is running.
+ As I said, all works fine here, however I have 16550AFN UARTS rather than the 
+normal 8250 or 16450 UARTs, and I am running under OS/2, so I get the 
+advantage of fully buffered virtual UARTs: even though the Z80 program thinks 
+it is polling an 8250 UART, it is really polling a virtualised 8250, which 
+buffers data very safely.... characters don't get dropped.
+ For most simpler systems, though, the polling will have trouble keeping up 
+with the incoming data. The 8250 is a very basic device and has less buffering 
+than the Z80SIO or Z80DART. It is therefor much more susceptible to data 
+overrun. Really, it should only be operated with interrupts. I think Bruce 
+Dudley had it working ok on his 8MHz AT at 1200 baud. I can get 9600 and more 
+on my system (for the reasons explained above).
+ Getting MYZ80 to virtualise the interrupt so that it can handle higher baud 
+rates is not really practical, and would make overlay writing for Z80 comms 
+programs very difficult. My thinking is that if you want to do serious comms 
+work, use an OS/2 native program (or even a DOS program (is anyone still using 
+DOS???<g>)). You will get a much happier result. Failing that, put up with the 
+lower performance possible with a Z80 program, at a lower speed. Failing that: 
+convince me to give MYZ80 some sort of different serial comms support. One 
+thought has been to set up a serial interrupt handler and allow Z80 programs 
+to use it via an extended BIOS function.
+ But the more I think about this, the more I wonder why!
+ Give me some idea of your specific desires, and I will see what I can do. in 
+the meantime, you can have a play with the 8250 UARTS from Z80 code... The 
+80286 i/o address 3f8h (COM1) is mapped to 00h Z80. And 2f8h (COM2) is mapped 
+to 08h Z80. So from 0-0fh is full control over the UARTs. Just use the Z80 in 
+and OUT instructions... they all work. Of course you are going to need to know 
+a little about the UARTs in order to program them. But you could try setting 
+their speeds with the DOS command MODE, then using IN and OUT in Z80 on the 
+base adresses (0 and 8) to read and write. It will get you started. And in the 
+meantime I will upload my overlay and you can study it for more ideas.
+ Hope that gets you going. 
+--- Foodo v0.9
+ * Origin: Z-Node 62 RCPM, Perth WA - v22bis - 61-9-450-0200 (FidoNet 
+3:690/718)
+
+

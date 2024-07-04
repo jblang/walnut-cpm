@@ -1,0 +1,162 @@
+         MINIMOD - a subset modem program for MSDOS.
+         ===========================================
+
+          Dave Moore,
+          QCOM Pty Ltd
+          May 84.
+
+          This  program  is  copyright.  (Yes,  really  - its  in 
+          source!)  Permission is granted to use it,  but not for 
+          profit,  provided  that this notice is retained   along 
+          with  the start up message in the program  itself,  and 
+          provided that any modified versions of this program are 
+          returned  to  the public domain by submission  to  this 
+          system.
+
+
+The  minimod program is a small modem program which should run on 
+any  MSDOS machine.  So far,  it has been run on an HP150  and  a 
+SHARP  PC-5000  'Squirrel'.  Providing your BIOS  is  competently 
+written,  and you have a serial port, it will run on your machine 
+without  any machine specific information beyond the name of your 
+serial port driver.
+
+Before loading Minimod, you must configure your serial port for 8 
+data bits,  no parity.  If you are intending to talk to an  RCPM, 
+you   will  want  to  set  300  baud.   Otherwise,   if  you  are 
+communicating between local machines,  start at 1200 baud and get 
+your interface working,  then try a greater baud rate. If you can 
+not  disable  parity on your machine,  you will not  be  able  to 
+transfer binary files using Christensen protocol. Minimod is able 
+to transfer data in Hex to overcome this problem.  (This code has 
+not been tested as it hasn't proved neccessary.)
+
+Next,  enter  the  command 'Minimod'.  You should see the  prompt 
+'Minimodem  :'.  If you get an error message and minimod  aborts, 
+check that the device name in AUXNAM is correct.
+
+All commands are 1 or two characters in length and are similar to 
+the  commands  to  be  found in YAM.  If  a  command  requires  a 
+filename,  you will be prompted for the file name after you  have 
+entered the command. Do not attempt to enter the file name on the 
+same line as the command.
+
+The commands are:
+
+     t     - enter terminal mode. Use control E to get out.
+
+     th    - enter  terminal mode.  Echo characters typed on  the 
+             keyboard  on  the screen.  (like pressing  the  half 
+             duplex key on a terminal)
+
+             Note that there is no file logging available.
+
+     r    -  receive a file using Christensen protocol.  Only the 
+             checksum  form of Christensen  is  supported.  Batch 
+             mode is not supported.  You will be prompted for the 
+             file name for the data after you enter this command.
+
+     s    -  send a file using Christensen protocol.  You will be 
+             prompted  for  the  file name after  you  enter  the 
+             command. Always enter the receive command before you 
+             enter the send command, otherwise the computer doing 
+             the  send may time out before you get the other  end 
+             going.
+
+     ph   -  Use hex for Christensen send and receive.
+
+     pb   -  Set  use  binary for Christensen send  and  receive. 
+             (default)
+
+     f    -  Transmit a file a if it was being typed in. This and 
+             the next command are discussed further below.
+
+     fw   -  Transmit  a file,  but after each carriage return is 
+             sent,  wait  for a prompt character from the  remote 
+             machine.
+
+     pg   -  Set  prompt character for use with fw  command.  The 
+             prompt character must be hard up against the g.
+
+     pw   -  Set  the  time out time for waiting  for  characters 
+             from the remote terminal.  PW2 is the  default.  The 
+             wait  shoul be a decimal digit but the program  will 
+             accept any character. If your Christensen send keeps 
+             timing out, put this value up.
+     
+     pc   -  Set  the choke parameter.  After each  character  is 
+             sent  to  the  remote machine,  the  program  counts 
+             down from the number entered (*1004) to  zero.  This 
+             enables  you to slow down a fast machine when it  is 
+             talking  to a slow machine.  The default is PC3.  If 
+             you are dropping characters,  put this value up.  If 
+             you are sending large files in Christensen  protocol 
+             at  high baud rates (eg >300),  set this to zero and 
+             see if it will work.
+
+     ex   -  Return to MSDOS. You can also get back to MSDOS with 
+             Control C.  Minimod does not currently set the  line 
+             driver back the way it found it. 
+
+Getting Minimod across to a new machine. 
+========================================
+
+If  you  have a machine with YAM or Minimod on  it,  getting  the 
+program across is easy.  If you haven't, see the notes on booting 
+Yam and MODEM7 for some ideas.
+
+To  move it from a machine with Yam or Minimod to a new  machine, 
+connect the machines as described earlier. On the machine you are 
+moving to type the command:
+
+CTTY \AUX ( or whatever your driver is called)
+
+This transfers control of your computer to the remote machine.
+
+Fire up Yam or minimod on the source machine and go into terminal 
+mode  with the 't' command.  Press 'return' and you should get  a 
+prompt  from the remote machine.  You should now be able to enter 
+commands to the target machine.
+
+Enter the command
+
+     EDLIN MINIMOD.ASM
+
+You will get an asterisk in reply.  Type 'I'.  You should get the 
+line:
+     1:*
+
+Now exit out of terminal mode with CTRL E and enter the following 
+commands (not the stuff in brackets).
+
+     PG*       (set the wait character to asterisk)
+     FW MINIMOD.ASM (transmit the file)
+
+The  file will now be sent to the remote machine.  This  will  be 
+fairly  slow.  You  can speed it up by setting PW0  and  PC0.  In 
+particular, PW0 will speed things up, since after a tab character 
+is  sent,  Minimod  waits for blanks to stop coming  back  before 
+continuing.  This  helps prevent garbling of characters,  but may 
+not  be required by your equipment.  If you find that  characters 
+are being lost, try increasing PW and/or PC. 
+
+You can now assemble and link Minimod on the new machine by going 
+back into terminal mode and entering 
+
+     MASM MINIMOD;  (The semicolon is advisable)
+     LINK MINIMOD;  (Ditto)
+
+Now  run the program,  transfer MINIMOD again  using  christensen 
+protocol, and compare the two files using 
+
+     FC MINIMOD.ASM MINIMOD.NEW (say) 
+
+They should match to within a few nulls at the end of the file.
+
+Good luck.  If you update the program,  please put a version back 
+on the system.
+
+          Dave Moore,
+          QCOM Pty Ltd,
+          Brisbane 2293544
+          22 May 84 

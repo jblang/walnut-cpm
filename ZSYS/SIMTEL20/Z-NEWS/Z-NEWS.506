@@ -1,0 +1,316 @@
+                                                                  28 July 1986
+                                  Z-NEWS 506
+
+Z-News  Second  Birthday  Celebrated...with  announcements  of  upcoming   new 
+products taking advantage of Hitachi HD64180 8-bit superchip.
+
+    * Micromint develops high-resolution graphics add-on to SB180 single board 
+      computer, using existing expansion bus--late October shipping date  set.
+      And  Steve Ciarcia writes articles for Nov/Dec BYTE  magazine  detailing 
+      new product.  Board includes Hitachi HD63484, graphics chip we have said 
+      good things about, to provide 640 x 480 pixel resolution, with 16 colors 
+      from  a  palette  of 4096 total (IBM PGA).   Board  comes  with  "Grafix 
+      Toolbox"  (GT180 written in Turbo Modula-II) from Borland  International 
+      (see  Z-News  306 and 504 for more on Borland and benchmarks  for  their 
+      beta-test  Modula).  IBM-style keyboard and RGB monitor  interfaces  are 
+      provided.  Sounds good so far...more comes from BYTE and Micromint.
+
+    * Packaged desktop HD64180 microcomputer featuring 256k bytes memory,  one 
+      serial port (for modem and printer), 2-96tpi floppies, 640 x 400  pixels 
+      using  IBM  standard Motorola/Hitachi 6845 CRT  controller  chip.   Open 
+      architecture,  expandable.   Selling complete for  less  than  $1600.00.
+      Available in November.  Source of supply will be reported soon.
+
+    * C  Language  Compiler, Database  Manager,  and  Spreadsheet  Program... 
+      Compiler  uses HD64180 instruction set to increase compiled  code  speed 
+      and  density.  Full Kernighan & Ritchie and Unix v7 functionality,  plus 
+      has co-assembler (like Forth, but without Reverse Polish Notation)  that 
+      permits  easy  placement  of assembly language  code  within  C  program 
+      (available mid August).  Spreadsheet (similar to Lotus 1-2-3) and  Data-
+      base  Manager (similar to dBase II) use up to 256k-bytes of main  memory 
+      (both  available  late October).  This modern Z-Tools  trio  soon  joins 
+      other Lasting-Value Software!
+
+Much to celebrate as these offerings become available.  Programs should flesh-
+out skinny frame of 8-bit world.  Stay tuned-in with patience, no scarcity  of 
+good things coming.
+     --------------------------------------------------------------------
+More  on  Searching.   C Language search and extract programs  of  Z-News  505 
+produced similar results.  We became curious about where bottle necks were, if 
+CPU  (compute)  bound  or  disk I/O bound.   So  we  re-ran  benchmarks  using 
+electronic  timer, instead of sweep second-hand of wrist watch;  additionally, 
+we  tested from 1) both Ampro's floppy and hard disk (HD), and 2) from a  DT42 
+(prototype, see Z-News 502) using big RAMdisk and a floppy.  Both programs and 
+text files to be searched were stored on a freshly formatted diskette and used 
+alternately  with each computer.  Programs and files were in RAMdisk  for  RAM 
+test.  Hard disk had programs in one partition and text files in another.
+
+                             Find 2nd Occurrence of String, seconds
+           Program           Ampro-Floppy   -HD   DT42-Floppy  -RAM
+           SEARCH v1.25              57.7  38.9          26.7  21.0
+           SIFT v2.2b                43.1  38.5          29.3  21.6
+           Electa-Find v3.2a         46.8  33.4          23.6  19.3
+
+Search  time  ranged from low of 19.3 seconds to high of 57.7, 3 to  1  ratio, 
+controlled by, unsurprisingly, computer chip, memory media, and program.
+     Ampro Model 1220 Bookshelftm computer, 4mHz Z80 with 20-megabyte  Seagate 
+225N  SCSI hard disk, has 48tpi Cannon floppy with standard 6ms  (millisecond) Šstep  rate.  SemiDisk DT42 was running at 6.144mHz (no wait states) using  big 
+RAMdisk and fast 48tpi Fujitsu floppy, 3ms step rate.
+     SEARCH and SIFT are essentially of equal speed on Ampro HD and DT42  RAM-
+disk;  but,  SEARCH's work buffer is not optimum for Cannon  which  times  out 
+almost continually during search.  SIFT appears to have "best" buffer of three 
+programs, drives never timing out, making it fastest on relatively slow Cannon 
+floppy  drive.  Electra-Find is somewhere in between, with Cannon  timing  out 
+about  half as often as with SEARCH.  If design is optimized for  slow  floppy 
+you  may  give something up on fast RAMdisk; nonetheless, all  three  programs 
+were about equal in RAM tests.
+     We  conclude that our benchmark (two-files of combined  32k-bytes  total, 
+15-character  search string) is determined by CPU throughput but only if  disk 
+I/O  speed  is  sufficient to support CPU  compare-byte  needs.   Study  above 
+table...lots of interesting conclusions to be drawn.  Yet mysteries remain.
+     DT42  transfers  data from one section of RAM to  another  using  HD64180 
+onchip  DMAC/MMU (Direct Memory Access Controller/Memory Management  Unit)  at 
+rate  of 800k-bytes per second with 6.144mHz CPU clock frequency (SB180 is  as 
+fast, if wait states are removed); 1.6 megabytes per second at 12.288 mHz,  Z-
+News  409  and 501 bench testing frequency.  Z80 at 4mHz has  about  half  the 
+throughput of HD64180 at 6.144mHz, has no DMAC.  CPU string compare (actually, 
+byte compare) capability seems less than 2 to 1 in favor of HD64180;  Electra-
+Find's  33.4 and 19.3 second measurements are a tip.   Interesting!   Mystery: 
+SEARCH should be faster (we use Version 1.25, the latest, which is faster than 
+1.22 used in tests of 505) than other two programs.  It is not; may not be  as 
+mature  (old) as the others, less revision has occurred.  Though  written  for 
+C/80  compiler, which produced compare-and-loop Bench2 measurements 2.6  times 
+faster  than BDS-C used by other two programs (see Z-News 501), SEARCH is  not 
+as  fast  as  Electra-Find and no faster overall than  SIFT.   (Speed  mystery 
+solved  if  programs  have assembly language subroutines  placed  at  critical 
+points in C code, making specific compiler less or not important.)
+     After living with these three text search and extraction programs, if  we 
+were  to  own only one we would settle for Electra-Find (EF).   More  flexible 
+than  other  two, EF is fully menu-driven with  extensive,  clear,  in-context 
+online  help along the way.  It is fastest, but not by much.  If needing  only 
+simple  searching SIFT is good value.  SEARCH is mid-way between SIFT and  EF.
+So  inexpensive,  any  one is considered "a buy" and  candidate  for  WRITER'S 
+WORKBENCH  menu  of Z-News 504.  Defaults and menu prompts could  make  search 
+set-up  process exactly to your liking.  But let's see how Richard's FINDS  in 
+assembler (Syslib) compares...only four little measurements away.
+
+  Flash!   Version  1.6  of  BDS-C is in beta test.   Update  has  lots  of 
+   improvements...error detection and diagnosis refined, K&R buffered  I/O, 
+   BCD floating point package, standard header file now STDIO.H, and  more.  
+   Plus,  RED  editor, written by microcomputer pioneer Ed  Ream,  included 
+   with its source code, knows about errors in compilation and goes to line 
+   of  first  error--we seek this for assembler.  Still  8080  based...more 
+   reported  as  we use v1.6.  Maybe this version is faster than  v1.5a  we 
+   have  used for four years.  For immediate additional information,  write 
+   or  call Leor Zolman, BD Software, P.O. Box 2368, Cambridge,  MA  02238, 
+   617/576-3828.
+
+Another  Announcement.    Massive Index to Z-News, produced by  Z-System  user 
+Lorraine  McCord,  now  supplied with $24.00  per  year  newsletter  renewals.
+Working with MicroPro's StarIndex, best indexing and table of contents program 
+for 8-bit systems we know of, she produced multi-level references to not  only 
+Z-News  issue numbers but also to page numbers where material is located.   If 
+you haven't renewed your subscription yet, here's sufficient reason to do  so.ŠIndex  is not found on RASs.  Index is not public domain, is copyrighted,  but 
+comes bundled in printed-form with subscription renewals to Z-News.  As  added 
+bonus,  you who renew subscription to every-two-week  (fortnight)  publication 
+are provided latest Z-Node RAS (Remote Access System) listing printed on heavy 
+tan parchment.
+
+Z-User's  Corner.    VMENU  and CMD (VFILER)  menus  plus  support  utilities, 
+including C source and object for AN, PCC, and WC, described in Z-News 504 and 
+505  are all in file called WORK-VMN.LBR (50k-bytes, 400 128-byte records)  on 
+Z-Nodes.   From  these files much can be gleaned to assist  in  computer  task 
+automation.   Study Z-System User's Guide, pages 5-1 thru 5-6, 6-1 thru  6-18, 
+and  ZCPR3:  The Manual, Chapters 5 and 7, as you read a  menu  command  line.
+Understand  meaning  of  each  string  between  semicolons,  ";",  Z3  command 
+separator.   From  there  you can change, shrink or  stretch,  menus  to  your 
+specific needs.  Incidentally, WC, Word Count, counts lines and characters  in 
+addition  to words, and handles wild card file name declarations--a  must  for 
+writers who measure their writing.
+     Need technical help and Echelon phones are busy--try calling one or  more 
+of  our thirty or so Good-Neighbor Helpers.  Each volunteered to  help  backup 
+Echelon  in any way he can, to promote and increase high-performance,  upward-
+compatible  to CP/M, microcomputer use and understanding.  Helpers are  listed 
+in  file  ZHELPRnn.RAS found on Z-Nodes.  Quiet and diverse  group,  some  may 
+"speak your language" better than we do.  Give GNHs a try!
+     Now, let's review a little alias we find useful.  Main purpose is gaining 
+flexibility  using  transient  DIR13 (our alias is  called  DIR)  without  re-
+assembling its source.  You may gather we prefer horizontal sorts.
+
+              if nul $1;ROOT:dir13 *.* h;else;ROOT:dir13 $* h;fi
+
+Works  like  this:  if no trailing parameter is keyed in  after  command  name 
+(verb)  first  command  string of alias is run, showing  all  directory  files 
+because of *.* in alias.  Command entered is dir<cr>.  Second string of  alias 
+runs  if  file  mask is entered, which selects files to  be  displayed,  e.g., 
+*.doc.   Command  entered is dir *.doc<cr>.   In any event, files  show  hori-
+zontally sorted because of trailing "h" placed in alias script.
+     Recall,  a  reminder of transient-command options  available  is  usually 
+obtained by typing transient name followed by a space and two forward slashes: 
+command //<cr>.  If you type DIR //<cr> you see:
+
+DIR ver 1.3
+ Syntax: DIR dir:afn o
+ Options: A=All, S=Sys, H=Horiz, V=Vert, T=File Type/Name Sort
+
+     Alias  (and  menu) script design tip: declaring location  (directory)  of 
+command file bypasses path search and speeds command execution.
+     Next.   In keeping with our string searching benchmark activities  above, 
+we explore an alias useful to those owning The WORD Plus.  TWP's FIND  utility 
+determines  spelling  of  words, from any directory if PUBLIC  ZRDOS  Plus  is 
+available.  Here's how.  Create alias, we call it Get Spelling, GS, containing 
+conditional script (remember "<<" convention, from PAGE and PRINT, means line-
+continuation, indicates unbroken line): 
+
+  if nul $1;echo word not specified;echo syntax:gs <word><cr>;else;    <<
+  if $1=//;echo syntax: gs <word><cr>;else;a$u:;ROOT:find $*;$d:;fi;fi
+ 
+Using  correct  syntax  and "//" help not requested,  messages  are  bypassed.
+Next,  alias  logs into Disk (drive) A but stays in current user  area;  then, Šruns  FIND  (with arguments, if any) on word or words to  locate  (wild  cards 
+permitted).  And finally logs back into directory from where we called  alias.
+Main dictionary, MAINDICT.CMP, is in public directory declared as  A6:PRIVATE.
+FIND.COM  is  in A15:ROOT.  Example command lines (<cr>  means  gently  strike 
+RETURN key):
+
+gs ??ing<cr>       display five-letter words in dictionary ending in "ing"  1)
+gs cal*<cr>        display dictionary words starting with "cal"             2)
+gs cal???<cr>      display all six-letter words starting with "cal"         3)
+gs s?t?r<cr>       display five-letter word or words starting with s,       4)
+                   having t for middle letter, and ending with r
+gs california<cr>  determine if spelling of word is correct                 5)
+
+Words in MAINDICT.CMP are up to 19 characters in length.  Technique of Line 1) 
+is  great  for finding word rhymes.  For finding correct spelling of  a  word, 
+it's hard to beat line 2).  Simply indicate beginning of word, then a list  of 
+words  from main dictionary is displayed to show what might be  desired  word.
+Line  4) makes discovering unknown words, e.g., of crossword puzzles, a  snap.
+Think  of ways to add as command lines this alias and other word  manipulation 
+programs to WRITER'S WORKBENCH menu of Z-News 504.
+     Okay!    Here  goes...TWP's  WORDFREQ.COM  easily,   quickly   determines 
+vocabulary  of  a document file, how many unique, different words  there  are.
+Completing  file profile, WORDFREQ counts total number of words and number  of 
+words  used  once.  Additionally, a sorted file of type FRQ  is  automatically 
+created  on  default  drive containing all words in document  with  number  of 
+times, frequency, each appears.  And finally...
+     Our VMENU WRITING.VMN script line, d, using WORDFREQ to create and  VTYPE 
+to  scan,  and optionally print selected portions, temporary  word  statistics 
+file:
+
+       d $d$u:;ROOT:wordfreq $pf;sak strike any key to continue;  <<
+         ROOT:vtype $pn.frq;era $pn.frq
+
+     Many  aliases,  companions to GS and DIR above, can be created  to  speed 
+routine  computer operations.  Help us!  Send in ones you find  useful.   Help 
+yourself!   Study (read seven times, per Z-News 302, page 3)  Z-System  User's 
+Guide,  section  3.4, for more details on conditional flow control  using  IF, 
+ELSE, FI, XIF, EMpty, ERror, EXist, INput, and NUll.
+
+From  Our  Mail  Box.    "Thanks for your continued  support  of  GREATEST  OS 
+ever...and please continue to send those handy reference jewels [Z-News]...how 
+about  offering  a disk or two every so often to subscribers paying  for  this 
+service.   The  service  being: updates to the Z-System  utilities,  demos  of 
+aliases,  menus, etc.," writes Bill Kline from Miami, FL.  Bill, we have  been 
+thinking  of  doing this for some time because of many asking  for  it.   Your 
+wonderful  letter is catalyst making us get off the dime!  Here's how  service 
+works: you receive all programs and updates mentioned in Z-News on disk format 
+of your choice.  Diskettes come out as often as every month, but at least  one 
+every  two months.  Price of complete service for one year is  $85.00,  $47.00 
+for six months, continental USA.  If Canada, Mexico, Alaska, or Hawaii, compl-
+ete service is $97.00 per year, $53.00 for six months; elsewhere, $125.00  per 
+year,  $69.00  for six months.  We also offer single update disks  for  $12.00 
+continental  USA;  $14.00,  Canada,  Mexico,  Alaska,  and  Hawaii.   Includes 
+software, diskettes, shipping and handling.  For you who don't access, or have 
+trouble  accessing,  Z-Nodes  here is your bridge to  things  current,  twelve 
+months  of software updates.  Get on update service list now!   Thanks  again, 
+Bill, for moving us to action.Š
+Lunch  Break.    An  engineering  and  graphics  workstation  (Computer  Aided 
+Design/Engineering,  CAD/E) leader, Intergraph, Huntsville, AL, has  committed 
+to  Fairchild CLIPPER, 30 nanoseconds instruction cycle time, average 5  mips, 
+32-bit microprocessor chip set...certainly a beginning for Fairchild, to  have 
+such  a  large OEM sign up for their high-performance  processor  and  number-
+cruncher (one mflops, million floating point operations per second).  CLIPPER, 
+a  three  or four chip set consisting of main processor with  floating  point, 
+memory management and I/O units, seems presently to lead pack in microcomputer 
+throughput.   Designed by Howard Sachs, formally of Cray  Research,  CLIPPER's 
+basic  lay-out  can  be  carried to 25  mips,  beyond  contemporary  mainframe 
+throughput  territory.  Wonder who will be second source for these chips,  and 
+who is writing an Ada Language compiler.  Assembler and C, FORTRAN, and Pascal 
+compilers are available now!  We understand CLIPPER sells for about  $1,100.00 
+each  in  small  quantities, price soon goes down  to  $500.00  as  production 
+increases.   National's  32032 6mHz set goes for $84.95.  Oh!   Well...   More 
+information?  Call or write Ms. Chris Souder, Marketing Department,  Fairchild 
+Semiconductors, Advanced Processor Division, 4001 Miranda Ave., Palo Alto,  CA 
+94304, 415/858-4249.
+     Those  using  Software Toolworks C/80 may be interested  in  "HiSpeed"  C 
+Library offered by Viking Software, 2243 South Belaire Drive, Salt Lake  City, 
+UT  84109,  801/466-6820.   Object Library and Reference Manual  on  disk  for 
+$29.95,  with source code an additional $19.95...such a  deal...routines  work 
+with C/80 under Z-System or CP/M.
+     ====================================================================
+Of  Cabbages  and Kings.   Information gathering and processing  tools:  Term3 
+under  Z-System  collect  and  prepare data from A to  Z,  for  subjects  from 
+Astrology  to Zoology.  All obtained from places like The Source,  CompuServe, 
+and  over  2,000 other remote access systems.  Data about finance,  law,  real 
+estate, farming, health, sports, engineering, auto repair, politics--words and 
+numbers, facts resolved into information we individually turn into  knowledge, 
+and  finally,  with more work, into understanding to improve our  life.   Last 
+year, for the first time in history, money spent supporting office workers ex-
+ceeded  that  spent for factory workers.  "Information" as an  industry  grows 
+faster than any other segment of modern life.  Yet what do we communicate?  Do 
+we even know meaning of word communicate?  Lo!  Knowledge never seems to be  a 
+match for that called ignorance.
+     Laser  printers,  typesetters, are dazzling additions to  desktop  micro-
+computers, but a 24-wire-head dot matrix still is cost effective, does a  good 
+job,  for  both text and graphics.  We use Epson's new  LQ-800  and  Fujitsu's 
+mature DPL24 for most of our work.  You have seen their output; latter is used 
+for  Z-News.   A  laser could be added but we spend  our  energy  on  document 
+content  instead  of form.  Substance over appearances,  depth  over  surface, 
+these are our priorities.  Others join us with quickness of arthritic turtles.
+But  we  continue thinking what we do is necessary, more  necessary  now  than 
+ever,  at  least  for  us; sheep recognized from goat,  wolf  from  lamb.   An 
+individual's attitude is incisive, makes the difference...institutions are not 
+as  important as individuals...endless repetition from habit, or move to  next 
+plateau, into next octave of consciousness...it's up to you and me.  We affect 
+outcomes!  What we each do is infinitesimal, but what we each do is infinitely 
+important in determining kind of world we live in.
+     Rise up!  Pray, free us from invalid thinking, superstition.  Into  trash 
+can  with these.  Permit us to have new thoughts, to break negative ties  that 
+bind,  that  inslave.   Our goal is freedom, freedom to  become  what  we  are 
+capable of becoming, free to BE.
+     Happy  Birthday,  Happy  Centennial,  Lady Liberty!   And  thanks  go  to 
+Frenchman  Bartholdi for his vision, emotion, and leadership,  which  combined Šproduced for world, with assistance from many others, such a symbol.  See  you 
+down the lines...
+                                                                 Echelon, Inc.
+                                                       885 N. San Antonio Road
+                                                       Los Altos, CA 94022 USA
+                                                       Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+
+Trademarks:   Bookshelf,  Ampro Computers; SB180, Micromint;  PRO-180,  Magnum 
+Digital;  ON!, Oneac; DT42, The SemiDisk, Deep Thought 42,  SemiDisk  Systems; 
+TRS-80,  Tandy; HD64180, Hitachi; CLIPPER, Fairchild; Z-System, ZCPR3,  ZRDOS, 
+Z-News,  Z-Tool,  Z-Tools,  Zas, Zlink, Z-Msg, TERM  III,  Term3,  Quick-Task, 
+Lasting-Value Software, Echelon; CP/M, Digital Research; GT180, Turbo  Modula-
+II, Borland International; Lotus 1-2-3, Lotus Development; TWP, The Word Plus, 
+Oasis  Systems;  dBASE II, Ashton-Tate; C/80, Software  Toolworks;  BDS-C,  BD 
+Software; SIFT, Siftsoft; SEARCH, CompuMagic; Electra-Find, O'Neill Software.
+
+
+
+                tall
+             ship here                                     *
+
+
+
+                               Z sets you FREE!
+
+
+
+                  *                                        *
+
+
+
+Z-News  506 is Copyright 1986 Echelon, Inc.  All Rights Reserved.   Permission 
+to  reprint,  wholly or partially, automatically granted if source  credit  is 
+given to Echelon.
+

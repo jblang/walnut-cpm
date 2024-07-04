@@ -1,0 +1,147 @@
+;**********************************************************************
+;
+;	TIME routine for BYE3 running on Kaypro 2 with a Legacy RTC.
+;	(adapted from MBC-LGC2.ASM by Sanders, Levitt, Jones)
+;
+;	This insert is designed to work on a Kaypro running BYE3
+;	and equipped with a Legacy Computer Systems RTC.
+;	NOTE:  This is an insert...not an overlay.
+;
+;	(Use the DATE program to initialize the clock outside of BYE.)
+;
+;	Just set the equate below for K2 or K10 to select proper
+;	Data and Command ports for your particular board.
+;
+;	When called this routine will check the RTCBUF. If a '99H'
+;	is in the first byte, the clock is initialized. Next the
+;	seconds are checked, and if changed since last update of
+;	RTC buffer, the clock is stopped, data copied to RTCBUF, the
+;	BCD Hours and minutes converted to binary for CCHOUR/CCMIN
+;	and the clock is restarted. (If no change in seconds, the
+;	routine returns immediately.)
+;
+;**********************************************************************
+;
+; Set TIMEON EQU YES in the BYE3 equates and replace the TIME: routine in
+; BYE3 with this file.
+;
+; select only one of the following
+;
+K2	EQU	NO		; Yes, using Kaypro II board
+K10	EQU	YES		; Yes, using Kaypro 10 board
+;
+	 IF	RTC
+TIME:	LDA	RTCBUF		; Get first BCD byte
+	CPI	099H		; 99 ?
+	CZ	CLKINIT		; If so, init clock...
+	MVI	C,0		; Check low seconds
+	CALL	CLKREAD		; To see if change...
+	LXI	H,RTCBUF+2	; Compared to old secs
+	XRA	M		; Value stored in
+	ANI	0FH		; RTC buffer (low nibble)
+	JZ	CLKEXIT		; If no change, skip update
+	MVI	C,5		; Start with hi hours
+	LXI	H,RTCBUF	; And copy to RTCBUF
+	CALL	GETCLK		; (get time)
+	MVI	C,12		; Start with hi year
+	LXI	H,RTCBUF+4	; And copy to RTCBUF
+	CALL	GETCLK		; (and date)
+	LDA	RTCBUF		; Get hours
+	ANI	03FH		; Mask out PM/24 hour bits
+	STA	RTCBUF
+	LDA	RTCBUF+6	; Get day
+	ANI	03FH		; Mask out leap year bit
+	STA	RTCBUF+6
+;
+CLKEXIT:
+	LDA	RTCBUF		; Pick up HH
+	CALL	BCDBIN		; And convert it to binary
+	STA	CCHOUR		; Save as current hour
+	LDA	RTCBUF+1	; Pick up MM
+	CALL	BCDBIN		; And convert it to binary
+	STA	CCMIN		; Save as current minute
+	RET			; And return (for now..)
+;
+GETCLK:	MVI	B,3		; Repeat 3 times for 3 BCD bytes
+CLKLP:	CALL	CLKREAD		; Get data at address C
+	RLC ! RLC ! RLC	! RLC	; Move to high nibble for BCD
+	MOV	M,A		; Save at location temporarily
+	DCR	C		; Decrement clock addr
+	CALL	CLKREAD		; Get data at next address
+	ORA	M		; OR with previously saved data
+	MOV	M,A		; And save it
+	DCR	C		; Decrement clock addr
+	INX	H		; Increment to next BCD byte
+	DCR	B		; Decrement BCD counter
+	JNZ	CLKLP		; If 3rd BCD byte, done..
+	RET			; Return
+;
+; PIO STUFF
+;
+	 IF	K2		; Kaypro II board
+DATA	EQU	0AH		; Port B data
+CMD	EQU	0BH		; Port B cmd
+	 ENDIF			; K2
+;
+	 IF	K10		; Kaypro 10 board
+DATA	EQU	79H		; Port B data
+CMD	EQU	7BH		; Port B cmd
+	 ENDIF			; K10
+;
+MODE0	EQU	0FH		; Output mode
+MODE3	EQU	0CFH		; Bit control mode
+;
+; mask values for clock chip
+;
+LATCH	EQU	80H		; Set address latch (active high)
+RD	EQU	20H		; Read (active high)
+HOLD	EQU	10H		; Time hold (active high)
+;
+CLKINIT:
+	MVI	A,MODE0		; Output mode
+	OUT	CMD		; Command port
+	MVI	A,3		; Disable interrupts
+	OUT	CMD
+	MVI	A,MODE3		; Set bit control mode
+	OUT	CMD
+	MVI	A,0FH		; Set D3-D0 inputs mask
+	OUT	CMD
+	RET
+;
+; read data into A from address in C
+;
+CLKREAD:
+	PUSH	B
+	MVI	A,MODE3		; Set bit control mode
+	OUT	CMD
+	MVI	A,00H		; Set all outputs mask
+	OUT	CMD
+	MVI	A,LATCH+HOLD
+	ORA	C		; Set latch, hold, & address
+	OUT	DATA
+	MVI	A,HOLD
+	ORA	C		; Reset latch
+	OUT	DATA
+	MVI	B,20		; Wait 150 uS
+CLKR1:	XCHG ! XCHG
+	DCR	B
+	JNZ	CLKR1
+	MVI	A,MODE3		; Set bit control mode
+	OUT	CMD
+	MVI	A,0FH		; Set D3-D0 inputs mask
+	OUT	CMD
+	MVI	A,RD+HOLD	; Set read & hold
+	OUT	DATA
+	XCHG ! XCHG		; Wait 6 uS
+	IN	DATA		; Input data
+	ANI	0FH		; Just in case
+	MOV	C,A		; Save in C
+	XRA	A
+	OUT	DATA		; Write 0 to command register
+	MOV	A,C		; Get saved data
+	POP	B		; Restore BC
+	RET
+	 ENDIF	;RTC
+;
+;**********************************************************************
+

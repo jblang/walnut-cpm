@@ -1,0 +1,154 @@
+
+; B3HZ-2.INS - Heath/Zenith-100 insert for BYE3 - 07/30/85
+;
+;	2661B I/O with built-in baudrate generator, 4.9152 MHz
+;
+;	Note:  This is an insert, not an overlay.
+;
+;
+;	WIRING THE HEATH:
+;	----------------
+;	   The HZ-100 has a quirk with the 2661 that requires the
+;	   DCD signal (carrier detect) from the modem be brought
+;	   to the DSR input on the computer, rather than to its DCD
+;	   input, else the HZ-100 cannot be programmed properly.
+;	   If using the Heath HCA-11 RS-232 cable between the modem
+;	   and the computer, the following will need to be done:
+;
+;		Push pins 6 (blue) and 8 (black) from the male
+;		connector at the modem end, then put the blue
+;		one in pin 8, leaving the black one unconnected.
+;		(Tape it or whatever and replace the connector.)
+;
+;		This hooks pin 8 at the modem end to pin 6 at
+;		the computer end and then has nothing connected
+;		to pin 6 at the modem end.  (You can make this
+;		change at either end that is most convenient, so
+;		the computer effective winds up with nothing at
+;		its pin 8.)  This permits the computer's DSR in-
+;		put to check the modem's DCD line.
+;
+;
+;			If using a Hayes Smartmodem 1200,
+;			insure all switches are up except
+;			3, 5 and 8 which should be down.
+;
+;			      modem	 computer
+;				 1-----------1
+;				 2-----------2
+;				 3-----------3
+;				 6 n/c	     8 n/c
+;				 7-----------7
+;				 8-----------6
+;				20-----------20
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Modem port equates
+;
+DPORT	 EQU	0ECH		; Data port for Heath/Zenith-100 series
+SPORT	 EQU	DPORT+1		; Status port
+MPORT	 EQU	DPORT+2		; Modem port
+CPORT	 EQU	DPORT+3		; Control port
+;
+DAV	EQU	00000010B	; Data available
+TBMT	EQU	00000001B	; Transmit buffer empty
+DCD	EQU	10000000B	; Data carrier detect
+;
+BD300	 EQU	0F6H		; 300 baud
+BD1200	 EQU	0F8H		; 1200 baud
+BD2400	 EQU	0FBH		; 2400 baud
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	SPORT		; Status port
+	ANI	DCD		; See if there is a carrier (DSR pin)
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	XRA	A		; Drop DTR
+	OUT	CPORT
+;
+	PUSH	B		; In case it was being used
+	MVI	B,20		; Delay for 2 seconds
+OFFTI:	CALL	DELAY		; .1 second increments
+	DCR	B		; One less to go
+	JNZ	OFFTI		; If not zero, loop until zero
+	POP	B		; Restore to original
+;
+	MVI	A,37H		; Reset RTS, flags, DTR, enable R/T
+	OUT	CPORT		; Control port
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize modem
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; The following is a routine that will input one character from the mo-
+; dem port.  If there is nothing there, it will return garbage... so use
+; the MDINST routine first.
+;
+MDINP:	IN	DPORT
+	RET
+;
+; The following is a routine to determine if there is a character wait-
+; ing to be received.  If there are none, the zero flag will be set.
+; Otherwise, 0FFH will be returned in 'A' reg.
+;
+MDINST:	IN	SPORT
+	ANI	DAV		; Check for receive ready bit
+	RZ
+	ORI	255		; We got something...
+	RET
+;
+; The following is a routine to determine if the transmit buffer is em-
+; pty.	If not, it returns with the Zero flag set, otherwise it will
+; return with Zero clear.
+;
+MDOUTST:IN	SPORT
+	ANI	TBMT		; Check the transmit ready bit
+	RZ
+	ORI	255
+	RET
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+MDSTOP:	XRA	A		; Turn off DTR
+	OUT	CPORT
+	RET
+;
+; The following is a routine that will output one character in the 'A'
+; reg. to the modem.
+;
+MDOUTP:	OUT	DPORT
+	RET
+;
+; Set the baudrate, returns with Zero flag set with successful change
+;
+SET300:	MVI	B,BD300
+	JMP	LOADBD
+;
+SET1200:MVI	B,BD1200
+	JMP	LOADBD
+;
+SET2400:MVI	B,BD2400
+;
+LOADBD:	MVI	A,4EH		; 1 Stop, no parity, 8 bits, 16x asynch
+	OUT	MPORT		; Send to mode register
+	MOV	A,B		; Get the baudrate
+	OUT	MPORT		; Set the desired speed
+	MVI	A,37H		; Reset flags, RTS, DTR, enable R/T
+	OUT	CPORT		; Send to command register
+	XRA	A		; Shows the baudrate change was ok
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

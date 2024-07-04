@@ -1,0 +1,25 @@
+Msg 103 is 19 line(s) on 02/12/88 from JAY SAGE
+to BRIDGER MITCHELL about BGII PROBLEM WITH FLOW CONTROL
+
+Rick Charnes first pointed out and I confirmed that some flow control
+tests that work under ZCPR3 do not work under BackGrounder.  Specifically,
+these are the tests that refer to disk files, such as IF EXIST, IF EMPTY,
+IF SYS, IF RO, and so on.
+ 
+This problem was causing me particular grief recently as I tried to
+implement an alias to use SAVSTAMP.  File-existence tests kept giving the
+wrong result.  I have finally figured out what is causing the trouble,
+and looking back I should have been able to figure this out long ago; I
+had seen several clues.  First, IF.COM, when invoked directly (say by
+renaming if to COMIF.COM and running COMIF EX FN.FT;IFQ,FI) always gave
+the correct answer.  The problem only occurred when control was passed
+from the FCP module.  The second clue I had was that under BGii, there
+were occasional strange accesses to one of my floppy drives.  Finally
+today I noticed that when I entered "IF EX FN.FT" the light on my floppy
+drive B kept flashing even though I was on ramdrive M:.  The answer is
+that BGii is losing track of the logged-in directory in the process of
+calling on the FCP module.  By entering "IF EX M0:FN.FT" I can get the
+test to return the correct answer.
+
+MSG # [last msg = 300] : or COMMAND (? for help) ? 
+

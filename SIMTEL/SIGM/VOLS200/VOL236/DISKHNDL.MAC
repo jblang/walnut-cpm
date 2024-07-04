@@ -1,0 +1,476 @@
+        title 'disk handling routines'
+
+true        equ -1
+false       equ 0
+
+banked      equ true
+check       equ false
+
+            .Z80
+
+.comment *
+disk handling routines for assembly by m80
+
+routines  (dph address in DE):
+   fread    return 0 in A for success, 1 for failure
+   fwrite   return 0 for success, 1 for error, 2 for write protected disk
+   flogin   login - set density
+   finita   initialize drive a
+   finitb   initialize drive b
+   finitc   initialize drive c
+
+external variables
+   @adrv    absolute drive code
+   @rdrv    relative drive code
+   @dma     disk transfer address
+   @trk     track
+   @sect    sector
+   @ermde   error mode
+   @dbnk    bank
+
+external routines
+   ?pmsg    print message
+   ?pdec    print decimal
+   ?pderr   print disk error header
+   ?wboot   warm boot
+   ?conin,?cono,?const   console routines
+   ?move,?xmove,?trans   bank transfer routines
+
+codes for disk format
+   bit 5: 1 for double sided
+   bit 4: 1
+   bit 2,3: 0 for 128 byte sectors,
+            1 for 256 byte sectors,
+            2 for 512 byte sectors,
+            3 for 1024 byte sectors
+   all bits=0 if density determination fails
+
+         *
+
+         dseg
+
+         entry fread,fwrite,flogin,finita,finitb,finitc
+         external @adrv,@rdrv,@dma,@trk,@sect,@ermde
+         external ?pmsg,?pdec,?pderr,?wboot,?conin,?cono,?const,?move
+                     if banked
+         external ?xmove,?trans,@cbnk,@dbnk
+                     endif
+         external adrv,bdrv,cdrv,ddrv   ; drives
+         external dskdef                ; disk characteristics
+cr      equ     13
+lf      equ     10
+xbuff   equ     0E800H          ;Buffer for r/w to nonzero banks
+ntry    equ     4               ;number of retries
+ 
+origin  equ     0E000H
+djboot  equ     origin          ;Disk Jockey 2D cold boot
+djcin   equ     origin+3h       ;Disk Jockey 2D character input routine
+djcout  equ     origin+6h       ;Disk Jockey 2D character output routine
+djhome  equ     origin+9h       ;Disk Jockey 2D track zero seek
+djtrk   equ     origin+0ch      ;Disk Jockey 2D track seek routine
+djsec   equ     origin+0fh      ;Disk Jockey 2D set sector routine
+djdma   equ     origin+12h      ;Disk Jockey 2D set DMA address
+djread  equ     origin+15h      ;Disk Jockey 2D read routine
+djwrit  equ     origin+18h      ;Disk Jockey 2D write routine
+djsel   equ     origin+1bh      ;Disk Jockey 2D select drive routine
+djtsta  equ     origin+21h      ;Disk Jockey 2D terminal status routine
+djstat  equ     origin+27h      ;Disk Jockey 2D status routine
+djerr   equ     origin+2ah      ;Disk Jockey 2D error, flash led
+djden   equ     origin+2dh      ;Disk Jockey 2D set density routine
+djside  equ     origin+30h      ;Disk Jockey 2D set side routine
+djleav  equ     origin+222h     ;leave routine in dj rom
+djprep  equ     origin+233h     ;prep routine in dj rom
+
+
+finita:                           ; initialize disk a
+         ld a,'A'
+         ld (drvtp),a             ; disk A expected
+         ld c,0
+         call djsel               ; physical drive A
+         xor a                    ; clear a
+         ld (adrv-1),a            ; error or unset code for disk format
+         ret
+finitb:                           ; initialize disk b
+         xor a                    ; clear a
+         ld (bdrv-1),a            ; error or unset code for disk format
+         ret
+finitc:                           ; initialize disk c
+         xor a                    ; clear a
+         ld (cdrv-1),a            ; error or unset code for disk format
+         ret
+
+setup:                            ; set up disk parameters
+         push de                  ; keep de
+         call dsk                 ; check correct disk loaded
+                     if banked
+         ld a,(@dbnk)             ; check bank
+         and a
+         jr z,bnk0                ; bank 0
+                                  ; get sector length / 128
+         pop bc                   ; get dhp
+         push bc                  ;   & restore to stack
+         ld hl,12
+         add hl,bc                ; points to address of dpb
+         ld c,(hl)
+         inc hl
+         ld b,(hl)                ; bc contains address of dpb
+         ld hl,16
+         add hl,bc                ; hl points to phm
+         ld a,(hl)
+         inc a                    ; a contains sector length / 128
+         ld (seclen),a            ; store in seclen
+         ld bc,xbuff              ; temporary buffer
+         jr bnkx
+                     endif
+bnk0:    ld bc,(@dma)             ; get dma
+bnkx:    xor a                    ; necessary to detect dma error
+         call djdma               ; set dma
+         and a
+         jp nz,err2               ; dma invalid
+         ld a,(@sect)             ; get sector
+         ld c,a
+         call djsec               ; set sector
+         jp c,err1
+         ld a,(@trk)              ; get track
+         ld b,a
+         pop hl
+         dec hl                   ; points to disk format
+         ld a,(hl)                ; get disk format
+         ld (fmt),a               ; keep disk format
+         or a                     ; get flags
+         jp z,nologi              ; login not done or failed
+         bit 5,a                  ; check for double sided
+         ld c,0
+         jr z,ss                  ; jump if single sided
+         srl b                    ; divide track by 2 - rem to carry bit
+         rl c                     ; side 1 if track number odd
+ss:      call djside              ; set side (to 0 for ss disk)
+         ld c,b
+         call djtrk               ; set track
+         jp c,err1
+         ret
+
+dsk:                              ; check correct disk loaded
+         ex de,hl
+         dec hl
+         dec hl                   ; points to unit
+         ld a,(drvtp)             ; get current disk name
+         cp (hl)
+         ret z                    ; return if disk ok
+         ld a,(hl)
+         ld (drvtp),a             ; store disk name
+         call clear               ; clear console input
+         ld hl,chdsk              ; change disk message
+         call ?pmsg               ; type message
+         call ?conin              ; wait for input
+         call crlf
+         call djhome              ; track 0
+         ret
+
+chdsk:   db cr,lf,'Load disk '    ; change disk message
+drvtp:   db 'A'
+         db ', <ret>',0
+                     if banked
+seclen:  ds 1                     ; sector length / 128
+                     endif
+fmt:     ds 1                     ; disk format
+
+clear:                            ; clear console buffer
+         call ?const              ; check for character
+         or a                     ; set flags
+         ret z                    ; return if no character
+         call ?conin              ; get character
+         jr clear                 ; try again
+
+yesno:                            ; return with zero set if y or Y entered
+         call ?conin
+         cp 'y'
+         ret z
+         cp 'Y'
+         ret z
+         cp 'n'
+         jr z,yesno1
+         cp 'N'
+         jr z,yesno1
+         jr yesno                 ; cycle if not y,Y,n or N
+yesno1:  and a                    ; to set flag to nz
+         ret
+
+crlf:                             ; output a cr and lf
+         ld hl,lcrlf
+         call ?pmsg
+         ret
+
+lcrlf:   db cr,lf,0
+
+fread:                            ; read sector
+                     if check
+         ld hl,xr
+         call record
+                     endif
+         call setup               ; set disk parameters
+cycr1:   ld b,ntry                ; number of attempts
+cycr:    push bc                  ; store these
+         call djread              ; diskjockey read
+         pop bc
+                     if banked
+         jr nc,fre1               ; exit if successful
+                     else
+         ret nc
+                     endif
+         and a                    ; set flags
+         call m,notred            ; drive not ready
+         djnz cycr                ; try ntry times
+         call errcd
+                     if banked
+         jr nz,fre2               ; exit anyway
+                     else
+         ret nz
+                     endif
+         jr cycr1
+                     if banked
+fre1:    call frex
+         xor a                    ; return code
+         ret
+fre2:    push af                  ; keep error code
+         call frex
+         pop af                   ; return code
+         ret
+frex:    ld a,(@dbnk)             ; interblock transf reqd?
+         and a
+         ret z                    ; return if reading from bank 0
+         ld b,a                   ; destination
+         ld hl,(@dma)
+         ld c,0                   ; source
+         ld de,xbuff
+         ld a,(seclen)            ; get sector length / 128
+         call ?trans              ; interblock transfer
+         ret
+                     endif
+
+fwrite:                           ; write sector
+                     if check
+         ld hl,xw
+         call record
+                     endif
+         call setup               ; set disk parameters
+                     if banked
+         ld a,(@dbnk)             ; check bank
+         and a
+         jr z,cycw1               ; jump if bank 0
+         ld c,a                   ; source
+         ld de,(@dma)
+         ld b,0                   ; destination
+         ld hl,xbuff
+         ld a,(seclen)
+         call ?trans              ; interblock transfer
+                     endif
+cycw1:   ld b,ntry                ; number of attempts
+cycw:    push bc                  ; store these
+         call djwrite             ; diskjockey write
+         pop bc
+         ret nc                   ; return if successful
+         and a                    ; set flags
+         call m,notred            ; drive not ready
+         djnz cycw                ; try ntry times
+         call errcd
+         ret nz                   ; return anyway
+         jr cycw1
+flogin:                           ; login drive
+         push de                  ; contains dph location
+                 ; now carry out dummy op to get disk characteristics
+         call dsk                 ; check correct disk
+         call djhome              ; to track 0
+         ld c,1
+         call djsec               ; sector 1
+         ld c,0
+         call djside              ; side 0
+         ld c,2
+         call djtrk               ; track 2
+         call djprep              ; dummy disk op
+         call djleav
+         jr nc,contin             ; jump if successful
+         pop hl
+         ld d,h                   ; so we can jump to flogin
+         ld e,l
+         dec hl
+         ld (hl),0                ; to indicate login failed
+         bit 7,a
+         jr nz,nr1                ; jump if not ready
+         push de                  ; keep de
+         call errcd
+         pop de
+         ret nz                   ; return anyway
+         jr flogin
+nr1:     push de                  ; keep de
+         call notred
+         pop de
+         jr flogin
+
+contin:  call djstat              ; get disk characteristics
+         or 10h                   ; set bit 4
+         pop hl                   ; get dph location
+         ld d,h                   ; copy it to de
+         ld e,l
+         dec hl                   ; points to disk format
+         ld (hl),a                ; store disk characteristics
+         rrca                     ; move right 
+         and 16h                  ; 2 * sec.lng.code + 16 * side.code
+         ld hl,dskdef             ; get table of disk table addresses
+         ld b,0
+         ld c,a
+         add hl,bc                ; hl points to address of skew table
+         ldi                      ; copy two bytes
+         ldi
+         ld bc,6
+         add hl,bc                ; address of pointer to dpb
+         ld bc,10
+         ex de,hl
+         add hl,bc                ; pointer to dpb in dph
+         ex de,hl
+         ldi                      ; copy two bytes
+         ldi
+         ret 
+
+              ; handle errors
+notred:                           ; drive not ready
+         push bc
+         call clear
+         ld hl,x0
+         call ?pmsg
+         call ?conin              ; wait for keyboard entry
+         pop bc
+         ret
+err1:    call ?pderr
+         ld hl,x1
+         call ?pmsg
+         jp ?wboot
+err2:    call ?pderr
+         ld hl,x11
+         call ?pmsg
+         jp ?wboot
+err3:                             ; check for disk change
+         call djstat              ; get actual disk format
+         or 10h                   ; set bit 4
+         ld hl,fmt
+         cp (hl)                  ; compare with recorded format
+         jr z,err1                ; no disk change detected
+         ld a,0ffh                ; disk change code
+         pop hl                   ; adjust stack
+         ret                      ; return
+
+errcd:   bit 6,a
+         jr nz,wrpr               ; write protected disk
+         bit 4,a
+         jr nz,err3               ; invalid record/sector
+         ld a,1                   ; error code
+         ld (ecx),a
+         ld a,(@ermde)            ; error mode
+         inc a                    ; zero if @ermde=0ffh
+         jr z,herror              ; if error messages are not being written
+         call ?pderr              ; bios error message
+         call clear
+         ld hl,x2
+         call ?pmsg               ; ask whether to try again
+         call yesno
+         ret z                    ; try again
+ec1:     ld hl,x21
+         call ?pmsg               ; ask whether to return to cpm
+         call yesno
+         jp z,?wboot              ; return to cpm
+         ld hl,x22
+         call ?pmsg               ; ask whether to return error code
+         call yesno
+         push af                  ; keep flag
+         ld hl,x23
+         call ?pmsg
+         pop af
+         jr z,herror
+         ld a,0                   ; if no: clear error code, leave nz flag
+         ret
+
+wrpr:    ld a,2                   ; error return code
+         ld (ecx),a               ; store in ecx
+         ld a,(@ermde)            ; error mode
+         inc a                    ; zero if @ermde=0ffh
+         jr z,herror              ; if error messages are not being written
+         call ?pderr              ; bios error message
+         call clear
+         ld hl,x24
+         call ?pmsg
+         jr ec1
+
+nologi:  call ?pderr
+         ld hl,x3
+         call ?pmsg
+         jp ?wboot
+
+herror:  ld a,(ecx)
+         and a                    ; to set flags
+         ret
+
+ecx:     ds 1                     ; code for error location
+
+x0:      db cr,lf,'close drive <ret>',cr,lf,0
+x1:      db cr,lf,'invalid sector/record',cr,lf,0
+x11:     db cr,lf,'illegal dma',cr,lf,0
+x2:      db cr,lf,'parity error - try again (y/n)?',0
+x21:     db cr,lf,'   - return to cpm (y/n)?',0
+x22:     db ' - return error code (y/n)?',0
+x23:     db ' - continuing',cr,lf,0
+x24:     db cr,lf,'write protected disk',0
+x3:      db cr,lf,'drive not logged in',cr,lf,0
+
+                     if check   ; debugging messages
+
+xcrlf:   db cr,lf,0
+xr:      db 'read ',0
+xw:      db 'write ',0
+xtrk:    db '  trk ',0
+xsect:   db '  sect ',0
+xdma:    db '  dma ',0
+                     if banked
+xcbnk:   db '  cbnk ',0
+xdbnk:   db '  dbnk ',0
+                     endif
+
+record:  push de
+         push hl
+         ld hl,xcrlf
+         call ?pmsg
+         pop hl
+         call ?pmsg
+         ld hl,xtrk
+         call ?pmsg
+         ld hl,(@trk)
+         call ?pdec
+         ld hl,xsect
+         call ?pmsg
+         ld hl,(@sect)
+         call ?pdec
+         ld hl,xdma
+         call ?pmsg
+         ld hl,(@dma)
+         call ?pdec
+                     if banked
+         ld hl,xcbnk
+         call ?pmsg
+         ld hl,(@cbnk)
+         ld h,0
+         call ?pdec
+         ld hl,xdbnk
+         call ?pmsg
+         ld hl,(@dbnk)
+         ld h,0
+         call ?pdec
+                     endif
+         ld hl,xcrlf
+         call ?pmsg
+         pop de
+         ret
+                     endif
+
+         end
+p 'N'
+         jr z,yesno1
+         jr yesno                 ; cycle if not y,Y,n 

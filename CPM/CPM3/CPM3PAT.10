@@ -1,0 +1,76 @@
+                                   CP/M Plus.. V3.0
+                           Patch 10, DIRLBL patch 01, 5/1/83
+
+                         Copyright....1983 by Digital Research
+                 CP/M Plus and SID are trademarks of Digital Research.
+                                   Compiled July 1983
+
+
+          Note:  This file is extracted from the file called CPM+PAT.PAT that
+                 exists on some RCP/M systems.  This patch has an error in
+                 that file.  This is corrected and verified on the phone with
+                 DRI's technical support center.  30 Oct 84....dave mabry
+
+
+          Program:  DIRLBL.RSX
+          Products and Serial Numbers Affected:  CP/M Plus.. V3.0  2-000-00001
+          through 2-000-xxxxx
+
+          Error Description:
+
+          In some circumstances, DIRLBL destroys critical addresses at the end
+          of the file descriptor area.  It also does not allocate enough local
+          stack for some BIOS implementations.  Both situations  result  in  a
+          hung system.
+
+          Patch Procedure:
+
+          Make a back-up copy of DIRLBL.RSX before making  any  changes.   Use
+          SID.. to patch DIRLBL.RSX with the following series of commands:
+
+               A>ren dirlbl.sav=drlbl.rsx
+               A>sid dirlbl.sav
+               CP/M 3 SID - Version 3.0
+               NEXT MSZE  PC  END
+               0700 0700 0100 D4FF
+               #s101
+               0101 1E 0
+               0102 04 5
+               0103 00 .
+               #s230
+               0230 1E 3E
+               0231 05 .
+               #a375
+               0375 call 053e
+               0378 .
+               #m61E,6FF,700
+               #f600,6FF,0
+               #a63e
+               063E mov e,m
+               063F inx h
+               0640 mov d,m
+               0641 xchg
+               0642 shld 04ad
+               0645 ret
+               0646 .
+               #f780,79f,0
+               #f7e0,7ff,1a
+               #s788
+               0788 00 8
+               0789 00 .
+               #wdirlbl.rsx,100,7ff
+               000Eh record(s) written.
+               #g0
+               A>gencom set.com
+
+               GENCOM completed.
+
+               A>gencom set.com dirlbl.rsx
+
+               GENCOM completed.
+
+               A>
+
+
+          Licensed users are granted the right to  include  these  changes  in
+          CP/M Plus V3.0 software.

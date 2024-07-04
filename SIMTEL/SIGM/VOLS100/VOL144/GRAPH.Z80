@@ -1,0 +1,662 @@
+;GRAPH is a package of subroutines to allow graphs
+;  to be printed on an MX80 with GRAFTRAX
+;Using programs written either in Microsoft Basic or Fortran
+;
+;	Written Dec 1981 by	Trevor Marshall,
+;				SYSOP, Thousand Oaks Tech RCPM
+;				3423 Hill Canyon Ave, TO CA 91360
+;
+; (C) Copyright 1981 by Trevor Marshall
+; Permission is given for this package to be 
+;   distributed and used, but not for profit.
+;
+; This version is for 400 dots x 200 dots (25 Lines)
+; The complete buffer array is stored in memory so that
+;  multiple plots and other graphics may be facilitated
+;Although this takes up a lot of memory the multiple plot
+; ability is extremely useful
+;
+; There are 6 Subroutines.
+; INITAX initializes the 400x200 array and fills in axes at 0,0
+; INITGR initializes the 400x200 array but does not fill in axes
+;	 calls to SCALEX or SCALEY are used for axes
+; MARK marks a point with a square around it,given the coordinates
+; PLOT plots a single point in the array, given its coordinates
+; ANNOTY prints 5 condensed chars at the left of the Y axis
+; PUTIT Prints the stored array, together with axis names
+; (It is left to the calling program to print any descriptive
+;	  header information.)
+; As the EPSON normally loses count of top of form position
+;  (it only counts the number of lines/ page), when the line
+;   is other than 12 dots high; PUTIT readjusts TOF
+;
+; The calling sequence from the MICROSOFT BASIC COMPILER is:
+;	CALL INITAX	or CALL INITGR		(no params)
+;	CALL MARK(X%,Y%), 0 <= X% <= 399; 0 <= Y <= 199
+;	CALL PLOT(X%,Y%)
+;	CALL ANNOTY(VALUE$,Y%)
+;	; VALUE$ is a string of 5 chars (may be blank)
+;	;  to identify the axis, Y% is the coordinate it is to be placed at
+;	CALL PUTIT(XALPHA$,YALPHA$), where
+;	; XALPHA is a string to annotate the X axis ( <= 79 chars)
+;	; YALPHA is a string to annotate the Y axis ( <= 25 chars)
+;	;  either of them may be blank but not null
+;
+;If the Conditional FORTRAN is TRUE (for Microsoft Fortran),
+; All the Alpha strings must be type LOGICAL, and are called thus
+; LOGICAL VALUE(5), XALPHA(79), YALPHA(25)
+; INTEGER X,Y
+; CALL INITAX  or  CALL INITGR	(no params)
+; CALL MARK(X,Y)
+; CALL PLOT(X,Y)
+; CALL ANNOTY(VALUE,Y)
+; CALL PUTIT(XALPHA,YALPHA)
+;
+BDOS	EQU	5
+;
+FALSE	EQU	0
+TRUE	EQU	-1
+;
+TESTING EQU	FALSE	;Set true if stand alone
+FORTRAN EQU	FALSE	;Set true if compiling for Microsoft Fortran
+;
+	GLOBAL	INITAX,INITGR,MARK,PLOT,ANNOTY,PUTIT
+;
+;------------------------------------------------------------------------------
+	IF	TESTING		;If Testing we use as a stand-alone package
+;
+	ORG	100H		;To reduce compilation/linking time
+;
+	CALL 	INITAX
+;Now plot an example line
+	LD	HL,99	;X from 100 -> 299
+	LD	DE,200	;Y from 199 -> 0
+LP8:	INC	HL
+	DEC	DE
+	LD	A,E
+	OR	D
+	JR	Z,NXT78	;DONE
+	PUSH	HL
+	PUSH	DE
+;CALL PLOT(X%,Y%):
+	CALL	PUT.PARAM	;Into MICROSOFT format
+	CALL	PLOT
+	POP	DE
+	POP	HL
+	JR	LP8
+;
+NXT78:	
+;CALL MARK(20,100)
+	LD	HL,20
+	LD	DE,100
+	CALL	PUT.PARAM
+	CALL	MARK
+;
+;CALL MARK(0,0)	;To check if marking is only performed within correct limits
+	LD	HL,0
+	LD	DE,0
+	CALL	PUT.PARAM
+	CALL	MARK
+;
+;CALL MARK(399,199) ;as above
+	LD	HL,399
+	LD	DE,199
+	CALL	PUT.PARAM
+	CALL	MARK
+;
+;CALL ANNOTY(STRING$,Y%)
+	LD	HL,S3
+	LD	DE,190
+	LD	(P2),DE
+	LD	DE,P2
+	CALL	ANNOTY
+	LD	HL,S4
+	LD	DE,10
+	LD	(P2),DE
+	LD	DE,P2
+	CALL	ANNOTY
+;
+;CALL	PUTIT(XALPHA$,YALPHA$)
+	LD	HL,S1	;XALPHA$
+	LD	DE,S2	;YALPHA$
+	CALL	PUTIT
+	JP	0		;Done
+;
+PUT.PARAM:	;Store passed variables
+	LD	(P1),HL
+	LD	HL,P1
+	LD	(P2),DE
+	LD	DE,P2
+	RET
+;
+P1:	DW	0
+P2:	DW	0
+S1:	DB	79
+	DW	ST1
+S2:	DB	24
+	DW	ST2
+S3:	DB	5
+	DW	ST3
+S4:	DB	5
+	DW	ST4
+ST1:	DB	'This is the string which can be '
+	db	'used to annotate the X axis for coordinates,etc.'
+ST2:	DB	'THIS IS THE Y AXIS STRING'
+ST3:	DB	'ts1.1'
+ST4:	DB	'ts2.2'
+;
+;
+	ENDIF	;TESTING
+;------------------------------------------------------------------------------
+;Firstly a S/R to get the passed parameters
+GET@HL: LD	A,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,A	;Return with @HL in HL
+	RET
+;
+;LIST.STRING is a subroutine to send a string to the LIST device
+; HL points to the string on entry, B contains its length
+LIST.STRING: LD	C,5	;BDOS LIST function
+LP5:	LD	E,(HL)
+	PUSH	HL
+	PUSH	BC
+	CALL	BDOS
+	POP	BC
+	POP	HL
+	INC	HL
+	DJNZ	LP5
+	RET
+;
+CRLF:	LD	E,0DH	;Put out a CRLF
+	LD	C,5
+	CALL	BDOS
+	LD	E,0AH
+	LD	C,5
+	CALL	BDOS
+	RET
+;
+;
+; INITGR merely initializes the array
+INITGR:	LD	HL,BUFFER ;HL points at start of buffer
+	LD	DE,BUFFER+1 ;Get ready for block Fill
+	LD	BC,BUFF.LENGTH-1
+	LD	(HL),0		;Zero the first locn
+	LDIR			;and now the rest
+; Now initialize the ANNOT.BUFFER
+	LD	HL,ANNOT.BUFFER
+	LD	DE,ANNOT.BUFFER+1
+	LD	BC,25*5-1
+	LD	(HL),' '
+	LDIR
+	RET	
+;
+; INITAX initializes the array and fills in axes at 0,0
+INITAX:
+	CALL	INITGR
+; Now Fill in Vertical axis
+	LD	DE,400		;Row increment
+	LD	B,25		;The number of rows
+	LD	HL,BUFFER	;Get where the Y axis will be
+LP1:	LD	(HL),0FFH	;Fill in solid left axis
+	ADD	HL,DE
+	DJNZ	LP1
+;Fill in Horizontal axis
+	LD	HL,BUFFER+10000-400 ;Point at first char of axis row
+	LD	BC,400	;The length of the axis
+LP6:	LD	A,(HL)	;Set the bottom bit
+	OR	A,1	;Set the bottom bit
+	LD	(HL),A
+	INC	HL
+	DEC	BC
+	LD	A,C
+	OR	B	;Is BC=0?
+	JR	NZ,LP6		
+;Now put in the 'pips' on the vertical axis***********************
+	RET
+;
+;Output the buffer & strings
+PUTIT:
+	IF	NOT FORTRAN	;FORTRAN does not have a length byte
+	INC	HL		;Point past the string length byte
+	ENDIF
+	CALL	GET@HL		
+	LD	(X.COORD),HL	;Save address of HL string
+	EX	DE,HL
+	IF	NOT FORTRAN
+	INC	HL		;as above
+	ENDIF
+	CALL	GET@HL
+	LD	(Y.COORD),HL	;Y string
+;
+	LD	HL,BUFFER	;Initialize the output pointer
+	LD	(BUFF.PTR),HL
+	LD	A,25		;Number of rows
+	LD	(ROW),A
+	LD	A,-1		;Point at first Y axis char
+	LD	(STRING.PTR),A
+;Set to 8 dot linefeed
+	LD	HL,SPACE.8
+	LD	B,3	;Number of chars O/P
+	CALL	LIST.STRING
+	LD	B,8
+	LD	HL,NORMAL	;cancel special print
+	CALL	LIST.STRING
+	CALL	CRLF	;Clean up format
+;
+;First put out the ALPHA label ID
+LP3:	LD	A,(STRING.PTR)	;Point at next char in Y string
+	INC	A
+	LD	(STRING.PTR),A
+;
+	LD	B,4
+	LD	HL,EXP.ON	;set expanded emphasized mode
+	CALL	LIST.STRING
+;
+	LD	HL,(Y.COORD)
+	LD	B,0	;Calculate the index of the current string char
+	LD	C,A
+	ADD	HL,BC
+;
+	LD	E,(HL)
+	LD	C,5
+	CALL	BDOS	;Send it to printer
+;
+	LD	B,8
+	LD	HL,NORMAL ;Reset to standard chars
+	CALL	LIST.STRING
+;
+	LD	B,2
+	LD	HL,COMPRESSED
+	CALL	LIST.STRING	;Set compressed chars
+;	LD	B,6	;Now send 6 spaces
+;	LD	HL,SPACE
+;	CALL	LIST.STRING
+; Print a space, plus the 5 ANNOTated chars (if non-blank)
+	LD	E,' '
+	LD	C,5
+	CALL	BDOS
+	LD	A,(ROW)	;Calculate the string in the ANNOT buffer
+	DEC	A	;make 0 to 24
+	SCF
+	CCF
+	LD	B,A	;save *1
+	RL	A	; *2
+	RL	A	; *4
+	ADD	B	; *4 + *1 = *5
+	LD	C,A
+	LD	B,0
+	LD	HL,ANNOT.BUFFER
+	ADD	HL,BC	;Now we are pointing at
+	LD	B,5	;Character count
+LP2:	LD	E,(HL)	;Get the char
+	LD	C,5
+	PUSH	BC
+	PUSH	HL
+	CALL	BDOS	;Output it
+	POP	HL
+	POP	BC
+	INC	HL
+	DJNZ	LP2	;Loop until 5 chars done
+;
+	LD	B,8	;Set printer chars back to normal
+	LD	HL,NORMAL
+	CALL	LIST.STRING
+; print the graphics preamble
+	LD	HL,START.GRAPHICS
+	LD	B,4	;The number of chars
+	CALL	LIST.STRING
+;Now print one row
+	LD	HL,400		;Number of chars
+	LD	(CHAR),HL	;Save it
+LP4:	LD	HL,(BUFF.PTR)
+	LD	C,5
+	LD	E,(HL)
+	INC	HL
+	LD	(BUFF.PTR),HL
+	CALL	BDOS
+	LD	HL,(CHAR)
+	DEC	HL
+	LD	(CHAR),HL
+	LD	A,L
+	OR	H	;Is it zero yet?
+	JR	NZ,LP4
+;
+	CALL	CRLF	;Terminate row
+;
+	LD	A,(ROW)
+	DEC	A
+	LD	(ROW),A
+	JP	NZ,LP3	;and output the remaining rows
+;Whilst we were outputting the array we had 26 narrow (8 dot) lines
+;Normally 12 dot lines are used
+;We have 2 more short ones next,so we must compensate for 
+; the lost dots by feeding 
+; a 12 + 26*4 + 11 + 1*4 = 119 dot line (We have to use 85+34+12)
+;First print X axis description
+	LD	HL,SPACE.1	;Don't cramp description
+	LD	B,3
+	CALL	LIST.STRING
+	CALL	CRLF
+;Now output the X axis string
+	LD	HL,(X.COORD)
+	LD	B,79
+	CALL	LIST.STRING
+	CALL	CRLF
+;Do a 119 dot line feed
+	LD	HL,SPACE.85
+	LD	B,3
+	CALL	LIST.STRING
+	CALL	CRLF
+	LD	HL,SPACE.46
+	LD	B,3
+	CALL 	LIST.STRING
+	CALL	CRLF
+;**************I HAF MADE A MISTAKE (I THINK)
+; We appear to be 1.5 lines short (approx),
+; so let's fudge the correct solution by doing
+	LD	HL,FUDGE
+	LD	B,3
+	CALL	LIST.STRING
+	CALL	CRLF
+;Exit after resetting to 12 dot lines
+	LD	HL,SPACE.12
+	LD	B,2
+	CALL	LIST.STRING
+;
+	RET
+;
+;
+; ANNOTY Stores strings for annotating the rows of the Y axis
+ANNOTY:
+	IF	NOT FORTRAN
+	INC	HL		;Point past string length byte
+	ENDIF
+	CALL	GET@HL
+	LD	(X.COORD),HL	;Actually a string address is saved
+	EX	DE,HL
+	CALL	GET@HL
+;Now check that the Y coordinate (in HL) is < 200 and compensate
+; for the fact that the top graph row is printed first
+	LD	DE,199	;The Y axis goes from 0 to 199
+	XOR	A	;Clear carry
+	EX	DE,HL	;Get Ycoord to DE, subtract it from 199
+	SBC	HL,DE	;If Y coord was > 199 will get a carry
+	RET	C	;So we will exit if out of range
+;
+;We now get the row count into HL
+; by dividing HL by 8 
+	XOR	A
+	RR	H	; divide HL by 2
+	RR	L
+	RR	H	; /4
+	RR	L
+	RR	H	;/8
+	RR	L
+;	DEC	L	;make row go 0 to 24, not 1 to 25
+	LD	A,L
+	SCF		;And compute the offset into the ANNOT.BUFFER
+	CCF
+	RL	A	; *2
+	RL	A	; *4
+	ADD	L	; *4 + *1 = *5
+	LD	C,A
+	LD	B,0
+	LD	HL,ANNOT.BUFFER 
+	ADD	HL,BC	;Addr of where string goes is in HL
+	LD	DE,(X.COORD) ;Get pointer to string
+	LD	B,5	;Bytes to copy
+LP9:	LD	A,(DE)	;copy them
+	LD	(HL),A
+	INC	DE
+	INC	HL
+	DJNZ	LP9	;Loop till done
+	RET
+;
+;
+;
+; MARK, A subroutine to mark a square around a dot in the array
+MARK:	CALL	GET@HL		;Get the first passed parameter
+	LD	(X.COORD),HL
+	EX	DE,HL		;Now get the second passed param
+	CALL	GET@HL		;into HL
+;Now check that the Y coordinate (in HL) is < 200 and compensate
+; for the fact that the top graph row is printed first
+	LD	DE,199	;The Y axis goes from 0 to 199
+	XOR	A	;Clear carry
+	EX	DE,HL	;Get Ycoord to DE, subtract it from 199
+	SBC	HL,DE	;If Y coord was > 199 will get a carry
+	RET	C	;So we will exit if out of range
+	LD	(Y.COORD),HL
+; Processed parameters, now mark the array thus:
+;	.....	Start 2 rows and 2 dots backwards, mark 5
+;	.   .	inc Y by 1, decr X by 4, dot, inc X by 4, dot
+;	. . .	etc
+;	.   .	etc
+;	.....	5 final dots
+;
+	CALL	PLOT2	;And plot the wanted point
+	LD	DE,-2	;Now the top left of square
+	CALL	INCX
+	CALL	INCY
+	CALL	PLOT2
+;
+	LD	B,4	;4 more  dots 
+LP10:	LD	DE,1
+	CALL	INCX
+	PUSH	BC
+	CALL	PLOT2
+	POP	BC
+	DJNZ	LP10
+;
+	LD	B,3	;Three lines of fence
+LP11:	PUSH	BC
+	LD	DE,1
+	CALL	INCY
+	LD	DE,-4
+	CALL	INCX
+	CALL	PLOT2
+	LD	DE,4
+	CALL	INCX
+	CALL	PLOT2
+	POP	BC
+	DJNZ	LP11
+;
+	LD	DE,1
+	CALL	INCY
+	LD	DE,-5
+	CALL	INCX
+	LD	B,5	;5 dots 
+LP12:	LD	DE,1
+	CALL	INCX
+	PUSH	BC
+	CALL	PLOT2
+	POP	BC
+	DJNZ	LP12
+;
+	RET	;Done marking
+;
+PLOT2:	;Before jumping to PLOT routine check that coords
+	;are within the correct range
+	LD	HL,(Y.COORD)
+	LD	DE,-199-1
+	ADD	HL,DE
+	RET	C	;Exit if out of range
+	JR	PLOT3
+;
+; S/Rs to increment the coordinates by the amount in DE
+INCX:	LD	HL,(X.COORD)
+	ADD	HL,DE
+	LD	(X.COORD),HL
+	RET
+INCY:	LD	HL,(Y.COORD)
+	ADD	HL,DE
+	LD	(Y.COORD),HL
+	RET
+;
+;
+; PLOT, A Subroutine to put a dot in the array,
+;	   given the X coordinate in HL
+;		&    Y coordinate in DE
+PLOT:
+	CALL	GET@HL		;Get the first passed parameter
+	LD	(X.COORD),HL
+	EX	DE,HL		;Now get the second passed param
+	CALL	GET@HL		;into HL
+;Now check that the Y coordinate (in HL) is < 200 and compensate
+; for the fact that the top graph row is printed first
+	LD	DE,199	;The Y axis goes from 0 to 199
+	XOR	A	;Clear carry
+	EX	DE,HL	;Get Ycoord to DE, subtract it from 199
+	SBC	HL,DE	;If Y coord was > 199 will get a carry
+	RET	C	;So we will exit if out of range
+	LD	(Y.COORD),HL
+;
+PLOT3:	LD	HL,(X.COORD)	;Get X coord to DE
+	LD	DE,-399-1	;Check it is less than 399
+	ADD	HL,DE
+	RET	C	;Exit if out of range
+;We now get the row count into HL and the dot count into E
+; by dividing HL by 8 and putting the remainder into E
+	LD	HL,(Y.COORD)	; get data again
+	XOR	A
+	LD	E,A	;Clear carry and E
+	RR	H	; divide HL by 2
+	RR	L
+	RR	E	;E contains the carry bit mask
+	RR	H	; /4
+	RR	L
+	RR	E
+	RR	H	;/8
+	RR	L
+	RR	E	;Top 3 bits contain the remainder
+	LD	(Y2.COORD),HL ;Save our row count
+	RR	E
+	RR	E
+	RR	E
+	RR	E
+	RR	E	;Now E is fully adjusted with remainder in 3 LSBs
+	LD	A,7	;We need to adjust remainder rel to 7
+	SUB	E	;So that the interpolation is correct
+	LD	(BIT.MASK),A ;Save it
+;The coordinate of the byte to be marked is (Y/8)*400 + X
+	LD	A,8		;Set up the multiply S/R
+	LD	(POKE1),A	; to be 8 x 8
+	LD	DE,400		;chars/row
+	LD	BC,(Y2.COORD)	;Get scaled Y coordinate to BC
+	CALL	MULTIPLY	;The result will be in HL
+	LD	DE,(X.COORD)	;Add the X coordinate
+	ADD	HL,DE
+	LD	DE,BUFFER	;and the buffer base address
+	ADD	HL,DE		;This is the address of the wanted byte
+	LD	A,(BIT.MASK)
+	LD	B,A	;Ready for the DJNZ
+	INC	B	;Make shifts 1-8, not 0-7
+	SCF	;set  carry
+	LD	A,0	;If remainder = 0 then LSB is set
+LP7:	RL	A	;On first shift LSB is set
+	DJNZ	LP7	;And so on
+; A now contains a mask we OR with memory to set the required bit
+	OR	A,(HL)
+	LD	(HL),A
+	RET
+;
+;
+;
+; MATHLIB: a 16 Bit Arithmetic Package for Z80
+; Sourced 26 Nov '80 by Trevor Marshall
+;
+MULTIPLY: ; 16 x 16 Bit multiplication
+;
+;result (HL) = multiplicand (DE) x multiplier (BC)
+;
+; The multiplicand is in DE
+; The multiplier is in BC
+; The result will be in HL
+; It overflows safely, but without indication
+; Registers are destroyed
+;
+;	Example: 5 x 3
+;		101
+;	     x  011
+;	----------------
+;		101	(Shifted LSBit=1)
+;	       101	(Shifted LSBit=1)
+;	      000	(Shifted LSBit=0,no add)
+;	----------------
+;	      01111	(Result)
+;
+;  Multiplier is in BC
+	LD	A,16	; Loop count in A
+;count must be >= max number of bits used in BC
+POKE1	EQU	$-1	;address of loop count byte
+			;Allows SELF-MODIFYING code
+	LD	HL,0	;Clear result
+ZZMULT:	
+; is multiplier LSBit = 1 ?
+	SRL	B	;Right shift multiplier MSB
+			; 0 -> MSBit, LSBit -> Carry
+	RR	C	;Rotate right multiplier LSB
+			;Carry -> MSBit, LSBit -> Carry
+	JR	NC,ZZNOADD ;LSBit not 1, Dont add
+; Could test for overflow by using this here:
+;	CCF	;Carry will be 1, C -> 0
+;	ADC	HL,DE
+;	JR	C,OVERFLOW.ROUTINE
+; But will use the simpler
+	ADD	HL,DE	;LSBit = 1, so add multiplicand
+			;	to (shifted) result
+ZZNOADD:
+;Now we shift left the multiplicand
+	SLA	E	; 0 -> LSBit, MSBit -> Carry
+	RL	D	; Carry -> LSBit, MSBit -> Carry
+;
+	DEC	A	;Loop cntr
+	JR	NZ,ZZMULT
+;
+	RET	; ***** DONE *****
+;
+;
+;
+X.COORD: DW	0
+Y.COORD: DW	0
+Y2.COORD: DW	0 
+BIT.MASK: DB	0
+Y.ADDR:	DW	0
+X.ADDR:	DW	0
+;
+START.GRAPHICS: DB	1BH,'K'
+	DW	400	;The number of bytes
+SPACE.1: DB	1BH,'3',3
+SPACE.8: DB	1BH,'3',24
+SPACE.12: DB	1BH,'2'
+SPACE.85: DB	1BH,'3',255
+SPACE.46: DB	1BH,'3',138
+FUDGE:	 DB	1BH,'3',90
+SPACE:	DB	'      '
+NORMAL:	DB	1BH,'F',1BH,'H',1BH,'Q',1BH,'T'	;Cancel all special modes
+EXP.ON:	DB	1BH,'S',1BH,'E'
+COMPRESSED: DB	1BH,'P'
+;
+CHAR:	DW	0
+BUFF.PTR: DW	0
+STRING.PTR: DB	0
+ROW:	DB	0
+;
+;
+;
+	IF	NOT TESTING
+	DATA
+	ENDIF
+;
+; The main data array buffer:
+BUFFER:	DS	400*25	;10k Locs of 8 bytes = 80k bits
+BUFF.LENGTH EQU $-BUFFER
+; The buffer is organized as 25 rows each of 400 bytes,
+;  each row being printed in turn (descending)
+;
+; The buffer for Y axis strings:
+ANNOT.BUFFER: DS 25*5	;25 rows of 5 chars
+;
+	END
+

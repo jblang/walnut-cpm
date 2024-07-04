@@ -1,0 +1,149 @@
+	The New Z System
+	by Richard Conn, 6 Sep 1986
+
+	I have been working quietly on the development of the new Z System
+for quite some time, and I feel that I must speak out now on what I am doing
+so that people will know the true story.  This presentation is short and not
+complete, but it is enough to answer some basic questions without taking too
+much of my time away from the development activities.
+
+
+Why create a new Z System?
+--------------------------
+	First of all, why am I creating a new Z System?  There are many
+reasons:
+		1) I have studied the old Z System for over two years now,
+reviewing it for flaws and weaknesses.  From the beginning, I have stated
+that the Z System is evolutionary, and I have enough new ideas now to implement
+the next step in this evolution.
+		2) I have been learning many new things about other
+environments, including Ada Programming Support Environments (APSEs),
+UNIX, SUN window-based systems, TOPS-20, VAX/VMS, and Symbolics workstations.
+I have seen many good ideas that I would like to incorporate into my
+personal computer environment, the Z System.
+		3) My next real goal is the development of a banked Z System
+followed by a multitasking Z System.  An improvement in the current non-banked
+Z System is a logical step along the way, giving me a platform from which to
+experiment with some of the new ideas before fully incorporating them into
+the new systems.  ZCPR 3.3 is not a goal, but is a milestone along the road
+to a goal.
+		4) My needs have changed and are continuing to change, and
+the old Z System no longer meets my needs.  I have to change the system in
+order to continue advancing toward my other goals.
+
+	At a recent talk I gave at the Trenton Computer Festival, someone
+asked me if I plan to move over to the IBM community.  If I was motivated
+by profit to a large extent, my answer would obviously have been yes.  But
+my principal motivation is to learn and grow and to have fun doing it.  The
+money is a very nice side effect, but it is not the driving side effect.
+I definitely intend to keep learning through the Z System.  The Z System,
+coupled with the very rich computer environment I am accessing through
+my communications system, has enough potential to meet my needs for many
+years to come.
+
+
+New Standards
+-------------
+	Good software engineering principles and common sense indicate that
+a lot of benefit can be derived through standards.  The evolving ZCPR 3.3
+and Z System now have a number of standards going for them:
+
+		1) a common language, implemented by the ZAS assembler
+		2) a common support library, implemented by SYSLIB, Z3LIB,
+			and VLIB
+		3) a common format for all assembly language programs,
+			implemented by PPAL - the Pretty Printer for
+			Assembly Language
+		4) a common operating system and support base, implemented
+			by ZCPR3 and ZRDOS
+		5) a common documentation format which allows easier
+			upgrading of the documentation as the programs
+			change; this system is for both hardcopy (MAN)
+			and online (HELP) mediums
+		6) a common configuration management system, CONFIG,
+			which allows users to easily identify their
+			configuration and determine if all of their
+			programs are current
+		7) page-relocatable structures for system segments,
+			ZCPR 3.3 itself, and ZRDOS, which server to
+			further support transportability and make
+			installation easier
+		8) a very robust communications protocol, supporting
+			packet sizes from 1 data byte to 4K data bytes
+
+	You will see all of these in the months to come.
+
+
+The Libraries
+-------------
+	One key point to make here is that I purposely did not mention
+a common binary structure, like the Environment Descriptor.  The Environment
+Descriptor is not a standard, but the interface to it, namely Z3LIB and VLIB,
+is.  This was purposely done so that future growth would be supported.
+As the Z System evolves, it will probably be necessary to delete old features
+which are no longer needed in favor of new features which provide new
+capabilities.  If the binary structures, like the Environment Descriptor,
+are to preserved, then the growth will be hampered by the lack of availability
+of space in which to implement the new features.  By standardizing on the
+interface to the Environment Descriptor and not the structure of the
+descriptor itself, then the Environment Descriptor can take any desired form
+without concern for the impact on other programs.  Specifically,
+
+		ld	hl,envadr	; get base address of env
+		ld	de,offflag	; get offset to a flag
+		add	hl,de		; point to the flag
+		ld	a,(hl)		; get the flag value
+
+would be severly impacted if the structure of the Environment Descriptor
+changed, but a call like:
+
+		ext	getflag		; reference library routine to get flag
+		...
+		call	getflag		; return flag in A
+
+would not be impacted at all by such a change.  The library containing the
+GETFLAG routine would be impacted, but it is a lot easier to change one
+module in a library and reassemble 100 programs than it is to track the
+necessary changes in, edit, and then reassemble 100 programs.
+
+	With one exception, the routines in the new Z3LIB for ZCPR 3.3
+have the same names and interfaces as the routines in the old Z3LIB.
+Conversion is simple - reassembly is all that is required.
+
+	Unfortunately, many programmers have not yet learned this lesson.
+They continue to write code which does not use the libraries.  Imagine
+the work that will be required to go through their programs, modifying the
+references in order to be compatable with the banked ZCPR3.  Imagine them
+going through the work again for the multitasking ZCPR3, and again and again
+as ZCPR3 continues to evolve.  Thanks to Echelon, ZCPR 3.3 is still
+compatable at the binary level in terms of the Environment Descriptor.
+Certain values have been replaced with others, so changes will still be
+necessary, but many of the key values have stayed in the same places with
+the same meanings.  My original approach was to free up all of the dead
+space left by the removed values, making more room at the end for growth,
+but Echelon convinced me that the impact on programs written by those who
+didn't understand the basic principle of the libraries would be devastating.
+Thanks to the new design, it only took me 3 hours to convert back with no
+loss of functionality -- yet another benefit from the new structured design
+of the system -- but I can guarantee that the future systems will not be
+converted in this manner.
+
+	If everyone starts thinking in terms of the libraries, the future
+growth of the Z System is assured.  If people cling to the old ideas of not
+using the libraries, then it is clear that growth will be curtailed.
+
+
+The Bottom Line
+---------------
+	I am moving forward with the development of the new ZCPR 3.3 and
+the new Z System.  As you can see, there are many changes in it, and I have
+barely skimmed the surface.  I will move ahead and release it only when I am
+satisfied that it is usable to others.  Documentation must go with the
+release, so the release will not take place until the documentation is ready.
+My goal is to meet my needs, as outlined above, and this goal will be met.
+I thank those of you who have been supportive in the efforts of Echelon and
+myself, and I sincerely hope that you will share in my enthusiasm for the
+new ZCPR 3.3 when I release it to you.
+
+					Rick Conn
+

@@ -1,0 +1,463 @@
+;
+;       Reldmp - Print dump of Microsoft relocatable file
+;
+;	Syntax : 
+;		reldmp object.rel
+;	Where :
+;		object.rel is the MICROSOFT Relocatable format file
+;		to dump.
+;
+;	Originally Written By T. Stockman
+;
+;	Extension Link Item Processing Added By D. Bloodgood
+;
+        .z80
+        aseg
+bdos    equ     5
+ifcb    equ     5ch
+buf     equ     80h
+cr      equ     'M'-40h
+lf      equ     'J'-40h
+        cseg
+;
+reldmp::        ld      sp,(6)          ;set stack
+        ld      a,79            ;set width
+        ld      (width),a
+        sub     a               ;clear column
+        ld      (column),a
+        ld      de,ifcb         ;open input file
+        ld      c,15
+        call    bdos
+        inc     a               ;error if can't open
+        ld      de,opnmsg
+        jp      z,error
+        sub     a               ;set to first sector
+        ld      (ifcb+32),a
+        call    filbuf          ;prime input buffer
+        ld      (bytep),hl
+        ld      (bitc),de
+        ld      hl,0            ;clear record counter
+        ld      (record),hl
+rdmp0:: ld      de,recmsg       ;print out file position
+        call    pmsg
+        ld      a,(record+1)
+        call    phb
+        ld      a,(record)
+        call    phb
+        ld      de,bytmsg
+        call    pmsg
+        ld      hl,bitc+1
+        ld      a,80h
+        sub     (hl)
+        call    phb
+        call    endln0
+        ld      hl,0            ;clear loading location
+        ld      (loc),hl
+        ld      a,''''          ;clear loading loaction mode
+        ld      (locm),a
+;
+;       rdmp - main program loop
+;
+rdmp::  ld      b,1             ;get item type bit
+        call    gbits
+        or      a               ;jump if not absolute item
+        jr      nz,rdmp1
+        ld      a,2
+        call    lstnxt          ;advance listing for another item
+        ld      b,8             ;get and print byte
+        call    gbits
+        call    phb
+        ld      hl,(loc)        ;advance loading location
+        inc     hl
+        ld      (loc),hl
+        jr      rdmp
+;
+rdmp1:: ld      b,2             ;get item relocation mode
+        call    gbits
+        or      a               ;jump if special link item
+        jr      z,rdmp2
+        push    af
+        ld      a,5
+        call    lstnxt          ;advance listing for another item
+        pop     af
+        call    pafld0          ;let pafld worry about printing it
+        ld      hl,(loc)        ;advance loading location
+        inc     hl
+        inc     hl
+        ld      (loc),hl
+        jr      rdmp
+;
+rdmp2:: call    endln           ;end line if not at beginning of line
+        ld      b,4             ;get special item type
+        call    gbits
+        push    af
+        ld      hl,types        ;print out item type
+        call    addmsg
+        call    pmsg
+        pop     af
+        cp      4               ;B field only?
+        jr      c,rdmp3
+        cp      5               ;Special Link Item
+        jr      c,rdmp31
+        cp      8               ;both A and B fields?
+        jr      c,rdmp4
+        cp      11              ;set location?
+        jr      z,rdmp5
+        cp      14              ;check for end of program
+        jr      z,rdmp6
+        cp      15              ;end of file?
+        jr      z,rdmp7
+        call    pafld           ;print A field
+        call    endln0
+        jr      rdmp
+;
+rdmp3:: call    pbfld           ;print B field
+        call    endln0
+        jr      rdmp
+;
+rdmp31::        call    pextlk
+        call    endln0
+        jp      rdmp
+;
+rdmp4:: call    pafld           ;print A field
+        ld      a,' '
+        call    putc
+        call    pbfld           ;print B field
+        call    endln0
+        jp      rdmp
+;
+rdmp5:: call    pafld           ;print A field
+        ld      (loc),hl        ;save loading location
+        ld      (locm),a        ;save loading mode
+        call    endln0
+        jp      rdmp
+;
+rdmp6:: call    pafld           ;print A field
+        call    endln0
+        call    endln0
+        call    endln0
+        ld      a,(bitc)        ;force to next byte
+        cp      8
+        jp      z,rdmp0
+        ld      b,a
+        call    gbits
+        jp      rdmp0
+;
+rdmp7:: call    endln
+        jp      0
+;
+;       pafld - print out "A" type field
+;
+;       exit::  a  = mode character ( '"!)
+;               hl = address
+;       uses::  af, bc, de, hl
+;       calls:: gbits, phb, putc
+;
+pafld:: ld      b,2             ;address mode
+pafld8::        call    gbits
+        ld      b,' '           ;absolute mode?
+        or      a
+        jr      z,pafld1
+pafld0::        ld      b,''''          ;program (code) relative?
+        dec     a
+        jr      z,pafld1
+        ld      b,'"'           ;data relative?
+        dec     a
+        jr      z,pafld1
+        ld      b,'!'           ;then it's common relative
+pafld1::        push    bc              ;save mode indicator
+        ld      b,8             ;get low byte of address
+        call    gbits
+        push    af              ;save it
+        ld      b,8             ;get and print high byte of address
+        call    gbits
+        ld      h,a
+        call    phb
+        pop     af
+        ld      l,a
+        call    phb             ;print low byte of address
+        pop     af
+        jp      putc            ;print mode indicator
+;
+;       pbfld - print out "B" type field
+;
+;       uses::  af, bc, de, hl
+;       calls:: gbits, putc
+;
+pbfld:: ld      b,3             ;get symbol length
+        call    gbits
+        or      a               ;return if zero length
+        ret     z
+        ld      b,a
+pbfld1::        push    bc
+        ld      b,8             ;get a byte of symbol
+        call    gbits
+        call    putc            ;print it
+        pop     bc
+        djnz    pbfld1
+        ret
+;
+;       pextlk - prints extension link item
+;
+pextlk::        ld      b,3             ;get length field
+        call    gbits
+        push    af              ;save length
+        ld      b,8             ;get type
+        call    gbits
+        sub     'A'             ;convert to 0-2
+        push    af              ;save type
+        ld      hl,extypes
+        call    addmsg
+        call    pmsg            ;print message describing type 
+        pop     af              ;restore type ( 0-2 )
+        cp      1               ;compare to 0,1 or 2
+        jr      c,extop         ;have an operator
+        jr      z,extext        ;have a label field
+;
+;   Must have an local symbol
+;
+        pop     af              ;throw away length
+        ld      b,8             ;get 8 bits for type
+        jp      pafld8          ;print it as an A field
+;
+;   Have an Operator
+;
+extop:: pop     af      ;discard length 
+        ld      b,8
+        call    gbits           ;get operator
+        ld      hl,opertab      ;operator table
+        call    addmsg
+        jp      pmsg            ;print operator
+;
+;   Must be a Symbol
+;
+extext::        pop     af      ;restore count
+        dec     a               ;account for type byte
+        ld      b,a             ;into b for counter
+extex1::        push    bc
+        ld      b,8             ;get a byte of symbol
+        call    gbits
+        call    putc            ;print it
+        pop     bc
+        djnz    extex1
+        ret
+;
+;       gbits - get bits from rel file
+;
+;       Note::  The following code must be executed before the first
+;               call to gbits (after openning the rel file) to "prime"
+;               the input buffer.
+;
+;       call    filbuf
+;       ld      (bytep),hl
+;       ld      (bitc),de
+;
+;       entry:: b  = # of bits to get (1 - 8)
+;       exit::  a  = assembled bits (right justified)
+;       uses::  af, bc, de, hl
+;       calls:: filbuf
+;
+gbits:: ld      hl,(bytep)      ;get current pos'n
+        ld      de,(bitc)
+        xor     a               ;clear assembly register
+gbit1:: rlc     (hl)            ;move a bit into the assembly
+        rla
+        dec     e               ;skip advance if still bits in this byte
+        jr      nz,gbit2
+        ld      e,8             ;reset bit counter
+        inc     hl              ;advance byte pointer
+        dec     d               ;refill buffer if last byte
+        call    z,filbuf
+gbit2:: djnz    gbit1           ;loop if more bits needed
+        ld      (bytep),hl      ;save pos'n
+        ld      (bitc),de
+        ret
+;
+;       filbuf - fill input buffer from rel file
+;
+;       exit::  d  = 128 (# bytes in buffer)
+;               e  = 8 (# bits in byte)
+;               hl = fwa buffer
+;       uses::  de, hl
+;       calls:: bdos, error
+;
+filbuf::        push    af
+        push    bc
+        ld      de,ifcb         ;read a sector
+        ld      c,20
+        call    bdos
+        or      a               ;trap errors
+        ld      de,rdmsg
+        jp      nz,error
+        pop     bc
+        pop     af
+        ld      hl,(record)     ;increment record count
+        inc     hl
+        ld      (record),hl
+        ld      hl,buf          ;set pointers for return
+        ld      de,128*256+8
+        ret
+;
+;       lstnxt - advance listing for next item
+;
+;       entry:: a  = # columns item will occupy
+;       uses::  af, bc
+;       calls:: endln, phb, putc
+;
+lstnxt::        push    af
+        inc     a               ;add one column for the space
+        ld      bc,(column)     ;go print location if beginning of line
+        inc     c
+        dec     c
+        jr      z,lstn2
+        add     a,c             ;try adding item on this line
+        ld      bc,(width)      ;jump if line would be too wide
+        cp      c
+        jr      nc,lstn1
+        ld      (column),a      ;update column counter
+        pop     af
+        ld      a,' '           ;push out a space
+        jp      putc
+;
+lstn1:: call    endln0          ;go to the next line
+lstn2:: pop     bc
+        ld      a,(loc+1)       ;print out the loading location
+        call    phb
+        ld      a,(loc)
+        call    phb
+        ld      a,(locm)
+        call    putc
+        ld      a,' '           ;space over
+        call    putc
+        call    putc
+        ld      a,7             ;init column counter
+        add     a,b             ;add in width of this item
+        ld      (column),a
+        ret
+;
+;       endln - end the current listing line
+;
+;       uses::  af
+;       calls:: putc
+;
+endln:: ld      a,(column)      ;return if already at beginning of line
+        or      a
+        ret     z
+endln0::        sub     a               ;clear column counter
+        ld      (column),a
+        ld      a,cr
+        call    putc
+        ld      a,lf
+        jp      putc
+;
+;       amsgadd - return pointer to the a'th message in table 
+;       at (de)
+;
+addmsg::        ld      d,0
+        ld      e,a
+        add     hl,de
+        add     hl,de           ;get to table entry
+        ld      e,(hl)
+        inc     hl
+        ld      d,(hl)
+        ret
+pmsg::  ld      a,(de)
+        call    putc
+        bit     7,a
+        ret     nz
+        inc     de
+        jr      pmsg
+;
+phb::   push    psw
+        rrca
+        rrca
+        rrca
+        rrca
+        call    phb1
+        pop     psw
+phb1::  and     0fh
+        add     a,90h
+        daa
+        adc     a,40h
+        daa
+;       jr      putc
+;
+putc::  push    af
+        push    bc
+        push    de
+        push    hl
+        and     7fh
+        ld      e,a
+        ld      c,2
+        call    bdos
+        pop     hl
+        pop     de
+        pop     bc
+        pop     af
+        ret
+;
+error:: ld      c,9
+        call    bdos
+        jp      0
+;
+;       Special link item types
+;
+types:: dw      type0,type1,type2,type3
+        dw      type4,type5,type6,type7
+        dw      type8,type9,type10,type11
+        dw      type12,type13,type14,type15
+;
+type0:: dc      'Entry Symbol='
+type1:: dc      'Common Block='
+type2:: dc      'Program Name='
+type3:: dc      'Search Library='
+type4:: dc      'Extension Link Item '
+type5:: dc      'Common Size='
+type6:: dc      'Chain External='
+type7:: dc      'Entry Point='
+type8:: dc      'External-Offset='
+type9:: dc      'External+Offset='
+type10::        dc      'Data Area Size='
+type11::        dc      'Loading Location='
+type12::        dc      'Chain Address='
+type13::        dc      'Program Size='
+type14::        dc      'End Program, Xfer='
+type15::        dc      'End of File'
+;
+extypes::       dw      etype0,etype1,etype2
+etype0::        dc      'Operator = '
+etype1::        dc      'External = '
+etype2::        dc      'Local Symbol = '
+;
+opertab::       dw      op0,op1,op2,op3,op4,op5,op6,op7
+        dw      op8,op9,opa,opb
+op0:    dc      '???'
+op1:    dc      'Store Byte'
+op2:    dc      'Store Word'
+op3:    dc      'High'
+op4:    dc      'Low'
+op5:    dc      '???'
+op6:    dc      '???'
+op7:    dc      '-'
+op8:    dc      '+'
+op9:    dc      '*'
+opa:    dc      '/'
+opb:    dc      'Mod'
+;
+recmsg::        dc      '+ Record='
+bytmsg::        dc      ' Byte='
+;
+opnmsg::        db      'Can''t open input file$'
+rdmsg:: db      'Read error$'
+;
+loc::   ds      2               ;current loading location
+locm::  ds      1               ;loading location mode
+record::        ds      2               ;current record of rel file
+bytep:: ds      2               ;input byte pointer
+bitc::  ds      2               ;bit counter + byte counter
+column::        ds      1               ;current output column
+width:: ds      1               ;maximum output width
+;
+        end     reldmp
+
+0B>                  

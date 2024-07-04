@@ -1,0 +1,497 @@
+
+; B5MH-3.INS - BYE5 insert for Morrow MD5, MD11, MD16, MD34 - 10/10/85
+;
+;				Z80 SIO
+;
+;		    This is an insert, not an overlay
+;
+; This insert adapts the Morrow computers using hard disk and CP/M+
+; with banked memory to BYE5.
+;
+;
+;=   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =
+;
+; 10/10/85  Reorganized and simplified. - Ed Meyer
+;  B5MH-3
+;
+; 08/25/85  Fixed BUG in the Morrow BIOS INTER-BANK routine.
+;  B5MH-2				- Paul Bartholomew
+;
+; 08/17/85  Updated for compatibility with BYE501.
+;  B5MH-1				- George Peace
+;
+;=   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =
+;
+;
+; To get this to work correctly with a Morrow MD-HD, you must use the
+; following cable configuration:
+;
+;	      Modem End 	  Morrow MD-HD End
+;	      ========= 	  ================
+;		GND  1 <--------> 1  GND - ground
+;		 TD  2	--------> 3  RD  - receive data
+;		 RD  3 <--------  2  TD  - transmit data
+;		 SG  7 <--------> 7  SG  - signal ground
+;		 CD  8	--------> 4  CD  - carrier detect
+;		DTR 20 <--------  5  DTR - data terminal ready
+;
+;
+; Depending on the setting of the jumpers inside your computer, pins 2
+; and 3 may or may not need to be crossed.
+;
+; MAKE SURE THE JUMPERS INSIDE THE MORROW ARE SET TO FACTORY SETTINGS.
+;  (See Appendix D, figures D-5 and D-6 of the MD-11 users guide)
+;
+; NOTE: The CD (Carrier Detect) line is connected the Morrow pin 4 (RTS
+;	on most computers, while usually pin 8 is carrier detect.)
+;
+;-----------------------------------------------------------------------
+;
+;
+; Set ONE of the following to YES, the other to NO
+;
+PMPORT	EQU	NO		; Yes, using "Printer/Modem" port
+AUXPORT	EQU	YES		; Yes, using "Auxilliary" port
+;
+PORT	EQU	060H		; Port for local console output
+CONST	EQU	PORT+1		; Local console status
+;
+;
+	 IF	PMPORT
+BPORT	EQU	062H
+BAUDS	EQU	051H
+MODEW	EQU	07EH
+	 ENDIF			; PMPORT
+
+	 IF	AUXPORT
+BPORT	EQU	070H
+BAUDS	EQU	050H
+MODEW	EQU	03EH
+	 ENDIF			; AUXPORT
+;
+;
+; The following define the port addresses to use.
+;
+DPORT	EQU	BPORT		; Data port
+MDCTL1	EQU	BPORT+1		; Status/control port
+BRPORT	EQU	053H
+;
+;
+; The following are MDCTL1 status masks
+;
+MDRCV	EQU	1		; Data available
+MDSND	EQU	4		; Transmit buffer empty
+DCD	EQU	8		; Data carrier detect
+;
+;-----------------------------------------------------------------------
+;
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	DCD		; Check for data carrier
+	RET			; Return
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,44H		; No parity, 1 stop, 16x
+	OUT	MDCTL1
+	MVI	A,1		; Setup to write register 1
+	OUT	MDCTL1
+	MVI	A,0
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0		; DTR, RTS both off
+	OUT	MDCTL1
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; 8 bits, enable receive
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; DTR, RTS, TX on, 8 bits
+	OUT	MDCTL1
+
+	 IF	IMODEM		; If using intelligent modem
+	CALL	IMINIT		; Go initialize modem now
+	 ENDIF			; IMODEM
+;
+	RET			; Return
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:
+	IN	DPORT		; Get character
+	RET			; Return
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:
+	IN	MDCTL1		; Get status
+	ANI	MDRCV		; Got a character?
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the proper flag
+	RET			; And return
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	DPORT		; Send it
+	RET			; Return
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:
+	IN	MDCTL1
+	ANI	MDSND		; Mask it
+	RET			; Return
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using an intelligent modem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE.
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0		; Clear DTR, RTS causing shutdown
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the zero flag is set
+	RET
+;.....
+;
+;
+SET300:	LXI	H,BD300
+	JMP	SETBAUD
+;.....
+;
+;
+SET1200:LXI	H,BD1200
+	JMP	SETBAUD
+;.....
+;
+;
+SET2400:LXI	H,BD2400
+	JMP	SETBAUD
+;.....
+;
+;
+SETBAUD:MVI	A,MODEW
+	OUT	BRPORT
+	MOV	A,M
+	OUT	BAUDS
+	INX	H
+	MOV	A,M
+	OUT	BAUDS
+	XRA	A		; Say rate is ok
+	RET			; Return
+;.....
+;
+;
+; The following are baud rates for BPORT -- they will have to be changed
+; for your particular CTC.
+;
+BD300: DW	832
+BD1200:DW	208
+BD2400:DW	104
+BD9600:DW	26
+
+
+;.....
+;
+;
+;Find address of INTER-BANK BUG in Morrow's BIOS
+;
+FINDBUG:LDA	FNDBUG		; See if we already found the address
+	ORA	A
+	JZ	FBUG0		; No, go find it
+	LHLD	BUGADR		; Yes, return with address
+	RET
+;.....
+;
+;
+FBUG0:	LHLD	1
+	INX	H
+	MOV	E,M
+	INX	H
+	MOV	D,M
+	XCHG			; Hl points to warm boot code
+;
+;
+; The warm boot in common memory is as follows:
+;
+; loc  opcodes	mneumonics
+; ---- -------	--------------------
+; xxxx 21 yyyy	LD	HL,BNK-WBOOT ;WARM BOOT code in SYSTEM bank
+; xxxx 18 zz	JR	INTER-BANK
+;
+; We will find the address of INTER-BANK and modify it to fix the BUG.
+;
+; The INTER-BANK code in COMMON memory is as follows:
+;
+; loc  opcodes	mneumonics
+; ---- -------	--------------------
+; xxxx 3A yyyy	LD	A,(SYSMTE-BANK-BITS)
+; xxxx CB 47	BIT	0,A	;Should be BIT 1,A (CB 4F)
+;
+;
+;
+FBUG1:	MOV	A,M
+	CPI	18H		; Look for JR to INTER-BANK
+	JZ	FBUG2
+	INX	H
+	JMP	FBUG1
+;
+FBUG2:	INX	H
+	MOV	A,M		; Get JR offset
+	INX	H
+	MOV	E,A
+	MVI	D,0
+	DAD	D		; HL now points to INTER-BANK
+;
+FBUG3:	MOV	A,M
+	CPI	0CBH		; Look for bit opcode
+	JZ	FBUG4
+	INX	H
+	JMP	FBUG3
+;
+FBUG4:	INX	H
+	SHLD	BUGADR
+	MVI	A,0FFH
+	STA	FNDBUG
+	RET
+;.....
+;
+;
+FNDBUG:	DB	0
+BUGADR:	DW	0
+BUGVAL:	DB	0
+;.....
+;
+;
+; Perform system or hardware dependent PRE-processing.	The following
+; code will be executed by the PATCH subroutine before the BIOS jump
+; table is overwritten.  This will allow the BIOS intercept routines to
+; operate as early as the initial signon message display.
+;
+MDPREP:	CALL	FINDBUG		; Get address of BIOS bug
+	MOV	A,M
+	STA	BUGVAL		; Save old value
+	MVI	M,04FH		; Change the bit 0,A to a bit 1,A
+;
+;
+; OK, the BIOS BUG is now fixed.
+;
+;
+; Replace the NEWJTBL BIOS routing table with our own
+;
+;
+	LXI	H,JTBLNEW	; Get replacement table address
+	LXI	D,NEWJTBL	; Get address to overwrite
+	LXI	B,JTBLEN	; Get number of bytes to overwrite
+	DB	0EDH,0B0H	; Move the jump table
+;
+;
+; Move the BIOS intercept routines up to common memory
+;
+	LXI	H,STCOMN	; Start of interface routines
+	LXI	D,COMMN		; Address in high memory to load them
+	LXI	B,COMLEN	; Length of common code
+	DB	0EDH,0B0H	; Move the code to common memory
+	RET
+;.....
+;
+;
+; Perform system or hardware dependent POST-processing.  The following
+; code will be executed by the EXCPM routine before returning control to
+; CP/M Plus when the BYE5 program is terminated.
+;
+MDPOSP:	CALL	FINDBUG		; Get address of BIOS bug
+	LDA	BUGVAL		; Get old value
+	MOV	M,A		; Un-fix the BIOS bug (make it a bit 0)
+	RET
+;.....
+;
+;
+; The following code is required for proper operation on the Morrow
+; MD-HD.  As the MD-HD operates in a banked environment, BIOS calls MAT
+; originate in any bank (0 or 1).  It is therefore possible that window
+; 1 (where BYE5 resides) will not be selected at the time a BIOS call is
+; made.  As a result, steps must be taken to be sure that the BIOS jump
+; table does not direct a BIOS call into bank 1 unless that bank is
+; selected.  This code is moved up to common memory where it will be
+; visible to all banks.  For each of the intercepted BIOS calls, it will:
+;
+;   - save the caller's stack pointer
+;   - save the caller's bank select mask
+;   - switch to bank 1
+;   - execute the BYE interface routine and then the
+;	original BIOS routine as necessary
+;   - recover the caller's stack pointer
+;   - reset the bank select mask to that of the caller
+;   - return control to the caller
+;
+;
+;NOTE: With Morrow MD-HD computers (BIOS <= 2.0), the free common memory
+;      is from FF48H to FFA9H (97 bytes).  Make sure COMLEN is <= 61H!
+;
+;      All other common RAM is used by BIOS for stacks and interrupts.
+;
+;
+COMMN	EQU	0FF48H		; Address for unmodified bios <= 2.0
+;
+SXBIOS	EQU	0F885H		; Address of stack for BIOS intercepts
+;
+PNTSELM	EQU	0FE51H+1	; Pointer to SELMEN JMP +1
+;
+BNKSTB	EQU	41H		; Bank select port
+;
+STCOMN	EQU	$
+;
+WBCOMN	EQU	COMMN+($-STCOMN) ; Warm boot
+	CALL	SWIN
+	JMP	MBOOT
+;.....
+;
+;
+CSCOMN	EQU	COMMN+($-STCOMN) ; Console status
+	CALL	SWIN
+	CALL	MSTAT
+	JMP	SWOUT
+;....
+;
+;
+CICOMN	EQU	COMMN+($-STCOMN) ; Console input
+	CALL	SWIN
+	CALL	MINPUT
+	JMP	SWOUT
+;.....
+;
+;
+COCOMN	EQU	COMMN+($-STCOMN) ; Console output
+	CALL	SWIN
+	CALL	MOUTPUT
+	JMP	SWOUT
+;.....
+;
+;
+SWIN	EQU	COMMN+($-STCOMN) ; Bank switch in routine
+				; Destroys register HL,A
+	POP	H		; Get return address
+	DB	0EDH,073H
+	DW	SXSAVE
+	LXI	SP,SXBIOS	; Load new stack pointer in common
+	PUSH	H
+	CALL	FNDSBB		; HL=address of SYSTEM-BANK-BITS
+	MOV	A,M
+	RRC			; Bank # in bit 1, move to bit 0
+	ANI	1		; A now has the current bank in it
+	POP	H
+	PUSH	PSW		; Save it for return from BIOS
+	MVI	A,1		; Get bank 1 mask
+	CALL	SELMEM
+	PUSH	H		; Put return address on new stack
+	RET
+;.....
+;
+;
+SWOUT	EQU	COMMN+($-STCOMN) ; Bank switch out routine
+	MOV	H,A		; Save A reg. (for console input call)
+	POP	PSW		; Retrieve caller's bank selection mask
+	DB	0EDH,07BH
+	DW	SXSAVE
+	CALL	SELMEM
+	MOV	A,H		; Restore A reg. (for console input call)
+	RET
+;.....
+;
+;
+SELMEM	EQU	COMMN+($-STCOMN)
+	PUSH	H
+	LHLD	PNTSELM
+	CALL	MYPC
+	POP	H
+	RET
+;.....
+;
+;
+MYPC	EQU	COMMN+($-STCOMN)
+	PCHL
+;.....
+;
+;
+FNDSBB	EQU	COMMN+($-STCOMN) ; Point HL to SYSMTE-BANK-BITS
+	PUSH	D
+	LHLD	PNTSELM
+	INX	H
+	INX	H
+	MOV	E,M
+	INX	H
+	MOV	D,M		; DE points to SYSTEM-BANK-BITS
+	XCHG
+	POP	D
+	RET
+;.....
+;
+;
+SXSAVE	EQU	COMMN+($-STCOMN)
+	DS	2		; Save area for caller's stack pointer
+;
+COMLEN	EQU	$-STCOMN	; Length of common memory interface code
+;
+JTBLNEW:
+	JMP	MCBOOT		; Cold boot
+	JMP	WBCOMN		; Warm boot
+	JMP	CSCOMN		; Modem status test
+	JMP	CICOMN		; Modem input routine
+	JMP	COCOMN		; Modem output routine
+;
+	 IF	(NOT HARDLOG) AND (NOT PRINTER)
+	JMP	COCOMN		; Modem list device
+	JMP	COCOMN		; Modem punch device
+	JMP	CICOMN		; Modem reader device
+	 ENDIF			; (NOT HARDLOG) AND (NOT PRINTER)
+;
+JTBLEN	EQU	$-JTBLNEW
+;
+;			       end
+;----------------------------------------------------------------------
+

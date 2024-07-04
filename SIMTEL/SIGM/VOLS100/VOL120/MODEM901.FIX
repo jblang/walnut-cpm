@@ -1,0 +1,27 @@
+			MODEM901.FIX
+
+	There is an error in the routine in CONSOLE.ASM which emulates
+BDOS function 10. The error causes the program to restart itself when
+ctrl-U (remove current line) is entered.
+
+	To fix the COM file with DDT change location 265FH from JMP 0AD0H
+to JMP 25D3H.
+
+	The source code should read:
+
+	.
+	.
+	.
+;
+INBUFO:	MVI	A,'#'
+	CALL	CONOUT
+	MVI	A,0DH
+	CALL	CONOUT
+	MVI	A,0AH
+	CALL	CONOUT
+	JMP	ISTART		;Formerly:  JMP	  START
+;
+RETYPE:	POP	D
+	.
+	.
+	.

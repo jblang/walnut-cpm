@@ -1,0 +1,427 @@
+; DCHECK v1.00 - DUPCHECK two better - by ESKAY
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+.z80
+.request syslib
+;
+start:	ld	sp,stack
+	call	print##
+	cr,lf,lf,lf
+	'              ------------------------------------------------',cr,lf
+	'             | DCHECK v1.00        22 Jun 85         by ESKAY |',cr,lf
+	'             | Disk Check Program displays missing and double |',cr,lf
+	'             | allocation  blocks  and  affected  file names. |',cr,lf
+	'              ------------------------------------------------'
+	cr,lf,lf,0
+	ld	a,(5ch)
+	or	a
+	jr	nz,havdrv
+	call	print##
+	'ERROR: no drive specified',cr,lf,7,0
+	rst	0
+;
+havdrv:	ld	c,14		; select the drive
+	ld	e,a
+	dec	e
+	call	bdos##
+	ld	c,19
+	call	50h		; return alloc info
+	cp	0ffh
+	jr	nz,netok
+	call	print##
+	'Network error',7,cr,lf,0
+	rst	0
+;
+netok:	ld	a,h
+	or	a
+	jr	nz,alocok
+	call	print##
+	'ERROR: cannot process small drives',cr,lf,7,0
+	rst	0
+;
+alocok:	call	print##
+	'Loading allocation map...',cr,lf,0
+	call	codend##
+	ld	(bitmap),hl
+	push	hl
+	pop	ix
+	ld	bc,4000h
+..zl:	ld	(hl),0
+	inc	hl
+	dec	bc
+	ld	a,b
+	or	c
+	jr	nz,..zl
+	ld	de,dirfcb
+	call	f$open##
+rlp:	call	f$read##
+	ld	iy,80h
+..rl1:	ld	a,(iy+15)
+	cp	0ffh			; dirlbl?
+	jr	z,..sklb		;   yes
+	cp	0feh			; bitmap?
+	jr	nz,endmap		;   no, end of map
+	inc	iy
+	ld	ix,(bitmap)
+	ld	b,14			; 14 bytes to move
+	call	movxy
+	inc	iy
+	ld	b,16
+	call	movxy
+	ld	a,(iy)
+	cp	0e5h
+	ld	(bitmap),ix
+	jr	z,..rl1
+	jr	rlp
+;
+..sklb:	ld	iy,0a0h
+	jr	..rl1
+;
+
+movxy:	ld	a,(iy)
+	ld	(ix),a
+	inc	ix
+	inc	iy
+	djnz	movxy
+	ret
+;
+; bit map read into ram
+;
+endmap:	push	ix
+	pop	hl
+	ld	l,0
+	inc	h
+	ld	(newmap),hl
+	ld	de,dirfcb
+	call	f$close##
+	call	print##
+	'Checking for unallocated blocks...',cr,lf,0
+	ld	a,'?'
+	ld	(dirfcb),a
+	call	codend##
+	ld	(bitmap),hl
+	ld	de,dirfcb
+	ld	c,17
+	call	bdos##
+loop:	ld	de,dirfcb
+	ld	c,18
+	call	bdos##
+	cp	0ffh
+	jp	z,done
+	ld	b,a
+	or	a
+	jr	nz,..ski
+	ld	hl,(testc)
+	inc	hl
+	ld	(testc),hl
+..ski:	inc	b
+	ld	a,80h
+	ld	c,20h
+..c:	dec	b
+	jr	z,..dn
+	add	a,c
+	jr	..c
+..dn:	ld	l,a
+	ld	h,0
+	ld	a,(hl)
+	cp	0e5h
+	jr	z,loop
+	push	hl
+	push	hl
+	pop	hl
+	ld	(fnptr),hl
+	pop	de
+	ld	b,8
+	ld	de,10h
+	add	hl,de
+..ram:	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	ld	a,d
+	or	e
+	jr	nz,..ram1
+	djnz	..ram
+	jr	..ramq
+;
+..ram1:	ex	de,hl
+	push	de
+	push	bc
+	call	bitchk
+	pop	bc
+	pop	hl
+	djnz	..ram
+..ramq:	xor	a
+	ld	(noprev),a
+	ld	(double),a
+	jp	loop
+;
+bitchk:	ld	(blocka),hl
+	call	bitclc
+	ld	b,a
+	inc	b
+	ld	a,1
+..bitc:	dec	b
+	jr	z,..bitd
+	add	a,a
+	jr	..bitc
+;
+..bitd:	ld	de,(newmap)
+	push	hl
+	add	hl,de
+	ld	b,a
+	ld	a,(hl)
+	and	b
+	call	nz,barfdb		; double alloc
+	ld	a,b
+	or	(hl)
+	ld	(hl),a
+	pop	hl
+	ld	de,(bitmap)
+	add	hl,de
+	ld	a,(hl)
+	and	b
+	ret	nz
+	ld	a,1
+	ld	(noprev),a
+	push	de
+	push	hl
+	ld	hl,(blocka)
+	call	print##
+	cr,lf
+	'Unallocated block # ',0
+	call	phl4hc##
+	call	print##
+	' in file ',0
+	ld	de,(fnptr)
+	ld	a,(de)
+	inc	de
+	call	pafdc##
+	ld	c,25
+	call	bdos##
+	add	a,'A'
+	call	cout##
+	ld	a,':'
+	call	cout##
+	call	pfn1##
+	pop	hl
+	pop	de
+	ret
+;
+barfdb:	ld	a,1
+	ld	(double),a
+	push	de
+	push	hl
+	ld	de,(blocka)
+	ld	hl,(dptr)
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	ld	(dptr),hl
+	ld	hl,dnum
+	inc	(hl)
+	pop	hl
+	pop	de
+	ret
+;
+done:	ld	a,(dnum)
+	or	a
+	jr	nz,dodbls
+	call	print##
+	cr,lf
+	'No duplicate blocks found.',cr,lf,lf,0
+	rst	0
+;
+; go through directory again (with sfirst/snext) and display
+; names of all files and the allocation block address in
+; question if it is a multiple.
+;
+dodbls:	call	print##
+	cr,lf
+	'Checking for multiple allocation blocks...',cr,lf,0
+	ld	de,dirfcb
+	ld	c,17
+	call	bdos##		; swallow dir label
+dodlp:	ld	de,dirfcb
+	ld	c,18
+	call	bdos##
+	cp	0ffh
+	jp	z,finish
+	ld	b,a
+	inc	b
+	ld	a,80h
+	ld	c,20h
+..c1:	dec	b
+	jr	z,..dn1
+	add	a,c
+	jr	..c1
+;
+..dn1:	ld	l,a
+	ld	h,0
+	ld	a,(hl)
+	cp	0e5h		; erased?
+	jr	z,dodlp		;   yes, do next
+	push	hl		; save filename ptr
+	ld	de,16
+	add	hl,de		; point to allocation blocks
+	ld	b,8		; up to 8 to check
+alckl:	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	call	chkdup		; check if it's a dupe
+	jr	c,isdp		;   if it is, show filename
+	djnz	alckl
+	pop	hl
+	jr	dodlp
+;
+isdp:	call	print##
+	cr,lf
+	'Multiple alloc : ',0
+	pop	de		; get filename ptr
+	push	de
+	ld	a,(de)		; get user area
+	cp	10
+	jr	nc,..nt10
+	ld	a,' '
+	call	cout##
+..nt10:	ld	a,(de)
+	inc	de
+	call	pafdc##
+	ld	c,25
+	call	bdos##
+	add	a,'A'
+	call	cout##
+	ld	a,':'
+	call	cout##
+	call	pfn1##
+	call	print##
+	'  -  ',7,0
+	pop	hl
+	ld	de,16
+	add	hl,de
+	ld	b,8
+..dall:	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	ld	a,d
+	or	e
+	jp	z,dodlp
+	ex	de,hl
+	call	phl4hc##
+	ex	de,hl
+	ld	a,' '
+	call	cout##
+	djnz	..dall
+	jp	dodlp
+;
+; check for duplicate, preserve hl,de,bc
+;
+chkdup:	push	hl
+	push	de
+	push	bc
+	ld	a,d
+	or	e
+	jr	z,chkdux
+	ld	hl,doubla	; pointer to list
+	ld	a,(dnum)	; length of list in words
+	ld	b,a		; counter
+chkdu1:	ld	a,(hl)
+	inc	hl
+	cp	e
+	jr	z,chkdum
+	inc	hl
+	jr	chkdu2
+;
+chkdum:	ld	a,(hl)
+	inc	hl
+	cp	d
+	jr	z,chkduf
+chkdu2:	djnz	chkdu1
+	xor	a
+	jr	chkdux
+;
+chkduf:	scf
+chkdux:	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+; this routine is passed a bitmap address in HL.
+; In HL, the relative byte address is returned, A has the bit number.
+;
+bitclc:	ld	a,l
+	and	7
+	push	af
+	ld	a,l
+	and	0f8h
+	ld	l,a
+	pop	af
+	or	a
+	srl	h
+	rr	l
+	srl	h
+	rr	l
+	srl	h
+	rr	l
+	ret
+;
+; done after finding stuff
+;
+finish:	call	print##
+	cr,lf,lf
+	'*** AFFECTED BLOCK ADDRESS(ES):',cr,lf,0
+	ld	a,(dnum)
+	ld	b,a
+	ld	hl,doubla
+finilp:	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	ex	de,hl
+	ld	a,b
+	and	7
+	call	z,crlf##
+	call	phl4hc##
+	ex	de,hl
+	call	print
+	'  ',0
+	djnz	finilp
+	call	print##
+	cr,lf,lf
+	'DCHECK completed - check all multiply allocated files,  then',cr,lf
+	'cause everyone to log off.  Delete bad files and IMMEDIATELY',cr,lf
+	'execute the FIXMAP command to prevent further damage.',cr,lf,lf,0
+	rst	0
+;
+noprev:	db	0
+double:	db	0
+lps:	db	20
+testc:	dw	0
+newmap:	dw	0		; new bitmap
+bitmap:	dw	0		; bitmap base
+blocka:	dw	0		; block to be tested
+dirfcb:	db	0,'$       DIR',0,0,0,0
+	ds	22
+;
+; storage for doubles:
+;
+dnum:	db	0
+dptr:	dw	doubla
+doubla:	ds	200		; enough!
+;
+fnptr:	dw	0
+;
+	ds	100
+stack	equ	$
+	end
+ bit number.
+;
+bitclc:	ld	a,l
+	and	7
+	push	af
+	

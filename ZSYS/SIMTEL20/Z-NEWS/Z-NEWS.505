@@ -1,0 +1,337 @@
+
+                                                                  14 July 1986
+
+                                  Z-NEWS 505
+
+Z  Tips.   RESOLVE and GETVAR, described in Z-News 408 and mentioned  in  504, 
+written  by Dreas Nielsen (Bellevue, WA), deserve, because of their power  and 
+usefulness,  more  review.  RESOLVE processes commands prefixed with  "%"  and 
+GETVAR  places  shell variable names (representing a  command,  even  multiple 
+commands)  into ROOT directory SH.VAR file.  Use SHDEFINE to edit meanings  of 
+existing  variables.   Demonstration  from  your  keyboard--you  type-in   the 
+underlined text, computer does the rest:
+
+    GETVAR run What do you wish to run?<cr>     <-- you enter at command line
+    What do you wish to run? DIR$|VFILER<cr>    <-- prompt shows, you respond
+    RESOLVE %run<cr>                            <-- you enter variable name
+     --> DIR is run followed by VFILER          <-- computer does this
+
+     Variables  are  equated to (replaced by) command line text of up  to  126 
+characters.   In  our example variable "run" equals running  DIR  followed  by 
+running VFILER.  RESOLVE recognizes eight parameters:  %<text>; $D and $U  for 
+current disk and user area; $R<n> for up to ten register values; $F<n>, $N<n>, 
+$T<n> for System Files one through four; and, $| as multiple-command separator 
+(";" in standard command line).  References to shell variables may be  nested, 
+i.e., one may be replaced by another.  Seldom would you use them from  command 
+line  as we have done in our example, but from turn-key ZEX, CMD, and  (V)MENU 
+command  lines.  Useful additional tools to assist in automating our  computer 
+system  are  ECHO, GET, POKE, GO, SHVAR, and SETFILE, among many  others  (see 
+last paragraph of Amateur Z-User's Corner below).  More information in  online 
+HLP file within file SHUTILS.LBR on Z-Nodes--look for it!
+     --------------------------------------------------------------------
+File  String-Search Program Status.   Z-News 303 reviewed SIFT and  noted  our 
+longing  for  something  faster to find strings of  text  in  multiple  files. 
+Though  costing  only  $23.00 and a value at that  price,  we  want  something 
+faster.  Commercially, we have found two additional programs.
+     SEARCH produced by CompuMagic, P.O. Box 437, Severn, MD, 21144,  301/969-
+8068--priced  at only $30.00--is written in C Language using C/80,  plus  some 
+assembler;  file is 25k-bytes in length; SIFT, 19k-bytes.  Program can  search 
+and find up to ten independent strings, simultaneously;  Sift, only one.  Both 
+handle  wild-card file searches, with many pattern matching search options  to 
+assist finding text not exactly character-for-character known, and do it  even 
+from multi-file databases.  Found strings, along with surrounding text  lines, 
+entire  paragraph, or especially marked (indexed) sections, can be sent  to  a 
+file.  SEARCH author, Norm Dresner, is interested in speed, but you just  can-
+not get much of it using "C" compared to assembler.
+     Another written-in-C-Language string search and extraction program  comes 
+from  O'Neill Software, Box 26111, San Francisco, CA  94126,  415/398-2255--it 
+goes for $49.00--is called "Electra-Find".  And they offer unlimited-use  site 
+licenses  for  $299.00.   Program is 40k-bytes in length,  written  in  BDS-C, 
+indicating  lack-of-power  of C Language in producing compact  code.   Author, 
+Dennis  O'Neill,  did  what he could, and did a  super  job,  with  extensive, 
+professional features offered.
+     Code  length notwithstanding, if you know you have a certain set of  text 
+on  your  disk  system but don't know in which file it is  in,  one  of  these 
+programs is much faster than using your editor, file-by-file, for finding  it.
+All three search programs, especially Electra-Find, have more versatility than Šwe normally need; but if you are a writer, lawyer, or researcher dealing  with 
+long articles, book chapters, essays, reports, tables, briefs, and  contracts, 
+you  could easily require their exceptional string extraction powers.   Either 
+SEARCH  or  Electa-Find  essentially eliminates need  for  free-form  indexing 
+database programs (FYI, etc.), especially if using fast Winchester or RAMdisk.
+     Simple  table comparing SIFT, SEARCH, and Electra-Find on next  page.   A 
+two-file  benchmark  search,  approximately  32k-characters  total,  for   15-
+character strings placed at end of each text file takes from 31 to 40 seconds.
+
+                                                                  Find Strings
+                                   Online  Boolean      Size      (in seconds)
+ Program           Rating   Price   Help   Search   Bytes Records  1st    2nd
+ SIFT v2.2b         good   $23.00    no      no      19k    148    16      37
+ SEARCH v1.22       good   $30.00    yes     yes     25k    196    17      40
+ FINDS v1.0          n/a   $39.95    yes     no      n/a    n/a    n/a    n/a
+ Electa-Find 3.2a   best   $49.00    yes     yes     39k    310    14      31
+
+Tests  were  performed using an Ampro Model 1220 Bookshelf Z80  computer,  one 
+with relatively quick 20-megabyte Seagate 225N hard disk.
+     Richard  Conn, ZCPR3 author, is writing a Z-Tooltm in  Assembly  Language 
+using  SYSLIB,  Z3LIB, and VLIB routines.  (How these routines speed  task  of 
+code  writing!)   We call tool FINDS, Find String, complementing  FINDF,  Find 
+File.  When finished, we compare search and find speed with C Language program 
+equivalents,  replace  n/a's (not available) in table.  We plan  to  initially 
+offer FindS for $39.95, plus $4.00 S&H, continental USA.
+
+Amateur Z-User's Corner.   We show our C Language development VFILER CMD file.
+Menu was used (and developed) when we were doing benchmarks of Z-News 409  and 
+501.   Commands 2, 3, and 4 cover C-80, BDS-C, and Aztec CII  compilers,  each 
+using PCC to check for balanced structure braces, "{ }", and comment, "/* */", 
+symbols.
+
+  TITLE:  C Language CMD Macro File
+  %d%u:;get 100 ws.com;poke 392 ff;go %f
+1 %d%u:;get 100 nw.com;poke 74e ff;poke 787 ff;go %f
+2 if ex %n.c;%d%u:;era %n.bak;pcc %f;c %n;as %n;era %n.asm;else;     <<
+  sak /p3 not c file type;fi
+3 if ex %n.c;%d%u:;era %n.bak;pcc %f;cc %f;clink %n -ns;era %n.crl;  <<
+  else;sak /p3 not c file type;fi
+4 if ex %n.c;%d%u:;era %n.bak;pcc %f;czii -t %f;as %n.asm;           <<
+  ln %n.o %d:z80math.lib %d:z80libc.lib;era %n.asm;era %n.o;else;    <<
+  sak /p3 not c file type;fi
+5 %d%u:;era %n.bak;BASE:lzed %$;c %n;sak /p7 Errors, cancel (^C)?;   <<
+  as %n;era %n.asm 
+6 xdir %d%u:*.* ogoh'Options (u=all areas, p=to printer, d=disk,     <<
+  <cr>=default): '
+7 MAIL:;ROOT:menu t3.mnu
+8 ROOT:vtype %$
+9 if ex %d%u:%n.lbr;%d%u:;nulu -o %n -f;else;ROOT:sak /p3 library    <<
+  file not found;fi
+0 %d%u:;BASE:lzed %$
+#
+
+                  >>> C LANGUAGE PROGRAM DEVELOPMENT <<<
+    ==================================================================
+     1 - EDIT Pointer File (non-document mode)          (Newword) - 1Š
+         Compile/Assemble/Link/Load Using:
+     2 - Software Toolworks C/80 v3.0                      (C/AS) - 2
+     3 - BD Systems BDS-C v1.5a                        (CC/CLINK) - 3
+     4 - Manx Aztec CII v1.06                        (CZII/AS/LN) - 4
+
+     5 - C Language Program Development          (C/80 with LZED) - 5
+
+     6 - Directory of Files on Current Disk                (XDIR) - 6
+     7 - Telecommunicate via Modem (from MAIL directory)  (Term3) - 7
+     8 - View Pointer File with Forward/Backward Scroll   (VTYPE) - 8
+     9 - Enter Pointer File Library (LBR)                  (NULU) - 9
+     0 - EDIT Pointer File using LZED                      (LZED) - 0
+    ==================================================================
+
+
+     Normally for "C" we use Newword, because of its ability to  automatically 
+determine  file  type  and respond accordingly.   Automatic  tab-indent  after 
+entering  carriage  return at line end for C, PAS, BAS, and other  structured, 
+high-level-language conventions.  Of course non-document mode is used for this 
+feature.  Here, document-mode justification and line wrapping is not  desired.
+Such  mode  sets  character-byte  bit 7 high (a  "one"  or  "true")  for  some 
+operations.  We don't want that!  We use FILTW, Keith Peterson and Irv  Hoff's 
+public domain program, to remove automatically formatting control codes, high-
+bit  7s  (WM  and  LZED automatically zero these bits),  that  may  have  been 
+inadvertently placed in a file.
+     LZED  (Little Z-Editor, ZED comes from Zivio soon) and NW  (Newword)  are 
+our  editors, but you can change menu to handle your choices.  LZED  is  quick 
+for  program  changes,  if  source  fits  into  memory.   Otherwise,  use   WM 
+(WordMaster);  it is disk based.  Either LZED or WM is great  for  interactive 
+debugging process as used in command 5 above.
+     Using  "if ex %n.c" instead of "if %t=c" as leading command in 2,  3,  4, 
+and  9  has  advantages plus two side-effects.   Incidentally,  "if"  is  from 
+resident  FCP,  fast; "if12", from Version 1.2 of  transient  IF.COM,  slower.
+Latter recognizes wild cards in parameters, e.g., %t=a?m would be a match  for 
+any center character of the file type.  Also, FCP IF must have been  assembled 
+with "fcb" option set TRUE, not always the case.  Now side-effects.   Pointing 
+to  a  file name that exists on current directory results in compiling  it  if 
+file type of C also exists.  No need to actually point to file to be compiled, 
+just  to one with same name, not type, a disconcerting feature.  Not the  kind 
+of  thing  we  think  of when automation is thought  of.   But...  Second,  an 
+operator error is automatically compensated for, certainly fostering less than 
+explicit  use of a thinking machine.  We use it here to "get the  feel."   Who 
+knows, "if ex" could be best.  Time is our friend.
+     We locate C/80, BDS-C, and Aztec in three separate directories, each with 
+its  own support files.  Makes for less clutter and files in a  directory  are 
+directly  applicable to a specific compiler.  You should customize  above  CMD 
+menu,  creating  as-necessary  menus,  and  place  each  in  its  appropriate, 
+respective directory.
+     Since  only up-to-ten commands are available from each CMD menu  (but  as 
+many  CMDs may exist as there are number of directories on your  disk  system) 
+display can use one or more screen lines per command.  Style presented here is 
+a  result of trying many forms.  We think it pleasing to the eye.   Let's  see 
+your CMD creations--send them in!
+     Where to go for more information?  Z-System User's Guide, pages 6-16 thru 
+6-18, and ZCPR3: The Manual, pages 153 to 160, cover VFILER usage and CMD menu Šdevelopment.
+     Some of you may have missed our alias called CAT, the one used to  access 
+Echelon Discat program Master Catalog.
+
+            if nul $1;CAT:;menu discat.mnu;else;CAT:catscan $*;fi
+
+     Here's  how  it  works:  if  you  enter  CAT<cr>  on  command  line,  you 
+automatically enter Discat Catalog menu.  Without trailing parameter, the  $1, 
+next commands execute, i.e., log into CAT directory, followed by running MENU.
+MENU finds script file DISCAT.MNU in default directory.  But if you enter, say 
+CAT *.doc<cr>, now there is a trailing parameter ($* represents entire command 
+tail, for processing from $1), so module CATSCAN searches Master Catalog (also 
+in  CAT  directory) for all "doc" files on all disks in  catalog.   CAT  *.doc 
+doc.*<cr>  causes CATSCAN to search for all "doc" files of any name  on  disks 
+named "doc" of any disk type.  Such versatility is a feature of Discat catalog 
+system.
+     Nonetheless,  despite all the above, for us to consider Z-System and  its 
+utilities  only  as  tools, as a means to an end, is to miss  magic  power  of 
+learning, joy of accomplishment, of having perpetual fun (fulfillment).
+     Change  of pace.  Resident Command Packages contain many functions,  some 
+soon forgotten.  The help "H" command--case not important--entered at  command 
+line prompt (even from within shells VFILER, MENU, and VMENU) prints to screen 
+available  command names.  CLS, CP, DIR, ECHO, ERA, LIST, MU, NOTE,  P,  POKE, 
+PROT, R, REG, REN, TST, TYPE, WHL, WHLQ, and BYE are the ones implemented,  19 
+thus far.  But don't forget GET, GO, and JUMP resident in the CCP.  Scan  file 
+SYSRCP13.LIB  for  a  complete description (most are detailed  in  ZCPR3:  The 
+Manual,  but not all) except MU (Memory Utility) and BYE.   File  DEBUGRCP.ASM 
+indicates that only MU command is available in DEBUG.RCP.  ZBYE information is 
+in file ZBYE.LBR on many Z-Nodes, but for sure on Node #42.  Combine these  22 
+with 80 or so transient commands (utilities) and you have a powerful operating 
+system.  Add Term3's 29 commands and you have global system (operating  system 
+integrated  with  communications  system through  pre-defined,  local  message 
+buffer areas) the likes of which world presently only dreams of.  And it's  8-
+bit!
+
+From  Our Mail Box.   " ...thanks much for your quick response to  my  request 
+for  Quick-Task  information.   Having  passed the demo  programs  on  to  the 
+programming staff, they fell in love with it right away.  Needless to say,  we 
+placed  a  order immediately and received the code today [06/03/86].   When  I 
+left work at 6:30pm they were still pouring over it with their eyes lit  right 
+up.   One  of  the fellows said it was like--no, really  much  better--than  a 
+similar system he had used from .... and it cost about $39,750.00 less.  Looks 
+like you have another winner.  Please use us as reference if you need to; but, 
+after  people  see  the  demo you most likely won't  have  to.   Regards,  Rea 
+Williams,  VP  Engineering,  Computer  Power  Systems  Corp.,   213/515-6566."
+Thanks, Mr. Williams, for the vote of confidence.
+
+    "Cache memory carried to an extreme becomes RAMdisk."--Gary Feierbach,
+               President, Inner Access Corporation, Belmont, CA
+
+     "I have to agree with Ted Silveira (Profiles, Dec. 1985): 'The weak point 
+is  documentation... it is short on  tutorials and examples to help a  typical 
+computer user do productive things.'  The friendliest help I've found has been 
+the command string examples in above article (page 27)," writes Philip  Bishop 
+from  Narragansett, RI.  Documentation has been a problem, Philip.   But  with 
+publication  of  Z-System User's Guide, Item 88 on Price List,  joining  long-Šavailable  ZCPR3: The Manual, we feel we are over that hurdle.  Front page  of 
+Z-News 503 asked what more should be done; 504 and present newsletter has gone 
+into much menu creation detail.  Well?
+
+Lunch  Break.    Hacker,  whiz  kid;  these  are  simply  labels  applied   to 
+engineering and technical types.  Engineering is not about operating  engines?
+Sure  it is!  Computers are engines.  What's an engine?  Something that  makes 
+things go, to effect a purpose.  Think--any user of a computer is an engineer.
+Technical  (technique,  base  word)  regards  how  to  do  something,  usually 
+something  physical.   "Technology"  is  means  employed  to  provide  objects 
+necessary for human sustenance and comfort.  Words, Oh!  Words...we notice...
+     We notice struggle that programmers and software-interface designers have 
+indicating how to enter a character from console keyboard.  Enter, Touch, Hit, 
+Press,  Strike are all used as verb conventions by various programs.  We  have 
+chosen  "Strike"  as ZCPR3 and Z-System convention.  After we  looked-up  each 
+verb  in an unabridged dictionary, and started thinking kindly about keys  and 
+keyboards, our opinion is "Strike (gently) Any Key" (SAK) is best.  So be it!
+     Philips/Signetics, Thomson-Mostek, now Italian SGS/Zilog?
+     KAMAS,  "OutThink" have competition.  "Thoughtline" from Spite  Software, 
+4875 SW Nineteenth Drive, Portland, OR 97201, 800/237-9111 to order,  503/245-
+8102  to  ask  questions.   At $69.95,  Thoughtline  does  things  an  outline 
+processor   should   do   and  does  them   with   familiar   WordStar/Newword 
+compatibilities--same  editor  cursor and file  manipulation  commands.   Text 
+files  are  moved into Thoughtline and automatically  converted  into  outline 
+format.   "You  move  from Newword to Thoughtline without missing  a  beat  or 
+losing a thought."  CP/M-80 compatible software continues to get better!
+
+Common  Cause.   We have on good authority, better than hearing  it  down-the-
+grape-vine,  a  "Lotus  123-like" spreadsheet program and  a  full-featured  C 
+compiler  are about to be released.  No big deal, you say!  But good  news  is 
+these  are Z-System compatible and take advantage of HD64180 512k-byte  memory 
+space.  Compiler due out early July, spreadsheet in late September.  Both have 
+been in-the-works for over a year.  Can we wait?  We'll let you know  details, 
+how to get product, as soon as they firm.
+     Available  soon,  add-on board for Tandy TRS-80  computers  uses  Hitachi 
+HD64180  superchip.   Developed and produced by M.A.N. Systems,  323  N.  3rd, 
+Medford  OK  73759, 405/395-3849.  Called TR-XL180, offered for  $325.00,  and 
+works  with  all  Model  4s.  It is an easy  auto-install  and  has  390k-byte 
+RAMdisk.   Bravo!   Board  puts Tandy machines into Z-System  realm  of  high-
+performance computing.
+     ====================================================================
+Of Cabbages and Kings.   Certainly we have the power to completely destroy our 
+heritage, our planet; the question is: do we have the wisdom to preserve both?
+That  California  has much to offer deep-livers/lovers of  life,  from  scenic 
+splendor,  diverse  climate  to  gracious  dining  (with  vintage  Zinfandel), 
+intellectual  tolerance  and diversity, needs no elaboration or  support  from 
+here--it's simply a fact.
+     But  someday, when the big shaker hits and the state slowly  slides  into 
+chilly  Pacific water, another must surely take its place.  Here, there is  no 
+contest, at least in our minds:  it's Virginia.
+     Virginia  has its mountains, seashores, cities, small towns,  great  food 
+and  drink, plus nearly unrivaled scenery.  Virginia is an old  state,  dating 
+from  1607,  contributing perhaps more to our history than any  other.   Gen'l 
+Robert E. Lee came from there.  This gentleman so loved his home state, though 
+educated  and stationed in Yankee land, fought for the South during our  civil 
+war.   Others from there, George Washington, Patrick Henry, Thomas  Jefferson, ŠJames  Madison.   Yorktown, Williamsburg, Alexandria,  Jamestown,  Appomattox, 
+places  to bring ripples down our spines...and now the Pentagon and CIA  head-
+quarters are stationed there.  Point is: we love California and Virginia.   We 
+love  north  and  south, east and west, UC Berkeley and  Stanford.   Will  our 
+children and grandchildren be able to do as we have done--love contrasts!   Or 
+will there be only sameness?
+     Do  we  have wisdom enough to preserve diversity, both states,  east  and 
+west?  Do we!
+     Another Side.  We Americans have a secret weapon (other than our abundant 
+natural resources) seldom discussed.  It's our ability to say "Oops, I goofed!
+Tipped over another glass of Zinfandel."  Japanese do not gracefully react  to 
+failure or accident, part of their face-saving religious beliefs.  But we were 
+born of trial and error, came out of repression and failure, to take risk,  to 
+be free enough to fail and hit bottom.  What an advantage!
+     Japanese  have one other major barrier before being leaders of our  race: 
+their attitude towards women, which is generations behind ours.  Their culture 
+makes  it hard to change, far harder than it has been for us.  Their  lack  of 
+free  expression  is reason they have few  innovative  ideas...generations  of 
+taking  the  imaginative ideas of others and improving the  implementation  by 
+paying  attention to details, details so important to product  quality.   Once 
+they  are forced to develop ideas, become free thinkers on their own,  do  the 
+basic  research,  then their competitive advantages (mainly as result  of,  as
+with  south Koreans, low standard of living) look neither very attractive  nor
+long-term promising.  Remember, they have learned everything they know,  about 
+business,  about  capitalism,  by observing us.  Now,  their  turn  to  become 
+innovative, to act, not simply react, but fully on their own ground.  Can they 
+do it?  Peace.
+
+See you down the lines...
+
+                                                                 Echelon, Inc.
+                                                       885 N. San Antonio Road
+			                               Los Altos, CA 94022 USA
+					               Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+
+Trademarks:   Bookshelf,  Ampro;  SB180,  Micromint;  PRO-180,  MDC-1,  Magnum 
+Digital; XL-M180, Intelligent Computer Designs; ON!, ONFILE, Oneac; DT42, Deep 
+Thought  42, The SemiDisk, SemiDisk Systems; TRS-80, Tandy; HD64180,  Hitachi; 
+Z-System, ZCPR3, ZRDOS, Z-Tool, Z-Tools, Zas, Zlink, Z-Msg, Term3, Quick-Task, 
+Lasting-Value Software, Echelon; CP/M, Digital Research; LZED, ZED, Zivio;  V-
+Spell,  CompuView; WordMaster, WordStar, MicroPro; Newword,  Newstar;  MOSART, 
+Xecom;  C/80, Software Toolworks;  BDS-C, BD Software; Aztec CII, Manx;  SIFT, 
+Siftsoft; SEARCH, CompuMagic; Electra-Find, O'Neill Software.
+
+
+
+                   eagle
+                    here                                        *
+
+
+
+                       Z sets you FREE!
+
+
+Š                       *                                        *
+
+
+Z-News  505 is Copyright 1986 Echelon, Inc.  All Rights Reserved.   Permission 
+to  reprint,  wholly or partially, automatically granted if source  credit  is 
+given to Echelon.
+

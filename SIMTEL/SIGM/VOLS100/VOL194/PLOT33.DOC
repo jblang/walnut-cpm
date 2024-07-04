@@ -1,0 +1,1613 @@
+
+
+PLOT33.DOC                                                         July 31, 1984
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    PLOT Version 3.3 (PLOT33) DOCUMENTATION
+
+
+        PART 1. PLOT USER'S GUIDE
+
+             General Information
+             Running PLOT
+             Application Programming
+             PLOT Commands
+             Pitfalls and Limitations
+             Error Messages
+
+
+        PART 2. APPLICATION PROGRAMS
+
+             BASIC Programs
+             TURBO PASCAL Library
+             FORTRAN Library
+
+
+        PART 3. INSTALLATION INSTRUCTIONS
+
+             Sizing the Memory Map
+             Printer Settings
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       1
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        PART 1 USER'S GUIDE
+
+
+        GENERAL INFORMATION
+
+             This  collection  of  programs  contains  a graphics system
+        that  can  produce  high  resolution  graphics  on  dot   matrix
+        printers and  other  graphic  devices.   This system consists of
+        three parts:
+
+             - high level language subprograms that you include in  your
+             application programs,
+
+             -  a  disk file created by the application program which is
+             used to describe the pictures to be printed,
+
+             - and low level device  drivers  that  read  the  file  and
+             produce  the  pictures on whatever sort of hardware you are
+             using.
+
+        The application program "plots" by writing simple plot  commands
+        to  a  disk  file,  which  is  later read and printed by the low
+        level driver.  This  file  is  the  key  to  the  whole  system,
+        because  it  makes  the  application  program independent of the
+        plotting device and vice versa.  It also makes  it  possible  to
+        plot  pictures  that  were  created on different computers or to
+        plot the same picture on different types of  hardware,  such  as
+        CRT's and printers.
+
+             The  system  contained  in  this  collection has high level
+        subprogram  libraries  written  in  BASIC   (GRAPH.BAS),   Turbo
+        Pascal(GRAF1.PAS and  GRAF2.PAS),  and  FORTRAN (GRAF.FOR).  A C
+        library is being debugged.  It contains  one  assembly  language
+        device  driver,  PLOT33.ASM, which will plot on a variety of dot
+        matrix printers.  These printers include the Epson  MX-80  etc.,
+        CItoh  Prowriter,  Okidata 92, NEC, Gemini-10, Apple Dot Matrix,
+        and IDS printers.  PLOT33 lets you treat your printer as  if  it
+        were  a  plotter  capable  of  true  vector graphics. All future
+        versions of PLOT (3.x) will support the same basic  file  format
+        and will be compatible with each other.
+
+             This  documentation  describes how to get PLOT33 installed,
+        specifies the format for  the  disk  file  of  plotting  vectors
+        (".VEC"  files),  and  gives  an  overview  of  the  high  level
+        language packages. You will probably want to briefly  skim  over
+        the   descriptions  below  and  go  right  to  the  Installation
+        section.   If  you  intend  to  mainly  use  the  programs   and
+        subprogram  libraries  provided, the exact details of the format
+        of the commands in the file are not important.
+
+
+
+
+
+
+
+                                       2
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        Capabilities
+
+             PLOT's  command  set  includes  instructions   for   device
+        independent  graphics  and  commands  that provide access to the
+        unique capabilities of specific devices. The device  independent
+        commands  are  patterned  after a pen plotter's characteristics,
+        with a rudimentary capability for filling areas on  raster  scan
+        devices.    These   device   independent  commands  include  the
+        capability to move to a point without plotting, to  plot  points
+        and  straight  line  segments,  to change the current color, and
+        fill in  a  trapezoidal  area.    More  complex  areas  can   be
+        decomposed into simpler regions for filling.
+
+             The  device  dependent  commands  include  the  ability  to
+        plot/print a string using hardware character capabilities.   The
+        Upload  command  can be used to upload the red-green-blue values
+        used for  the  color  table  on  color  graphics  terminals  (or
+        stipple  patterns  to be used for "colors" on monochrome devices
+        as in PLOT33).    The  Erase  command  will  clear  the  screen,
+        establish   the  background  color,  or  advance  the  page,  as
+        appropriate for the type of  plotter  or  display.    An  Output
+        command  is  used to produce hardcopy output or print the memory
+        map.  A general instruction that  can  be  used  to  extend  the
+        command  set  for any other non-standard command required rounds
+        out the device dependent commands.
+
+        Bug Fixes and Future Versions
+
+             The assembly language and BASIC  programs  in  this  system
+        have  been  tested  so  far  on four different computers and six
+        different types of printers.  I would appreciate  hearing  about
+        any  problems  you have or changes that you make to the program.
+        I am particularly interested in versions for different  printers
+        or  drivers for other plotting devices such as graphic terminals
+        and plotters.  Please send your comments and  questions  to  the
+        author at:
+
+             Tom Speer
+             887 Briddlewood Ln.
+             Dayton, Ohio  45430
+             (513)429-2781
+
+        It  is  important  that  a  common  version  be  maintained that
+        incorporates fixes  to  all  of  the  bugs  and  implements  the
+        improvements that are of general interest.
+
+             As  mentioned  above, all future updates to this version of
+        PLOT will be compatible with the existing plot  files  and  high
+        level software.    Future  drivers are also planned for creating
+        and interpreting the vector command file on mainframe  computers
+        using CALCOMP  or Tektronics plotters and terminals.  As much as
+        possible, the eXtend command should be used for adding neat  new
+        features   for   your   printer   or  taking  advantage  of  the
+        capabilities of more  advanced  devices.    This  will  make  it
+
+
+                                       3
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        possible  to  maintain  the file format as a means of exchanging
+        information  without  a   fatal   proliferation   of   exclusive
+        versions.
+
+        Acknowledgments
+
+             I  owe a special debt of thanks to all the people that have
+        been my guinea pigs  in  adding  new  printers  and  discovering
+        bugs.   Especially  Hal  Carter  for his help and encouragement,
+        Kirk Horton for really wringing  out  the  system  in  his  VLSI
+        applications,  and Mike Gingrich for his critiques of the system
+        and documentation.
+
+
+        RUNNING PLOT
+
+             To use PLOT, first create a sequential disk  file  of  plot
+        commands.  These  are described fully in the next section.  Then
+        execute PLOT by typing:
+
+                               PLOT33 ifn [ofn]
+
+             ifn is the input file  name.    A  file  type  of  .VEC  is
+        assumed if no file type is given.
+
+             [ofn] is  an  optional output file name.  If no output file
+        is given, the output from PLOT will go directly to  the  printer
+        (CP/M LST:   device).    If  an output file is specified, all of
+        the information normally sent to the printer will be  stored  in
+        the disk  file instead.  In this case, no printed output will be
+        produced.  PIP or some other utility may be used  to  print  the
+        picture.   This  option  is useful for making multiple copies or
+        for including graphics  in  the  middle  of  text  files.    The
+        default output file type is .PLT .
+
+             Note:  Output  files  are  large-  typically 40 to 60k.  Be
+        sure to leave enough space on the disk for the entire file.
+
+
+        APPLICATION PROGRAMMING
+
+             Application programs  "plot"  by  writing  the  appropriate
+        plot command  to  a  disk  file.  This file later becomes PLOT's
+        input file.    The  plotting  area  is  a   square,   with   the
+        coordinates  (0.0  , 0.0) located at the bottom left corner, and
+        the coordinates (1.0 , 1.0) located at the upper  right  corner.
+        These  coordinate  values  are  independent of the resolution or
+        aspect ratio of  the  plotting  device.    PLOT  converts  these
+        values  to  the  actual  number  of  rasters  (dots) used by the
+        printer to produce a square plot approximately eight  inches  on
+        a side.
+
+
+
+
+
+                                       4
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+             All  plot commands are written to disk one after the other,
+        with no spaces or delimiting  characters  between  them.    Each
+        command  consists  of  an ASCII character followed by the binary
+        data which it requires. Many languages, such  as  BASIC,  insert
+        extraneous  characters,  such as carriage returns or line feeds,
+        at the end of each block written.   Because  of  this,  plotting
+        commands  should  not  be  split  between blocks, as these extra
+        characters will be interpreted as data in a  command.    If  the
+        extraneous   character   occupies  the  position  of  a  command
+        character, however,  it  can  be  detected  and  ignored.    The
+        current  application  programs  output plot commands in 128 byte
+        blocks.  If a command will not fit in a given block,  the  block
+        is  written  to  disk,  and  the  next  command written in a new
+        block.  This ensures that the extraneous  characters  will  fall
+        between commands  where  PLOT  can  deal  with them.  When using
+        fixed length blocks or records, each can be  padded  with  "N"'s
+        to preserve its length before it is written.
+
+             The recommended command sequence to produce a picture is:
+
+             1.   Set  the  color to black or white (color values 127 or
+             0) for a background.  Usually white is used.
+
+             2.  Erase the picture to initialize  the  memory  map  area
+             and establish the background.
+
+             3. Set  the  color value for plotting.  Usually black (127)
+             is used.
+
+             4.  Establish a starting point by using the  Move  command,
+             plotting  a  single point, or plotting a line segment using
+             the Draw command.
+
+             5. Proceed to create  the  remainder  of  the  plot.    The
+             Increment  command  is recommended when one line segment is
+             connected to the previous one, as in a curve.
+
+             6.  Be sure to include  an  Output  command  to  print  the
+             final plot.
+
+             7. Use  the  Quit  command  to  stop  plotting.   PLOT will
+             terminate automatically at  an  end-of-file,  but  with  an
+             error message, and without printing the picture.
+
+
+        PLOT COMMANDS
+
+             Each command is of the form:
+
+                                     Adata
+
+        "A"  represents  the  single ASCII character as explained below.
+        "data" represents 0  to  86  bytes  of  data  required  for  the
+        particular command.    Usually  this  consists  of  fixed  point
+
+
+                                       5
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        numbers giving  the  coordinates  of  points  or  ends  of  line
+        segments.    No  spaces  or  delimitating  characters  are  used
+        between fields within  a  command  or  between  commands.    The
+        individual commands are described in Table 1.
+
+             The  data  values  required  for  the plot commands are not
+        ASCII character strings.    Thus,  they  cannot  be  made  using
+        normal  formatted  output  of  the  coordinate  variables in the
+        application program.  The coordinate values  are  16  bit  fixed
+        point numbers.    These  are  created in a high level program by
+        multiplying the floating point value (between 0.0  and  1.0)  by
+        32767 and  truncating  the  result to an integer.  In BASIC, the
+        MKI$ function can  be  used  to  store  the  data  in  a  string
+        variable, which  is  then  written  to  the  disk file.  FORTRAN
+        programmers  can  simply  use  unformatted  files   or   convert
+        everything to  characters  and use A formats.  Under PASCAL, the
+        file can be declared to be a FILE OF CHAR and the binary  values
+        converted the  characters using the CHR function.  This does not
+        work well for Turbo Pascal,  however,  since  Turbo  places  the
+        file  size  and  record  length  at  the head of a FILE OF CHAR.
+        Turbo Pascal  users  should  use  TEXT  files  instead.      The
+        different  word  lengths,  internal  storage  formats,  and file
+        structures have to be considered when constructing  the  command
+        file  on  mainframes  and  microcomputers  other than CP/M based
+        machines.  The ablility to structure a file as a byte stream  is
+        the  basic  requirement.  The  CP/M  Dump utility can be used to
+        ensure that the contents of the file are what you expected.
+
+             The 16 bit data values are stored with the low  order  byte
+        first (swapped  format).    This  is the standard way of storing
+        words for the 8080 and Z80 processors.  In the case of  the  one
+        byte  integer  required  by the Color command, the first element
+        of  the  string  created  by  MKI$  should  be  used,  as   MKI$
+        automatically places the bytes in swapped format.
+
+             Note  that  because  the data values are not ASCII strings,
+        the CP/M TYPE command will not properly display the file at  the
+        console.   In  addition,  the  [O] option must be specified when
+        using PIP to transfer either the vector command file  (.VEC)  or
+        the printer (.PLT) file.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       6
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+                                    TABLE 1
+
+                                 PLOT COMMANDS
+
+
+                Command    Length
+      Name  Character Data (bytes)      Command Data Description
+      ----------------------------------------------------------------------
+      Color    C      b      2   8 bit integer specifying one of a range of
+                                 colors.  0 indicates white,
+                                 127 indicates black.
+
+      Draw     D     X1,Y1,  9   Coordinate pairs for ends of line segments.
+                     X2,Y2
+
+      Erase    E             1   Sets the entire ploting area to the
+                                 currently selected Color value.
+
+      Fill     F     X1,Y1, 11   Coordinate pairs for ends of line segment
+                   X2,Y2,Yf      and horizontal level (Yf) defines area to
+                                 be filled in with currently selected color.
+
+      Incre-   I     X,Y     5   Coordinate pair for end of line segment.
+      ment                       Starting coordinate is last point plotted.
+
+      Move     M     X,Y     5   Coordinate pair for new "pen" position.
+
+      No-op    N             1   Ignored. Used as space filler in sequence
+                                 of commands to exactly fill a disk record.
+
+      Output   O             1   Causes current picture to be printed.
+
+      Point    P     X,Y     5   Coordinate pair for point to be plotted.
+
+      Quit     Q             1   Commands normal termination of program.
+
+      String   S     X,Y,    6   Coordinate pair for start of character
+                   string   to   string to be printed. String
+                            86   MUST end with a Carriage Return.
+
+      Text     T   string   2+   String of arbitrary length. String MUST
+                                 end with a <NULL> (00H) character.
+
+      Upload   U     N,      3   N is a 16 bit unsigned integer giving the
+                   values   to   number of values to follow.  Values
+                           N+3   specify basis for creating new "colors".
+
+      eXtend   X     N,      3   N is a 16 bit unsigned integer giving the
+                   values   to   number of values to follow.  Values are N
+                           N+3   bytes of whatever data is necessary.
+
+
+
+
+
+
+                                       7
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+             The  following  sections  describe  the  way  in  which the
+        commands have been implemented in  PLOT  Version  3.3  (PLOT33).
+        Other  drivers  may  not implement them in exactly the same way,
+        but the general sense should be preserved.
+
+             Colors are simulated in PLOT33 by using  stipple  patterns.
+        These  patterns  apply  to  all points, lines, and filled areas.
+        These patterns are based on 8 dot by 8 dot cells that  tile  the
+        entire picture  area.    Imagine  cutting  each  figure out of a
+        sheet  entirely  covered  with  the  desired  pattern  and  then
+        pasting it  on  the plot in progress.  This gives a general idea
+        of the way in which the patterns work.  Three different  methods
+        of generating  the  patterns  are  used.  Each method trades off
+        the memory  required  to  store  the  basic  patterns  with  the
+        ability to specify exactly what the pattern will look like.
+
+             When  a  Color  command  is  given, all subsequent plotting
+        will be done with that "color", or pattern, until it is  changed
+        with another  Color command.  The Color command simply acts as a
+        selector to pick one of a number of colors or patterns that  are
+        currently available.    A  color code of 0 corresponds to white.
+        Lines and filled areas plotted with this color  will  absolutely
+        erase any  dots  that were previously plotted.  Color codes from
+        1 through 48 will produce cross hatched patterns  that  generate
+        checkered areas  and  other  distictive patterns.  Codes from 49
+        to 63 correspond to 15 special patterns that can  be  programmed
+        to  exactly  match  any  desired  pattern based on the 8 x 8 dot
+        cells.  Codes  from  64  through  127  are  generated  using  an
+        ordered  dither  matrix,  in  which  each succeeding code is the
+        same as the previous one, except  for  one  more  dot  per  cell
+        being plotted.    These are currently set to generate a range of
+        shades of gray.  All of these patterns can be changed under  the
+        control   of   the  application  program  by  using  the  Upload
+        command.
+
+             Each dot is added to the memory map by OR'ing it  with  the
+        dots previously  plotted.    Each  subsequent  figure  does  not
+        totally obscure the existing  picture.    For  example,  suppose
+        that  a  gray  shade  is being used that consists of every other
+        dot being plotted.  The dots  that  are  not  plotted  will  not
+        cause  the  existing  dots  to  be  set  to  white  if they were
+        previously plotted.  Negative color values  (-1  to  -127)  will
+        use  the same pattern as their positive counterpart, but will be
+        XOR'ed with the existing picture.  This means  that  the  figure
+        will  be  plotted black on white or white on black, depending on
+        what the existing background  is.    Plotting  the  same  figure
+        twice  with  a  negative  color value will have no net effect on
+        the picture.  Filling the  whole  picture  with  -127  (negative
+        black)   will   have   an  effect  like  making  a  photographic
+        negative.
+
+             The String command is used to mix  printed  characters  and
+        graphics.   The characters are printed using the printers normal
+        character set.  No facility is provided in PLOT33 to send  <ESC>
+
+
+                                       9
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        codes  or  control characters to the printer to change character
+        sizes or font styles.  The string is printed starting  near  the
+        coordinates given  in  the  command.    The  exact position will
+        vary,  but  the  first  character  will  cover  the   coordinate
+        location.   The ambiguity comes from the fact that most printers
+        can only print characters at their normal location on the  page,
+        and  can't  use  graphics commands to position the characters at
+        any arbitrary place  on  the  line.    In  addition,  a  printed
+        character  can't  be  part  on  one  line  of  print and part on
+        another.   Therefore,  PLOT33  computes  the  closest  character
+        location  to  the  desired  coordinates  and  begins  the string
+        there.
+
+             The Text command will immediately send  a  text  string  to
+        the printer  when  the  command  is  encountered.  This is quite
+        different from the String command, because the text is  not  put
+        in the  memory map and is not part of the picture.  This command
+        is useful for positioning the plot on  the  page,  for  printing
+        titles  and  headers,  and  for advancing to the next page after
+        the plot is printed.  Any ASCII characters may  be  included  in
+        the  string, including control codes, escape sequences, carriage
+        returns, and  linefeeds.    The  only  exception  is  the   null
+        character,  00H,  which is used to signal the end of the string.
+        The string may be of any length.  This  makes  it  a  convenient
+        way  of  imbedding  a  figure in the middle of a document, since
+        all of the text above the figure can be  included  in  one  Text
+        command, as  can all of the text after the plot.  Any text to be
+        included in the plotting area itself must be  entered  one  line
+        at a time with the String command.
+
+        Upload Command
+
+             The   Upload   command  deserves  some  special  attention,
+        because it  is  the  least  standard  of  all  of  the  commands
+        currently implemented.     Most  dot  matrix  printers  can,  of
+        course, only print in black.  To give these printers  a  "color"
+        capability,  different  patterns have been programmed to produce
+        shades of gray and distinctive  cross  hatched  patterns.    The
+        cross  hatched  patterns are intended to be used for bar charts,
+        dotted and dashed lines, etc.  The shades are the  closest  that
+        PLOT33 can  come  to true colors.  The special patterns are very
+        useful for matching patterns produced by other systems, and  for
+        anything  that  just  can't  be done with the other two methods.
+        The Color command acts as  a  selector  to  choose  between  the
+        pre-defined patterns.   The Upload command is only needed if the
+        default patterns  are  not  capable  of  producing  the  desired
+        effect.   It  will  redefine  the  patterns from which the Color
+        command can select.
+
+             The cross hatched patterns are based on  seven  bytes  that
+        provide  the  basic patterns in both the vertical and horizontal
+        directions for each cell.  One byte from the seven  is  selected
+        as  the X pattern and one byte from the seven is selected as the
+        Y pattern.  The X pattern is extended vertically throughout  the
+
+
+                                       10
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        cell,  and the Y pattern is extended horizontally throughout the
+        cell.   The  two  patterns  are  reversed  (XOR'ed)  where  they
+        cross.  The  effect  is much like weaving a plaid material.  The
+        selection of the bytes for the X and Y patterns is made  by  the
+        Color code.    The  lower  three bytes of the Color value select
+        the X byte and the next three bytes select  the  Y  byte.    The
+        best  way to determine the exact apperance of each pattern is to
+        experiment by filling blocks with different patterns.
+
+             If the existing patterns are not acceptable, new  ones  can
+        be Uploaded.   Set  the number field, N, to 07H.  The next seven
+        bytes will be the bytes that form the basis  for  the  patterns.
+        Each bit  corresponds  to  a  dot in the pattern.  A byte of 07H
+        for the X pattern would produce the pattern .....*** .    If  an
+        F0H is used for the Y pattern, the final cell will look like:
+
+                                    *****...
+                                    *****...
+                                    *****...
+                                    *****...
+                                    .....***
+                                    .....***
+                                    .....***
+                                    .....***
+
+             The  second  type  of  pattern,  used  for  the  15 special
+        patterns, is specified by giving the 8 bytes  that  produce  the
+        pattern.   Thus,  the  sequence  00H 00H 99H 00H 00H 99H 00H 00H
+        will produce the pattern:
+
+                                    ..*..*..
+                                    ........
+                                    ........
+                                    ..*..*..
+                                    ..*..*..
+                                    ........
+                                    ........
+                                    ..*..*..
+
+        These patterns are uploaded by specifying 120 for N followed  by
+        the 120  bytes  that  define all 15 of the special patterns.  No
+        facility is provided for just uploading one set of 8 bytes.
+
+             The other method for producing patterns for "colors" is  an
+        eight by  eight  byte  dither matrix.  In this method, each byte
+        in the matrix corresponds to one dot in the eight by  eight  dot
+        cell.  These  cells  tile  the  picture plane, as before.  Color
+        code values from 64 to 127 are used to select  the  64  patterns
+        created by  the  dither  matrix.   Each element of the matrix is
+        assigned a value from 63 to 126.  If the Color value is  greater
+        than  the value in the matrix corresponding to a given dot, that
+        dot is plotted.  Thus, 127 is greater than all of the  elements,
+        and  all  dots  in  the matrix will be plotted, producing black.
+        If each element of the matrix is  assigned  a  different  value,
+
+
+                                       11
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        then  a  unique  pattern  will  be  associated  with  each Color
+        value.  For example, if the Color code is 64, only  the  element
+        with a  value  of  63 will produce a dot.  If the Color value is
+        65, those elements with 63 and 64 will produce  dots.    As  the
+        Color  code  is  increased, and figures are plotted, another dot
+        in the "tile" has the potential for being plotted.
+
+             The existing arrangement of values in the dither matrix  is
+        designed  to produce shades of gray with a minimum appearance of
+        organized patterns.  This matrix came from Foley and  Van  Dam's
+        "Fundamentals of  Interactive  Computer Graphics".  A common use
+        of the Upload  command  is  to  change  the  matrix  to  provide
+        diagonal patterns  for  shading  areas.    This  would produce a
+        pattern that looks like (for four cells):
+
+                                     ////
+                                     ////
+                                     ////
+                                     ////
+
+             To design an Upload sequence for a given pattern,  lay  out
+        a matrix  representing  a  single cell.  Start with 63 and place
+        the numbers in the matrix in the pattern desired.  For  example,
+        a  cell  from  the  diagonal pattern above could be created from
+        the matrix:
+
+                   63 111  85 103  75 115  93  95
+                  112  64 104  86 116  76  96  94
+                   79 105  65 117  87  97  77 121
+                  106  80 118  66  98  88 122  78
+                   71 119  81  99  67 123  89 107
+                  120  72 100  82 124  68 108  90
+                   91 101  73 125  83 109  69 113
+                  102  92 126  74 110  84 114  70
+
+        To see the pattern, look at the  matrix  part  way  through  its
+        construction:
+
+                    63              75
+                       64              76
+                           65              77
+                               66              78
+                   71              67
+                       72              68
+                           73              69
+                               74              70
+
+        For  this  matrix,  the  Color code 79 will result in all of the
+        above points being plotted  in  any  filled  in  area,  and  the
+        diagonal pattern will emerge.
+
+             Once  the matrix is constructed, the Upload command to load
+        it is formed by an ASCII "U" followed by 40H,  00H  to  indicate
+        64  bytes  to come, and finally 03H, 6FH, etc., the bytes of the
+
+
+                                       12
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        matrix.  The matrix is read in  one  row  after  another  (  the
+        [1,1]  element  followed by the [1,2] element, ..., to the [1,8]
+        element, then the [2,1]  element,  ...).    All  of  the  matrix
+        values are  binary  8  bit  values.    In  BASIC,  use  the MKI$
+        function to convert the integers to strings, then use the  first
+        character.
+
+             To summarize  the  Upload  command:  The Color codes from 1
+        to 48 are produced by  cross-hatched  patterns  based  on  eight
+        pattern bytes.   These can by Uploaded by a "U" 08H 00H followed
+        by eight new pattern bytes.  The Color codes from 49 throuth  63
+        are  Uploaded by a "U" 78H 00H and the 120 bytes that define the
+        15 cell patterns.  The Color  codes  from  64  through  127  are
+        produced by  a  dither  matrix.    This  is created by assigning
+        elements of an eight by  eight  matrix  the  values  63  through
+        126.   The  matrix  is Uploaded by a "U" 40H 00H followed by the
+        64 elements in row major order.
+
+
+        PITFALLS AND LIMITATIONS
+
+             This  section  amplifies  the  more   subtle   points   and
+        limitaions of PLOT33's commands.
+
+             The valid  range  for  coordinate  values  is 0 to 1.  This
+        corresponds to binary integer values from 0 to 32767.   As  each
+        point  is plotted, a check is made to insure that the coordinate
+        is within the memory map.  If  it  is  not,  the  point  is  not
+        plotted.   This  is mainly to keep the program from running amok
+        and writing over parts of  memory  that  are  not  part  of  the
+        memory map  of  the  picture.  This is not intended to be a form
+        of windowing.  If you want to zoom in on  a  part  of  a  larger
+        picture,  the  picture  should  be  clipped  by  the application
+        program.  Note also, that most high  level  languages  will  not
+        deal  with  positive  integers  that  are  larger than 32767, as
+        these larger numbers represent negative integers.
+
+             In contrast to the coordinate values used for  all  of  the
+        graphic  commands, any coordinate value outside the picture used
+        to indicate the start of  printing  a  string  will  be  set  to
+        zero.   This  is intended to make the String command act as much
+        as possible like a normal printer.  When the string goes off  of
+        the  right  hand side of the plot, the X coordinate for the next
+        character will be set to zero and the string will  wrap  around-
+        just like  a carriage return without a linefeed.  All characters
+        that attempt to be printed above  or  below  the  plot  will  be
+        printed on the bottom line.
+
+             String has  a few other points of interest.  Only printable
+        characters should be used.  Control characters and escape  codes
+        will  occupy  their  respective  positions in the memory map but
+        will not be printed.  This will cause the rest of  the  line  to
+        be  shifted  to the left and destroy its alignment with the rest
+        of the page.  Also, the character  pitch  must  agree  with  the
+
+
+                                       13
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        character  width  set at assembly time, or the alignment will be
+        affected.
+
+             The coordinates for the start of the string  are  truncated
+        to the  nearest multiple of the size of the character.  Thus the
+        specified point will be within  the  first  character,  but  the
+        character  will  not  be  centered  or  aligned  with  the given
+        coordinate position.    This  was  done  because  most  printers
+        insist  that  the printed characters occupy these locations, and
+        PLOT33 has to respect this or the aligment of the  rest  of  the
+        line will again be affected.
+
+             PLOT33  prints  the  strings, it does not plot them as line
+        segments.  Because of this, a printed character will  absolutely
+        occupy  its  location  on the plot, and any overlapping lines or
+        points will not  appear.    If  a  character  is  printed  on  a
+        patterned  background,  it  will appear as if it were in a white
+        box the size of the character.  If true graphic  characters  are
+        desired,  they  must be drawn by the application program as line
+        segments.  An additional implication of the  printed  characters
+        is  is  their  size  relative to the graphic bit images that are
+        sent to the printer.  The  graphics  are  printed  in  "strokes"
+        that are  one  dot  wide  and  seven  dots  high.   Many printed
+        characters are higher than  seven  dots  especially  those  that
+        have descenders.    A printed character occupies a space that is
+        seven dots high in the memory  map.    Thus,  the  top  line  of
+        capital  letters  and  the lower case descenders can overlap the
+        graphics area above and below the  nominal  area  of  a  printed
+        character.   The  distance  that  the  paper is advanced between
+        lines is dictated by the height of a graphic  "stroke",  and  is
+        nearly  always  smaller  than the normal single spaced distance.
+        Printed lines must therefore be "double  spaced"  by  specifying
+        starting coordinates  that  are well separated vertically.  This
+        is a device dependent aspect, and a  litle  experimentation  may
+        be needed to achieve a good appearance.
+
+             The  last  caution about the String command is that it MUST
+        end with a carriage return character.  This signals the  end  of
+        the  string,  and  without it, the program will continue to read
+        the rest of the input file  as  part  of  the  string  until  it
+        either  encounters  a  carriage  return  or the end of the file.
+        The String and Text commands are the  only  commands  with  this
+        potential,  as all of the others have a definite number of bytes
+        of data.  All these caveats regarding  the  String  command  may
+        sound  a  little  gruesome,  but it is really not much different
+        from normal printing.  If its limitations  are  too  inhibiting,
+        you must draw the characters instead of printing them.
+
+             The  Text  command  is output to the printer at a different
+        time than any of the other commands.    Its  contents  are  sent
+        immediately  when  it  is read, whereas all other commands cause
+        their actions to be stored in the memory map  and  only  printed
+        when an  Output command is received.  Thus, it cannot be used to
+        send escape sequences to  the  printer  in  the  middle  of  the
+
+
+                                       14
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+        plot.   Whether  graphics  commands  (such  as Draw, Fill, etc.)
+        preceed or follow a Text  command  is  immaterial,  since  these
+        commands  affect  the  memory map at the time that they are read
+        and not the printer.  What really matters is the position  of  a
+        Text command relative to the Output commands in the file.
+
+             Like  the carriage return at the end of the String command,
+        omitting the 0 byte at the end of  the  Text  command  can  have
+        disasterous consequences.
+
+             The  line  spacing  used  in  the Text command is different
+        from the line spacing in the plot itself.   The  Output  command
+        sets  the  line spacing to be appropriate for graphics, and then
+        resets it to the normal text single spacing when  done.    If  a
+        uniform  appearance  is  required  throughout, each Text command
+        should  contain  the  control  characters  or  escape  sequences
+        required  to set the line spacing to match that used in the plot
+        itself.
+
+             The final consequence of the line spacing is that the  form
+        length  and  the top of form position set in the printer will be
+        wrong.  The Output command will  result  in  the  printer  being
+        positioned at  the bottom of the plot.  This is to allow several
+        plots to be  printed  sequentially  as  one  continuous  picture
+        without any  gaps  between them.  In order to advance to the top
+        of the next page, the Text command must be  used  to  issue  the
+        correct  number of line feeds and then tell the printer to reset
+        the top of form.
+
+             The Output command does not  erase  the  existing  picture.
+        Thus  several  copies  of  the  same  plot  can  be  produced by
+        repeating the command.  In addition, this allows building  up  a
+        picture in  stages  and printing it at each stage.  To print one
+        plot and start anew, you must Output the first,  set  the  Color
+        to  white,  Erase  the  page, and then set the Color back to the
+        plotting color or pattern.  The program does  not  automatically
+        execute  an  Output command at the end-of-file or when Quitting.
+        You must include an Output command to get  any  output  at  all.
+        This  philosophy  is  to  accomodate those devices, like graphic
+        terminals, that display the plot as it is being made,  and  only
+        need an Output command for hardcopy.
+
+
+        ERROR MESSAGES
+
+
+        Disk is Full.
+
+             Fatal error.    No  more room exists on the designated disk
+        for writing the  output  file.    Ensure  that  enough  room  is
+        available and  run PLOT again.  Note that a different disk drive
+        may be specified for the output file than the one used  for  the
+        input file.    If  disk  space is not available, run PLOT in the
+        direct printing mode.
+
+
+                                       15
+
+PLOT33.DOC                    PLOT User's Guide                    July 31, 1984
+
+
+
+             Any remnant of the output file  may  be  printed,  but  the
+        last  record  will probably contain an incomplete graphic output
+        sequence.  The printer will expect to receive  additional  bytes
+        of graphics.    This  will produce a swath of dots with a random
+        apperance, unless nulls are sent.    In  addition,  the  printer
+        line  spacing  will  remain  set  for  the  size  of the graphic
+        output.
+
+        End of File.
+
+             Fatal error.  The end of the  input  file  was  encountered
+        when PLOT  attempted  to  read  the  next  record.    Add a Quit
+        command for the normal termination of the program.
+
+        File not Found.
+
+             Fatal error.  The file name given for the input file  could
+        not be  found  on  the  disk.    Make sure that the spelling was
+        correct, that the proper drive is specified in  the  file  name,
+        or the right drive is logged in as the default drive.
+
+        No Directory Space Available.
+
+             Fatal error.    When  PLOT tried to make a new output file,
+        there was no more room in the disk directory.    Erase  a  file,
+        use  a  different  diskette,  or run PLOT in the direct printing
+        mode, without making an output file.
+
+        No File Specified.
+
+             Fatal error.  No input file name was given.  PLOT will  not
+        prompt  you  for  a  file name, and there is no interactive mode
+        for entering commands.  Create an input file and try again.
+
+        Undefined Command Character Encountered.
+
+             Warning error.  When PLOT attempted to interpret the  ASCII
+        letter  portion  of  a  command, a character was found which did
+        not correspond  to  one  of  the  established  commands.    PLOT
+        ignores  these  characters  and  attempts  to interpret the next
+        character as a command.  If a command does not have  the  proper
+        number  of data bytes, or if an extraneous character is inserted
+        in the middle of the data portion of a command, the rest of  the
+        file will  be out of sequence.  Eventually, PLOT should get back
+        in step with the command stream, but  the  overall  effects  are
+        unpredictable.
+
+
+
+
+
+
+
+
+
+
+                                       16
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+        PART 2.  APPLICATION PROGRAMS
+
+
+        BASIC PROGRAMS
+
+             Several  sample  BASIC application programs are included as
+        examples of  possible  implementations.    BASIC  was   selected
+        because  it  is almost universally available on CP/M systems and
+        is a good language for quick one-of-a-kind  plots.    The  first
+        file  is  GRAPH.BAS.  This file contains a plotting "library" of
+        routines that give direct access to the low level commands  used
+        by PLOT.    It  also  includes  routines  for  scaling,  and for
+        drawing a complete graph with labeled axes.  This file  is  used
+        by the  other programs.  For each command that can be written to
+        the  .VEC  file,  there  is  a   corresponding   subroutine   in
+        GRAPH.BAS.
+
+             To  use  these  subroutines,  first  load  the  appropriate
+        variables with the necessary data.  For example, to draw a  line
+        segment,  set  X1 and Y1 to the starting coordinates, and set X2
+        and Y2 to the ending coordinates (remember that  all  coordinate
+        values are  between  0.0 and 1.0).  Then GOSUB to the subroutine
+        for that function, in this case the DRAW LINE  SEGMENT  routine,
+        which is  currently  line  177.    That's  all that is required.
+        Drawing axes or graphs is done the same way.  Set  the  required
+        values and  GOSUB  to  the  appropriate  routine.    All  of the
+        variables are documented in the REM statements  at  the  top  of
+        the  file,  and  a  sample  plot  is  depicted,  followed by the
+        settings that   would   produce   it.      The   BASIC   package
+        automatically  issues  the  commands  to initialize the plotting
+        area, so  you  can  start  plotting  immediately  when  the  the
+        application part  of the program starts executing.  End the plot
+        by calling the QUIT PLOTTING routine, at line 200.    This  will
+        automatically  add  the  commands to print the picture and close
+        the file.
+
+             Four statement functions are provided to make  it  easy  to
+        scale your  data and compute plotting coordinates.  Functions RX
+        and RY will  convert  your  "real  world"  values  to  X  and  Y
+        coordinates for  plotting.    Functions  UX  and  UY do just the
+        opposite, converting coordinates on the page to  the  equivalent
+        coordinates in  the user defined plane.  These functions require
+        that you have established the  margins,  etc.  as  if  you  were
+        plotting a  graph.    The default values for these settings will
+        result in the conversion functions  simply  returning  the  same
+        value as  their  input.    Note  that  although  the margins are
+        useful for confining the plotting to one section  of  the  page,
+        no  clipping  is  done  to insure that all of the points plotted
+        are indeed confined to that area.
+
+             The next file is called TEST.BAS.  It is a  sample  program
+        that illustrates  how  to use the routines in GRAPH.BAS.  To use
+        TEST, enter BASIC-80, then LOAD "GRAPH.BAS".  MERGE  "TEST.BAS",
+        and RUN  it.   The program can produce one or both of two plots.
+
+
+                                       17
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+        The first is a polygon with all of  the  vertices  connected  to
+        each other.    This  provides  a  good  test of the line drawing
+        capabilities of PLOT.  The second plot is a graph  of  a  damped
+        sine wave.    It illustrates nearly the complete range of PLOT's
+        capabilities.
+
+             Two  programs,  FILLS   and   UPLOAD,   are   an   aid   to
+        experimenting  with  the  patterns  used  to represent colors by
+        PLOT33.  Both are to be used with GRAPH.BAS in the same  way  as
+        TEST.BAS.   FILLS.BAS  will  produce  an array of blocks showing
+        the stipple patterns used  to  represent  each  "color".    This
+        makes an  easy  reference  for  future  plotting.  UPLOAD.BAS is
+        similar to FILLS.BAS, except that before  plotting  the  blocks,
+        it Uploads  new definitions for the patterns.  The dither matrix
+        used is like the example used in the previous section. The  DATA
+        statements  of  this  program  can be changed to experiment with
+        different  definitions   and   then   incorporated   into   your
+        applications.
+
+             The final  program  is  HANDPLOT.BAS.    This  is a general
+        purpose program for manual plotting of data.  The  program  uses
+        a  menu  to  display  the  BASIC plot package settings and allow
+        them to be changed.  Data can be typed  in  from  the  keyboard,
+        saved in  a disk file, and plotted.  A limited number of symbols
+        are avalilable for identifying data points and  the  points  may
+        optionally be  connected by straight lines.  Plotting scales and
+        axes may be  specified  manually,  or  determined  automatically
+        from the  range of values in the data.  To make it easy to enter
+        this program directly from the operating system  command  level,
+        the  routines  in  GRAPH.BAS  have  already been included and no
+        MERGE operation is required.
+
+             When HANDPLOT is first entered, it  prompts  the  user  for
+        the  name  of  the .VEC file, and for the dimensions of the data
+        arrays.  It then displays the menu.  The menu  is  divided  into
+        three  parts  which  are  concerned with the data, the format of
+        the graph, and the activities  that  can  be  performed  by  the
+        program.  It will look like this:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       18
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+        DATA SETTINGS
+        No. of Variables  0               No. of Points  0
+        1> Data Entry KEYBOARD            2> Input File
+                                          3> Output File
+        4> X Variable                     5> Y Variable
+        6> Symbol NONE                    7> Connect points FALSE
+
+        GRAPHIC SETTINGS
+        X Axis    8> Min  0                9> Max  1          10> DeltaX  1
+                 11> Label Chars 0        12> Divisions  0
+        Y Axis   13> Min  0               14> Max  1          15> DeltaY  1
+                 16> Label Chars  0       17> Divisions  0
+        Margins  18> Left  0              19> Right  0
+                 20> Bottom  0            21> Top  0
+        22> Color Value  127              23> Auto-Scale  TRUE
+        24> Clear Plot Area First FALSE
+        25> Plot Output File Name JUNK.VEC
+
+        ACTIONS
+        26> Read New Data       27> Edit data            28> Write Data
+        29> Plot Graph Axes     30> Plot Data            31> Title Plot
+        32> Advance Page        33> End Program
+
+        Enter Number of SETTING or ACTION?
+
+        From  here,  the  program  is  operated  by  giving  all  of the
+        required settings their correct value, and  then  selecting  the
+        desired action.    This  is  done by entering the number printed
+        next to the entry on the menu.  Each setting  will  then  prompt
+        you for  the data that it needs, if any.  Several settings, such
+        as Data Entry, only toggle between two values;   in  this  case,
+        KEYBOARD or DISK.  The settings may be entered in any order.
+
+             The  first  thing  you will probably want to do is to enter
+        some data to be plotted.  If the data is to be read from a  disk
+        file instead,  then  enter  1  to toggle to DISK.  You will then
+        have to enter 2 to have the program prompt  you  for  the  input
+        file's name.   If the data is to be typed in, you are already to
+        go.  Now enter 26, and the program will start to read  the  disk
+        file, or  prompt  you for the data.  Once the data has been read
+        in, it can be changed using option 27, Edit Data.  The data  can
+        also be  stored  on  disk using option 28.  The output file name
+        is handled in the same way as the input file name.
+
+             Next you will want to indicate, using  settings  4  and  5,
+        which  variables are to be used for the X and Y axes and whether
+        the points should be plotted with one of the  available  symbols
+        and/or connected with straight lines.
+
+             If  you are simply plotting a figure, you are ready to plot
+        it using option 30, Plot Data.  If you  are  plotting  a  graph,
+        then  all  of  the  settings in the next section should be given
+        their correct value before plotting the  axes  with  option  29.
+        Several  sets  of  data can be plotted on the same graph, simply
+
+
+                                       19
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+        by changing the X and Y variables and symbol  and  plotting  the
+        data again.   Strings can be printed anywhere on the graph using
+        Option 31.
+
+             The DeltaX  and  Divisions  settings  are  linked  to  each
+        other,  as  are the DeltaY and Divisions setting for the Y axis.
+        When the DeltaX or DeltaY  setting  is  changed,  the  Divisions
+        settings  will  be  reset  to  indicate  the number of divisions
+        between the Min and Max values.  If  the  Divisions  setting  is
+        changed,  the  DeltaX  or  DeltaY  setting will be calculated to
+        give a good engineering value (multiples of 1,  2,  5,  or  10),
+        and  the  Divisions  setting  will reflect the revised number of
+        divisions.  Thus the value you enter into the Divisions  setting
+        will  only  be  approximately  the  value  that  will ultimately
+        result.   If  your  engineering  esthetics   differ   from   the
+        program's, you will have use the DeltaX and DeltaY settings.
+
+             In  a similar fashion, the Auto-Scale option will reset the
+        Max and Min values to include the actual range of the data,  and
+        will  use  the  Divsions  settings  to  indicate the approximate
+        number of labels to use for each axis.
+
+             Advance Page  will  issue  an  Output  command,  clear  the
+        frame, and  set  the  color  to black for further plotting.  The
+        frames will be plotted one after the  other  with  no  space  in
+        between them.    End Program will issue an Output command, close
+        out all files and, return to the BASIC command level.
+
+             Several plots can be put on one page, simply  by  adjusting
+        the margin  values  between  plotting each graph.  If Clear Plot
+        Area First, setting 24, is TRUE, the  area  inside  the  margins
+        will  be  erased to white using the Fill command before the axes
+        are plotted.  This is useful for plotting one graph as an  inset
+        within a larger figure.
+
+             The  data  file  has a simple format, and can be made using
+        your  editor  or  another  program,  rather   than   laboriously
+        entering all  the data with HANDPLOT.  The first record contains
+        the number of variables, or  fields,  in  the  data  records  to
+        follow.   The  next entries are names, up to 20 characters long,
+        for each of the variables.  These  can  be  on  the  same  line,
+        separated by  commas, or each may be on a record by itself.  The
+        data values are next.  One value for each variable  is  read  in
+        turn, until  the  end of the file is encountered.  The values on
+        any given line are separated by commas, and each logical  record
+        (one  value  for each variable) may be spread over several lines
+        of data.  A sample data file is shown below:
+
+        3                   <--- Three Variables
+        X, Y, Z             <--- Names for each variable
+        123, 4.56, 78.9     <--- First record: X=123, Y=4.56, Z=78.9
+        10.11,1213,1516.17
+        18.0, 19.0, 20      <--- Last record
+
+
+
+                                       20
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+        TURBO PASCAL LIBRARY
+
+             Turbo Pascal  support  is  provided  in  the  form  of  two
+        "include" files  and  one  test program.  GRAF1.PAS contains the
+        global declarations and lowest level routines.    These  provide
+        direct access  to  the  commands  in  the  .VEC  file.   It also
+        provides functions to do  scale  conversions.    GRAF2.PAS  uses
+        these  routines  to  provide  the  additional capability to plot
+        graphic characters, plot axes, and  do  whole  Cartesian  grids.
+        Each  routine and its calling arguements are summarized in Table
+        2.
+
+             Plotting is initiated with  the  procedure  GRINIT.    This
+        procedure  opens  the  disk  file  and  initializes the plot, as
+        discussed previously.     It   also   initializes   all   global
+        variables.   The  GRFINI  routine  writes  the  Output  and Quit
+        commands and closes the plot file.
+
+             The following routines correspond directly to  commands  in
+        the plot  file:    COLOR,  ERASE,  FILL,  GPRINT, GSTRNG, GMOVE,
+        POINT, SEGMNT, and VECTOR.
+
+             Scaling is accomplished by using RWINDO  to  set  the  real
+        world  limits  and  SWINDO  to  map  the  real world limits to a
+        specific area on the page.  In the interest of execution  speed,
+        no  clipping  is done to ensure that the plotting is confined to
+        either window.  The functions SX and  SY  are  used  to  convert
+        from  the  real  world  coordinates to the normalized device, or
+        "screen" coordinates.  The reverse conversion  is  performed  by
+        RX and RY.
+
+             GRAPH  plots  a  complete  grid given the range of data and
+        area on the page.  AXIS can be used to make special  graphs  and
+        DXDY will  calculate  good  engineering  values  for  AXIS.  The
+        graphic characters and strings are plotted by GCHAR and  GWRITE,
+        respectively.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       21
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+                                    TABLE 2
+
+                             TURBO PASCAL ROUTINES
+
+
+        Name   Inputs Outputs   Function
+        -----------------------------------------------------------------
+        color                   Sets color/pattern- sends Color command.
+                code            integer which selects color or pattern
+
+        erase                   Clears page- sends Erase command.
+
+        fill                    Fills trapezoidal area- sends Fill command.
+                x1              normalized X coordinate for start of segment
+                y1              normalized Y coordinate for start of segment
+                x2              normalized X coordinate for end   of segment
+                y2              normalized Y coordinate for end   of segment
+                yf              normalized Y coordinate for fill level
+
+        gmove                   "Pen up" move to point- sends Move command.
+                x               normalized X coordinate
+                y               normalized Y coordinate
+
+        gprint                  Prints picture- sends Output command.
+
+        grinit                  Initializes .VEC file
+                name            string specifying name of .VEC file
+
+        grfini                  Quits plotting, closes .VEC file
+
+        gstrng                  Prints string- sends String command.
+                x               normalized X coordinate for first character
+                y               normalized Y coordinate for first character
+                strng           string to be plotted (no <CR> at end)
+
+        point                   Plots point- sends Point command.
+                x               normalized X coordinate
+                y               normalized Y coordinate
+
+        segmnt                  Plots line segment- sends Draw command.
+                x1              normalized X coordinate for start of segment
+                y1              normalized Y coordinate for start of segment
+                x2              normalized X coordiante for end   of segment
+                y2              normalized Y coordinate for end   of segment
+
+        vector                  "Pen down" move- sends Increment command.
+                x               normalized X coordinate
+                y               normalized Y coordinate
+
+
+
+
+
+
+
+
+                                       22
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+                         TURBO PASCAL ROUTINES (CONT)
+
+        Name   Inputs Outputs   Function
+        --------------------------------------------------------------------
+        rwindo                  Establishes real window for scaling.
+                xmini           real world value at left   side of window
+                xmaxi           real world value at right  side of window
+                ymini           real world value at bottom side of window
+                ymaxi           real world value at top    side of window
+
+        swindo                  Establishes window on page for scaling.
+                sxlti           normalized X coordinate for left   side
+                sxrti           normalized X coordinate for right  side
+                syboti          normalized Y coordinate for bottom side
+                sytopi          normalized Y coordinate for top    side
+
+        sx                      Converts from real world to normalized coord
+                rxi             real world X coordinate
+                       sx       normalized X coordinate
+
+        sy                      Converts from real world to normalized coord
+                ryi             real world Y coordinate
+                       sy       normalized Y coordinate
+
+        rx                      Converts from normalized to real world coord
+                sxi             normalized X coordinate
+                       rx       real world X coordinate
+
+        ry                      Converts from normalized to real world coord
+                syi             normalized Y coordinate
+                       ry       real world Y coordinate
+
+        axis                    Plots axis at arbitrary orientation.
+                r1              real world value at start of axis
+                r2              real world value at end   of axis
+                dri             real world increment for tic mark intervals
+                sx1             normalized X coordinate for start of axis
+                sy1             normalized Y coordinate for start of axis
+                sx2             normalized X coordinate for end   of axis
+                sy2             normalized Y coordinate for end   of axis
+                ticlen          normalized length of tic mark
+                ticang          CCW angle, in deg, from horiz. to tic mark
+                lblnum          integer number of char's in tic mark label
+                lbldec          integer number of char's after decimal pt.
+                lblang          CCW angle, in deg, from hor. to lbl X axis
+
+
+
+
+
+
+
+
+
+
+
+                                       23
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+                         TURBO PASCAL ROUTINES (CONT)
+
+
+        Name   Inputs Outputs   Function
+        --------------------------------------------------------------------
+        graph                   Plots complete Cartesian grid.
+                xmini           real world value at left   side of graph
+                xmaxi           real world value at right  side of graph
+                nx              integer- approximate number of X intervals
+                ymini           real world value at bottom side of graph
+                ymaxi           real world value at top    side of graph
+                ny              integer- approximate number of Y intervals
+                sxl             normalized X coordinate for left   side
+                syb             normalized Y coordinate for bottom side
+                sxr             normalized X coordinate for right  side
+
+        chset                   Sets size and orientation of graphic char's
+                xsize           normalized width of character
+                ysize           normalized width of character
+                theta           CCW angle, in deg, to char X axis from hor.
+
+        gchar                   Plots graphic character.
+                cx              normalized X coord of bottom left corner
+                cy              normalized Y coord of bottom left corner
+                charin          ASCII character to be plotted
+
+        gwrite                  Plots string of graphic characters.
+                x               normalized X coord of bottom left corner
+                y               normalized Y coord of bottom left corner
+                chars           string to be plotted
+                nchar           integer number of characters to be plot
+
+        dxdy                    Calculates arguements for axis.
+                x1              real world value at start of axis
+                x2              real world value at end   of axis
+                nx              integer- approximate number of intervals
+                       lblnum   integer number of char's in tic mark label
+                       lbldec   integer number of char's rt. of decimal
+
+        posang                  Converts angle to range in 0 to 360 deg
+                angle           angle to be converted
+                       posang   converted angle
+
+        ticend                  Calculates values for ends of axis
+                rmin            raw real world value for start of axis
+                rmax            raw real world value for end   of axis
+                dr              real world increment between intervals
+                       pr1      converted real world value at start of axis
+                       pr2      converted real world value at end   of axis
+
+
+
+
+
+
+
+                                       24
+
+PLOT33.DOC                  Application Programs                   July 31, 1984
+
+
+
+                         TURBO PASCAL ROUTINES (CONT)
+
+        Name   Inputs Outputs   Function
+        ------------------------------------------------------------------
+        writecmd                Buffered output of command string to file.
+                cmd             output string
+                cmdlen          integer number of characters to be output
+
+        ne 4
+        buffout                 Flushes buffer.
+                outunit         file variable specifying output file
+                outbuf          string of characters forming buffer
+                size            number of characters to be sent out
+
+        concat2                 Concatenates portions of strings.
+                strng1          first string to be concatenated
+                nchar1          number of characters from strng1
+                strng2          second string to be concatenated
+                nchar2          number of characters from strng2
+                       strng3   string containing strng1 and strng2
+
+
+        FORTRAN LIBRARY
+
+             A  collection  of  FORTRAN  routines  is  also  included in
+        GRAF.FOR.  This file is the  FORTRAN  complement  of  the  Turbo
+        Pascal library.    The  input  and  output  requirements for the
+        FORTRAN routines are similar to those of  the  Pascal  routines,
+        and are  fully  documented  in  the  comments within them.  They
+        communicate with each other  through  a  labeled  COMMON  block.
+        These  routines  have  been  run under Microsoft FORTRAN-80, but
+        may require some modification for other compilers.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       25
+
+PLOT33.DOC                Installation Instructions                July 31, 1984
+
+
+
+        PART 3.  INSTALLATION INSTRUCTIONS
+
+
+        SIZING THE MEMORY MAP
+
+             PLOT33  has  been  designed  to  keep  the  printer  driver
+        program  small  while  providing the necessary primitive graphic
+        operations for producing most pictures and plots.    The  reason
+        for  the simplicity of the of the command set is because the bit
+        map for the picture is LARGE.  It can  use  as  much  memory  as
+        your computer  can  give  it.   The size of the memory available
+        for the bit-map, in conjunction  with  the  resoultion  of  your
+        printer, sets  the size of the plot that can be made.  The first
+        step in installing the  program  is  to  decide  how  large  the
+        memory area  for  the  bit  map  can  be.    The  program itself
+        occupies about 4K.  Subtract this from the size of the TPA,  and
+        reduce  the  result  by  a little more to provide a conservative
+        pad.  The end result is the target size  for  the  size  of  the
+        memory map.
+
+             Divide  the target size by the printer resolution (dots per
+        inch) in the horizontal  direction,  and  divide  again  by  the
+        printer's vertical  resolution.    Multiply  this result by 7 (7
+        dots are stored in each byte).   You  now  have  the  number  of
+        square inches  that  can  be plotted.  Take the square root, and
+        round down to a convenient size for each side of the plot.
+
+             Now multiply the  height  of  the  plot  by  the  printer's
+        vertical  resolution  and  round down to the nearest multiple of
+        7.  The number of dots in the vertical  direction  should  be  a
+        multiple  of 7 because seven dots are stored in each byte of the
+        memory map.  PLOT33 has no provisions for handling a byte  which
+        is contains  bits that are part in and part out of the map.  You
+        now have the total number of dots  in  the  vertical  direction,
+        and  dividing  by  7  gives  the  number  of  lines that will be
+        printed when the plot is made.  Finally, divide  the  number  of
+        dots  in  the  vertical  direction by the vertical resolution to
+        get the final size, in inches, of the plot.
+
+             Multiply the final size  of  the  plot  by  the  horizontal
+        resolution  to  get  the  final number of dots accross the page.
+        The final map  size  is  the  product  of  the  number  of  dots
+        horizontally  multiplied  by  the  number  of  dots  vertically,
+        divided by 7.
+
+             As an example, consider a 56K CP/M system.  Subtracting  4K
+        for the PLOT program and 100H for the start of the TPA:
+
+             Target Size = 57344 - 4096 - 256 = 52992 bytes
+
+
+
+
+
+
+
+                                       26
+
+PLOT33.DOC                Installation Instructions                July 31, 1984
+
+
+
+        The  Epson MX-80 has 60 dots per inch horizontal and 72 dots per
+        inch vertical resolution.
+
+             Target Size/ Hor. Res./ Vert. Res. * 7 =
+               52992    /   60     /    72      * 7 = 85.9 sq.in
+                                                    ==> 9.2 in. per side
+
+        Since the MX-80 can only plot 8 inches  horizontally,  the  plot
+        is  limited  by  the  physical limits of the printer, not by the
+        memory avalilable.  Calculating the vertical number of dots  for
+        an 8 inch plot:
+
+             8 * 72 = 576 dots ==> 82 lines @ 7 dots/line
+                               ==> 574 dots vertically
+
+        Since  only  2  dots  were lost due to truncating to the nearest
+        number of whole bytes,  there  is  little  point  in  trying  to
+        adjust the  horizontal  size  to  keep  the  plot  square.   The
+        horizontal size is therefore:
+
+             8 * 60 = 480 dots
+
+        The final map size is calculated as:
+
+             480 * 574 / 7 = 39360
+
+        PRINTER SETTINGS
+
+             Once the plot has been sized, you are ready to  modify  the
+        settings  in  the  assembly  language  source file (PLOT33.ASM).
+        This file is large, over 70K, so watch the disk space.  If  your
+        editor  cannot  handle  a  file  this  large,  the CP/M standard
+        editor, ED, can.  ED can also read from one disk  and  write  to
+        another, if  necessary.    For  each type of printer there is an
+        associated flag that controls the conditional assembly for  that
+        printer.   Set  the  flag  for  your printer to TRUE and set the
+        others to FALSE.  If your printer  is  not  listed,  it  may  be
+        similar to  one  that  is.   For example, the Gemini-10 operates
+        identically (for the purposes of this program)  with  the  Epson
+        printers.   The  IDS printers use the same method as the Okidata
+        printers for their graphics, and the NEC printers act  the  same
+        as the C.Itoh printers.
+
+             Next,  the  settings  for  your  printer must be changed or
+        verified.   MAPSIZE  should  be  set  to  the  value  calculated
+        above.   MAXX  and MAXY must be set to 1 less than the number of
+        dots in  the  horizontal  and  vertical  directions.    For  the
+        example  above,  MAPSIZE  becomes 39360, MAXX is set to 479, and
+        MAXY to 573.
+
+             Once the settings are  made  for  your  printer,  exit  the
+        editor  and  assemble  the  program  using  ASM  or another 8080
+        assembler.  Use LOAD to create  the  .COM  file  from  the  .HEX
+        file, and the installation is finished.
+
+
+                                       27

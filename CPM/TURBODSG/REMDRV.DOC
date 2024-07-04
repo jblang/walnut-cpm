@@ -1,0 +1,268 @@
+.HE REMOTE MODEM DRIVER COPYRIGHT (C) 1985, S. KLUGER
+.FO REMDRV DOCUMENTATION PAGE #
+
+
+
+     REMDRV‚  ió á modulå which¬  wheî useä iî placå oæ thå CONREM„ 
+modulå iî á TurboDOÓ 1.4± masteò operatinç system¬  allowó alì oæ 
+thaô master'ó slavå tï accesó uğ tï 1¶ I/Ï devices®  Onå possiblå 
+applicatioî  woulä bå (iî conjunctioî witè thå appropriatå  soft
+ware© accesó oæ multiplå modemó bù anù slave® Witè aî intelligenô 
+terminaì  program¬  modeí selectioî woulä bå transparenô  tï  thå 
+user¬  sï  thaô  activatinç  thå utilitù woulä selecô  thå  firsô 
+availablå modem¬ untiì alì modemó arå busy.
+
+
+
+                     INSTALLATION of REMDRV
+
+     Installatioî oæ REMDRV‚ ió straightforwarä anä requireó  onlù 
+á  minoò  changå iî OSMASTER.GEN®  Pleaså notå thaô  thå  releaså 
+version of REMDRV consists of three serialized .REL files:
+          REMDRV.REL     the remote modem driver
+          REMCH0.REL     master comm port "0" driver
+          REMCH1.REL     master comm port "1" driver
+          NOTE: For the 16-bit package, the files are named .O
+Iî addition¬ thå followinç fileó arå parô oæ thå releaså softwarå 
+package:
+          REMCH0.MAC     an example of a REMDRV  companion module
+                         using the OEM-supplied drivers  (via the
+                         COMDRV## entry point)
+          ATTREM.MAC     an example of a simple  terminal program
+                         with modem select capability
+          ATTREM.COM     object code of above
+          ATTREM.CMD     same, for 16 bit systems
+          REMDRV.DOC     this text
+
+
+     Tï install¬ simplù adä thå followinç linå tï OSMASTER.GEN
+
+REMDRV,REMCH0,REMCH1
+
+
+Witè  thió change¬  twï remotå modeí channeló becomå activå.
+.paŠ
+
+                       THEORY OF OPERATION
+
+     REMDRV‚  allowó  anù useò oî anù slavå iî  á  smalì  TurboDOÓ 
+networë  tï  accesó  uğ tï 1¶ seriaì channeló (commonlù  useä  foò 
+modems)¬  provideä  thå channeì ió free®  REMDRV‚ ió accesseä  viá 
+DEFDID¬  therefore¬ thå statioî requestinç accesó musô bå á slavå 
+oæ  thå  masteò  whicè runó REMDRV‚ (ratheò thaî thå  slavå  oæ  á 
+second master networked into the first).
+
+     REMDRV provides the following functions:
+
+     1. attach to remote driver
+     2. detach from remote driver
+     3. set remote baud rate
+     4. interrogate remote baud rate
+     5. character buffer I/O
+
+     Thå  followinç texô explainó eacè functioî iî greaô  detail¬ 
+includinç  alì parameteró tï bå passed®  Note„ thaô foò alì REMDRV‚ 
+functions the C register (CL in 8086) must be set to 33 (21H).
+
+
+1 - ATTACH TO REMOTE DRIVER
+
+     Thió  functioî  initiateó á remotå I/Ï sessioî anä  must“  bå 
+calleä prioò tï anù remotå activitù foò thå desireä port.
+
+     entry:
+     reg D (DH)     0FEH
+     reg B (CH)     channel number 00..0FH
+     return:
+     reg A (AL)     000H = successful attach
+                    0FFH = requested channel busy
+                    0FEH = requested channel not implemented
+
+
+2 - DETACH FROM REMOTE DRIVER
+
+     Thió  functioî  ió  useä aô thå conclusioî oæ á  remotå  I/Ï 
+sessioî  tï 1© freå thå porô foò anotheò useò anä 2©  unlinë  thå 
+port so as not to waste processing power in the master
+
+     entry:
+     reg D (DH)     0FDH
+     reg B (CH)     channel number 00..0FH
+     return:
+     none (channel is detached)
+.paŠ
+
+3 - SET REMOTE BAUD RATE
+
+     Allowó settinç oæ thå attacheä channel'ó bauä rate® Thå bauä 
+ratå  specificatioî parameteò ió identicaì tï thå onå useä iî  T-
+functioî 3· (seô bauä rate).
+
+     entry:
+     reg D (DH)     0FCH
+     reg B (CH)     channel number 00..0FH
+     reg E (DL)     baud rate code (ex. 9600=0EH)
+     return:
+     none (baud rate is set)
+
+
+4 - GET REMOTE BAUD RATE
+
+     Returnó  thå remotå bauä ratå codå (thå codå ió identicaì tï 
+the one returned by T-function 38).
+
+     entry:
+     reg D (DH)     0FBH
+     reg B (CH)     channel number 00..0FH
+     returb:
+     reg A (AL)     baud rate code (ex. 9600=0EH)
+
+
+5 - CHARACTER BUFFER I/O
+
+     Thió  functioî ió useä tï transfeò datá betweeî thå selecteä 
+porô anä thå callinç software® Pleaså notå thaô thå transfeò FROM„ 
+thå decivå alwayó involveó á blocë oæ data¬ uğ tï 12· characters¬ 
+written to the current DMA address.
+
+     entry:
+     reg D (DH)     0FAH
+     reg B (CH)     channel number 00..0FH
+                    bit 7 set if output is desired
+     reg E (DL)     output character (if any)
+     return:
+     reg A (AL)     number of input characters read into buffer
+     DMA ADDRESS    count (same as A) followed by the input data
+.paŠ
+
+SAMPLE PROGRAM ATTREM
+
+     Thió  samplå attach-program¬  supplieä iî sourcå anä  objecô 
+format¬ allowó yoõ tï attacè tï anä detacè froí anù activå REMDRÖ 
+porô  oî thå master®  Thå prograí caî bå useä froí anù slavå tieä 
+tï  thaô master®  Iô wilì rejecô attempô tï attacè tï á  busù  oò 
+non-existanô port.
+
+USAGE
+
+Thå  followinç  ió á samplå sessioî witè  ATTREÍ  (bold=computer¬ 
+light=user):
+
+0A}attrem
+
+ONLY PORTS A..P ALLOWED
+
+0A}attrem a
+
+ATTACHED TO PORT A AT 1200 BAUD
+          (communication takes place)
+          ......
+          (now ATTN-ABORT is typed on console)
+DETACHED FROM PORT A
+
+0A}attrem c
+
+ERROR: PORT C DOES NOT EXIST
+
+0A}attrem b              (assume you are attached to B on
+                         another terminal)
+
+ERROR: PORT B IS BUSY
+
+0A}
+.paŠ.HE SOFTWARE RELEASE NOTES, LEGALITIES
+
+
+
+
+                          RELEASE NOTE
+
+
+
+     REMDRV‚  ió á copyrighteä producô oæ S®  Kluger¬  Dallaó  TX® 
+Reproductioî  (otheò thaî foò archivaì uså oò foò systeí  genera
+tion© withouô writteî authorizatioî ió prohibited® Disassemblù oò 
+unauthorizeä  reserializatioî  ió  prohibited®   Note‚  thaô  thió 
+applies only to REMDRV.REL or REMDRV.O!
+
+     REMDRV‚  ió  availablå iî twï forms¬  1© foò uså  witè  8-biô 
+masters and 2) for use with 16-bit 80186 (!) masters.
+Botè versionó includå thå samplå ATTREM‚ prograí iî 8- anä  16-biô 
+flavors, but only ATTREM.MAC is supplied.
+
+     REMDRV‚  maù  periodicallù  bå updateä  oò  improveä  withouô 
+notice®  Updateó  arå  freå  iæ thå  originaì  masteò  disë  witè 
+sufficienô  returî  postagå ió sent®   É dï noô expecô anù  majoò 
+updates to be more frequent than one per 3 months.
+
+     BUG REPORTS are strongly encouraged!
+.paŠ.HE REMDRV ORDER FORM
+
+         (fill out completely and send the whole sheet)
+
+Pleaså senä _____ß copieó oæ REMDRV®  Serializatioî anä  versionó 
+are as follows: (NOTE: only one copy per serial #)
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+TurboDOÓ seriaì numbeò ____/___ß REMDRÖ versioî (¸ oò 16© _______
+
+(continue on back if more room needed)
+
+Name: __________________________  Company: ______________________
+
+Address: ________________________________________________________
+
+         ________________________________________________________
+
+         ________________________________________________________
+
+Phone number: (____) _____ - ________
+
+
+     Total number of copies:       _______ at $25.00 each
+
+     Check or Money Order enclosed for  $ _________.00
+or
+     Please ship COD     (postage/COD fees added to total)
+
+
+Please sign here to accept the restrictions
+placeä oî thå producô oî thå previouó pagå º ___________________
+
+NOTEº  pleaså  checë  herå  iæ yoõ haveº  (__© ´  differenô  disë 
+drivers or (__) 4 different circuits defined in your master.
+.paŠ.HE RELEASE NOTES FOR DEMO VERSION "REMDRVT.REL"
+
+
+     Thió ió á demï version® Licenså ió granteä foò noncommerciaì 
+use and distribution for demonstration purposes only.
+
+
+     REMDRVT operates like the real REMDRV with the following
+important differences:
+
+-    REMCH°  onlù ió supplieä foò uså witè comí channeì ° oî  thå 
+     master.
+-    Only one remote driver (normally REMCH0) can be used
+-    Attemptó tï accesó anù functionó witè thå B-registeò not‚ seô 
+     to 00H (channel 0) may result in a total system crash.
+
+     REMDRVT‚  allowó  freå accesó tï remotå channeì "A¢  witè  nï 
+restrictions.
+
+

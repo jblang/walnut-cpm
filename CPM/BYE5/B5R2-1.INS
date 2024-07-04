@@ -1,0 +1,180 @@
+; B5R2-1.INS - BYE5 Insert for TRS-80 2/12/16/16B - 07/17/85
+;
+;		 SIO I/O and CTC 8430 timer
+;
+; This version adapted for use with TRS-80 Models 2/12/16 & 16B.
+;
+; This works with the TRS-80 Model II & 12 with versions of CP/M 2.2
+; except Pickles and Trout 2.2m.  Will work on P&T 2.2m ONLY if running
+; ZCPR3.
+;
+; NOTE:  This is an insert, not an overlay.
+;
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written to work with BYE5			- Irv Hoff
+; 12/23/84  Written for TRS-80 Models II//16/ and 16B	- Ken Brown
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Set ports for SIO & CTC chips for TRS-80 Models 2/12/16/16B
+;
+; The following define the port addresses to use.
+;
+PORT	EQU	0F4H		; Data port
+STPORT	EQU	PORT+2		; Status/control port
+BPORT	EQU	0F0H		; Baud rate port
+BPORT1	EQU	BPORT+1		; Port for TRS-80 Models 2/12/16/16B
+;
+;
+; Changed BDCMD1 & BDCMD2 EQU'S for TRS-80 Models 2/12/16/16B
+;
+BDCMD1	EQU	07H		; 110,300,600 & 1200 baud
+BDCMD2	EQU	47H		; 2400 4800 9600 baud
+;
+;
+; CTC baud rate divisors
+;
+BD300	EQU	52		; 300 baud
+BD1200	EQU	104		; 1200 bps
+BD2400	EQU	52		; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:MVI	A,10H		; Reset status
+	OUT	STPORT
+	IN	STPORT		; Get status
+	ANI	08H		; Check for data carrier
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	OUT	STPORT
+	MVI	A,4		; Setup to write register 4
+	OUT	STPORT
+	MVI	A,44H		; 1 stop, 8 bits, no parity
+	OUT	STPORT
+	MVI	A,1		; Setup to write register 1
+	OUT	STPORT
+	MVI	A,00H
+	OUT	STPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,68H		; Clear DTR causing hangup
+	OUT	STPORT
+	PUSH	B
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore BC
+	MVI	A,3		; Setup to write register 3
+	OUT	STPORT
+	MVI	A,0C1H		; Initialize receive register
+	OUT	STPORT
+	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,0EAH		; Turn on DTR so modem can answer phone
+	OUT	STPORT
+;
+	 IF	IMODEM		; If using hayes 300/1200 smartmodem
+	CALL	IMINIT		; Go initialize smartmodem now
+	 ENDIF			; Smodem
+;
+	RET			; Return
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET			; Return
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	STPORT		; Get status
+	ANI	01H		; Check the receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the proper flag
+	RET			; And return
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	STPORT
+	ANI	04H		; Check the transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	OUT	STPORT
+	MVI	A,68H		; Clear DTR causing shutdown
+	OUT	STPORT
+	XCHG			; Give it time to react
+	XCHG
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	B,BD300		; Load rate
+	MVI	A,BDCMD1	; Get first byte of command
+	JMP	SETBAUD
+;
+SET1200:MVI	B,BD1200
+	MVI	A,BDCMD2
+	JMP	SETBAUD
+;
+SET2400:MVI	B,BD2400
+	MVI	A,BDCMD2
+;
+SETBAUD:OUT	BPORT		; Send CTC command word
+	OUT	BPORT1
+	MOV	A,B		; Get the baudrate value
+	OUT	BPORT		; Send rate
+	OUT	BPORT1
+	XRA	A		; Say rate is ok
+	RET
+;.....
+;
+;			       end
+------------------------------------------------------------------------:
+

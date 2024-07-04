@@ -1,0 +1,68 @@
+03/16/84
+
+RE: Vector 3 systems and ZCPR
+
+Sigi Kluger, El Paso RCPM
+
+VECTOR GRAPHIC systems usually are modified CP/M systems. Modifications
+range from some additional Z80 code in the CCP to "extended CP/M" with
+extra BDOS functions more like CP/M plus, banked RAM and so on. One unique
+feature is a checksum check on CCP/BDOS at warmboot to avoid reloading
+from disk if they have not been damaged. Installation of ZCPR is hampered by
+BIOS warmboot code which does a version check on the CCP and returns
+a SYSTEM ERROR message. If you install ZCPR the usual way, the system will
+work fine until a warmboot is performed, at which time the SYSTEM ERROR
+message will hang the system.
+
+To avoid that error message and to enjoy all the features of ZCPR (or ZCPR2
+or ZCPR3 when released), you must modify your BIOS slightly. This modification
+merely consists of a 1-byte change in the BIOS.
+
+The following sample code was extracted from a 40k CP/M 2.22H. Your values
+may vary of course, but the key data is the same.
+
+1. VECTOR keeps the CCP starting page and CP/M version letter in CCP+86:
+
+7D86	DB	'H'  ;CP/M version letter
+7D87	DB	7DH  ;start page of CCP
+
+2. The two bytes above are cross-checked by the BIOS in the warmboot routine:
+
+93DD	CALL	9414H
+93E0	LXI	B,0E00H
+93E3	LXI	D,1
+93E6	CALL	9414H
+93E9	CALL	9D0BH
+93EC	MVI	B,40H
+93EE	LHLD	7D68H	;<-- CCP+86H ABOVE
+93F1	LXI	D,7D48H	;<-- (CCP AND 0FF00H) + 'H' (H=VERSION)
+93F4	ORA	A
+93F5	SBC	DE	;SUBTRACT TO TEST EQUALITY
+93F7	JRZ	9435H	;<=== CHANGE THIS TO JRZ 9435H
+93F9	LXI	H,9404H
+93FC	CALL	9475H	;DISPLAY ERROR MESSAGE
+93FF	CALL	9486H	;WAIT FOR KEYPRESS
+9402	JR	93C2H	;ATTEMPT WARMBOOT AGAIN
+;
+9404	DB	CR,LF,'SYSTEM ERROR-'
+
+Changing the byte at 93f7h above from 28H to 20H (from JRZ to JR) results
+in the error message being skipped. ZCPR can now be installed safely.
+
+If you have a different CP/M version (like 2.22J in a hard disk system)
+you will have to trace the BIOS warmboot code (use RAID, not DDT) to
+find the JRZ above. Simply search for the SYSTEM ERROR message and
+work your way back to the JRZ.
+
+This has been tested on CP/M 2.22H and was found working. No guarantee
+that the changes will work in Extended CP/M, Timeshare CP/M or any other
+version of VECTOR CP/M, although I will test it under 2.22J later when I
+have some more time.
+
+If you have any problems installing ZCPR on your VECTOR 3 system, please
+don't hesitate to get in contact. I can be reached via one of the
+following systems:
+
+El Paso RCPM (915) 598-1668 300/1200
+Chicago CBBS (312) 545-8086 300/1200
+Compuserve 72766,1544

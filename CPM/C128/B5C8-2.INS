@@ -1,0 +1,262 @@
+; B5C8-2.INS - BYE5 insert for Commodore C128, external modem - 8/11/86
+;
+;		Note, this is an insert, not an overlay.
+;		It will only work with BYE510 or higher.
+;		When going through the options for
+;		BYE5, set the clock speed:
+;
+;			  MHZ  EQU  1
+;
+;		The modem routines built into the Com-
+;		modore IOS use "bit-banging" interrupt
+;		control and this value should be used.
+;		(All this does is control the number of
+;		loops used for timing purposes.)
+;
+;-----------------------------------------------------------------------
+; TO INSTALL:
+;
+; You will need the following files from BYE5nn.LBR to properly imple-
+; ment BYE5 on your C128 which uses CP/M 3.0:
+;
+;     BYE5nn.AQM   - The BYE5 source file for CP/M 2 or CP/M 3
+;     B5-CPM3.AQM  - CP/M Plus program renamed to BYE.COM during install
+;     B5-DRIV3.AQM - BYE5 RSX driver program called internally by BYE
+;		     to initialize the CP/M Plus RSX
+;
+; You will need the following file from B5-CLOCK.LBR if you want to use
+; the clock support provided in BYE5:
+;
+;     B5C-CPM3.IQS - CP/M Plus clock insert
+;
+; Configuration information for BYE5 is available in BYE5.DQC (from
+; BYE5nn.LBR).	Additional CP/M Plus-specific information and generation
+; instructions are in B5-CPM3.DQC (also from BYE5nn.LBR).
+;
+;						- notes by George Peace
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/21/86  Modified version for BYE510.  Changed MRCARCK to correct the
+;	    actual PORT check.	Added a CMA in MDOUTST.  Reset Zero-flag
+;	    in MDIN2: for baud rate change.	- David Giunti
+;
+; 12/12/85  Original version for BYE5		- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; C128 data
+;
+PORT	EQU	6
+MEMRY	EQU	0FD4EH
+MDCTL1	EQU	MEMRY+1
+SNDDAT	EQU	MEMRY+2
+RCVDAT	EQU	MEMRY+3
+MDDCD	EQU	10H		; Bit 4 to test for DCD
+MDRCV	EQU	01H		; Bit 0 to test for receive ready
+MDSND	EQU	80H		; Bit 7 to test for send
+;
+CBNK	EQU	0FD1DH		; Address of the current bank byte
+;
+;
+; Table of baudrate parameters
+;
+BD300	EQU	6		; Divisor for 300 baud
+BD1200	EQU	8		; Divisor for 1200 bps (The Commodore
+				;   C128 does not support faster speeds
+				;   in the CP/M-128 mode)
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:
+	PUSH	B		; save reg
+	LXI	B,0DD01H	; point at data port B
+	DB	0EDH,78H	; Input to A, pointed by BC
+	CMA			; Invert the value for active low
+	ANI	MDDCD		; Check DCD for carrier from modem
+	POP	B		; restore B reg
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call.
+;
+MDINIT:	LXI	B,0DD01H	; Dataport B
+	DB	0EDH,78H	; Input A (Z80 instruction)
+	ANI	0F9H
+	DB	0EDH,79H	; Output the new value, to disconnect
+	MVI	B,20		; 2 seconds to drop DTR
+
+MDIN1:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	MDIN1		; Keep waiting until carrier drops
+	LXI	B,0DD01H	; Reset back to normal
+	DB	0EDH,78H
+	ORI	6
+	DB	0EDH,79H
+	MVI	A,1		; Set to 8 bits, no parity
+	STA	MEMRY		; Configure byte in BIOS
+	MVI	B,BD300		; Initialize to 300 baud
+;.....
+;
+;
+; Initialize the port, baudrate is now in the B-reg. find where it goes
+; and put it there.
+;
+MDIN2:	PUSH	B		; Temporarily store the baudrate value
+	LHLD	0000H+1		; Get BIOS address
+	LXI	D,57		; CP/M JMP device table
+	DAD	D		; Index into BIOS
+	CALL	MDIN3		; Jumps to address now in HL
+				; returns with HL=char device tbl start
+	LXI	D,PORT*8+7	; Offset to RS232 baud rate
+	DAD	D		; Point to RS232 baud rate byte
+				;   Byte now in HL
+	POP	B		; Get the baudrate value back
+	MOV	M,B		; Store the requested baud rate
+;
+;
+; Have now stored desired baudrate, find the address in BIOS where the
+; port will be initialized, put the correct port into the 'C' register
+; and then initialize that port to baud rate just set, finished.
+;
+	LHLD	0000H+1		; Get BIOS address
+	LXI	D,60		; CP/M init address
+	DAD	D		; Index into BIOS
+	MVI	C,PORT		; Tell it what port to initialize
+	CALL	MDIN3
+	XRA	A		; Sets Zero flag
+;
+;
+; Jumps to HL address, performs that routine, then returns here
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;...
+;
+;
+MDIN3:	PCHL			; Jump to that routine then return
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	LDA	RCVDAT		; Get character
+;
+;
+; We found there was a character, got it, but have to manually reset the
+; flag to zero saying we did get the character.
+;
+	PUSH	H		; Save the current address just in case
+	LXI	H,MDCTL1	; Address of status byte
+	DB	0CBH,86H	; Reset the 0 bit of the HL status byte
+	POP	H		; Restore the original address
+	RET			; Return with the character
+;.....
+;
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	MDCTL1		; Get status
+	ANI	MDRCV
+	RZ			; No character, return
+;...
+;
+;
+MDINST1:ORI	0FFH		; We have a character, clear the flag
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	STA	SNDDAT		; Output the character
+;
+;
+; Output character has been stored in the BIOS memory location, now set
+; the flag showing there is a charcter ready.
+;
+	PUSH	H		; Save any current address, if needed
+	LXI	H,MDCTL1	; Address of the status byte
+	DB	0CBH,0FEH	; Set bit 7 of the HL status byte
+	POP	H		; Get the original address back
+	RET			; All done
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:LDA	MDCTL1		; Get the status bit
+	CMA			; Invert bits for check
+	ANI	MDSND		; Check send ready bit
+	RET			; If pin is high, not ready
+;.....
+;
+;
+; Renitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	B,BD300		; Initialize to 300 baud
+	CALL	MDIN2		; Set to 300 baud to speed up C128
+	LXI	B,0DD01H	; Dataport B
+	DB	0EDH,78H	; Input A (Z80 instruction)
+	ANI	0F9H		; Keep DTR set low permanently
+	DB	0EDH,79H	; Output the new value, to disconnect
+	RET
+;.....
+;
+;
+; The following routine sets the baudrte.  BYE5 asks for the maximum
+; speed you have available.
+;
+SET2400	EQU	0
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the Zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	MVI	B,BD300		; Get 300 baud parameters in 'HL'
+	JMP	MDIN2
+;
+
+SET1200:MVI	B,BD1200
+	JMP	MDIN2
+;.....
+;
+;
+;-----------------------------------------------------------------------
+;			CP/M v3.0 routines
+;
+; Perform system or hardware dependent PRE-processing.	The following
+; code will be executed by the PATCH subroutine before the BIOS jump
+; table is overwritten.
+;
+MDPREP:	RET
+;.....
+;
+;
+; Perform system or hardware dependent POST-processing.
+; The following code will be executed by the EXCPM routine before re-
+; turning control to CP/M Plus when the BYE5 program is terminated.
+;
+MDPOSP:	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

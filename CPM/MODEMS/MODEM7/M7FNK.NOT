@@ -1,0 +1,69 @@
+MDM7 update information			02/17/84
+
+Sigi Kluger, El Paso TX  02-17-84
+
+Being used to a great non-public modem program with a number of function
+keys, I decided to add ten function keys to MDM7.  Great for things you
+do most, like DIR *.* $U0AD, or XMODEM S, or you could even save your
+name in a function key for logon.
+
+
+1. HOW TO ACCESS (transmit) THE FUNCTION KEYS.
+
+You transmit the contents of a function key by typing first the INTERCEPT
+
+CHARACTER, then a digit 0..9.  The INTERCEPT CHARACTER is an unique char-
+acter which tells MDM7 that a function key command follows. The INTERCEPT
+CHARACTER is set to ^ (circumflex).  It could as easily be set to CTL-A
+or 'escape', for example.  In the distribution version, the following
+keys are defined:
+
+^A0	DIR <cr>
+^A1	DIR *.* $U0AD <cr>
+^A2	XMODEM S
+^A3	XMODEM R
+^A4	BYE <cr>
+^A5	CBBS <cr>
+
+(Function keys 2 and 3 have no trailing CR).
+
+
+2. HOW MUCH ROOM?
+
+A total of 256 bytes are reserved for the function key definition.  Each
+definition takes up the number of bytes in the string, PLUS 2.  Note that
+you must not enclose any control characters in the definitions (CR is
+allowed and is optional).
+
+
+3. HOW TO CHANGE THE FUNCTION KEYS
+
+In order to not increase the size of MDM7 considerably, I have written
+the M7FNK utility.  M7FNK.COM is virtually self-explanatory and it is
+covered by its own short DOC file.  (M7FNK.COM v1.10 is current.)
+
+
+4. WHAT WILL NOT WORK
+
+Do not attempt to use DDT to modify the function keys.  Especially, do
+not force any control characters into the definitions.  There can only
+be three non-printing characters in each definition, the start byte,
+an optional CR at the end, and the end byte.
+
+
+5. DEFINITION FORMAT
+
+This is an example of the definition for function key 1:
+
+DB	1,'THIS IS A FUNCTION KEY',CR,0
+	|		|	      |
+	|		|	      |__stop character
+	|		|________________key definition plus CR
+	|________________________________start character
+
+Each key definition string starts with the key number in binary.  The
+function key processor searches for that number.  Those numbers must be
+unique throughout the key definitions.  EMPTY key definitions are en-
+coded thusly:
+
+DB	9,0		;empty function key #9

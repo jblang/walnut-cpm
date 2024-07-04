@@ -1,0 +1,160 @@
+; USRSTAT.MAC by ESKAY - v1.00 of 05/31/85
+;
+; this program finds all empty user areas on the current
+; drive and displays them. turbodos only.
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+	cseg
+;
+.z80
+.request syslib
+;
+start:	ld	sp,stack
+	call	print##
+	cr,lf
+	'                          USRSTAT v1.00 by ESKAY',cr,lf,lf
+	'User area usage display. This program displays the total number',cr,lf
+	'of directory entries used in each user area ---- please wait...',0
+	ld	de,fcb
+	call	f$open##
+..lp:	ld	de,fcb
+	call	f$read##
+	jp	nz,done
+	ld	ix,80h
+	ld	hl,usrs
+	ld	a,(ix+0)
+	call	zeru
+	ld	a,(ix+20h)
+	call	zeru
+	ld	a,(ix+40h)
+	call	zeru
+	ld	a,(ix+60h)
+	call	zeru
+	jr	..lp
+;
+done:	call	print
+	cr,lf,lf,lf
+	' USR    FILES      USR    FILES      USR    FILES',cr,lf
+	'-------------------------------------------------',cr,lf,0
+	ld	b,32			; users 0..31
+	ld	hl,usrs
+	ld	de,0
+loop:	call	pute
+	call	print##
+	'  :',0
+	push	de
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	hl
+	ex	de,hl
+	call	phldc##
+	ex	de,hl
+	push	hl
+	ld	hl,(tot)
+	add	hl,de
+	ld	(tot),hl
+	pop	hl
+	pop	de
+	inc	de
+	ld	a,(div)
+	dec	a
+	ld	(div),a
+	jr	z,..odd
+	call	print##
+	'      ',0
+	jr	..evn
+;
+..odd:	call	crlf##
+	ld	a,3
+	ld	(div),a
+..evn:	djnz	loop
+	call	print##
+	cr,lf,lf
+	'Total directory entries used : ',0
+	ld	c,25
+	call	5
+	ld	c,19
+	ld	e,a
+	call	50h
+	ld	hl,8
+	and	0fh
+	dec	a
+lp1:	add	hl,hl
+	dec	a
+	jr	nz,lp1
+	ex	de,hl
+	ld	hl,0
+lp2:	add	hl,de
+	dec	c
+	jr	nz,lp2
+	ex	de,hl	
+	ld	hl,(tot)
+	call	phlfdc##
+	call	print##
+	' of ',0
+	ex	de,hl
+	call	phlfdc##
+	call	print##
+	' (',0
+	or	a
+	sbc	hl,de
+	call	phlfdc##
+	call	print##
+	' free)',0
+	call	crlf##
+	rst	0
+;
+pute:	ld	a,e
+	push	af
+	call	print##
+	'  ',0
+	cp	10
+	jr	nc,..g10
+	ld	a,' '
+	call	cout##
+..g10:	pop	af
+	jp	pafdc##
+;
+zeru:	cp	0e5h
+	jr	nz,..ne5
+	ld	a,32
+..ne5:	ld	e,a
+	ld	d,0
+	push	hl
+	add	hl,de
+	add	hl,de
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)
+	inc	de
+	ld	(hl),d
+	dec	hl
+	ld	(hl),e
+	pop	hl
+	ret
+;
+	dseg
+;
+div:	db	3
+tot:	dw	0
+fcb:	db	0,'$       DIR',0,0,0,0
+	ds	22
+;
+usrs:	dw	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	dw	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	ds	100
+stack	equ	$
+	end
+  ',0
+	jr	..evn
+;
+..odd:	call	crlf##
+	ld	a,3
+	ld	(div),a
+..evn:	djnz	loop
+	call	print##
+	cr,lf,lf
+	'Total d

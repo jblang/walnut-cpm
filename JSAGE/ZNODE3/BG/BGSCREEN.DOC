@@ -1,0 +1,298 @@
+bgscreen.doc	March 9, 1987	bridger mitchell, Plu*Perfect Systems
+
+
+Several BackGrounder-ii users have asked for more explanation of the
+BGii screendrivers.  So...
+
+These are rough notes for experienced assembly-language programmers who
+wish to understand and write custom screendriver and functionkey
+driver BGii modules.  They should be read in conjunction with the
+source code files.
+
+This is definitely not a cookbook.   Users without considerable assembly-
+language programming experience and a good knowledge of video terminal
+characteristics will be over their heads.  
+
+The drivers were written in approximately this order: Kaypro '84,
+Kaypro '83, Heath 19, Wyse 50, with iterative improvements and
+fixes and more comments as time passed.  Hal Bower added many
+helpful comments in the Heath 19 code.  Keven Belles, Bruce Morgen
+and I developed the Wyse/TVI driver.
+
+You'll probably want to refer mostly to the H19 and Wyse files. 
+However, each driver has unique features, some of which may be
+applicable to your terminal.  The two Kaypro source files include
+conditional debugging routines that you may find worth converting
+to Zilog mnemonics.
+
+
+Screendrivers are complicated, and terminals are notoriously ill
+documented.  It takes several major rounds of testing to get
+everything working smoothly.  If you tackle a new type of
+terminal, do share your efforts!  However, please try to arrange
+controlled testing with one or two other users before posting your
+code.  And let us know, at the Plu*Perfect Systems BBS, 714-659-4432.
+
+
+
+              NOTES FOR CUSTOMIZING A BGii SCREENDRIVER.
+
+
+To implement all of BackGrounder's screen-related features, BGii needs
+a screen driver that can:
+
+	determine the cursor location on the screen,
+	read the entire screen, including attributes.
+
+There are several types of "terminals":
+
+   video-mapped memory screens
+        video ram accessible in banked memory
+        video ram accessed through video controller
+
+   terminals
+        transmit screen region
+        transmit character at the cursor
+	multiple screen page memory
+
+The prototype code illustrates several variations:
+
+        Kaypro '83: video ram in banked memory, no transmit-cursor command
+        Kaypro '84: video accessed thru controller, cursor indirectly
+                    determined from commands and registers
+        Heath 19:   transmit screen region commands with attribute
+                    codes embedded in stream
+	Wyse 50:    transmit-screen-page command.  No transmittable attributes
+		    or modes.  Turning on an attribute at the cursor makes
+		    it effective for the rest of the line, or until the
+		    attribute field is terminated.
+		
+
+A very smart terminal may have several switchable pages of screen
+memory.  If the terminal can be caused to copy its current screen to a
+designated page and to switch pages in response to escape sequences,
+most of the screen save/restore work can be done by the terminal itself
+as a parallel process.  This degree of intelligence could also be
+included in a terminal emulation program, for example when a computer is
+used as a terminal for another host that is running BGii.
+
+BGii calls the screendriver entry points with a flags byte in 
+register A.  If A, bit 1 is set, the  upper task is in context;
+otherwise, the lower task.
+
+
+The code has been kept in two sections: a "generic" part that should
+apply to almost any terminal, and a "specific" part that must be
+customized to the features of the particular terminal. The driver runs
+at 4000H (configurable) and interfaces to BGii through a jump table.
+(These labeled parts are nearly, but not entirely correct descriptions;
+at a couple of spots "generic" code is indeed terminal-dependent, so
+read it all.) 
+
+The major screendriver functions are summarized here.  For details,
+study the prototype code.
+
+Screen-save is the most fundamental operation.  It, and screen restore,
+should be developed and debugged first, with simple RETurn stubs for
+the other functions.  Initial testing with a stand-alone module,
+running under a symbolic z80 debugger, is very helpful (see comments
+in the Kaypro code) -- the screen image can be checked in the memory buffer.
+
+There are several basic decisions to be made:
+	how to find the cursor
+	how to read the screen characters
+	how to read the screen attributes
+	what data structure to use to store the characters and attributes
+
+Cursor:  If the terminal has a report-cursor-position, that part is easy.
+Send the required esc. sequence, and call conin to get the data.
+If not, the Kaypro '83 driver trick can be used:  read the screen,
+send a character, read the screen again, and find the changed location.
+(Yes, the code handles the "unlucky" case of the test character happening
+to be what's at that spot on the screen!).  Avoid using any bios-specific
+addresses if at all possible, to keep the driver portable across
+different bios versions for the same hardware.
+
+Reading the screen:  If the terminal has transmit-page, use that. 
+Send the esc. command to transmit the page, then call conin
+repeatedly and store each received char. in the ram buffer.  You
+have to know when the page is finished  -- either the terminal
+will send a special end-of-page character, or you must keep
+count.  Some terminals send special end-of-line characters also.
+
+If there's no transmit-page, can you access the video memory directly?
+If so, you read that memory; you need to know exactly the data structure
+it uses (see Kaypro '83).  If you can't,  you may be able to get to
+it indirectly through the video controller (Kaypro '84).
+
+Attributes:  Some terminals send the attributes embedded in the transmitted
+page stream (Heath 19).  Video-accessible memory can have the attributes
+in a separate data structure, or just use the hi bit (if only reverse video).
+And some terminals don't provide the host with access to the attributes.
+
+The Wyse50/TeleVideo driver illustrates a defect in the terminal, or
+at least one in the documentation:  at this writing, we haven't been
+able to determine how to get those terminals to unambiguously transmit
+their screen attributes (apart from "stand in/standout", which is
+half-intensity).
+
+Furthermore, those terminals do not transmit screen cells
+containing nuls, making it impossible to accurately restore lines
+that were cleared to nuls, rather than cleared to spaces.  Hence,
+ALL TERMCAPS AND PROGRAMS WITH VIDEO CONTROL SEQUENCES SHOULD BE
+SET TO CLEAR SCREEN, CLEAR LINE, ETC. WITH *SPACES*, NOT WITH
+NULS.
+
+Storing the screen:  The data structure you choose is affected by how
+the terminal supplies the characters and attributes, how best to
+transmit them back for a screen redraw, and the need to retrieve
+a portion of the screen from that structure for the CUT command.
+
+Jump tables:  The external routines save only the registers shown
+in the comments.  The full specification of the internal screendriver
+routines appears in comments at the head of each routine.
+
+
+Notes on specific major routines follow:
+
+SCREEN-SAVE:
+
+find the cursor position
+        if available, use transmit-cursor-position
+        else  read entire screen, write signature character,
+              read screen again until signature found
+
+read entire screen:
+        if necessary, home cursor or put it at lower right corner,
+		as terminal requires.
+        transmit character(s) from screen
+        transmit attribute(s) from screen
+	  some terminals embed attributes in the transmitted stream (heath 19)
+        if needed, repeat for 25th(status) line
+	
+
+SCREEN-RESTORE:
+
+if necessary, home cursor
+clear attributes
+write entire saved screen, including attributes
+set cursor to saved position
+
+
+CUT-REGION:
+
+The BGii command CUT first saves the current screen, then
+calls the cut-region code.  This code enables the user to
+move the cursor around the screen to mark the upper-left and
+lower-right corners of the rectangular region to be cut.
+
+It then finds that region of characters in the driver's memory
+of the screen, and repeatedly calls a BGii routine to transmit
+the region to BGii for safekeeping in the cut buffer.
+
+edit keystrokes:
+        allow cursor movement, until
+        X or x = set 1st mark
+        then:
+            allow only cursor right, cursor down,
+		(H19 allows up, left too)
+            but prevent going off screen, or scrolling
+		  lower-right character of screen requires special attention
+		  if terminal is in wrap/scroll mode.
+            Highlight or blink the marked region as it grows
+            until:
+            X or x or CR = set 2nd mark
+
+write cut region to BGii:
+        calculate byte count, number rows, number columns
+        send each char in row
+        add CR at end of row
+
+
+JOT:
+
+The JOT command uses the terminal's screen memory as the 'jotpad'.
+Thus, it's important to keep the screen from scrolling.  Editing
+uses whatever control-characters and ESCape sequences
+the terminal/video driver has, plus the wordstar diamond if
+there's enough room for that code in the driver.
+
+BGii will save the screen when the JOT command terminates with
+a <SUSPEND> keypress.  The screendriver JOT code should therefore:
+
+clear screen
+display 2-line summary of editing command
+edit entered keystrokes:
+
+        convert CR to CR,LF
+        convert DEL to BS,SPACE,BS
+        on Control-P, call paste-region (below)
+        send anything else to screen
+	prevent scrolling
+
+paste-region into jotpad:
+
+This keypress, while JOT is active, fetches the last-cut
+region from elsewhere in BGii and sends it, with suitable
+clipping and editing, to the terminal.
+
+        get bytecount, rows, cols from BGii's last cut-region
+        get 1st row, put on screen at cursor
+        get next row, put vertically below cursor,...
+        etc.
+        prevent going off screen, or scrolling
+	  lower-right character of screen requires special attention
+	  if terminal is in wrap/scroll mode.
+
+
+
+
+	     NOTES FOR CUSTOMIZING A FUNCTION-KEY DRIVER
+
+The driver consists of:
+
+	an identification sector
+	2 sectors of function key codes and labels:
+	up to 4 sectors of code and initialized data to:
+
+	   initialize and deinitialize the terminal's function keys
+	   "shift" the function keys to sent single 8-bit codes
+	   "unshift" the keys to send their normal codes/strings
+	   save the current mode (shift or unshift)
+	   restore the saved mode
+
+As regards function keys, there are two types of terminals, those that:
+
+	-  have a ram table of key values in the bios (e.g. Kaypro)
+	-  change modes in response to ESCape sequences (e.g. Heath 19)
+
+The disk includes source code for one driver of each type.  In most
+cases only limited modifications will be needed to the code.  In
+addition, the table of key values and identifying labels will
+need to be adjusted to fit the particular terminal.
+
+The code should be assembled with an absolute address of 3e80h for
+the identification sector (see examples).  Load it into memory with
+DDT and move 3e80 .... to 100h.  Then SAVE N filename.FNK.
+
+If the terminal cannot be configured to send a single 8-bit character
+("native mode") when a function key is pressed, BackGrounder cannot
+distinguish the function keypress from a series of single keypresses
+that send the same codes from the main keyboard.  Some terminals do not
+provide a native mode and always send ESC plus one or more characters. 
+In this case it may be possible to modify the BIOS  console input
+routine to convert these keys to a native mode, as follows:
+	
+	get char
+	if char is ESC
+		wait for 1 char time at current baud rate
+		if next char is ready, get it, set bit 7, return that.
+		else return ESC, and return the char on next call
+
+Because the timing routine must be specific to the system and
+be cognizant of the interrupt structure, it is not practical to
+include this type of routine in BGii itself.
+
+(end of bgscreen.doc March 9, 1987)
+ for
+the id

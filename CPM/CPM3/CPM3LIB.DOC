@@ -1,0 +1,293 @@
+
+
+                        October 17, 1983
+
+                         Jim Lopushinsky
+
+                        Edmonton, Alberta
+
+
+CPM3LIB.REÌ  ió  á librarù oæ subroutineó thaô makå uså  oæ  CP/Í 
+Pluó  features®   Includeä  arå routineó tï accesó thå  timå  anä 
+date¬  seô  anä  interogatå elapseä time¬  inspecô  physicaì  anä 
+logicaì characteò I/Ï devices¬  anä set/geô bauä rateó foò seriaì 
+I/Ï devices.
+
+Thió ió jusô á start®   Iî thå future¬ É hopå thå librarù wilì bå 
+increased to include other CP/M Plus features.
+
+Alì  routineó  (excepô  BIOS© adherå tï thå  Microsofô  parameteò 
+passinç  conventionó sï thaô theù maù bå calleä directlù  bù  anù 
+Microsoft language compiler (FORTRAN-80, COBOL-80, BASIC-80).
+
+Tï  includå anù requireä modules¬  searcè CPM3LIÂ durinç thå linë 
+step.
+
+
+
+
+
+
+
+BIOS      Direct bios call thru the BDOS using function 50.
+
+     Input:    Register D - Bios entry number (0-32).
+               Alì  otheò  registeró  - Aó expecteä bù  thå  BIOÓ 
+               routine.
+
+     Output:   Alì registeró returneä aó appropriatå foò thå BIOÓ 
+               routine.
+
+
+
+
+
+TIMERS    Initiate time counter
+
+     Input:    none.
+
+     Output:   none®   Alì registeró arå preserved®  Thå internaì 
+               timå  counteò ió initializeä tï ° anä  incrementeä 
+               every second.
+
+     Fortran calling convention:
+
+               CALL TIMERSŠ
+
+
+
+ITIMER    Returî numbeò oæ secondó elapseä sincå thå lasô calì tï 
+          TIMERS.
+
+     Input:    none.
+
+     Output:   Register HL - Number of seconds elapsed.
+               Register A  - Copy of Register L.
+               Z flag set - TIMERS not yet called.
+               All other registers are preserved.
+
+     Fortran calling convention:
+
+               ITIME=ITIMER(0)
+
+     Where:    ITIME is either I*2 or I*1 variable.
+               °  ió  á dummù parameteò sï thaô  FORTRAN-8°  wilì 
+               kno÷ thaô thió ió á functioî call.
+
+
+
+
+TIME      Return date and time as 3 character strings.
+
+     Input:    Register HL points to 3 byte Day of Week field.
+               Register DE points to 8 byte date field.
+               Register BC points to 8 byte time field.
+
+     Output:   Thå ³ fieldó arå seô tï thå currenô timå anä date®  
+               Day of Week - Abbreviation of Weekday.
+               Date field - MM/DD/YY.
+               Time field - HH:MM:SS.
+               All registers are destroyed.
+
+     Fortran calling convention:
+
+               CALL TIME(WKDAY,DATE,TIMEX)
+
+     Where:    WKDAY is a 3 byte array.
+               DATE and TIMEX are 8 byte arrays.
+
+
+
+
+TIMEB     Return date and time in binary format.
+
+     Input:    Register HL points to Day of Week word.
+               Register DE points to 3 words for date.
+               Register BC points to 3 words for time.
+
+     Output:   The 3 fields are set to current date and time.
+               Weekday is in the range 0-6 (0=Monday).Š               Date is in the order Month,Day,Year.
+               Time is in the order Hour,Minute,Second.
+               All registers are destroyed.
+
+     Fortran calling convention:
+
+               CALL TIMEB(IWKDAY,IDATE,ITIME)
+
+     Where:    IWKDAY is I*2 variable for Weekday.
+               IDATE and ITIME are I*2 arrays of 3 for date and time.
+
+
+
+
+IFNDEV    Returnó  thå pysicaì devicå numbeò associateä witè  thå 
+          devicå name.
+
+     Input:    Registeò  HÌ  pointó tï ¶ characteò  strinç  whicè 
+               containó thå devicå name.
+
+
+     Output:   Register HL contains the device number.
+               Register A  - copy of register L.
+               All other registers are preserved.
+
+     Error conditionº     Iæ registeò HÌ ½ 0FFFFÈ (-1©  theî  thå 
+               named device does not exist.
+
+     Fortran calling convention:
+
+               IDEV=IFNDEV(DEVNM)
+
+     Where:    IDEV is I*2 or I*1 variable for device number.
+               DEVNM is 6 byte string containing the device name.
+
+     Example:  IDEV=IFNDEV('MODEM ')
+
+               IDEÖ   wilì  contaiî  thå  pysicaì  devicå  numbeò 
+               associateä  witè thå namå MODEM¬  oò -±  iæ  MODEÍ 
+               could not be found.
+
+
+
+
+IBAUD     Get or Set the baud rate for a pysical device.
+
+     Input:    Register HL points to the Baud rate word.
+               If baud rate=0 then return current baud rate.
+               Otherwise set the device to value at baud rate.
+               Register DE points to device number byte.
+
+     Output:   Registeò  HÌ containó thå currenô bauä ratå oæ thå 
+               requested device.
+
+     Error conditionº     HÌ ½ ° - Invaliä bauä ratå  oò  invaliä Š               devicå numbeò oò devicå doeó noô supporô requesteä 
+               baud rate.
+
+     Fortran calling convention:
+
+               IBD=IBAUD(IRATE,IDEVNO)
+
+     Where:    IBD is I*2 variable containing returned baud rate.
+               IRATÅ  ió I*² variablå whicè containó ° foò geô oò 
+               a baud rate for set.
+               IDEVNÏ  ió  I*²  oò I*±  variablå  containinç  thå 
+               device number.
+
+     Examples:
+               
+               IBD=IBAUD(0,1)
+
+               Returns the current baud rate of device 1
+
+               IBD=IBAUD(1200,2)
+
+               Sets the baud rate of device 2 to 1200 baud.
+
+
+
+
+
+IMXDEV    Returns the maximum physical device number.
+
+     Input:    none.
+
+     Output:   Register L - Maximum device number.
+               Register A - Copy of Register L.
+               Register H - 0
+               All other registers are preserved.
+
+     Fortran calling convention:
+
+               MAXDEV=IMXDEV(0)
+
+     Where:    MAXDEÖ  ió  I*² oò I*± variablå thaô wilì  contaiî 
+               the maximum physical device number.
+
+
+
+
+IGTMOD    Returns a physical device Mode byte.
+
+     Input:    Register HL points to physical device number
+
+     Output:   Register L - Mode byte
+               Register A - Copy of Register L.
+               Register H - 0
+               All other registers are preserved.
+Š     Fortran calling convention:
+
+               MODE=IGTMOD(IDEVNO)
+
+     Where:    IDEVNO is I*2 or I*1 physical device number.
+               MODÅ ió I*² oò I*± variablå thaô wilì contaiî  thå 
+               mode byte.
+
+               Thå  bitó  iî  thå modå bytå  havå  thå  followinç 
+               meanings:
+
+               Bit
+
+               0    Device may do input
+               1    Device may do output
+               2    Software selectable baud rates
+               3    Device may use XON/XOFF protocol
+               4    XON/XOFF protocol enabled
+               5-7  Reserved for future use
+
+
+
+
+IGTDEV    Returî  currenô  logicaì tï physicaì devicå  assignmenô 
+          vector.
+
+     Input:    Register HL points to logical device number.
+
+               CP/M 3 has five logical devices:
+
+               0    CONIN     Console input
+               1    CONOUT    Console output
+               2    AUXIN     Auxiliary input
+               3    AUXOUT    Auxiliary output
+               4    LSTOUT    List output
+
+     Output:   Registeò  HÌ - currenô physicaì assignmenô  vectoò 
+               foò  thå requesteä logicaì device®   Bitó arå  seô 
+               correspondinç  tï  physicaì deviceó froí  lefô  tï 
+               right (bit 15 = device 0, bit 0 = device 15).
+               All other registers (except PSW) are preserved.
+
+     Error condition:
+               Registeò HÌ ½ 0FFFFÈ (-1© - Invaliä logicaì devicå 
+               number.
+
+     Fortran calling convention:
+
+               IVEC=IGTDEV(DEVNO)
+
+     Where:    DEVNO is I*2 or I*1 logical device number.
+               IVEC is I*2 variable for assignment vector.
+
+
+Š
+ISTDEV    Set logical to physical device assignment vector.
+
+     Input:    Register HL points to logical device number.
+               Registeò  DÅ  pointó tï  ne÷  physicaì  assignmenô 
+               vector.
+
+     Output:   none®    Alì  registeró  excepô  PS×  anä  HÌ  arå 
+               preserved.
+
+     Error condition:
+               Registeò  HÌ ½ 0FFFFÈ (1-© Invaliä logicaì  devicå 
+               number.
+
+     Fortran calling convention:
+
+               IERR=ISTDEV(DEVNO,IVEC)
+
+     Where:    DEVNO is I*2 or I*1 logical device number.
+               IVEC is I*2 assignment vector.
+               IERR is I*2 or I*1 error return code.
+
+

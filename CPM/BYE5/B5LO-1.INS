@@ -1,0 +1,315 @@
+
+; B5LO-1.INS - BYE5 insert for Lobo MAX-80 with CP/M+ - 08/17/85
+;
+;		Z80 SIO and 8116 baudrate generator
+;
+;
+;	      NOTE: This is an insert, not an overlay
+;
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 08/17/85  Updated B+LO-1.INS for BYE5 	- James Dunn
+;
+;=   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+;The following define the address to use.
+;
+SIODA	EQU	0F7E4H		; Modem data window
+SIOCA	EQU	0F7E5H		; Modem control window
+BAUDA	EQU	0F7D0H		; Baud rate window
+;
+;
+; The following are baud rates for BAUDA
+;
+B300	EQU	05H		; 300 bps
+B1200	EQU	07H		; 1200 bps
+B2400	EQU	0AH		; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if there is a carrier.  If not, return with the zero flag set.
+;
+MDCARCK:MVI	A,10H		; Reset status
+	STA	SIOCA
+	LDA	SIOCA		; Get status
+	ANI	8		; Check for data carrier
+	RET			; Return
+;.....
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,18H		; Reset channel
+	STA	SIOCA
+	MVI	A,4		; Setup to write register 4
+	STA	SIOCA
+	MVI	A,44H		; 16x, 1 stop bit, no parity
+	STA	SIOCA
+	MVI	A,1		; Setup to write register 1
+	STA	SIOCA
+	MVI	A,0		; Value to write to register 1
+	STA	SIOCA
+	MVI	A,5		; Setup to write register 5
+	STA	SIOCA
+	MVI	A,0		; DTR off, RTS off
+	STA	SIOCA
+	PUSH	B		; Save in case it's being used elsewhere
+	MVI	B,20		; 2 second delay
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore bc
+	MVI	A,3		; Setup to write register 3
+	STA	SIOCA
+	MVI	A,0C1H		; 8 bits/char, RX enable
+	STA	SIOCA
+	MVI	A,5		; Setup to write register 5
+	STA	SIOCA
+	MVI	A,0EAH		; DTR on, 8 bits/char, TX enable, RTS on
+	STA	SIOCA
+;
+	 IF	IMODEM		; If using a smartmodem
+	CALL	IMINIT		; Go initialize smartmodem now
+	 ENDIF			; Imodem
+;
+	RET			; Return
+;.....
+;
+;
+; Input a character
+;
+MDINP:	LDA	SIODA		; Get character
+	RET			; Return
+;.....
+;
+;
+; Check the status to see if a character is available.  Return with zero
+; flag set if not.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	SIOCA		; Get status
+	ANI	1		; Got a character?
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the proper flag
+	RET			; And return
+;.....
+;
+;
+; Send a character to the modem.
+;
+MDOUTP:	STA	SIODA		; Send it
+	RET			; Return
+;.....
+;
+;
+; See if the outputa is ready for another character.
+;
+MDOUTST:LDA	SIOCA
+	ANI	4		; Mask it
+	RET			; Return
+;.....
+;
+;
+; Reintialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; Imodem
+;
+;
+; Called by the main program after the caller types BYE
+;
+MDSTOP:	MVI	A,5		; Setup to write register 5
+	STA	SIOCA
+	MVI	A,0		; DTR off, RTS off
+	STA	SIOCA
+	RET
+;.....
+;
+;
+; If you do not support a particular baud rate, put it here before
+; SETINV:
+;
+SETINV:	ORI	0FFH		; Make sure zero flag is not set
+	RET			; Return
+;.....
+;
+;
+SET300:	MVI	A,B300		; Load rate
+	JMP	SETBAUD
+;
+SET1200:MVI	A,B1200		; Load rate
+	JMP	SETBAUD
+;
+SET2400:MVI	A,B2400		; Load rate
+	JMP	SETBAUD
+;
+SETBAUD:STA	BAUDA		; Send first byte of command
+	MVI	A,10H		; Reset ext/status interrupts
+	STA	SIOCA
+	XRA	A		; Say rate is ok
+	RET			; Return
+;.....
+;
+;
+;=======================================================================
+;		Lobo MAX-80 CP/M Plus bank control area
+;=======================================================================
+;
+;						jjd - 14 Jul 85
+; Ok, this is my current understanding of how and why BYE5 needs
+; control over bank switching.	Character I/O goes through the
+; BDOS and through the BIOS to the actual, machine dependent,
+; character I/O routines.  The physical character I/O routines
+; under Plus on the MAX-80 are in common, non-banked memory, around
+; the F2xxH area.  Now, normally, character I/O goes from the
+; user application program (like an RBBS or whatever) running in
+; the TPA in bank 1, to the part of the BDOS in common memory, to
+; the part of the BIOS in common memory.  When BYE is in control,
+; the character I/O is captured as it is sent to the BIOS routines,
+; and sent through the famous local/remote virtual "Y" connector.
+; The BYE "Y" connector sits in the RSX.  This RSX is not used the
+; way DRI intended, where it would filter BDOS calls, but rather, it
+; is used to grab and save some memory for its console trapping code.
+; Now comes the good news for we MAX-80 people.  Lobo decided to
+; give us 32k of common memory.  I'm not sure if that really produces
+; an efficient CP/M Plus machine, but it sure makes RSXing easy as
+; compared to the Osborne Exec or the Morrow machine.  We can leave
+; our BYE "Y" code right in the RSX.  George and Paul had to move
+; their code onto a "safe" area in the common BDOS.
+;
+; So, by now you should be wondering why we MAXers should have to worry
+; about bank switching at all.  Well, here's why.  Way back I said
+; normally I/O from appl prgm via BDOS via BIOS, right, well, some I/O,
+; like CP/M error messages, comes from bank 0, the banked portions of
+; the BDOS and BIOS.  But, that's not the problem, directly.  These I/O
+; calls go through the BIOS jump table at F200 and display ok.
+; The problem is that when I/O originates from bank 0, and BYE
+; gets control at each CONOUT call, it does its normal job of checking
+; the current user/drive values at 00004H and comparing them with
+; the values plugged in at 003DH and 003FH.  Right, you got it, these
+; values are, of course, over in bank 1, not in bank 0.  Then to
+; put the icing on the cake, when a drive or user check fails,
+; BYE sets up to A0: does a JP 0000H to get a warm boot .....
+; and we just went south on that one.
+;
+; So, we realize that even when we do character I/O from any bank, we
+; need bank 1 current to check those magic values in the low page of
+; bank 1, and to allow a warm boot via JP 0000H.  The code runs ok
+; in the common memory, and the stack space is not lost.
+; This is why I didn't bother with adjusting any stack pointers.
+; Another solution which I think should work, would be to grab these
+; magic values in the low page of bank 1, MAXUSER, WHEEL and MAXDRIV,
+; and put them right into the RSX.
+; This would also need the read/write at 0004H to be cancelled, and
+; use only the SCB values.  I think this approach would work on the
+; MAX, and might even work on other machines, if they have enough
+; extra room?, not sure.
+;
+; Possible GOTCHAs ::  Ok, when bank switching, we have to switch
+; back to the bank from hence we came.	When using the bios as
+; supplied from Lobo, this value, named CBNK in the Lobo Source,
+; and in the DRI CP/M 3 System Guide, is at address 0F2A5H.  See
+; it at the end of the file XROOT.MAC as supplied from Lobo.
+; Also, I call BNKSEL directly at F29FH.  Now these will work fine
+; unless you modify any of the BIOS source by adding or removing
+; bunches of code.  These values will change, and you will have to
+; snoop around and find the new values.  If you can handle BIOS
+; modification, you can handle this change.
+;
+; Also, during testing, I got strange results when I turned on the
+; RSPEED equate.  I'm not sure why, so I am leaving it off...
+; I probably wouldn't use it anyway.
+;
+;-----------------------------------------------------------------------
+;
+; Perform system or hardware dependent PRE-processing.
+; The following code will be executed by the PATCH subroutine before the
+; BIOS jump table is overwritten.  This will allow the BIOS intercept
+; routines to operate as early as the initial signon message display.
+;
+;
+; Replace the NEWJTBL BIOS routing table with our own
+;
+MDPREP:	LXI	H,JTBLNEW	; Get replacement table address
+	LXI	D,NEWJTBL	; Get address to overwrite
+	LXI	B,JTBLEN	; Get number of bytes to overwrite
+	DB	0EDH,0B0H	; Z80 ldir instruction
+	RET
+;.....
+;
+;
+; Perform system or hardware dependent POST-processing.
+; The following code will be executed by the EXCPM routine before re-
+; turning control to CP/M Plus when the BYE5 program is terminated.
+;
+MDPOSP:	RET
+;.....
+;
+;
+WBCOMN:	CALL	SWIN		; Warm boot
+	JMP	MBOOT
+;.....
+;
+;
+CSCOMN:	CALL	SWIN		; Console status
+	CALL	MSTAT
+	JMP	SWOUT
+;.....
+;
+;
+CICOMN:	CALL	SWIN		; Console input
+	CALL	MINPUT
+	JMP	SWOUT
+;.....
+;
+;
+COCOMN:	CALL	SWIN		; Console output
+	CALL	MOUTPUT
+	JMP	SWOUT
+;.....
+;
+;
+CBNK	EQU	0F2A5H		; Address of the current bank byte
+BNKSEL	EQU	0F29FH		; Entry point of BIOS bank select
+RTBNK	DS	1		; Place to store bank to return to
+;
+SWIN:	PUSH	A		; Bank switch in routine
+	LDA	CBNK		; Get the bank we are switching from
+	STA	RTBNK		; Store so we know where to switch back
+	MVI	A,1		; We are going to switch to bank 1
+	CALL	BNKSEL		; Switch to bank 1
+	POP	A		; Restore 'A' and flags
+	RET
+;.....
+;
+;
+SWOUT:	PUSH	A		; Save 'A' and flags
+	LDA	RTBNK		; Get the bank to return to
+	CALL	BNKSEL		; Return to that bank
+	POP	A		; Restore 'A' and flags
+	RET
+;.....
+;
+;
+JTBLNEW:JMP	MCBOOT		; Cold boot
+	JMP	WBCOMN		; Warm boot
+	JMP	CSCOMN		; Modem status test
+	JMP	CICOMN		; Modem input routine
+	JMP	COCOMN		; Modem output routine
+;
+	 IF	NOT HARDLOG
+	JMP	COCOMN		; Modem list device
+	JMP	COCOMN		; Modem punch device
+	JMP	CICOMN		; Modem reader device
+	 ENDIF			; NOT HARDLOG
+;
+JTBLEN	EQU	$-JTBLNEW
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

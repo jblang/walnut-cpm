@@ -1,0 +1,40 @@
+PROBLEMS with T3DIAL:
+
+   There has been some confusion about the interpretation of the
+ZCPR3 program error byte - whether zero means OK or BAD. Programs
+I'm used to using (specifically the SLR assemblers) set the byte
+zero for OK.
+
+   T3DIAL, however, does the opposite.  For those who wish to
+"fix" this problem:
+
+     T3DIAL contains a routine at hex 198A to set the byte 0, and
+a routine at 1992 to set the byte 'FF'.  To check your copy of
+T3DIAL, note that these begin with:
+
+		PUSH  AF
+		set A to the value
+		CALL 1ECF		; This sets the error byte
+					; to the value in A
+
+     If the remote computer was dialled correctly, location 101D
+is reached.  This is currently: CALL 1992.  If there was an error
+(user abort, no carrier, etc.), location 0FEF is reached.  This
+is currently: CALL 198A.
+
+     Therefore, to "fix" the problem, patch the program to
+reverse the addresses in the two above calls.
+
+     Note that, before any dialling is attempted, there is a CALL
+1992 to set the error byte to 'FF'.  This might as well be left
+in the place.  If T3DIAL terminates for any reason other than a
+successful connection, I want the error byte ON.
+
+another problem:
+
+   Under some conditions (I haven't pinned this down), if I
+specify a garbage name (like "XXXX") to dial, T3DIAL will not
+kick me off but instead say "Dialing " followed by nothing, and
+just hang.  I can abort with Ctl-C.
+
+					Michael Bate

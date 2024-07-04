@@ -1,0 +1,310 @@
+
+
+                  NUSQ - File unsqueeze utility
+
+	      Documentation for CP/M-86 and MS-DOS
+		   versions 1.10, 1.03 & 1.03D
+                   Cliff Sharp  June 26, 1984
+
+		       DOCUMENTATION TOPICS
+
+	OVERVIEW
+	COMMAND MODE
+	INTERACTIVE MODE
+	INSTALLATION
+	IN CASE OF TROUBLE
+	ANNOUNCEMENT
+	HISTORY
+
+			     OVERVIEW
+
+     NUSQ  is  a utility for expanding squeezed  files  to  their 
+original  uncompressed state.  Two separate versions of NUSQ  are 
+available,  one  for  CP/M-86  and one for the  MS-DOS  operating 
+system.
+
+     NUSQ has two operating modes.  In the command mode, a single 
+instruction to NUSQ is passed from the command line which invokes 
+NUSQ.  The command mode requires less effort to use when you have 
+only  one file to unsqueeze,  or when the names of the files  you 
+wish  to unsqueeze can all be specified by one  "wildcard"  name.  
+However,  when  you  have more than one file to unsqueeze  and  a 
+"wildcard" won't do the job right,  or when the files you want to 
+unsqueeze are on more than one disk,  the interactive mode allows 
+you to specify only those files which you want processed, without 
+reloading the program every time.   In the interactive mode, NUSQ 
+executes one command, then waits for another.
+
+                          COMMAND MODE
+
+     To  unsqueeze  only one file,  the command  mode  invocation            
+
+                        A>nusq nerts.aqm
+
+will unsqueeze the file NERTS.AQM.  You don't need to specify the 
+name of the output file (in fact, you can't); the name was stored 
+within the file at the time it was squeezed,  and that name  will 
+be  used  to  create  the new file.   (If you  want  to  name  it 
+differently after you have unsqueezed it,  use the REName command 
+when NUSQ is finished.)
+
+     You  can  unsqueeze all squeezed files on a single  disk  by 
+issuing the command
+
+                          A>nusq *.?q?
+
+Theoretically at least,  all file squeezers create an output file 
+whose name is the same as that of the original file,  except that 
+the  filename extension field is modified by changing the  middle 
+letter to a "Q".  (If a file has no filetype, a 'QQQ' is appended 
+for  the  file type for the encoded file.  When a file  has  been 
+renamed after being squeezed, this cannot be the case; hopefully, 
+the  person  who renamed it remembered the "Q".)  The  "wildcard" 
+file  specification shown above tells NUSQ to unsqueeze any  file 
+it  finds (on the default disk) which has a "Q" in  the  filename 
+extension;  that should get NUSQ to unsqueeze every squeezed file 
+on  the disk.   NUSQ will display the name of each file it finds, 
+and the name of the output file it produces, as it proceeds:
+
+		  NERTS.AQM -> NERTS.ASM
+                  ORGPLOTZ.DQC -> ORGPLOTZ.DOC
+
+     Because  NUSQ checks the first two bytes of each input  file 
+for a valid Squeeze Signature (0FF76 hex), it is possible to say:
+
+                            nusq *.*
+
+and get the same results as nusq *.?q?.   It is faster,  however, 
+to  use  the  *.?q?  method,  as  that will  preclude  a  lot  of 
+unnecessary  file openings.
+
+    NUSQ  will also accept more than one filename on the  command 
+line:
+
+              A>nusq nerts.aqm orgplotz.dqc frop.cq
+
+     To  use a different disk for output than for input,  end the 
+command line with just the drive designation. Example:
+
+                      A>nusq giggle.tqt b:
+
+will write the output file (ostensibly GIGGLE.TXT) on drive B:.
+You will find that NUSQ is very forgiving, as:
+
+                      A>nusq b: giggle.tqt
+
+will accomplish the same thing.
+
+                         INTERACTIVE MODE
+
+     Let's  suppose now that you have a large number of  squeezed 
+files on your disk,  and you only want to unsqueeze some of them.  
+Unless  you  can specify only those files by using  a  "wildcard" 
+name,  you'll  probably  find it easier to achieve your  goal  by 
+using  the interactive mode of NUSQ.   Another instance where  it 
+would  be easier to use interactive mode is one where  the  files 
+you wish to unsqueeze are on more than one disk, in more than one 
+drive.  The command
+
+                             A>nusq
+
+displays the startup message, then prompts for command input with 
+an asterisk ("*").
+
+NUSQ  Version x.xx
+Dave Rand, Paul Homchick and Cliff Sharp  xx/xx/xx
+Use: NUSQ afn [afn afn ...] [destination drive:]
+*_
+
+(The underline shows the cursor position; my name appears only in 
+the  MS-DOS  version.)   At the asterisk,  you  type  a  filename 
+("wildcards"  are allowed here,  too).   NUSQ will unsqueeze  the 
+file,  then  print  the asterisk prompt again and wait  for  more 
+commands.   When you're finished and want to exit NUSQ,  a  blank 
+line or ^C will return you to the operating system.
+
+     As  distributed,  NUSQ  won't  write over an  existing  file 
+without the user confirming the operation.   Something very  like 
+the following will happen:
+
+          A>nusq foo.bqr
+
+          nusq: FOO.BQR -> FOO.BAR already exists,
+                Overwrite <Y>es, <N>o? overwriting...
+
+In this case the user answered "Y" at the question mark, and NUSQ 
+went  ahead  with the operation.   If "N" is  the  response,  the 
+unsqueeze  operation is aborted,  and the program goes on to  the 
+next item in the list (or exits, if the list is empty).
+
+			INSTALLATION
+
+Two  user-configurable options are provided: Confirm Before Over-
+write, and Use Input File Date for Output File.
+
+As distributed, NUSQ v1.03 will ask for confirmation before over-
+writing  a  file,  and  will  use  the current date and time when
+creating the output file.
+
+If  you  would  rather have NUSQ write over existing  files  with 
+wanton abandon,  without pausing and asking for confirmation, use 
+DEBUG.COM to patch location 0103H to be 00H instead of 0FFH.   An 
+example of this patch:
+
+	          A>debug b:nusq.com
+        	  -e103
+	          xxxx:0103 FF.00
+        	  -w
+	          Writing XXXX bytes
+        	  -q
+
+                  A>
+
+If you would like the unsqueezed file to retain the same date and
+time  as  the input file, patch 0104H to an 0FFH.  Copies of NUSQ
+patched in this manner will  display  a  'D'  after  the  version
+number  signifying  that  the  input  file  date  option has been
+enabled, i.e.  "1.03D".   PLEASE NOTE  that this option is avail-
+able for the MS-DOS version ONLY.   The  CP/M-86 version does not
+support  date  and  time  stamping,  although it is intended that
+future versions will add this support for the  MP/M-86 and CCP/M-
+86 operating systems.
+
+If you have a back-up utility that uses the file date and time to
+determine  whether  or  not  a  file  should  be backed up, it is
+possible that using the input file date could  cause  loss  of  a
+file  by  having  an  'old'  date  on  a 'new' file, and losing a
+backup.  This is why NUSQ  is  distributed  with  the  date  mode
+disabled.
+
+
+                       IN CASE OF TROUBLE
+
+     First,  no  matter HOW sure you are that you're doing things 
+correctly,  try  another  method of using  NUSQ.   If  you  tried 
+command mode without luck,  try the interactive mode; if you were 
+in the interactive mode when it bombed,  try command mode.   Make 
+sure  you try at least one command that is just like one shown in 
+this document (but,  of course, use the name of your file instead 
+of NERTS or ORGPLOTZ) before you conclude that things are awry.
+
+     Occasionally,  for one reason or another,  it's possible  to 
+get a bad copy of a program or file; transmission errors and disk 
+errors  have  been  known to cause many problems.   (If  you  can 
+successfully unsqueeze at least one squeezed file,  you  probably 
+have  a good copy of the program;  if so,  your copy of the  file 
+you're  trying to unsqueeze may be the culprit.)  The best way to 
+tell  if  this is the case is to use a utility like CRCK  on  the 
+original copy of the offending file/program, and on your copy; if 
+the numbers you get don't match,  you most likely have a bad copy 
+of the file/program you checked and should obtain another copy of 
+it.  (Check the new copy, too, when you get it.)
+
+     This  may sound silly,  but do you have the correct  version 
+for your operating system?  If you try to run the CP/M-86 version 
+under  MS-DOS,  strange things may happen;  same for  the  MS-DOS 
+version  under  CP/M-86.   The MS-DOS version has an "M"  in  the 
+version  number.   Also,  try  using  TYPE to actually  type  the 
+executable  file  on  your screen;  you'll most  likely  see  the 
+author's  name.   (See the history later in this document to  see 
+who wrote what.)
+
+     If all that checks out,  the logical next step is to compare 
+notes with someone locally to see if anyone else is  experiencing 
+problems.  The system operator ("sysop") of the system from which 
+you  obtained the software can usually be of help if you tell him 
+which  program you're using (CP/M-86 or MS-DOS) and the  name  of 
+the    file   you're   trying   unsuccessfully   to    unsqueeze.  
+Alternatively,  you  can leave a message addressed to "ALL" on  a 
+local  bulletin board;  usually some helpful person will jump  in 
+with suggestions.
+
+     If  you've tried all this,  and you're still sure you have a 
+problem,  then it's last-resort time.  Contact the author of your 
+version of the program.   His name,  and a way to contact him, is 
+in the very beginning of the NUSQ.COM file; TYPE NUSQ.COM and you 
+should see it.   (If that doesn't work,  use DDT,  SID or DEBUG.)  
+This  is  by far the slowest method of  resolving  problems,  and 
+people  who  contact  program authors  with  problems  caused  by 
+operator  error are usually looked upon unfavorably,  so do  this 
+only  if  all  else fails.   Be sure to include the name  of  the 
+system  where you got your copy of the program,  the name of  the 
+file  you're trying to unsqueeze and the place where you got  the 
+file,  and  a description of what went wrong.   It might also  be 
+nice  to know the names of any people who have tried to help  you 
+with your problem so far.
+
+                          ANNOUNCEMENT
+
+     A look at the signon messgae in interactive mode will reveal 
+that NUSQ is the result of committee action.   Said committee was 
+unable  to agree on whether the source code should be distributed 
+as public domain code.   Consequently,  source code is not avail-
+able.
+
+                             HISTORY
+
+
+     NUSQ  is  a  file unsqueezer  utility  written  entirely  in 
+assembly language.  The first file squeezer and unsqueezer in the 
+public  domain  were  written  by  Richard  Greenlaw,  in  the  C 
+programming language.   A Z80 assembly language version was  done 
+by Gail Zacharias at MIT in the Spring of 1983.  In late '83 Dave 
+Rand wrote an 8080 version,  which went through several versions, 
+culminating  in  USQ120.COM.  Paul Homchick assumed the  task  of 
+converting  Dave's  efforts to 8086/8088  assembly  language  for 
+execution  under  CP/M-86 in early 1984,  and I converted  Paul's 
+version to run under MS-DOS a bit later.
+
+
+                          CP/M VERSIONS
+
+	1.08	January  28,  1984.   First released version 
+                uploaded to Compuserve.
+
+	1.09c	March  24,  1984.   Carriage Return on empty 
+                line exits program.   Optimized  tree-walker
+                adapted  from   MS-DOS  version resulting in
+		15%  speed  increase.
+
+	1.10	June  22,  1984.   Prior tree-walker was not
+                as optimized as we thought.  Further optimi-
+		zation borrowed from MS-DOS version, result-
+		in another 25% increase in speed.
+
+                         MS-DOS VERSIONS
+
+	1.00M	March 21, 1984.   Original version  uploaded 
+                to  Compuserve.   Had serious bug that some-
+                times resulted in short files with no  warn-
+                ing.
+
+	1.01M	March 31,  1984.   Carriage Return on  empty 
+                line at Command prompt ("*"), now returns to 
+                DOS  instead of giving another prompt  line.  
+                Short File BUG still in this version!
+
+	1.02M	April  12,  1984.   Fixed Random Block Write 
+                DOS  calls.   Files  now unsqueeze to  exact 
+                length,  instead of 128-byte multiples as in 
+                prior versions.   Buffer flush code fixed to 
+                eliminate short file bug.
+
+	1.03 and 1.03D 	 June 22, 1984.  Decode routines  re-
+		written for a  30  percent increase in speed.
+                Version 1.03D uses date and time of the input
+		file when creating output file, 1.03 does not
+		do so.   This date feature  can  be user con-
+		figured by changing a byte at  offset  +4  in
+		the .com file.  See 'Installation,' above for
+		details.   Versions  prior to this one always
+		appended  a  1A  hex  to  the  end of the un-
+		squeezed  file.  This  CP/M  anachronism  has
+		been  removed  in this version.  'M' has been
+		removed from the sign-on version  number,  on
+		the  theory  that if you have gotten that far,
+		you are using the correct operating system for
+		the program.
+
+CP/M and CP/M-86 are trademarks of Digital Research, Inc.
+MS (as in MS-DOS) is a trademark of Microsoft, Inc.

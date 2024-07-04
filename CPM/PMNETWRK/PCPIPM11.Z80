@@ -1,0 +1,253 @@
+; PCPIPM11.Z80  
+;
+; Driver for Poor Man's Network and PCPI Applicard w/SuperSerial Card
+;
+; POOR MAN'S NETWORK available from:
+;  Anderson Techno-Products
+;  613-722-0690
+;
+; PMN is a 2-computer CP/M networking system. It allows the sharing
+; of any device DSK:, LST: PUN: etc with connection via the serial port.
+;
+; Revision History:
+;------+---------+----------+---------------------------------------------
+; Rev. |  Date   |  Author  |          Description
+;------+---------+----------+---------------------------------------------
+; 1.1  |08 May 87| Al       | - made ZAS assembler compatible
+;      |         |Heynneman | - setup for SOROC terminal codes
+;      |         |          | - default 9600 baud, cause Super Serial
+;      |         |          |   won't run consistently at 19200
+;------+---------+----------+---------------------------------------------
+; 1.0  |13 Apr 87| Jim Lill | - created original adapting SSERIAL.ASM
+;      |	 |	    |   and using code from MXH-AP53.ASM
+;------+---------+----------+---------------------------------------------
+
+TRUE 	 EQU 	0FFH
+FALSE	 EQU 	0
+CR	 EQU	13
+;...............................
+;
+;	Apple Super Serial Card equates
+;	-------------------------------
+;
+SSCSLOT		EQU	2	;Slot of Super Serial Card
+MODDATP		EQU	0C088H + [SSCSLOT*10H] ;data port of ACIA
+MODSTAP		EQU	0C089H + [SSCSLOT*10H] ;status port of ACIA
+MODCTLP		EQU	0C08BH + [SSCSLOT*10H] ;control port of ACIA
+MODCMDP		EQU	0C08AH + [SSCSLOT*10H] ;command port of ACIA
+;
+;
+RDBYTE		EQU	0FFE0H	;Read a Byte from Apple (A = BYTE)
+WRBYTE		EQU	0FFE3H	;Write a Byte to Apple (C = BYTE)
+RDWORD		EQU	0FFE6H	;Read 2 Bytes from Apple (DE = BYTES)
+WRWORD		EQU	0FFE9H	;Write 2 Bytes to Apple (DE = BYTES)
+;
+PEEK1BYTE	EQU	6	;Command to Peek 1 Byte in the Apple
+POKE1BYTE	EQU	7	;Command to Poke 1 Byte to the Apple
+
+; Status bit equates for SSC serial port
+;
+MDSNDB		EQU	10H
+MDSNDR		EQU	10H
+MDRCVB		EQU	08H
+MDRCVR		EQU	08H
+
+;---------------------------------------------------------------------
+; PMN Eqautes
+
+NETBIOS		EQU	2000H
+OFFSET		EQU	0F00H		
+;
+		ORG	107H
+
+; MODEM COMMANDS (not used in this version)
+;
+MATTNCDS DB	'A','T',0,0,0,0,0,0,0,0	;ATTENTION
+MINTRCDS DB	'+','+','+',0,0,0,0,0,0,0 ;INTERRUPT
+MDIALCDS DB	'D',0,0,0,0,0,0,0,0,0	;DIAL A NO
+MHANGCDS DB	'H','0',0,0,0,0,0,0,0,0	;HANG UP LINE
+MINITCDS DB 	'E0',CR		;HAYES INITIALIZATION
+	 DB 	'F1',CR		;(40 BYTES TOTAL)
+ 	 DB 	'Q0',CR
+ 	 DB 	'V1',CR
+ 	 DB 	'X1',CR
+ 	 DB 	'S0=0',CR
+ 	 DB 	'S7=15',CR
+	 DB	0,0,0,0
+	 DB	0,0,0,0,0,0,0,0,0,0
+;
+; BAUD RATE TABLE for Apple Super Serial Card
+;
+BAUDCODE:
+	DW	06H		;300 
+	DW	07H		;600 
+	DW	08H		;1200
+	DW	09H		;1800
+	DW	0AH		;2400
+	DW	0BH		;3600
+	DW	0CH		;4800
+	DW	0DH		;7200 
+	DW	0EH		;9600 
+	DW	0FH		;19200 
+	DW	0		;38400
+;
+ERRMRK: DB	'^'			;PARAMETER ERROR MARKER
+COMP:	DB	'Apple ][/Applicard/SuperSerial',CR
+;		 .........1.........2.........3 30 BYTES
+
+	ORG	NETBIOS+31BH
+;
+SCRSIZ: DB	24			;LINES ON SCREEN
+SCRWID: DB	80			;WIDTH OF SCREEN
+;	
+CLRLIN: DB	2,27,'T',0,0,0,0,0,0,0 	;CLEAR TO EOL
+DIRCUR: DB	2,27,'=',0,0,0,0,0,0,0 	;DIRECT CURSOR ADDR
+MIDCUR: DB	0,0,0,0,0,0,0,0,0,0	;MIDDLE STRING
+ENDCUR: DB	0,0,0,0,0,0,0,0,0,0 	;ENDING STRING
+VOFF:	DB	32			;CURSOR ADDR OFFSET
+CURSTY: DB	0			;0=Y,X; 1=X,Y
+ASCCUR:	DB	0			;ASCII CURSOR ADDR
+VDELAY:	DB	0			;CURS ADDR DELAY
+REVVID: DB	0,0,0,0,0,0,0,0,0,0 	;REVERSE VIDEO
+NORVID: DB	0,0,0,0,0,0,0,0,0,0 	;NORMAL VIDEO
+SAVECP: DB	0,0,0,0,0,0,0,0,0,0 	;SAVE CURSR POSN
+RSTRCP: DB	0,0,0,0,0,0,0,0,0,0 	;RESTORE CURSR POSN
+MSGL:	DB	0			;WHERE TO PUT MESSAGE
+;
+
+	ORG	NETBIOS+61CH
+
+SYSID:	DB	8		;THIS SYSTEM ID, FOR 8MHZ APPLE
+;SYSID:	DB	6		;THIS SYSTEM ID, FOR 6MHZ APPLE
+FCLK: 	DB	TRUE		;4MHZ OR BETTER
+MSGKEY:	DB	1CH,0,0,0	;MSG KEY SEQUENCE
+RELOC:	DW	0		;WHERE TO PUT NETBIOS	
+	DS	8		;reserved
+;
+; USART CONTROL BYTES
+;
+USART1:	DB	0		;GET USART'S ATTN
+USART2:	DB	0		;SOFTWARE RESET
+FINBIT: DB	0		;ENABLE XMIT
+FIXED:	DB	0		;USART CONSTANT BITS
+PARITY:	DB	0BH		;NO PARITY
+WORD:	DB	010H 		;8 Bits, 1 Stop
+  	DB	0 		;
+BAUD:	DW	0EH     	;DEFAULT BAUD RATE (9600)
+;
+ 	ORG 	NETBIOS+OFFSET
+
+DRIVER: ;FOR APPLE SUPER SERIAL CARD w/Applicard
+
+ANYEXT: JP	DR$ANYEXT	;is a byte at port
+INEXT:  JP	DR$INEXT	;read the data port
+EXTRDY:	JP	DR$EXTRDY	;check if ready to xmit
+OUTEXT:	JP	DR$OUTEXT	;write to the data port
+RESET	JP	SETSSC		;init the port
+ACTIV:	RET
+	NOP
+	NOP
+PBUSY:	RET
+	NOP
+	NOP
+;                 E N D  of Fixed Format Area !
+;===================================================================
+;
+; CHECK IF BYTE AT MODEM
+; Z set if byte available.
+; May use registers A, B, C.
+;
+DR$ANYEXT:
+	 CALL	RD$MODSTAP	;returns with status in Accum.
+	 XOR	MDRCVR
+	 AND	MDRCVR
+	 RET
+;...............................
+;
+; CHECK IF MODEM PORT READY TO XMIT
+; Z set if so.
+; May use registers A, B, C.
+;
+DR$EXTRDY:
+	CALL	RD$MODSTAP	;returns with status in Accum.
+	XOR	MDSNDR		
+	AND	MDSNDR
+ 	RET
+;...............................
+;
+; set baud, parity, and stop bit parameters of acia.
+;
+setssc:	ld	a,(parity)	;get current parity byte
+	or	0bh		;enable dtr, recv irq, and rts
+	call	wr$modcmdp	;send to command port
+	push	hl
+	ld	hl,baud		;get address of current baud byte
+	ld	a,(word)	;get current word length byte
+	or	(hl)		;put 'em together
+	pop	hl
+	call	wr$modctlp	;now send to control port
+	ret
+;...............................
+;
+; Write to the Command Port of ACIA
+;
+WR$MODCMDP:	PUSH	DE
+		LD	DE,MODCMDP
+		JP  	POKE
+;
+; Write to the Control Port of the ACIA
+;
+WR$MODCTLP:	PUSH	DE
+		LD	DE,MODCTLP
+		JP	POKE
+
+; Read the Status Port of the ACIA
+;
+RD$MODSTAP:	PUSH	DE
+		LD	DE,MODSTAP
+		JP	PEEK
+;
+; Read Data Port of ACIA
+;
+DR$INEXT:  	PUSH	DE
+		LD	DE,MODDATP
+		JP	PEEK
+;
+; Write to the Serial Data Port of the ACIA
+;
+DR$OUTEXT: 	PUSH	DE
+		LD	DE,MODDATP
+		JP	POKE
+;................................
+;
+; Peek at 1 byte from Apple 6502 address space
+; ENTRY: DE = Address in Apple
+; EXIT: A = Data
+;
+PEEK:		PUSH	BC
+		LD	C,PEEK1BYTE
+		CALL	WRBYTE
+		CALL	WRWORD
+		CALL	RDBYTE
+		POP	BC
+		POP	DE
+		RET
+;..............................
+;
+; Poke 1 byte to Apple 6502 address space
+; ENTRY: DE = Address in Apple
+; EXIT: A = Data
+ 
+POKE:		PUSH	BC
+		LD	B,A
+		LD	C,POKE1BYTE
+		CALL	WRBYTE
+		CALL	WRWORD
+		LD	C,B
+		CALL	WRBYTE
+     		POP	BC
+		POP	DE
+		RET
+;................................
+;
+	END			;PCPISSPM.Z80

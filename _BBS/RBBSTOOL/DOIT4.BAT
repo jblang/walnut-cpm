@@ -1,0 +1,1 @@
+echo /FileSpec=%cdrom%%1\*.* >> makefidx.cfg

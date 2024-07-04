@@ -1,0 +1,214 @@
+                                                                 10 March 1986
+                                  Z-NEWS 405
+
+Z  TIPS.   Our description of PUBLIC usage leaves a little confusion in  minds 
+of  some of you.  Z-News 303, 304, and 305 went into detail but  disk  (drive) 
+versus user area needs more discussion.  Most problems occur because COM  file 
+to  be  executed  doesn't  know  of paths and  can't  find  it  trailing  file 
+(argument) because it's in other than default directory.  LDR.COM looking  for 
+SYS.ENV is good case in point.
+     If   disk   A  and  B,  user  area  6,  are   declared   public   (PUBLIC 
+/ca,da,db,u6<cr>),  and  SYS.ENV is in B6: with LDR.COM in A15:  (or  anywhere 
+along the path), we can issue command LDR SYS.ENV<cr> from, say B0:, and  have 
+correct execution.  If LDR understood paths (for its file arguments) we  could 
+place SYS.ENV in A6:, without disk B public, and still have the command  work; 
+but,  LDR  doesn't, and thus it won't.  Of course most Z-System  utilities  do 
+understand  paths  so  PUBLIC works beautiful with them  and  but  one  public 
+directory  declared.  To guarantee only one copy of a program is  required  on 
+the disk system, a directory for each disk needs to be declared public.
+     Directories  are  fully public among areas of the same disk,  and  global 
+(from disk to disk) for COM files through path search capability created by Z3 
+environment.
+     We use area 6 here at Echelon as public (other areas from 1 thru 8  would 
+be  just  as  valid) for all disks (drives).  We seem to never  get  into  any 
+trouble  with  files not finding each other.  Frankly, our main  computer  (an 
+Ampro  Model 1210 Bookshelf) uses only A6: as public.  There we have  V-SPELL, 
+WordStar, StarIndex, MailMerge, The Word Plus, along with SYSLIB, Z3LIB, VLIB, 
+GRXLIB, GRWLIB, and PDMLIB REL files.  We do wordprocessing in B0:, B1:,  B2:, 
+B4:  and  D0:  areas;  computer communications from  B7:;  and,  our  assembly 
+language  program development from B10:.  Term3 executable modules,   ZAS  and 
+ZLINK,  and  Newword  and  its overlays, are  on  A0:.   A14:  contains  Term3 
+overlays,   i.e.,  Comm  Sets,  telephone  libraries,  macro  and   character-
+translation tables, etc.  Squeezed HLP files are in A12:.  We use Discat  from 
+A8: and not in a public area simply because the modules were written, as  were 
+Term3,  to take advantage of Z3 environment.  We use A1: thru A5:  as  scratch 
+areas (temporary work space) for formatting (organizing), transferring data to 
+and  from  floppies.  By convention, A12: is reserved for HLP  files.   Floppy 
+drive C: is for backup.
+      Remember, if you declare two drives public, any user area that is public 
+for  one  will be public for the other.  However, there is no  reason  we  can 
+think  of  for having more than one area public per  drive  (disk  partition).
+Also  remember, if files of same name are in both public and non-public  areas 
+and  you  erase them in non-public area, they also will be  erased  in  public 
+areas.  Watch it!
+
+Of Manuals and Binders.   Our loose-leaf manuals are available for from  $2.00 
+to  $20.00,  may  be applied to price of  later  purchased  matching  program.
+Manual  for Term3 is example of what's on our mind.  Many good modem  programs 
+exist,  some public domain, some commercial.  Buy Term manual to determine  if 
+program   is  one  you  want  to  own.   (We  know  Term3  as  most   advanced 
+communications  and  modem package ever created.)  Manual describes  its  many 
+features in 150 pages, in more detail than an ad or paragraph here.  Comes  in 
+standard  8.5 by 11 inch loose-leaf dimensions, and fits into big  plastic  3-
+ring binder supplied with ZCPR3: The Libraries, Item 27 on Price List.  Binder 
+was made large enough--it's 1.5 inches thick--to hold several Echelon  manuals 
+simultaneously, Discat, Zas, ZDM, Libraries, Term3, etc.  Two of these binders 
+hold all our manuals and other literature, plus room to expand.  Binders  have 
+our  name  and logo (Z-News 303 explains essence of logo) on front  cover  and 
+spine, are colored tan with blue lettering.  We offer them for $5.00 each,  if 
+ordered  along with software purchase.  Shipping and handling remain at  $4.00 
+per  order, continental USA.  Consider buying manual first to study, then  get 
+program.  WONDERful idea!  Manual-alone prices:
+
+   Zas - $12.00     ZDM   - $ 4.00     ITOZ  - $ 2.00     Revas3/4 - $20.00
+   DSD - $20.00     Term3 - $20.00     Z-Msg - $20.00     Discat   - $ 8.00
+
+Amateur  Z User Corner.   Here's three VFILER CMD lines found  useful  (Z-News 
+403  has  more).  CATSCAN is from Discat and permits finding any file  on  any 
+disk  in  MASTER.CAT just by entering numeral 5.  All  files  associated  with 
+Discat are in, by convention, directory A8:, named CAT:.  T3.MNU is our  Term3 
+menu  used to completely control telephone dialing and communications.  And  9 
+is  used  to quickly enter pointed-to-library.  Transient  (disk-resident  COM 
+file)  IF,  Version 1.2 or later, is used for fcb  conditional  testing;  show 
+error  if  not  an LBR file, else run NULU on library.  Notice  we  log-in  to 
+particular  directory at beginning and return to current when  through.   From 
+home-base directory you access other directories, always returning home  after 
+commands are exhausted.  Furthermore, as in command 9 below, current directory 
+becomes default automatically, reducing potential confusion, i.e., default  is 
+known  and  not mistaken for current once inside, in this case,  NULU  library 
+manager program.
+
+5 a8:;catscan 'Master Catalog Search (e.g., *.doc): ' *.*;%d%u:
+7 b7:;menu t3.mnu;%d%u:
+9 a15:if12 %t=lbr;%d%u:;a0:nulu -o %n -f;else;echo --> file is not a <<
+  library <--;fi
+#
+                          >>> VFILER CMD Fragment <<<
+       ----------------------------------------------------------------
+       5 - Scan Master CATALOG from Console               (CATSCAN) - 5
+       7 - Telecommunicate via Modem                        (Term3) - 7
+       9 - Enter Pointed-To-Library File (LBR)               (NULU) - 9
+       ----------------------------------------------------------------
+
+Declaring location of IF12.COM avoids time computer takes searching along path 
+(especially  if  using 1024 or more directory entries on disk).  It's  a  good 
+idea to always indicate in command lines where a file is, if location is known 
+and  fixed. By convention, most utilities are placed in ROOT: directory,  most 
+applications in BASE:.
+
+Z-Node  Activity.   Five nodes sign-up during fortnight.  First,  Brian  King, 
+Castle  AFB, CA 95339, becomes Node #55 sysop.  Will report his RAS  telephone 
+number when he is operational.
+     Z-Node #56 is online, 817/283-9167, run by Sysop Terry Carroll,  Bedford, 
+TX 76021.  Terry covers Dallas and Fort Worth areas which have been unattended 
+for so long.  "The system's handle is 'The Poor Man's Z-Node' because I choose 
+to  have the best available to everyone, and because I stay broke keeping  the 
+system free!"  Thanks, Terry, for seeing our problem and solving it with  your 
+online Kaypro 10.
+     Steve Kitahata, Gardena, CA 90247, 213/532-3336, becomes sysop for Z-Node 
+#57  with CompuPro (Viasyn) 20-megabyte hard-disk 6-mHz Z80 S-100 machine  and 
+Prometheus ProModem 1200.  Lots of storage and speed here!
+     Kent  Mason,  Oklahoma,  OK 73107, becomes Z-Node  #58  with  a  modified 
+Kaypro.   His RAS number is 405/943-8638, but soon changes to  another  number 
+when  he  goes to 24-hour per day operation.  Z-Node  #59,  running  Micromint 
+TKBBS, is managed by Sysop Michael Hofer in Hicksville, IL 11802.  Stay tuned!
+     Ed  Unrein, Orlando, FL, has two telephone numbers for his  two  Z-Nodes:
+1) 305/774-2591 for #29, exclusive Z-System software RAS, and 2)  305/295-0844 
+for #51, general software.
+
+Menus,  Menus, and More Menus.   A dream come true:  John T.  Brown,  Sterling 
+Heights,  MI, produces a definitive set of menus, ready-to-run, for Kaypro  10 
+machines using Michael Rubinstein's MMR BIOS.  Based on Echelon DEMO.LBR  file 
+material,  but adding significant, first-time-thought-of ideas  and  routines, 
+and combining many aliases with MENU and VMENU, he shows what can be done in a 
+real-world situation.  Truly impressive!  Even if you don't have a Kaypro  10, 
+much comes from studying and applying his techniques. These extended  turn-key 
+menus  attain new heights in software/hardware integration.  Bravo!  And  keep 
+up  the good work, John.  If interested, download files  MENUS-JB.LBR,  ALIAS-
+JB.LBR, HLP-JB.LBR, and ZSYS/MMR.LBR from your local Z-Node.
+
+Potpourri.   Martin Murray, Dallas, TX, author of NULU libraries file manager, 
+grants  permission  to bundle his program with our Z-System  software.   Thank 
+you,  Martin,  for your generosity and graciousness.  You make  a  significant 
+contribution to 8-bit computing community.  Martin officially joins our Z-Team 
+of  software developers and tells us that he presently is using The  Libraries 
+(SYSLIB36,  Z3LIB13, VLIB11) to convert NULU to a full ZCPR3 utility  (see  Z-
+News 009, page 4, for definition of Z3 utility).  As an aside, last known  bug 
+in  NULU  has  been fixed.  Get Version 1.51.  Whoopee!   Also,  after  Martin 
+finishes  NULU  as a Z3 utility, he may start work  on  long-delayed  Document 
+Maintenance Manager (DMM) development, the program that keeps track of changes 
+in  a  source listing or in a text file.  (Richard Conn will  probably  add  a 
+string-search utility, something like SIFT or GREP, to next release of ZCPR3.)
+     Incidentally,  Echelon  actively seeks to market programs  fostering  our 
+philosophy, programs that take full advantage of ZCPR3 and ZRDOS  environment, 
+that use modern ASCII terminals and business graphics.  Send us your ideas; we 
+will let you know if we think your product could be commercially successful.
+     Second   issue   of  S-100  Journal  is  on   streets--very   impressive!
+Information  about  advances in S-100 technology and new  S-100  International 
+Trade  Association  (SITA) lets us know there are alternates to  blue  plague.
+"...a  symbol  of  quality, performance, modularity,  wide  support,  infinite 
+upgrading possibilities, and non-obsolescence."  That's S-100.  Please, if you 
+own  or are planning to buy an S-100 system, subscribe to this magazine.   You 
+won't  be  sorry.  Call or write, S-100 Journal, P.O. Box 12881,  Raleigh,  NC 
+27065, 919/839-0115.  Jay Vilhena is Editor.
+     Fortnight's next-to-best news:  ZCPR3: The Libraries shipped.  All  back-
+orders  have  been  mailed, USPS Priority (1st Class).  So if  you  have  been 
+waiting  to make sure this book came out when we said it would, wait is  over, 
+and  it did--order now!  It's Item 82 on Price List, ended up  containing  310 
+pages,  comes  in  plastic  3-ring binder, and sells  for  $29.95  plus  $4.00 
+shipping and handling.
+     Fortnight's  best news:  David McCord has joined Echelon  as  corporation 
+Vice  President.  He adds his significant technical experience and  managerial 
+talent  to  our growing staff.  You know Dave as sysop of Z-Node  Central  (in 
+Fremont,  CA,  20  miles east of Los Altos) and coordinator  of  other  Z-Node 
+Sysops.   These  have been, are labors of love, performed without  pay,  part-
+time.   He  continues  with these tasks, but now as  full-time  employee,  his 
+efforts  are  expected to enhance other Echelon operations.   Welcome  aboard, 
+Dave.   Good  fortune  in  your  new,  exciting,  full-of-potential,  full-of-
+challenge position.
+
+Of  Cabbages  and  Kings.   While PC and MS-DOS machines,  along  with  Apple, 
+Atari,  and  Commodore  dominate reported microcomputer  news,  we  push  into 
+uncharted   and  un-reported  frontiers,  diminish  docility,   and   increase 
+understanding.  There can be diversity, you don't have to troop or be a clone.
+You  have  access  to data and information; you have a mind to  tell  of  your 
+needs.  You can make a difference.  You are the difference!
+     We promote something not along main stream, something more rewarding than 
+illusion  of  instant gratification, something that thrills, that  comes  from 
+reward  of  efforts expended, from learning.  Realize that if you  are  always 
+seeking  something  for nothing, you eventually end  up  with  nothing--that's 
+ethical state of majority USA presently.  Oh!  We miss the mark!  Filled  with 
+material plenty, we are very unhappy with ourselves and our lives,  continuing 
+to  expect El Dorado without working for it.  And without knowing work  is  of 
+and on ourselves, individually and collectively.
+     You  hundreds  of  thousands  of Kaypro,  Ampro,  Morrow,  S-100,  SB180, 
+Osborne, Heath-Zenith 89/90 users, don't despair.  We continue to support your 
+machines and its software.   See you down the lines...
+
+                                                                 Echelon, Inc.
+                                                       885 N. San Antonio Road
+				                       Los Altos, CA 94022 USA
+					               Telephone: 415/948-3820
+                                            Z-Node Central (RAS): 415/489-9005
+
+Trademarks:   SB180, COMM180, TKBBS, Micromint; PRO-180, Magnum  Digital;  XL-
+M180,  ICD;  HD64180, Hitachi; Z-System, ZCPR3, ZRDOS,  Z-Tools,  Z-Com,  Zas, 
+Zlink,  ZDM,  Revas4, Z-Msg, DSD, Term3, Lasting-Value Software,  Echelon  and 
+owners and authors; CP/M, Digital Research; WY-50+, Wyse Technology; WordStar, 
+MicroPro;   Newword,  Newstar;  SCSI/Plus,  Little  Board,  Bookshelf,   AMPRO 
+Computers; One-Eighty File, NAOG.
+
+
+                                                           eagle
+                     *                                      here
+
+
+                           Z   s e t s   y o u   F r e e  !
+
+
+                     *                                        *
+
+
+Z-News  405 is Copyright 1985 Echelon, Inc.  All Rights Reserved.   Permission 
+to  reprint,  wholly or partially, automatically granted if source  credit  is 
+given to Echelon.

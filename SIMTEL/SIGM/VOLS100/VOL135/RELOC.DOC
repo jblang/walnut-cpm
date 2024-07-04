@@ -1,0 +1,639 @@
+                        A SIMPLE METHOD FOR GENERATING
+                           SELF-RELOCATING PROGRAMS
+
+                                      or
+
+             To every problem, no matter how trivial, someone can
+                      always find a complicated solution.
+
+
+The "What"
+
+Á self-relocatinç prograí is¬  iî CP/Í terminology¬ onå whicè wheî loadeä intï 
+thå bottoí oæ thå transienô prograí areá moveó itselæ uğ tï thå toğ oæ thå TPÁ 
+beforå  doinç anythinç useful®   Thå effecô ió tï freå uğ thå loweò enä oæ thå 
+TPA for use by other programs.  This is how program monitors such as DDT work.
+
+The "Why"
+
+Oî  anä  ofæ oveò thå pasô yeaò É havå beeî writinç á supeò  Z8°  disassembleò 
+whicè  includeó thå morå usefuì featureó oæ Warä Christensen'ó  RESOURCÅ  (seå 
+CPMUÇ  voì 42© alonç witè á fe÷ featureó oæ mù owî inventioî anä á betteò useò 
+interface®   Iô  occureä  tï må ho÷ convenienô iô woulä bå tï  havå  thå  dis-
+assembleò  residå iî higè memorù sï thaô thå prograí beinç disassembleä  coulä 
+occupù itó normaì positioî iî thå TPA®  Iî thå documentatioî oî RESOURCE¬ Warä 
+says:
+
+          "..®  typicallù  yoõ  wanô tï disassemblå á prograí  whicè 
+          runó  aô  100H¬  whicè ió werå RESOURCÅ  runs®    Boâ  Vaî 
+          Valzaè   woulä  havå  solveä  thaô  bù   makinç   resourcå 
+          relocatablå  anä  movinç itselæ uğ undeò BDOS®   É  wasn'ô 
+          thaô industrious."
+
+Instead¬  hå  fiddleó arounä witè aî "invisiblå offset¢ whicè makeó á  prograí 
+loadeä  ABOVÅ thå disassembleò looë aó thougè iô resideó aô 100h®  Ward'ó  owî 
+wordó describå mù feelingó oî thå matterº É wasn'ô thaô industrious¡  Thuó waó 
+É leä tï consideò thå methodó oæ generatinç self-relocatinç programs.
+
+And the "How"
+
+Thå  enä resulô oæ alì SRĞ generatioî schemeó ió aî objecô prograí  comprisinç 
+threå  discretå  segments¬  normallù (buô noô necessarily©  iî  thå  followinç 
+order:
+
+     1.   Relocator module:
+               Á shorô sectioî oæ codå whicè shiftó thå relocatablå segmenô tï 
+               the top of the TPA and transfers control to it.
+
+     2.   Relocatable program segment:
+               The "useful" part of the SRP.
+
+     3.   Relocation bitmap:
+               Useä  bù  thå  relocatoò  modulå tï fiø  uğ  addresseó  iî  thå 
+               relocatable program segment to reflect the new program origin.
+
+Á  biô oæ sneakerù ió involveä iî thå generatioî anä uså oæ  thå  bitmap®   Iô 
+containó  onå  BIÔ foò eacè BYTÅ oæ codå iî thå relocatablå  prograí  segment® 
+Oncå  thå  relocatablå codå ió moveä intï placå thå bitmağ ió scanneä anä  foò 
+eacè  biô  set¬  á relocatioî biaó ió addeä tï thå correspondinç bytå  oæ  thå 
+relocateä code®   Thió devilishlù simplå schemå relieó oî thå waù iî whicè thå 
+bitmağ  ió  constructed®   Twï  codå  fileó arå prepareä  sucè  thaô  alì  thå 
+addresseó  iî onå diffeò froí thoså iî thå otheò bù aî exacô multiplå  oæ  25¶ 
+anä thå bitmağ ió constructeä sucè thaô á biô ió seô iæ thå correspondinç codå 
+byteó arå differenô and¬  conversely¬ á biô ió reseô iæ thå correspondinç codå 
+bytes are the same.  The following example may help to explain the idea:
+
+0000  3A 0010      LD   A,(NUMBER+1)   ;Get whatever junk is in NUMBER
+0003  CD 0011      CALL HEXOUT         ;Display high-order byte in hex
+0006  3A 000F      LD   A,(NUMBER)     ;Get rest of NUMBER
+0009  CD 0011      CALL HEXOUT         ;Display low-order byte in hex
+000C  C3 0000      JP   0              ;End
+000F          NUMBER:
+000F  7A49         DEFW 7A49h          ;Arbitrary 16-bit thing
+0011          HEXOUT:
+0011  F5           PUSH AF             ;Copy for displaying low-order nibble
+0012  0F           RRCA                ;Isolate the high-order nibble
+0013  0F           RRCA
+0014  0F           RRCA
+0015  0F           RRCA
+0016  CD 001A      CALL HEXDIG         ;Display a hex digit
+0019  F1           POP  AF             ;Recover low-order bits
+001A          HEXDIG:
+001A  E6 0F        AND  0Fh            ;Drop spurious bits
+001C  C6 90        ADD  A,90h          ;Convert hex digit to ASCII
+001E  27           DAA
+001F  CE 40        ADC  A,40h
+0021  27           DAA
+0022  5F           LD   E,A            ;Move to E for CP/M console output
+0023  0E 02        LD   C,2            ;Function selector
+0025  C3 0005      JP   5              ;BDOS will do the RETurn for us
+
+With the code origin set at 0 the object code for the above program is:
+
+          3A 10 00 CD 11 00 3A 0F 00 CD 11 00 C3 00 00 49
+          7A F5 0F 0F 0F 0F CD 1A 00 F1 E6 0F C6 90 27 CE
+          40 27 5F 0E 02 C3 05 00
+
+Setting the code origin at 100h would generate the following object code:
+
+          3A 10 01 CD 11 01 3A 0F 01 CD 11 01 C3 00 00 49
+          7A F5 0F 0F 0F 0F CD 1A 01 F1 E6 0F C6 90 27 CE
+          40 27 5F 0E 02 C3 05 00
+
+The code is 40 bytes long so the bitmap would be 40 bits long, i.e. 5 bytes:
+
+           0  0  1  0  0  1  0  0  1  0  0  1  0  0  0  0
+           0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0
+           0  0  0  0  0  0  0  0
+
+which, in hex notation is 24 90 00 80 00.Š
+Supposå  wå no÷ loaä thå origin-° codå aô A60° tï A627®   Thå bitmağ telló  uó 
+thaô wå havå tï adä A6è tï thå codå byteó aô A602¬  A605¬ A608¬ A60Â anä A618® 
+The properly-relocated code becomes:
+
+          3A 10 A6 CD 11 A6 3A 0F A6 CD 11 A6 C3 00 00 49
+          7A F5 0F 0F 0F 0F CD 1A A6 F1 E6 0F C6 90 27 CE
+          40 27 5F 0E 02 C3 05 00
+
+So what's hard about that?
+
+Nothing¬  onå woulä think®   Unfortunately¬ thå commonlù availablå methodó foò 
+buildinç  bitmapó anä constructinç self-relocatablå programó arå sï messù thaô 
+É  coulä almosô sympathiså witè Warä Christensen'ó vie÷ oæ  thå  exercise®   É 
+shalì  describå  onå sucè methoä anä brieflù mentioî twï otheró buô  witè  thå 
+forewarninç  thaô É havå neveò anù oæ theí anä thaô É aí relyinç oî sucè scanô 
+documentatioî  aó É havå availablå anä oî whaô É coulä learî bù  halfheartedlù 
+playinç  arounä  witè them®   Halfheartedly¿   Yes¬  afteò alì iô  waó  fairlù 
+obviouó thaô É woulä neveò seriouslù emploù eitheò methoä anä mù onlù interesô 
+iî theí waó attemptinç tï removå thå wildesô inaccuracieó froí theså notes.
+
+The GENMOD method
+
+Normallù  distributeä witè MP/Í buô sometimeó availablå witè CP/Í ió á utilitù 
+prograí  calleä GENMOD®   Thå stepó iî thå GENMOÄ techniquå foò generatinç  aî 
+SRP are something like this:
+
+     1    Assemblå thå relocatablå codå segmenô iî thå normaì waù specifyinç á 
+          code origin of 100h and generating a .HEX file.
+
+     2    Modify the source program changing the code origin to 0.
+
+     3    Re-assemblå  thå  relocatablå codå segmenô intï á  (different©  .HEØ 
+          output file.
+
+     4    Concatenatå  thå twï .HEØ files®   PIĞ maù bå useä tï dï thió fairlù 
+          neatly, e.g.
+
+                    B>PIP RP.HEX=ORG000.HEX,ORG100.HEX
+
+     5    Ruî GENMOÄ againsô thå concatenateä .HEØ file, e.g.:
+
+                    B>GENMOD RP.HEX RP.COM
+
+          GENMOD responds with:
+
+                    REL MOD END  002A
+                    REL MOD SIZE 007F
+                    ABS MOD END  097F
+
+          GENMOÄ  putó  thå relocatablå codå segmenô aô 200è followeä  bù  twï 
+          byteó  whoså purposå É cannoô fathom®  Immediatelù thereafteò  comeó 
+          thå  bitmap®   Thå importanô piecå oæ informatioî abovå ió thå  "REÌ 
+          MOÄ END¢ address®   Adä 200è tï thaô valuå anä yoõ havå thå  addresó 
+          of the start of the bitmap.Š
+     6    Uså  DDT¬  ZSIÄ  oò whateveò tï loaä thå relocatoò modulå belo÷  thå 
+          relocatablå  codå  segmenô anä bitmap®  Someho÷ telì youò  relocatoò 
+          modulå  thå lengtè oæ youò relocatablå codå segmenô and/oò wherå  tï 
+          finä  thå  bitmap®   Exiô froí thå debuggeò anä SAVÅ  thå  SRĞ  codå 
+          image.
+
+                    B>ZSID RP.COM
+                    IRELOC.COM
+                    R
+                    {set up relocator information}
+                    G0
+                    B>SAVE nn RP.COM
+
+          and there you have it!
+
+The REL.UTL method
+
+Anotheò methoä foò generatinç SRPó ió offereä bù Roberô vaî Valzaè (CPMUÇ  voì 
+38© whï provideó á .UTÌ prograí whicè runó undeò thå controì oæ SIÄ oò ZSIÄ tï 
+handlå  somå  oæ thå stepó describeä above®   Whilå differenô iî  detail¬  thå 
+methoä  ió oæ thå samå degreå oæ complexitù aó thå GENMOÄ techiquå.
+
+The macro method
+
+Usinç  á fairlù powerfuì macrï assembleò sucè aó Digitaì Research'ó MAÃ iô  ió 
+possiblå tï definå macroó tï generatå á bitmap®   Á finå examplå oæ thå uså oæ 
+this technique is provided by Gary Novosielski's UNSPOOL program.
+
+                ;       GENERATE A LABEL OF THE FORM ??RNN TO TAG AN
+                ;       ADDRESS REQUIRING RELOCATION:
+                RTAG    MACRO   LBL,VAL
+                ??R&LBL EQU     VAL
+                        ENDM
+                ;
+                ;       FLAG <INST> AS A RELOCATABLE INSTRUCTION
+                ;       <INST> IS OF THE FORM: <MNE     OP1[,OP2]>
+                R       MACRO   INST
+                @RLBL   SET     @RLBL+1
+                        RTAG    %@RLBL,%2+$-@BASE
+                        INST-@BASE
+                        ENDM
+                ;
+                ; DURING BIT MAP CONSTRUCTION, GET THE NEXT R-TAGGED
+                ; ADDRESS VALUE:
+                NXTRLD  MACRO   NN
+                @RLD    SET     ??R&NN
+                @NXTRLD SET     @NXTRLD + 1
+                        ENDM
+
+In the code to be relocated we see these macros applied to instructions:
+
+@BASE:                          ;START OF CODE TO BE RELOCATED
+                .       .       .
+
+                 R      <JZ     SYSREQ>
+ 0038+=         ??R2 EQU        56
+ 0336+CA9801            JZ      SYSREQ-@BASE
+
+Everù instructioî whicè wilì neeä tï bå modifieä durinç relocatioî ió codeä aó 
+á  parameteò  tï thå "R¢ macrï whicè generateó aî assembly-timå  symboì  whoså 
+valuå  ió  thå offseô froí thå beginninç oæ thå relocatablå codå oæ thå  thirä 
+instructioî  byte®   Aô  thå samå timå thå operanä ió modifieä  tï  á  similaò 
+offset®   Aô  thå  enä  oæ thå relocatablå codå ió  thå  assembly-timå  bitmağ 
+generator:
+
+                ;       BUILD THE RELOCATION INFORMATION INTO A
+                ; BIT MAP FOLLOWING THE CODE.
+                ;
+ 0000 #         @X      SET     0
+ 0000 #         @BITCNT SET     0
+ 0002 #         @RLD    SET     ??R1
+ 0002 #         @NXTRLD SET     2
+                        RTAG    %@RLBL+1,0FFFFH ;DEFINE ONE MORE SYMBOL
+ FFFF+=         ??R89 EQU       0FFFFH
+                ;
+                        REPT    SEGLEN+8
+                        IF      @BITCNT>@RLD
+                        NXTRLD  %@NXTRLD        ;;NEXT VALUE
+                        ENDIF
+                        IF      @BITCNT=@RLD
+                @X      SET     @X OR 1         ;;SET LOW BIT
+                        ENDIF
+                @BITCNT SET     @BITCNT + 1
+                        IF      @BITCNT MOD 8 = 0
+                        DB      @X              ;;DEFINE THE BYTE
+                @X      SET     0       	;;CLEAR HOLD VARIABLE FOR MORE
+                        ELSE
+                @X      SET     @X SHL 1        ;;NOT 8 YET. MOVE OVER.
+                        ENDIF
+                        ENDM
+
+Thå  outpuô  oæ  thió in-linå macrï ió á serieó  oæ  "DB¢  pseudo-instructionó 
+defining the bitmap.
+
+Aó coded¬  thió techniquå wilì NOÔ worë foò anù oæ thå Z8° instructionó  whicè 
+havå  16-biô  opcodeó buô á simplå rearrangemenô oæ thå "R¢ macrï woulä  solvå 
+thió problem:
+
+                R       MACRO   INST
+                @RLBL   SET     @RLBL+1
+                        INST-@BASE
+                        RTAG    %@RLBL,$-%1-@BASE
+                        ENDMŠ
+Thå  macrï techiquå ió probablù thå easiesô oæ thå threå tï uså provideä  thaô 
+onå  haó accesó tï á gooä macrï assembler®   É uså Microsoft'ó MACRO-8°  (M80© 
+foò  alì  oæ mù assembly-languagå programminç anä (withouô puttinç iô  tï  thå 
+test©  É doubô thaô M8° coulä handlå thå task®   Neverthelesó thå techniquå ió 
+viable¬  eleganô  anä cleveò althougè thå complexitù oæ thå macroó  makeó  thå 
+actuaì  assemblù  verù lonç anä É suspecô thaô witè á largå prograí onå  coulä 
+ruî  intï  memory-spacå  problemó  becauså oæ  thå  largå  numbeò  oæ  symboló 
+generated®   Eveî iæ É haä MAÃ É woulä noô uså thió techniquå becauså É dï alì 
+oæ  mù  assembly-languagå  programminç  iî Ziloç  mnemonics®   Theså  arå  noô 
+supporteä bù MAC®   Also¬  wheî É firsô wrotå thió articlå É waó noô awarå  oæ 
+anù  implementatioî oæ thå macrï techniquå anä É doubô thaô É woulä havå  beeî 
+smart enough to devise those very sophisticated macros.
+
+There has to be a Better Way
+
+Aô  thå  timå  oæ  writinç  thió articlå É havå  codeä  anä  testeä  thå  maiî 
+disassemblù routinå anä thå symboì tablå handlinç routineó foò mù disassembleò 
+anä É havå severaì otheò pre-coded¬ testeä moduleó kickinç arounä iî librarieó 
+readù  tï bå incorporateä intï thå program®   Neverthelesó É expecô thaô some- 
+wherå  betweeî 2° anä 4µ assembly/testinç cycleó wilì bå requireä tï  completå 
+thå  projecô  anä thå thoughô oæ goinç througè thå abovå procedurå  morå  thaî 
+oncå oò twicå woulä bå sufficienô tï discouragå må froí eveò finishinç it.
+
+Whaô É wanteä waó aî automatiã methoä oæ generatinç aî SRP®  Ideally¬ É shoulä 
+bå ablå tï dï somå oæ thå assembly/testinç cycleó witè thå prograí runninç  iî 
+thå low-memorù enä oæ thå TPÁ anä theî withouô changinç thå program¬  generatå 
+aî SRĞ forí witè somå assurancå thaô iô wilì stilì work®
+
+The Better Way
+
+Thå  onå  essentiaì  tooì  foò thå SRĞ generatioî schemå thaô É  aí  abouô  tï 
+describå  ió  aî  assembler-linkeò combinatioî whicè  letó  yoõ  specifù  loaä 
+addresseó aô linë time® É havå two¬ namelù MACRO-8° anä LINK-8° froí Microsofô 
+anä ASMBL/Ú anä LINK/Ú froí Ithacá InterSystemó buô É havå nï doubô thaô therå 
+arå otheró whicè wilì worë jusô aó well.
+
+Thå  essencå oæ thå schemå ió tï leô thå linkeò dï thå worë oæ puttinç thå re-
+locatablå codå iî thå righô spoô ratheò thaî doinç twï assemblies¬  anä tï uså 
+a program to match the two code images and append a bitmap.
+
+Á certaiî disciplinå ió requireä wheî codinç á prograí whicè wilì lateò becomå 
+self-relocating®   Thió  disciplinå  haó  nï effecô oî thå  executioî  oæ  thå 
+program but provides information to the relocator module.
+
+     ±    Avoiä thå uså oæ "absolute¢ prograí segments» theù arå noô necessarù 
+          anä  unlesó  yoõ arå VERÙ careful¬  wilì interferå witè thå  linkinç 
+          order.
+
+     2    Foò  thå benefiô oæ thå relocatoò modulå thå firsô twï itemó iî  thå 
+          relocatable program must be:
+
+               a)   á  worä  containinç  thå addresó  oæ  thå  firsô 
+                    character past the end of the program,
+Š               b)   á  jumğ  tï thå entrù poinô oæ  thå  relocatablå 
+                    program segment.
+
+          MACRO-80 Example:
+
+                         .Z80           ;I always use Zilog mnemonics
+                cr    equ     0dh
+                lf    equ     0ah       ;These statements don't generate
+                ckpt  equ     144       ;any code so they can go here
+                zap   macro   field,len
+                      . . .
+                      endm
+
+                      dseg              ;Normally the first loaded
+                $memry::
+                      defs    2         ;Address of end of program
+                      jğ      start     ;Used and modified by relocator
+
+                ;Rest of program as it would normally be written.
+                      . . .
+                Start:
+                      . . .
+                      end     start
+
+          Iteí  (a© ió useä bù thå relocatoò modulå tï calculatå thå lengtè oæ 
+          thå relocatablå prograí segmenô anä thencå tï determinå thå  addresó 
+          tï  whicè tï movå thå relocatablå code®  Thå worä itselæ wilì noô bå 
+          relocated.
+
+          Iæ  yoõ arå usinç thå Microsofô assembleò anä linkeò theî  iteí  (a© 
+          can be a source statement of the form:
+
+                    $MEMRY::  defs      2
+
+          aó  iî  thå abovå examplå anä LINK-8° wilì kindlù filì thå worä  in® 
+          LINK/Ú  doesn'ô providå thió conveniencå sï uså á  sourcå  statemenô 
+          like:
+
+                              dw        $END$
+
+          wherå  $END¤  ió á labeì declareä jusô beyonä thå lasô bytå  iî  thå 
+          program®   (Makå  surå thaô iô ió iî thå last-loadeä segmenô oæ  thå 
+          last-linked module!)
+
+          Thå  relocatoò  prograí extractó thå addresó fielä oæ iteí (b©  and¬ 
+          wheî  iô  haó completeä thå relocation¬  transferó controì  tï  thaô 
+          addresó iî thå relocateä codå segment®   Iî thå meantime¬ thå targeô 
+          oæ  thå jumğ instructioî ió modifieä tï jumğ tï thå BDOÓ  whilå  thå 
+          jumğ  aô addresó µ ió modifieä tï jumğ tï thió instructioî sï thaô á 
+          program loaded into low memory sees a smaller TPA.
+
+          Confused¿   Perhapó  anotheò  examplå wilì help®   Supposå  thaô  wå 
+          relocatå  á prograí whicè ió 42Bè byteó lonç anä thå BDOÓ startó  aô 
+          C200h®  Beforå relocation¬ thå scenariï ió somethinç likå this:
+Š               0005      JP   C200      Jump into BDOS
+                .         .     .
+               0100                     Start of relocator module
+                .         .     .
+               01FE      DEFW 062B      Address of first byte past program
+               0200      JP   NTRYPT    Jump to entry point of relocatable
+                                        program segment
+                .         .     .
+               02A7 NTRYPT:             Program start address
+                .         .     .
+               062A                     Last byte of program
+               062B                     Start of bitmap
+                .         .     .
+               C200                     BDOS
+
+          After relocation things will be a little different:
+
+               0005      JP   BD00      Indirect jump to BDOS
+                .        .      .
+               BD00      JP   C200      Actual jump into BDOS
+                .        .      .
+               BDA7 NTRYPT:             Relocator exits to this address
+                .        .      .
+               C12A                     End of program
+                .        .      .
+               C200                     BDOS
+
+Providinç  thaô á prograí haó thå requireä itemó coded¬  iô caî  bå  converteä 
+into a self-relocating program without re-assembly.  The steps are:
+
+     1    Generatå á .COÍ filå bù linkinç thå relocatoò modulå anä relocatablå 
+          codå  segment®   Specifù á loaä addresó oæ 01FÅ foò thå  relocatablå 
+          codå segment®
+
+     2    Generatå  anotheò  .COÍ filå bù linkinç onlù  thå  relocatablå  codå 
+          segment specifying a load address of 02FE.
+
+     3    Run the RELOC program to generate the self-relocating program.
+
+Steğ  ±  effectivelù  concatenateó thå relocatoò modulå  anä  thå  relocatablå 
+prograí  segment®   Thå linkeò putó thå pointeò tï thå enä oæ thå  prograí  aô 
+(01FF,01FE©  anä thå jumğ instructioî aô 0200®   Thå relocatoò modulå caî theî 
+finä  thå prograí starô addresó aô (0202,0201)®   Notå thaô thå end-of-prograí 
+pointer does not become part of the relocated program.
+
+Steğ ² createó á seconä imagå oæ thå relocatablå prograí segmenô sucè thaô alì 
+addresses differ by 100h from those in the file created in step 1.
+
+Step 3 adds a bitmap.
+
+Noô  onlù arå therå feweò stepó thaî iî thå GENMOÄ anä REL.UTÌ methodó buô  nï 
+modificatioî tï thå prograí sourcå codå ió necessarù anä thå wholå procesó caî 
+be performed without operator intervention with a .SUB file like this:
+
+          :Generate a self-relocating version of the $1 programŠ          L80 reloc,/p:1fe,$1,Org200/n/e
+          L80 /p:2fe,$1,Org300/n/e
+          RELOC $1
+          ERA org?00.com
+
+where $1 will be substituted by the name of the program.  Something like:
+
+          SUBMIT RELOC RP
+
+doeó iô all¡   Easy®   Oncå É decideä ho÷ iô coulä bå done¬  implementatioî oæ 
+thå  SRP-generatioî  schemå tooë á helì oæ á loô lesó timå thaî  writinç  thió 
+documentation!
+
+And that's not all...
+
+Giveî  á  systeí sucè aó thå above¬  iô caî bå madå tï dï otheò  things®   Foò 
+example¬  somå programó returî controì tï thå CCĞ wheî theù finisè insteaä  oæ 
+exitinç  tï CP/Í bù doinç á "warí boot"»  iî relocatinç sucè á prograí tï higè 
+memory¬  iô  woulä neeä tï bå placeä jusô belo÷ thå CCĞ insteaä oæ jusô  belo÷ 
+thå BDOS®   Again¬  withouô toï mucè effort¬  thå systeí caî alsï providå  thå 
+abilitù  foò á useò tï explicitlù nominatå wherå thå relocateä prograí codå ió 
+tï  reside®   Anotheò worthwhilå facilitù ió thaô oæ havinç á prograí  overlaù 
+parô oæ CP/Í itself¬  particularlù thå BIOS®   Therå ió noô á loô oæ rooí oî á 
+standarä singlå densitù floppù disë foò á BIOÓ oæ anù sophisticatioî buô iô ió 
+certainlù  possiblå tï overlaù á minimaì BIOÓ witè á self-relocatinç onå  froí 
+thå disk'ó datá trackó whicè caî contaiî á hosô additionaì features®   Perhapó 
+aî  eveî  morå  generaì applicatioî foò thió facilitù ió thaô  iô  offeró  thå 
+abiltù  tï  tesô BIOÓ modificationó withouô goinç througè á serieó  oæ  systeí 
+generations.
+
+Tï  implemenô  theså extrá capabilities¬  thå SRĞ generatoò haó  tï  recogniså 
+command-linå  directiveó  froí  thå  useò anä  pasó  thå  informatioî  tï  thå 
+relocatoò modulå whicè iî turî musô bå cleveò enougè tï acô oî it®   Thió doeó 
+implù  á degreå oæ interdependencå betweeî thå SRĞ generatoò anä thå relocatoò 
+modulå  iî thaô thå SRĞ generatoò needó tï kno÷ somethinç abouô thå  structurå 
+oæ  thå relocator¬  buô É believå thaô thå slighô losó oæ generalitù  ió  welì 
+compensateä bù thå extrá versatilitù oæ thå package.
+
+Aó   supplied¬   thå  SRĞ  generatoò  recogniseó  thå  followinç  command-linå 
+directives:
+
+RELOC X                  Generatå  X.COÍ  whicè  wilì movå itselæ uğ  tï  jusô 
+                         belo÷ thå BDOS¬ overlayinç somå oò alì thå CCP®  Thió 
+                         ió thå mosô commoî usagå oæ thå SRĞ generatoò anä haó 
+                         thå simplesô commanä string®  Prograí Ø ió assumeä tï 
+                         returî controì tï CP/Í bù doinç á "warí  boot"®   Thå 
+                         BDOÓ  jumğ aô memorù locationó µ througè · ió altereä 
+                         tï reflecô á smalleò TPÁ size.
+
+RELOC X -                Aó  foò thå previouó commanä forí excepô  thaô  X.COÍ 
+                         wilì  relocatå  itselæ tï jusô belo÷ thå CCĞ anä  thå 
+                         BDOÓ jumğ aô locatioî µ wilì noô bå  affected®   I'lì 
+                         explain why later.
+
+RELOC X addr             "Addr¢  ió  á  hexadecimaì numbeò whicè  musô  bå  aî Š                         multiplå  oæ  100h®   X.COÍ wilì movå itselæ tï  thaô 
+                         address.
+
+Thå  "X¢ prograí generateä bù thå abovå commanä formó wilì bå  executeä  afteò 
+relocatioî  haó  beeî  donå anä thå codinç ruleó describeä  iî  thå  precedinç 
+sectioî must be obeyed for the relocation system to work.
+
+Onlù  thå  "normal¢  relocatioî tï jusô belo÷ thå BDOÓ causeó  thå  BDOÓ  jumğ 
+instructioî  aô  memorù  locationó  5-· tï bå modifieä tï  reflecô  á  reduceä 
+transienô prograí area®   Thå decisioî tï omiô thå modificatioî iî otheò caseó 
+waó fairlù arbitrarù buô waó takeî iî thå interesô oæ generality®   É diä  noô 
+wisè  tï imposå anù restrictioî oî thå prograí beinç relocateä anä  considereä 
+thå possibilitù thaô thå prograí mighô relù oî thå jumğ instructioî beinç lefô 
+unchangeä  foò anù oæ á varietù oæ reasons®   Oæ course¬  therå ió nothinç  tï 
+stoğ thå relocateä prograí froí modifyinç thå BDOÓ jumğ itself®   Also¬  therå 
+ió  á  public-domaiî utilitù provideä bù Johî Woolneò foò protectinç  thå  CCĞ 
+froí  beinç overlaiä bù transienô programó sï thaô therå existó á  methoä  foò 
+achievinç  thå samå resulô aó woulä bå attaineä bù havinç thå relocatoò adjusô 
+the jump instruction:
+
+     1.   Install John Woolner's CCP protection,
+     2.   Use the command form RELOC X.COM (i.e. no second parameter).
+
+Thå  SRĞ generatoò alsï recogniseó threå variantó oæ anotheò commanä forí  foò 
+whicè  thå codinç ruleó arå slightlù different®   Thå worä pointinç tï  "free¢ 
+memorù  ió  stilì requireä buô thå extrá jumğ instructioî aô thå heaä  oæ  thå 
+relocatablå codå neeä not¬  anä generallù musô not¬  bå supplied®  Thå commanä 
+form is
+
+RELOC X CCP      or      RELOC X BDOS      or     RELOC X.COM BIOS
+
+Thå  X.COÍ filå generateä bù theså commandó wilì relocatå sï aó  tï  overwritå 
+thå  CCP¬  BDOÓ  oò  BIOÓ respectively®   Controì wilì NOÔ bå  passeä  tï  thå 
+relocateä  code®   Instead¬  thå relocatoò modulå wilì exiô tï thå CCĞ withouô 
+doinç á warí booô sï thaô thå relocateä codå wilì remaiî iî memory®  Notå thaô 
+thå  destinatioî addresó foò thå relocateä codå ió calculateä froí thå  targeô 
+oæ  thå jumğ instructioî aô memorù locatioî µ anä wilì bå wronç iæ  thaô  jumğ 
+instruction has been altered.
+
+Copyright notice
+
+Theså programó havå beeî submitteä tï thå publiã domaiî viá Bilì Bolton'ó RCPÍ 
+systeí anä compriså á systeí foò simplù generatinç self-relocatinç programó bù 
+á  methoä whicè relieó oî á linkeò tï generatå twï objecô codå fileó whicè arå 
+theî  processeä tï yielä aî objecô prograí consistinç oæ  á  relocator¬  user-
+supplieä  objecô  codå  anä  á relocatioî  bitmap®   Theså  programó  anä  thå 
+accompanyinç  documentatioî maù bå freelù distributeä iî originaì oò  modifieä 
+forí subjecô tï thå followinç conditions:
+
+1.   Althougè  therå ió nï restrictioî oî thå salå oæ self-relocatinç programó 
+     generateä  bù  thå methoä describeä herein¬  theså programó  oò  variantó 
+     thereoæ  maù noô bå solä aó parô oæ anù prograí packagå  withouô  writteî 
+     permissioî  froí thå author®   Neitheò maù anù prograí oò prograí packagå 
+     whicè  ió dependenô foò itó operatioî oî thå uså oæ thió methoä  bå  solä 
+     withouô  sucè permission®   Iî otheò wordó yoõ maù  selì  self-relocatinç Š     programs but not the method of generating them. 
+
+2.   Thå  author'ó  namå  musô  bå retaineä iî alì sourcå  codå  (originaì  oò 
+     modified©  anä  aó aî acknowlegemenô iî anù messagå  displayeä  bù  theså 
+     programó oò variant(s© thereof®  Aî acknowledgemenô givinç crediô foò thå 
+     methoä  shalì contaiî thå author'ó namå oò thå wordó "H-Â method¢ oò  thå 
+     words "Ashby method".
+
+3.   Thió copyrighô noticå musô bå includeä iî anä retaineä iî alì sourcå codå 
+     and documentation pertaining to this system.
+
+                             John Hastwell-Batten
+                               38 Silvia Street
+                               Hornsby NSW 2077
+                                  AUSTRALIA
+                                (02) 477 4225
+
+                              1st November, 1982
+
+Acknowledgement
+
+Iî  testinç thoså relocationó whicè overlaù specifieä portionó oæ CP/Í É  havå 
+madå  uså oæ Johî Woolner'ó CCĞ protectioî scheme obtaineä viá  Bilì  Bolton'ó 
+RCPÍ  system®   Withouô  thå CCĞ protectioî thå verificatioî oæ thå  relocatoò 
+modulå  woulä havå beeî exceedinglù difficulô aó thå standarä prograí  testinç 
+tooló  alì  overlaù  thå CCĞ which¬  iî thå caså oæ  thå  CP/Í  overlays¬  thå 
+relocator expects to be intact.
+ŠSYSTEM PROGRAMS AND FILES
+
+Therå  arå á loô oæ thingó calleä "RELOC¢ iî thió systeí anä thå variouó fileó 
+arå  distinquisheä  bù thå filenamå extension®   Thå actuaì SRĞ  generatoò  ió 
+writteî  iî  BDS-Ã  buô iô coulä equallù (oò almosô  equally©  bå  writteî  iî 
+anythinç  else®   Thå relocatoò modulå ió writteî iî Z8° assemblù languagå anä 
+jusô abouô thå onlù restrictioî upoî iô ió thaô iô musô bå aô mosô 0FEè  byteó 
+long®   É  playeä arounä witè somå funnù Z8° instructionó whilå É waó  writinç 
+thå  relocatoò  anä  neveò  bothereä tï  re-prograí  it®   (Eveî  withouô  thå 
+"undocumented¢ Z8° instructions¬  thå supplieä codeä ió highlù Z8°  dependent® 
+For an example of an 8080-coded relocator, see Robert van Valzah's REL.UTL) 
+
+These are the files:
+
+     RELOC.MAC      Source of relocator module.
+
+     RELOC.REL      Assembled relocator module.
+
+     RELOC.C        BDS-C source of program generator.
+
+     RELOC.COM      The SRP generator.
+
+     RELOC.SUB      Submit file to automate the process of generating a 
+                    self-relocating program.
+
+     RELOC.DOC      What you have been reading all this time.
+
+System also needs:
+
+     M80 and L80    Microsoft's MACRO-80 assembler and LINK-80 link/loader
+                                           or
+     ASMBL/Z        Ithaca InterSystems' version of the same thing
+     and LINK/Z
+                                           or
+                    any other assembler-linker combination which allows load
+                    addresses to be specified at link time.
+
+Thå  submiô filå RELOC.SUÂ ió seô uğ tï procesó á prograí comprisinç á  singlå 
+module.  For multi-module programs just expand the linker command lines.
+
+RELOC.SUÂ wilì accepô onå oò twï arguments®   Iæ supplied¬ thå seconä argumenô 
+ió  passeä  tï  thå  SRĞ generatoò prograí alonç  witè  thå  (required©  firsô 
+argument.
+
+Iæ  thå  SRĞ generatoò ió invokeä witè nï argumentó iô displayó á  summarù  oæ 
+acceptable command forms.
+
+Thå  nameó  oæ  thå twï intermediatå .COÍ fileó generateä bù  thå  linkeò  arå 
+ORG200.COÍ anä ORG300.COM®  Theså nameó arå hard-codeä intï thå SRĞ generator.
+
+John Hastwell-Batten
+
+Original version and documentation:     13th October 1982
+Relocation options added:               30th & 31st October 1982
+Documentation updated:                  1st November 1982
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

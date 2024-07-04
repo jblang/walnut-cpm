@@ -1,0 +1,195 @@
+
+; B5AP-2.INS - APPLE ][ with Mountain CPS Serial Card - 09/14/85
+;
+;		2651 with internal baudrate generator
+;
+;	       NOTE: This is an insert, not an overlay.
+;
+; WARNING:  Carrier detect (DCD) from the modem must go to DSR input on
+;	    the 2651 to provide proper operation for both autodialing
+;	    and autoreceiving.	If you use the DCD input, it requires
+;	    voltage (normally unavailable) during dialing to allow
+;	    result codes to be used.  See B5CP.INS for more information
+;	    on this 2651 peculiarity.  This program assumes you use the
+;	    DSR pin 80H to check carrier from the modem.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 09/14/85  Changes to MDINIT, corrected error in B2400, 
+;           added support for B4800, B9600		- Norman Beeler
+; 07/17/85  Written to work with BYE5			- Irv Hoff
+; 01/20/84  Created overlay using BY2-2651.ASM		- Norman Beeler
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Define the CPS card slot you are using (normally 1 or 2)
+;
+SLOT	EQU	2		; CPM card slot
+;
+;=======================================================================
+;
+;
+; Modem port equates
+;
+PORT	EQU	0E0FAH+SLOT*100H ; Modem data port
+MDCTL1	EQU	0E0FBH+SLOT*100H ; Modem status port
+XPORT	EQU	0E0FEH+SLOT*100H ; Modem swap port
+;
+;
+;Mode port equates
+;
+EBASE	EQU	70H		; Mode register 2 base
+B300	EQU	EBASE+5		; 300 baud
+B1200	EQU	EBASE+7		; 1200 bps
+B2400	EQU	EBASE+10	; 2400 bps
+B4800	EQU	EBASE+12	; 4800 bps
+B9600	EQU	EBASE+14	; 9600 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:LDA	MDCTL1		; Read port
+	ANI	80H		; Check DSR for carrier (do not use DCD)
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	 IF	HS2400
+	CALL	SET2400
+	 ENDIF			; HS2400
+;
+	 IF	HS1200
+	CALL	SET1200
+	 ENDIF			; HS1200
+;
+	 IF	HS300
+	CALL	SET300
+	 ENDIF			; HS300
+;
+	CALL	DELAY
+	MVI	A,80H		; Open CPS command register
+	STA	XPORT		; By storing 80H in XPORT
+	MVI	A,05H		; Turn DTR off, modem will quit
+	STA	MDCTL1
+	MVI	B,20		; 2 seconds to drop any carrier
+;
+MDINIT1:CALL	DELAY		; .1 second delay
+	DCR	B
+	JNZ	MDINIT1
+	MVI	A,27H		; With DTR on, modem accepts commands
+	STA	MDCTL1
+	XRA	A		; Close the command port
+	STA	XPORT		; By storing 0 in XPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	LDA	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	MDCTL1		; Read port
+	ANI	02H		; Check receive ready bit
+	RZ			; Nope, nothing there
+	ORI	0FFH		; We got something...
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	STA	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:LDA	MDCTL1		; Read port
+	ANI	01H		; Check transmit ready bit
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Initialize modem to default settings
+	 ENDIF			; IF IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,80H		; Open CPS command register
+	STA	XPORT		; By storing 80H in XPORT
+	MVI	A,15H		; Turn DTR off, modem will quit
+	STA	MDCTL1
+	CALL	DELAY		; Let it stabilize
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure the Zero flag isn't set
+	RET
+;.....
+;
+;
+SET300:	CALL	BSETUP
+	MVI	A,B300
+	JMP	FSETUP
+;
+SET1200:CALL	BSETUP
+	MVI	A,B1200
+	JMP	FSETUP
+;
+SET2400:CALL	BSETUP
+	MVI	A,B2400
+	JMP	FSETUP
+;
+SET4800:CALL	BSETUP
+	MVI	A,B4800
+	JMP	FSETUP
+;
+SET9600:CALL	BSETUP
+	MVI	A,B9600
+	JMP	FSETUP
+;
+BSETUP:	MVI	A,80H
+	STA	XPORT
+	MVI	A,37H		; Initialize the serial chip
+	STA	MDCTL1		; By storing 37H in MDCTL1
+	MVI	A,4EH		; 1 stop, 8 bits, no parity
+	STA	PORT
+	XRA	A
+	RET
+;.....
+;
+;
+FSETUP:	STA	PORT
+	XRA	A
+	STA	XPORT		; Close command port by storing 0
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

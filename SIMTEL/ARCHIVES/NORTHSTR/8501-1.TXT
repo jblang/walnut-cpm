@@ -1,0 +1,479 @@
+31-Jan-85 10:32:19-MST,24329;000000000000
+Return-Path: <rbloom@apg-1>
+Received: from apg-1 by SIMTEL20.ARPA with TCP; Thu 31 Jan 85 10:31:20-MST
+Date: 31 Jan 1985 12:26:07 EST (Thursday)
+From: Robert Bloom AMSTE-TOI 3775 <rbloom@apg-1>
+Subject: How to install the TEAC 55F's in a Horizon
+To: NorthStar-users@simtel20
+
+SUBJECT:  How to install the half-height 96tpi TEAC FD55f disk drives in a 
+NorthStar Horizon, with some side comments about installation of some BDOS and 
+BIOS patches and ZCPR2.  Installation includes both the hardware and software 
+steps necessary to use two of the TEAC half-heights with one standard full 
+height drive (SHUGART [SSDD] or TANDON [DSDD - [quad']) at minimum cost.  
+Software patches include 'Archive' directory bit (t3) reset on file 
+modification, Plouffe's modifications to handle some non-standard but very 
+usefull disk formats (fully compatable with all standard formats),  zpcr2 
+buffer area initiation on cold boots, and Rich Conn's zcpr2 system itself.
+
+This report contains all the the actions that I found necessary to get the 
+drives on-line and should help any that are thinking about doing themselves.  
+Although I managed the actual swap by myself, contributions by Frank Wancho 
+and Al Plehn were invaluable.
+
+This entire exercise was started by a message from Al Plehn on the virtues of 
+the TEAC FD55F 96-tpi drives.  I had been thinking of replacing the SSDD with 
+the now NorthStar-standard QUAD (TANDON 100-2 DSDD) drives but had been 
+stopped by cost.  Then I saw the ad in Byte in which California Digital had 
+the TEACs for only $139 (1), $135 (2-9), $129 (10+); this was even cheaper 
+than the TANDONs and had twice the capacity.
+
+I ordered two on 14 Dec by their 800 number with a MasterCard number.  
+Received the acknowledgement copy via US Snail on 18 Dec and the actual drives 
+on 28 Dec.  That's a two week delivery in the middle of the holiday season - 
+not bad at all.
+
+The TEAC FD55F characteristics are, briefly:  half-height, 96 tracks per inch, 
+80 tracks per side.  Disks secured with a twist lever, not a swinging door.  
+Relative to TANDON (or SHUGART) drives, the TEAC drive controller edge 
+connector is slightly higher and upside down and the TEAC drives are slightly 
+deeper.  They are hardware compatible with the standard NorthStar disk 
+controller, and software compatible with NorthStar's CP/M 2.2 Rev. 1.1.0 
+'CPMGEN'.  CP/M formated capacity shows 784k free space with the standard 
+NorthStar FORMAT.COM formatter with a 4k block size.  Plouffe's mod yeilds 
+786k free space with a 2k block size.  The drives came with a technical manual 
+(~25 copied pages) which I had asked for (no cost) and two power connectors 
+with dettached plugs but no cables.  Each drive had two 3mm and #6 mounting 
+holes top and bottom, the 3mm holes being in the preferred positions, the #6 
+holes are the same size as the old drives had.
+
+Since I bought 2 of the TEACs, I decided to keep one of the old SHUGART SSDD 
+drives in the Horizon so that I still could write 48-tpi formats.  Because of 
+the greater depth of the TEACs, they will only fit in the right side drive 
+position.  (A power capacitor gets in the way on the left side drive - Al 
+Plehn suggests moving all the offending parts of the power supply back an inch 
+by drilling a few holes.  The two new drives just barely fit in my standard 
+configuration.)  As the disk controller cable has only two connectors, I 
+initially worked on getting just the two TEACs on-line - the old SSDD drive 
+was be just a dummy.  Later in this message I tell how I got the SSDD drive 
+on-line so that all three can worked together.
+
+Interesting note:  the manual gives the mounting configuration as lever up if 
+mounted vertically, or the in-use light up if horizontally.  (If mounted 
+horizontally, having the disk drive motor up or in-use light down is called a 
+no-no.)  The vertical position as stated puts the R/O notch DOWN, opposite to 
+what I'm used to.  This would put the edge connector right-side up, at least 
+compared to the TANDONs.  As I have my Horizon vertically oriented on it's 
+right edge (drives on top), I really have the drives horizontal as suggested.  
+This means when I place the Horizon horizontal, the drives are now vertical 
+and upside down as regards the instruction and edge-card connector, but right-
+side up as regards my 'instincts'.
+
+Actually getting the drives to read and write disks was a bit more complicated 
+than I thought, but straight forward once you realize that the TEACs can't 
+write a 48-tpi disk or the 48-tpi drives a 96-tpi disk and CP/M has to be told 
+about the 96-tpi drives before using them.  What follows is the steps I took 
+written as instructions.  After switching to the two new drives one can still 
+read all the old disks, but can only reformat them to 96-tpi, not do any other 
+write operations on the 48-tpi disks.  When one gets a longer controller cable 
+(or cross fingers and strech the old), you can put the old 48-tpi drive back 
+on-line and then write 48-tpi formats too.
+
+Before starting, inspect the drives for obvious problems.  Program the drives 
+via the mini-jumps for:  one drive as '1' (to be used as the A: drive), and 
+the other drive as '2' (to be used as the b: drive) and remove the terminating 
+resistor strip from drive 2 (not 1! - when you're finished drive 1 will be on 
+the end of the controller cable).  I also removed both 'PM' jumpers and left 
+the others as them came.  The manual does explain all of the options - my 
+problem was understanding the explanation!
+
+     1.  With power off, remove the right-hand side old drive and temporarily 
+plug in a new drive (B) to the now-open power and controller cables.  (The new 
+drive is 'upside down' with R/O notch at the bottom.)  It need not be secured 
+in place as it will be moved later.
+
+     2.  Power up and place a copy of the NorthStar CP/M distribution disk in 
+the A: (old) drive and a blank disk in the B: (new) drive.  Boot your old 
+working version.
+
+     3.  Run CPMGEN from the A: drive and create a new vanilla CP/M system 
+with drive one as a SSDD (D) or QUAD (Q) drive and drive two as a nine (N) 
+drive [fast stepping].  Place the new system on the A: drive disk and cold 
+boot.
+
+     4.  Format the disk in drive two as a 'Nine' disk.  Do this by running 
+FORMAT.COM and selecting either 'N' or '9' - it is not on the menu and you 
+might need a one byte patch.  (See the NorthStar-users message archive if you 
+are not familiar with this patch - change '9'<39h> to 'N'<4Eh> at 0176h.)  Or 
+alternately, and probably preferred, use NEWFMT.COM and format as 'N' - (*NOT* 
+'O' for octal with special 2k blocks!)  NEWFMT.COM can be found in SIMTEL20 at 
+MICRO:<CPM.NSTAR>NEWFMT.14COM which you should get anyway as it is needed 
+later if you want Plouffe's modifications.
+
+     5.  Run CPMGEN again and create a new system with both drives one and two 
+as N drives, and place it on the newly formatted disk in drive two (TEAC).  
+Mark this disk as a 'N' format boot disk and power down.
+
+     6.  Disconnect the power and controller cables from both drives.  Place 
+both both new drives in the right-hand slot in the correct orientation, i.e. 
+R/O notch and in-use lights up.  I left the old (disconnected) left hand drive 
+in place.  Before securing the drives to the chassis, attach power and 
+controller cables.  I found it easist to run the controller cable to the 
+right-most drive first, and then to the middle drive.  Note that the 
+connectors are now upside down relative to what it was.  The controller cable 
+is pressed directly between the drives and a power connect strip with no 
+clearance.  (I've only 3 cards in the buss and the supply runs cool - people 
+with hot supplies should take Plehn's advice above or risk a melted cable.)  
+Remember too that now drive #1 is on the end of the cable and should have the 
+terminating resistor, not drive #2!
+
+     7.  Secure drives.  The middle drive (which is the 1 or A drive) can be 
+secured directly from underneath from the same holes as the old drive came 
+from.  I found the 3mm holes in perfect position - if you don't worry about 
+buggering up the threads, a #4 screw works (or *gasp* - a short self-tapping 
+screw), otherwise either use a correct 3mm screw or drill and tap the 
+baseplate for the #6 holes.  There is no easy way to secure the right-most 
+drive - either drill the baseplate for another hole, fabricate a bracket to go 
+across the top of the drives (my favorite), or just let flop.  The latter is 
+not as bad as it sounds, especially if the Horizon will be used vertically.  
+(One possible method of making a bracket:  place all three drive in the 
+chassis where they belong.  Place a piece of paper over the drives where you 
+want the bracket to go and punch holes in the paper where the screw hole are.  
+I used all six of the #6 holes on the top of the three drives.  The bracket 
+will be nothing more than a flat piece of metal.  Transfer punched holes in 
+the paper to a piece of aluminum and drill - and voila!  One custom-made 
+NorthStar/TANDON/TEAC disk drive bracket!)
+
+     8.  Power-up and boot with the 'N' drive boot disk.  One can still read 
+all the old 48-tpi disks but a write request to any of these will cause a 
+"ILLEGAL ACCESS" and require a cold-boot to regain control.
+
+That's it!  What follows is the patches to the system for ZCPR2, and and 
+Plouffe's mods.  Filename are from SIMTEL20 in <CPM.*> directories:
+
+In MICRO:<CPM.NSTAR> you need:
+     FORMAT.DOC - if you want to know what it's all about
+     NEWCPY.16COM - replaces the NorthStar COPY.COM & handles the new formats
+     NEWFMT.14COM - replaces the NorthStar FORMAT.COM with new formats
+     NEWFRM.14ASM - the actual patches
+     NSGEN.COM - replaces the NorthStar SYSGEN.COM & handles the new formats
+
+In MICRO:<CPM.ZCPR2> you need:
+     ZCPR2.ASM - the actual CCP replacement (need not change)
+     ZCPRHDR.LIB - all the the equates and addresses to change
+(that's all you *need*, but there's lots of utilities <*.COM>, documentation 
+<*.WQ> and help <*.HLP> files in this directory too.)
+
+In MICRO:<CPM.DSKUTL> you might also want:
+     ARCHIVE.COM - will backup all files with the archive bit (t3) unset and 
+reset it.  A bdos patch will cause the archive bit to be unset whenever a file 
+is modified.
+
+All of the following assumes a '64k' NorthStar CP/M system (actually 61k with 
+a split BIOS) and CPMGEN has been patched for the spurious $R/O BDOS error on 
+the A: drive.  (The patch is for CPMGEN.COM and changes ANI 02 and JNZ 7992 at 
+2F31H to MVI A,99 and STA 7FAB.)
+
+     1.  If ZCPR2 is wanted (recommended), edit ZCPRHDR.LIB for the following 
+addresses:
+
+	D100 CCP                        ZCPR2 Options:
+	D900 BDOS
+	E700 BIOS jump table                   FB30 External Path
+	E800 Cold Boot PROM                    EC00 Multi-Command Line
+	F300 "Real" BIOS                       EE00 External Stack
+	FA00 User Area      		       EF00 External FCB
+
+     2.  If you want the special disk formats (very recommended), edit 
+NEWFRM.ASM for the correct BIOS (F300) and CCP (D100) locations, set OCTAL 
+TRUE and QUAD FALSE.  (I've not been able to get QUAD to work yet - I think 
+it's something to do with the split BIOS.)
+
+;		    NEWFORM  VERSION 1.4		  *
+;			 12/02/82			  *
+;		       R. L. Plouffe 			  *
+
+-- ETC.
+
+OCTAL	EQU	TRUE		;Want alternate octal format
+				;for 2kb directory blocks?
+QUAD	EQU	FALSE		;Want alternate QUAD format
+				;for 80 tracks?
+;
+BIOS	EQU	0F300H		;BASE OF BIOS
+CCP	EQU	0D100H
+
+-- ETC. AS WRITTEN
+
+     3.  Providing ZCPR2 is desired, one has to initialize certain buffers at 
+cold boot time.  Create a new USER.ASM, call it ZUSR, by adding the following 
+code to the standard NorthStar-supplied user area code to initialize the ZCPR2 
+system on a cold boot:  (This Z80 code is from Frank Wancho and requires 
+M80/L80 to assemble, convert to 8080 if necessary.)
+
+aseg
+.z80
+.phase	0FA00H		;ORIGIN FOR 64KQD SYSTEM
+
+mcmdbuf	equ	0EC00h	; ZCPR2 Multi Command-line (MLC) Buffer
+
+--- normal user area code (comment out serial printer code if parallel printer 
+--- and vis versa if you need more room.)
+
+;WRAP IT UP BY SENDING A CR TO THE PRINTER & EXIT
+;
+	CALL	MULTI		; ZCPR2 Initialization
+	LD	C,0DH		;A CARRIAGE RETURN
+	JP	USERBAS-700H+15	;GOTO PRINT JUMP IN BIOS VECTOR
+;
+;******* END OF STANDARD INITIALIZATION CODE *********
+;
+;**** ZCPR2 INITS ***********
+	ds	userbas+130h-$	; This fills to userbas+130h
+;
+; External PATH is here:
+;
+pinit:	db	'$','$'		; current disk/current user
+;	db	'$',0		; current disk/user 0
+;	db	1,'$'		; A:/current user
+	db	1,0		; A0:
+;	db	1,10		; A10: for finding NAMES.DIR
+	db	0		; end of list
+;
+; Rest of space is available for PATH info up to userbas+200h
+; So we use this space below for the one-time init of the MLC
+; only done at cold boot
+;
+multi:	ld	de,mcmdbuf
+	ld	hl,clinit
+	ld	bc,5
+	ldir
+	ret
+clinit:	dw	mcmdbuf+4
+	db	200
+	db	0
+
+	ds	userbas+180h-$
+
+	end
+	
+     4.  If you would like the BDOS 'archive patch' to reset the archive bit 
+(t3) whenever a file is modified, you need to assemble the following code:
+
+bdos$loc	equ	0D900H		; base address of BDOS
+wrsec		equ	bdos$loc+03b8h	; address of write sector routine
+pntdir	equ	bdos$loc+055eh	; address of directory pointer routine
+reset$archive	equ	bdos$loc+0df0h	; address of reset archive bit patch
+;
+ccp$base	equ	1500h		; sysgen ccp base position
+bdos$entry	equ	ccp$base+0806h	; sysgen bdos entry position
+wrt$dir	equ	bdos$entry+05c8h; 'wrsec' call location, in DIR write routine
+scratch	equ	bdos$entry+0deah; scratch RAM inside bdos for patch
+
+org	wrt$dir			; patch 'call wrsec'
+;
+	call	reset$archive		; call patch in scratch RAM
+;
+	org	scratch			; patch area for 'archive bit reset'
+;
+	call	pntdir			; point to directory entry in buffer
+	lxi	d,11			; make offset to 't3' in FCB
+	dad	d
+	mov	a,m			; get 't3' character from FCB
+	ani	07fh			; kill archive bit position
+	mov	m,a			; return reset archive bit to FCB
+	call	wrsec			; write directory sector
+	ret				; return to 'wrt$dir' routine
+;
+	end
+	
+     5.  Now assemble the parts:  (In the command lines below, 'x' should be 
+replaced with a drive letter indicating where the source is <first x> and 
+where the HEX file <second x> should be placed.)
+
+          assemble the archive overlay to BDOS:
+	       ASM ARCPATCH.xxZ
+
+          assemble the user area overlay with ZCPR2 inits
+	       M80 =ZUSR/M
+	       L80 ZUSR,ZUSR.OVR/N/E
+
+          Plouffe's mod's for 2k block size on 96-tpi drives
+	       ASM NEWFRM.xxZ
+
+          Finally assemble ZCPR2 proper 
+	       MAC ZCPR $Ax Hx PZ SZ
+
+     6.  Actual assembly and patch:    The order of overlaying the various 
+items is important and went as follows to create NEWCPM.COM (a SYSGEN-like 
+program containing the modified SYSGEN image):
+
+	NCPMGEN			<-- REMEMBER TO USE PATCHED VERSION!
+		ETC ...		    CREATE A VANILLA SYSTEM OF SIZE REQUIRED
+		 		    SAVE VANILLA SYSTEM ON DRIVE 1
+	NSGEN			<-- TO READ SYSTEM INTO MEMORY (USE THE NEW
+				    SYSGEN-LIKE PROGRAM!
+	1			<-- FROM DRIVE 1
+	^C			<-- EXIT WITHOUT WRITTING TO ANOTHER DISK
+	SAVE 51 SAVECPM.COM	<-- SAVE THE SYSTEM INTO A NORMAL FILE
+	DDT SAVECPM.COM		<-- PUT IT INTO DDT
+	IARCPATCH.HEX		<-- ADD THE ARCHIVE BDOS PATCH
+	R			<-- NO OFFSET NEEDED, SYSGEN IMAGE ADDRESS
+				    HARD CODED IN
+	IZUSR.OVR		<-- AND THE USER AREA
+	R3100			<-- OFFSET NEEDED BECAUSE ZUSR.OVR IS NOT A 
+				    HEX FILE, SYSGEN IMAGE ADDRESS IS 3200H,
+				    LOAD ADDRESS 0100H SO USE 3200-0100 = 3100
+	INEWFRM.HEX		<-- SPECIAL MODS FOR QUAD/NINE DRIVES
+	R3800			<-- SYSGEN IMAGE @3200 - SYSTEM LOCATION @FA00
+				    GIVES OFFSET OF 3800
+	F1500,1CFF,00		<-- CLEAR THE OLD CCP OUT
+	IZCPR.HEX		<-- ADD IN THE ZCPR2
+	R4400			<-- SYSGEN IMAGE @1500 - SYSTEM LOCATION @D100
+				    GIVES OFFSET OF 4400
+	^C			<-- EXIT DDT
+	SAVE 51 NEWCPM.COM	<-- AND SAVE THE PATCHED SYSGEN IMAGE
+	NEWCPM			<-- RUN IT
+	<CR>			<-- SYSTEM IN MEMORY SO NO DISK READ
+	1			<-- WRITE IT BACK OUT TO DRIVE 1
+	<CR>			<-- COLD BOOT TO BRING IN NEW
+
+     7.   Now with the new system in place, one can format disks with the 
+'O'ctal format of NEWFMT which gives a 2k block size.  HOWEVER:  beware using 
+the octal format with any CP/M without the NEWFRM patch - sometimes it'll work 
+sometimes it won't, and you might not know the difference intil it's too late.  
+Also, never try to copy 'O' format disks with the old NorthStar COPY.COM or 
+use the NorthStar SYSGEN.COM - use NEWCPY.COM and NSGEN.COM instead.
+
+Try it, you'll like it!
+
+That was the easy part - I did have some difficulty with the following.  I 
+don't recommend the following procedure (it would better to buy or make a new 
+cable) but if you have confidence in yourself and a restricted pocketbook you 
+can try the following.  (The controller cable just barely fits in this 
+procedure - I would recommend buying 3 drive connectors, one 34-pin connector 
+and at least 24 inch of 34-wire ribbon cable and make your own.  In general 
+you can follow the procedure below but fit the cable as you go - it's lots 
+easier to wind it 'over around and through' the power supply if you have 
+plenty to spare.)
+
+     1.  Buy one or two 34-pin edge card connectors from somebody.  (I got 
+mine from Radio Shack.)  Make sure that they are 'through' connectors, not the 
+cable termination type.
+
+     2.  Take everything apart again, i.e. remove all three disk drives and 
+take the disk controller cable off of the controller card.  My cable was 17.5 
+inches from controller connector to the end drive connector.
+
+     3.  *VERY CAREFULLY* remove the middle drive connector from the cable.  
+(This might not be possible without damaging the connector.)  One will want to 
+reuse the plug so don't break any pins.  (I found myself needing to solder two 
+of the little buggers back together after they broke.  Sort of like trying to 
+solder two wires together end-to-end WITHOUT overlapping them.  Not the job 
+one could do without *a lot* of patience, or substantial soldering skill.  So 
+either don't break it or buy the extra edge connector.  My repaired connector 
+failed a couple of days later, and had to be replaced anyway.)  In any case, 
+clearances are so tight the middle connector has to be removed one way or the 
+other.
+
+     4.  Crimp on the removed (if salvaged) or a new connector 1-3/4 inches 
+from the end drive connector.  This moved connector and the end connector will 
+connect to the two TEAC drives.  I found it easist to place the connectors in 
+a vise to crimp them on.
+
+     5.  Look at steps 7 and 8 below and make a test fit of the cable on the 
+computer.  After you are familiar with how the cable has to twist and turn, 
+crimp the new connector approximately 8 inches from the CONTROLLER end of the 
+cable and facing the same direction as the other drive connectors.  You should 
+mark the exact location during the test fit.
+
+     6.  This will leave the cable with the controller connector on one end, a 
+drive connector on the other, and two drive connectors in between, all facing 
+the same way:
+
+      |<---------------------------17.5------------------------>| (measured
+      |<------------9.5-------------->|<-----6.25----->|<-1.75->| in inches)
+     _|_                             _|_              _|_      _|_
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |. .|___________________________|| ||_______.____|| ||____|| ||
+    |___|                           ||_||       |    ||_||    ||_||
+      \                               |         |      |       \to first TEAC
+       Controller Connector           |         |      \to second TEAC
+                                      |         \ old connector (removed)
+                                      \to old SSDD drive
+
+     NOTE:  IF YOU ARE MAKING UP A BRAND NEW CABLE DO NOT USE THESE DIMENSIONS 
+- THIS IS A MINIMUN LENGTH CABLE.  With the luxury of cutting and fitting to 
+length, one would probably want to add several inches before and after the 
+connector to the old drive.
+
+     7.  Place disk controller in the 4th or 5th buss slot from the rear or 
+whatever is closest to the back of the disk drives.  Attach cable to the 
+controller and run the cable directly down to the SSDD drive, you will have to 
+take out the old twists in order to get it into position.  It is easier to do 
+if the drive is not attached.
+
+     8.  Make two 45 degree turns with the free end of the cable (between the 
+first and second drive connectors) to flip it upside down, and attach the 
+second connector to the third drive (TEAC).  Finally, connect the end 
+connector onto the middle drive (TEAC).  This is practically impossible to do 
+with the drives connected to the chassis so leave them all loose.
+
+     9.  Solder or crimp one end of 4 short (4 to 6 inch) wires from your 
+spare parts box to 4 supplied power connector pins.  It will be easier if you 
+use one black, one white, one green and one red wire to match the current 
+colors in the plugs.  Using one of the drive power supply cables as a color 
+guide, push the proper color-coded pins into the supplied power connector 
+housing.  Carefully remove the four pins from one of the drive power supply 
+cables and solder on the free ends of the new connector cable, matching colors 
+appropriately.  Push the pins back into the housing, using the other cable as 
+a color guide.  NOTE:  the connectors are keyed to their jacks to prevent 
+misattachment.  Therefore it is important that you install the pins in the 
+housing correctly.
+
+     10.  Attach the old, unaltered power cable to the old drive and the new, 
+split power cable to the two new drives.
+
+     11.  Double check that the power connections are right, and the 
+controller cable is in the correct orientation.  Ignore the markings on the 
+cable connectors themselves (the connectors can and are often attached upside 
+down), refer back to the controller to find which edge of the cable have the 
+low numbers (pins 2 and 34 are marked on my controller card).  Follow that 
+edge to the three drives and make sure that the pin markings on the drive 
+(ciruit card) match up.
+
+     12.  Providing everything is correct, cross fingers and power up.
+
+     13.  Check out the three drives to make sure that all will read and 
+write.  Note that drive C: (the old one) will only read and write 48-tpi 
+formats; drives A: and B: will read 48-tpi and read and write 96-tpi.  If need 
+be, generate a new system with the three drives identified appropriately.
+
+     14.  Finally, attach drives to chassis with the screws underneath or your 
+homemade brackets.  Make sure that the cable connectors stay in place when the 
+drvies are pushed in, the old drive connector is especially difficult if it 
+does not fit tightly.
+
+bob bloom
+
+p.s.  After five days of use, one of the new TEAC drives died.  The motor no 
+longer started either with in parallel with the others or upon a drive select 
+signal although the in-use indicator did light.  California Digital was very 
+cordial, gave me a return authorization number and said to send it back.  I 
+sent it back on Jan 9, and I'll report the results when something more 
+happens.  For the time being, I'm running one old SSDD and one of the TEACs.
+
+Coming attractions:  
+
+     I'm currently working on getting ZCPR3 working on the new drives.  All of 
+the ZCPR3 buffers fit very nicely above the disk controller address space, 
+leaving continuous memory for a 58k CP/M.
+
+     I also am trying to do the same modifications to a 18Mbyte hard disk 
+system, which is complicated because of the larger BIOS and multi-user 
+operating system (TSS/C).
+

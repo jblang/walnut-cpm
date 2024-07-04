@@ -1,0 +1,221 @@
+SOME NOTES ON MEX FILES
+by Irv Block
+
+   Richard Holmes has suggested that a listing of my MEX files
+with an explanation of how they work might be useful to others
+picking their way through Ron Fowler's marvelously programmable
+communications package, MEX.  So here goes...
+
+   What is so extraordinary about MEX is its ability to edit
+and tailor itself to the user's particular needs.  One of the
+features that demonstrate this capacity is the way MEX uses
+***.mex files.  MEX will read any FILENAME.MEX as a "SUBMIT"
+file and execute the lines as commands; and it can do this
+either at your manual direction or automatically.
+
+   You can tell MEX to read a FILENAME.MEX file by typing on
+the MEX command prompt A0>>READ FILENAME  (you can eliminate
+the .ext, since the program assumes the .ext to be .MEX)
+
+   Or, even better, you can eliminate the "READ" instruction
+and have MEX assume that any name it doesn't recognize as a
+built-in command is the name of a .MEX file and should be read
+and performed.  Thus, simply typing A0>>FILENAME <cr, of
+course> will dispatch MEX on its obedient course.    This makes
+for very fast and fluid performance of a lot of tasks to make
+communications easier and quicker.
+
+   The way you program MEX to do its "automatic read" number is
+with a STAT command:
+
+	A0>>STAT EXTEND ON
+	A0>>CLONE NEWMEX.COM (or any other name, even
+                                     the same)
+
+   The clone is now ready to do your bidding, and the following
+description of my .MEX files (probably crude to some of you)
+will give some idea of what this program can do.   They can all
+be extended and improved.
+
+-----------------
+
+INI.MEX 
+
+   INI.MEX is the .MEX file MEX automatically looks for on
+starting up, whether you tell it to or not. You can disable
+this feature with "STAT INITFILE OFF" but you'd be making a
+mistake. Use it.   My INI.MEX, written with a text editor (I
+keep the economical TED.COM on the same disk to facilitate
+instant writing and editing of .MEX files) goes like this:
+
+	LOAD KEYS.KEY
+	LOAD PHONE.PHN
+	B:^M
+	TYPE A:T.NOT
+
+		[NOTE: YOU CAN ALSO WRITE THESE
+       		COMMANDS ON A SINGLE LINE, SEPARATED BY
+                SEMICOLONS.  BUT GIVING EACH COMMAND
+                ITS OWN LINE, I THINK, MAKES IT EASIER
+              	 EDIT THE FILE LATER]
+								
+   On automatically reading this file, then, MEX will perform
+the following tasks before getting itself ready to receive your
+further commands:
+
+	1) It will load KEYS.KEY, the file that contains my
+        keystrings (First Name, Last Name, Passwords, Logoff,
+        etc.)  These keystrings, of course, can be written into
+        the file either with a text editor or with MEX itself.
+        Type HELP KEY for full instructions.  By using MEX's
+        "SAVE KEYS.KEY" command you can write your keystrings
+        and updates to a file.   You can "CLONE" the
+        keystrings, too, but that occupies space in MEX and
+        makes it necessary for you to redo the process each
+        time you make a new clone.   By having your strings in
+        a KEYS.KEY file and having MEX automatically load it,
+        you can maintain and edit your set of keystrings
+        independently.
+
+	2) Mex will then load your PHONE.PHN, your library of
+        phone numbers that you 'SAVE'ed. (SEE HELP PHONE).  All
+        the points made above with reference to keystrings
+        apply equally to this file.    
+			
+	3) On reading the third line, MEX will log you onto
+        Drive B, where I assume your uploading disk will be. 
+        My A drive, containing the disk with MEX and assorted
+        associated goodies for editing and managing uploaded
+        and download material, is pretty full. Forgetting where
+        I'm logged and trying to upload a long file on Drive A
+        by error can be a disgusting experience.
+
+	4) Finally, reading the last line, MEX will type out my
+        file T.NOT.   That file reads like this:
+
+       	*****************************************
+	IRV, REMEMBER TO SET UP A 'CAPTURE' FILE!
+        *****************************************
+			 
+	And that is what pops up on my screen (all in the space
+        of a second or two -- MEX is fast) after bringing up
+        MEX.  For me, it's a good reminder.  I have a habit of
+        remembering to set up a capture file only after what I
+        want to copy has already scrolled by on its way north.
+
+---------------
+
+GET.MEX
+
+   GET.MEX reads like this:
+
+	WRT
+	SENDOUT "XMODEM S {1}
+	RT {1}
+
+   If I type "GET ANYFILE" <cr> on the MEX command line, MEX
+will first WRT the capture file, if there is one, to the disk.
+(If you don't WRT the capture file before R or S, you'll lose
+it) It will then send "XMODEM S ANYFILE" to the host, wait for
+a reply and then go into MEX's command mode to give the order
+"RT ANYFILE"  When the transfer it completed I'll be left in
+the Terminal mode, which in this case is where I want to be.
+
+       ALL THIS UNATTENDED, WHILE YOU FILE YOUR NAILS
+       OR GO FOR COFFEE.   MAIN ADVANTAGE IS ACCURACY, THOUGH,
+       AND SPEED IN TRANSFERING.
+
+---------------
+
+GETBYE.MEX
+
+   My GETBYE.MEX goes like this:
+
+	WRT
+	SENDOUT "XMODEM S {1}
+	R {1}
+	SENDOUT "BYE ^M"
+
+   Invoked by "GETBYE ANYFILE.TYP" this will do the same as GET.MEX
+but go to the command mode after the transfer in order to send 
+the "BYE" command (you can't send sendout commands in anything
+but the command mode--it took me some frustrating hours to
+realize this).   In other words, it automatically logs off.
+
+---------------
+
+GETLIB.MEX
+
+   This one reads as follows:
+
+	WRT
+	SENDOUT "XMODEM L {1} {2}
+	RT {2}
+
+	
+   Invoked by GETLIB ANYFILE THISFILE.DOC, it will download the
+member THISFILE.DOC from ANYFILE.LBR.
+
+---------------
+
+SEND.MEX
+
+   SEND.MEX is just like GET.MEX except that the R's and S's
+are transposed, since the purpose of "SEND ANYFILE.TYP" is to
+send a file to the host rather than receive one.
+
+---------------
+
+Q.MEX is invoked simply by typing "Q" <cr> at the command line.
+It reads like this:
+
+	STAT REPLY 0
+	SENDOUT "ATM0^M"
+	STAT REPLY 8
+
+   The critical instruction is the second line, which instructs
+the Smartmodem to shut down its speaker.  Nice when lines are
+busy and you are going into continuous redialing.  The first
+and third lines of this file shut off the echoing and waiting
+in this process, making it virtually instantaneous and neat --
+but restore the normal parameters at completion of the order.
+
+---------------
+
+Z.MEX is just like Q.MEX except that the second line reads
+
+	SENDOUT "ATZ^M"
+
+restoring the Smartmodem to its normal chatty mode.
+
+---------------
+
+ADDENDUM:
+
+Two other STAT adjustments will make all the above operate more
+smoothly.  CLONE these into your version of MEX -- or include
+them in your INI.MEX file.
+
+	STAT SEARCH 2
+	ALT A0
+
+The first of these, STAT SEARCH 2, sets up a search path that
+orders MEX to look first on the default drive for .MEX files
+you indicate and then, failing to find them there, to search
+the "Alternate" drive.
+
+The second command sets the alternate drive to be A0, which is
+right for me, since I am usually logged on B.  Depending on
+your system, ALT could be anything.  The combination thus
+searches both drives, relieving you of the bother of
+remembering which file is on which drive--a kind of internal
+ZCPR. 
+
+I do hope this exercise will turn out to be useful, perhaps
+instigate an exchange of more imaginative .MEX files.  Mex is
+dynamically programmable and there may be as many different
+ways of programming it as there are users.
+
+					- Irv Block
+					  Sea Cliff, NY
+					  June 7, 1984

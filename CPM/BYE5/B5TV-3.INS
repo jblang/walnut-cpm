@@ -1,0 +1,258 @@
+; B5TV-3.INS - BYE5 insert for TeleVideo TS-803 - 01/02/86
+;
+;	   TV802 uses the Z80 SIO & CTC timer (3.6864 MHz)
+;	   TV803 uses Mostek 8301 & CTC timer (3.6864 MHz)
+;	   TV804 uses the Z80 SIO & CTC timer (3.9936 MHz)
+;
+;
+;	    Note:  This is an insert, not an overlay.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 01/05/86  Added TV804 capability	- Irv Hoff
+; 01/02/86  Added TV803 capability	- Tanny O'Haley
+; 07/17/85  Written for TV802 and BYE5	- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Select one of the following choices for your computer.  (Gets the
+; YES/NO values from the main BYE5 program.)
+;
+TV802	EQU	NO
+TV803	EQU	NO
+TV804	EQU	YES
+;
+;
+; Modem port equates
+;
+	 IF	TV802
+PORT	EQU	20H		; Modem data port
+MDCTL1	EQU	PORT+2		; Modem status port
+BDPORT	EQU	08H		; CTC port for baud rate
+	 ENDIF			; TV802
+;
+	 IF	TV803
+PORT	EQU	2FH		; Modem data port
+MDCTL1	EQU	PORT-1		; Modem send status port
+MDCTL2	EQU	PORT-2		; Modem receive status port
+REGINT	EQU	27H		; Interrupt register port
+SPSTAT	EQU	21H		; Parameter status register
+BDPORT	EQU	2BH		; CTC port for baud rate
+	 ENDIF			; TV803
+;
+	 IF	TV804
+PORT	EQU	1EH		; Modem data ort
+MDCTL1	EQU	PORT+1		; Modem status port
+BDPORT	EQU	0EH		; CTC port for baud rate
+	 ENDIF			; TV804
+;
+;
+; Baudrate table
+;
+	 IF	TV802
+BD300	EQU	4780H		; 38400/300  converted to hex value
+BD1200	EQU	4720H		; 38400/1200 converted to hex value
+BD2400	EQU	4710H		; 38400/2400 converted to hex value
+BD9600	EQU	4704H		; 38400/9600 converted to hex value
+	 ENDIF			; TV802
+;
+	 IF	TV803
+BD300	EQU	4720H		; 9600/300  converted to hex value
+BD1200	EQU	4708H		; 9600/1200 converted to hex value
+BD2400	EQU	4704H		; 9600/2400 converted to hex value
+BD9600	EQU	4701H		; 9600/9600 converted to hex value
+	 ENDIF			; TV803
+;
+	 IF	TV804
+BD300	EQU	0734H		; 7800/300 converted to hex value
+BD1200	EQU	4768H		; 124800/1200 converted to hex value
+BD2400	EQU	4734H		; 124800/2400 converted to hex value
+BD9600	EQU	470DH		; 124800/9600 converted to hex value
+	 ENDIF			; TV804
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+; Reg A is zero if no carrier, non-zero if carrier
+;
+MDCARCK: IF	TV802 OR TV804
+	MVI	A,10H		; Reset status
+	OUT	MDCTL1
+	IN	MDCTL1		; Get status
+	ANI	08H		; Check for carrier detect
+	 ENDIF			; TV802 OR TV804
+;
+	 IF	TV803
+	IN	SPSTAT		; Read status register
+	ANI	01H		; Check for carrier detect
+	XRI	01H		; Ready if bit 0 = 0
+	 ENDIF			; TV803
+;
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	 IF	TV802 OR TV804
+	MVI	A,18H		; Reset channel
+	OUT	MDCTL1
+	MVI	A,4		; Setup to write register 4
+	OUT	MDCTL1
+	MVI	A,44H		; 1 stop, 8 bits, no parity
+	OUT	MDCTL1
+	MVI	A,1		; Setup to write register 1
+	OUT	MDCTL1
+	MVI	A,00H
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear DTR causing hangup
+	OUT	MDCTL1
+	PUSH	B		; In case it is being used elsewhere
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping until finished
+	POP	B		; Restore BC
+	MVI	A,3		; Setup to write register 3
+	OUT	MDCTL1
+	MVI	A,0C1H		; Initialize receive register
+	OUT	MDCTL1
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,0EAH		; Turn on DTR so modem can answer phone
+	OUT	MDCTL1
+	 ENDIF			; TV802 OR TV804
+;
+	 IF	TV803
+	XRA	A
+	OUT	REGINT		; Stop interrupts
+	MVI	A,20H		; Drop DTR
+	OUT	SPSTAT
+	MVI	B,20		; 2 seconds delay to drop any carrier
+	PUSH	B		; In case it is being used elsewhere
+;
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep looping till finished
+	POP	B		; Restore BC
+	XRA	A		; Turn on DTR so modem can answer phone
+	OUT	SPSTAT
+	 ENDIF			; TV803
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	 IF	TV802 OR TV804
+	IN	MDCTL1		; Get status
+	ANI	01H		; Check receive ready bit
+	RZ			; Return if none
+	ORI	0FFH		; Otherwise, set the flags
+	 ENDIF			; TV802 OR TV804
+;
+	 IF	TV803
+	IN	MDCTL2		; Get input status
+	ANI	80H		; Check receive ready bit
+	 ENDIF			; TV803
+;
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Read port
+;
+	 IF	TV802 OR TV804
+	ANI	04H		; Check transmit ready bit
+	 ENDIF			; TV802 OR TV804
+;
+	 IF	TV803
+	ANI	80H		; Check transmit ready bit
+	 ENDIF			; TV803
+;
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; If a smartmodem, tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	 IF	TV802 OR TV804
+	MVI	A,5		; Setup to write register 5
+	OUT	MDCTL1
+	MVI	A,68H		; Clear DTR causing shutdown
+	OUT	MDCTL1
+	 ENDIF			; TV802 OR TV804
+;
+	 IF	TV803
+	MVI	A,20H
+	OUT	SPSTAT		; Turn DTR off to disconnect
+	 ENDIF			; TV803
+;
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure the Zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	LXI	H,BD300
+	JMP	STBAUD
+;
+SET1200:LXI	H,BD1200
+	JMP	STBAUD
+;
+SET2400:LXI	H,BD2400
+	JMP	STBAUD
+;
+SET9600:LXI	H,BD2400
+	JMP	STBAUD
+;
+STBAUD:	MOV	A,H		; CTC timer control word
+	OUT	BDPORT		; Controls CTC timer/counter
+	MOV	A,L		; Baudrate
+	OUT	BDPORT
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

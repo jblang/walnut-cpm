@@ -1,0 +1,58 @@
+                                  VDE266.FIX
+                                  ----------
+                              E. Meyer - 7/30/88
+
+
+     There is a potentially serious bug in VDE 2.66, which you can easily fix 
+by one of two methods: either a patching utility like DDT, SID, or EDFILE, or 
+using MLOAD with the HEX overlays supplied below.  Either way, only three 
+bytes need to be changed.
+
+METHOD 1.  Patching utility
+
+     Follow the instructions for your utility to change these bytes:
+
+(a) For VDE266.COM:
+  
+              Address      Old value            Change to
+              29B8         22 01 00             CD A7 29
+
+(b) For VDM266.COM:
+
+              Address      Old value            Change to
+              29BB         22 01 00             CD AA 29
+
+
+METHOD 2.  MLOAD
+
+     Choose the appropriate HEX file (for either VDE or VDM) below, write it 
+(just two lines) to disk under the name shown, and use the MLOAD utility to 
+overlay it on your copy of VDE:
+
+              A>mload vde266.com,vde266fx.hex
+
+          OR  A>mload vdm266.com,vdm266fx.hex
+
+
+--------VDE266FX.HEX: cut here---------------
+:0329B800CDA7297F
+:00000001FF
+--------VDM266FX.HEX: cut here---------------
+:0329BB00CDAA2979
+:00000001FF
+---------------------------------------------
+
+
+     The bug involves the code to handle BDOS disk errors, which was modified 
+recently (version 2.65) to make VDE compatible with ZCPR3.  Under normal 
+circumstances (or CP/M 3.0) there is no problem.  But if you ever get a BDOS 
+disk error (empty drive, etc) under CP/M 2.2, VDE does not properly restore 
+the BIOS warm boot entry.
+
+     Thanks to Gene Nolan (c/o DHN* RCPM, 215-623-4040), who discovered this 
+problem about a week ago and suggested an easy solution.
+
+
+
+      ----- Eric Meyer, 427 N. Washington #4, Bloomington IN 47401 -----
+

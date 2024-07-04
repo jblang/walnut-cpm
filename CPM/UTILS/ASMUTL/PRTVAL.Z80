@@ -1,0 +1,53 @@
+; PRTVAL.Z80 	version 2.0		Jim Lill 	17 Jan 88
+;
+; PRTVAL uses a method referred to in M80 manuals for printing values
+; during assembly.  My earlier version required ' .RADIX n' to control
+; format of the printed value.  Adding a second macro solved that and
+; I've eliminated the use of the '%' in each call.  This means math
+; must be done with EQU prior to the PRTVAL call.  I find this acceptable
+; as it helps maintain readability.
+;
+; SYNTAX:
+;
+;	PRTVAL	RADIX,<MESSAGE1>,VALUE,<MESSAGE2>
+;		  |       |        |       |
+;	 	  |       |        |       |___ 'trailing' message
+; 		  |       |        |___ value to be printed (no math here!)
+;		  |       |___ 'leading' message
+;		  |___ radix of printed value 2, 10, 16
+;........................................................................
+;
+; Put the following code in your program (a .LIB won't work)
+;........................................................................
+;
+; PRTVAL macro(s) prints text and value during assembly
+;
+prtval2	macro m1,v1,m2			; \
+	.printx	m1 v1 m2		;  +- this is the print value macro
+	endm				; /
+
+prtval	macro r,msg1,val,msg2		; \
+	.radix r			;   passing the radix value
+	prtval2 <msg1>,%val,<msg2>	;   requires the uses of 2 macros
+	endm				; /
+;.........................................................................
+; 
+; DEMO of it's use.
+; ====
+
+start:	org	0100h
+	nop
+	nop
+	nop
+middle:
+
+	prtval 16,<ending address = >,$,<>
+	prtval 10,<this is >,$,< bytes>
+
+length	equ	middle - start
+	prtval 10,<code length is >,length,< bytes>
+
+;................................
+
+	end
+

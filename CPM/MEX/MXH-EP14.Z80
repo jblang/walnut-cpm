@@ -1,0 +1,498 @@
+
+; MXH-EP14.Z80 -- Epson QX-10 overlay file for MEX+  10/15/86
+;
+; This overlay will allow the user to have a loadable MEX+ remote
+; system via the "LOAD REMOTE" command. This overlay was modified to
+; default to 1200 baud, if you need 300 baud you must changed it.
+; you will find this in "MSPEED", part of user setup options.
+; This overlay has been modified to allow a baudrate "19200" if needed
+; for hardwired transfers.
+;
+; This overlay will assemble with the public domain ZASM Z80 assembler.
+;
+; Syntax: ZASM MXH-EP14.BBZ HEX assuming the source is on drive B: 
+;
+; Updated / Upgraded 10/15/86  -- Mel Berg / Kent Mason (Rev. 1.0)
+; Z-NODE # 58, Oklahoma City, Okla. 1-405-943-8638 (board number).
+;
+; Updated to incorporate MEXNEWS.001,001,003  06/13/84	(Rev. JLB-2)
+;
+; This overlay is used to adapt the MEX+.COM program to the Epson
+; QX-10 computer using an external Hayes Smartmodem (tm) or compatible
+; modem attached to the QX-10's serial port.  It will NOT work with
+; the internal Comrex Communicator modems.  AND will not work with plain
+; MEX, Must be	MEX+.
+;
+; For this overlay to work properly, the DIP switches behind
+; the front panel on the Hayes should be set as follows:
+;
+; Switch:
+;   #1	 #2   #3   #4	#5   #6   #7   #8
+;   UP	 UP   DN   UP	DN   UP   DN   DN
+;
+; It is especially important that Switch #1 be set UP to enable
+; disconnect by DTR.  In general, these switch settings are
+; compatible with Valdocs usage.
+;
+; You will want to look this file over carefully. There are a number of
+; options that you can use to configure the program to suit your taste.
+; This file adapts the QX-10 computer to the modem program.
+;
+; Edit this file for your preferences then follow the "TO USE:" example
+; shown below.
+;
+; Use the "SET" command to change the baudrate when desired.  It starts
+; out at 1200 baud when the program is first called up, this can be change.
+; Also, this revision has been set to start out in the CHECKSUM mode
+; to be compatible with TBBS, some RBBS, and other older BBS software
+; which does not support the CRC mode.	If you desire the CRC mode
+; default, simply change the CRCDFLT to TRUE below and reassemble,
+; or, within MEX, use the STAT command to set CRC ON and CLONE your
+; copy of MEX.
+;
+;
+;	TO USE: First edit this file filling in answers for your own
+;		equipment.  Then assemble with ASM.COM or equivalent
+;		assembler.  Then use MLOAD to overlay the the results
+;		of this program to the original .COM file.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+; 11/03/86 - Added 19200 baud, converted to Z80 - Mel Berg
+; 10/25/86 - Converted for MEX+ "loadable"      - Mel Berg
+; 06/13/84 - Customized Biff Bueffel's overlay	- Jim Bewley
+; 05/24/84 - MEXified the overlay		- Biff Bueffel
+; 11/11/83 - Renamed to M7EP-1.ASM, no changes	- Irv Hoff
+; 08/27/83 - Revised to work with MDM712	- Irv Hoff
+; 07/25/83 - Changed M710XE.ASM forEpson QX-10	- Phil Becker
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+BELL	EQU	07H		; Bell
+CR	EQU	0DH		; Carriage return
+ESC	EQU	1BH		; Escape
+LF	EQU	0AH		; Linefeed
+CLS	EQU	1AH		; Clear screen
+;
+YES	EQU	0FFH
+NO	EQU	0
+;
+; MEX service processor stuff
+;
+MEX	EQU	0D00H		; Address of the service processor
+INMDM	EQU	255		; Get char from port to A, CY=no more in 100 ms
+TIMER	EQU	254		; Delay 100ms * reg B
+TMDINP	EQU	253		; B=# secs to wait for char, cy=no char
+CHEKCC	EQU	252		; Check for ^C from KBD, Z=present
+SNDRDY	EQU	251		; Test for modem-send ready
+RCVRDY	EQU	250		; Test for modem-receive ready
+SNDCHR	EQU	249		; Send a character to the modem (after sndrdy)
+RCVCHR	EQU	248		; Recv a char from modem (after rcvrdy)
+LOOKUP	EQU	247		; Table search: see CMDTBL comments for info
+PARSFN	EQU	246		; Parse filename from input stream
+BDPARS	EQU	245		; Parse baud-rate from input stream
+SBLANK	EQU	244		; Scan input stream to next non-blank
+EVALA	EQU	243		; Evaluate numeric from input stream
+LKAHED	EQU	242		; Get nxt char w/o removing from input
+GNC	EQU	241		; Get char from input, cy=1 if none
+ILP	EQU	240		; Inline print
+DECOUT	EQU	239		; Decimal output
+PRBAUD	EQU	238		; Print baud rate
+;
+PRINT	EQU	9		; MEX/BDOS print-string function call
+;
+PORT	EQU	11H		; Epson QX-10 serial output port
+MODCTL1	EQU	PORT+2		; Modem control port
+MODDATP	EQU	PORT		; Modem data port
+MODCTL2	EQU	PORT+2		; Modem control port
+MODRCVB	EQU	01H		; Your bit to test for receive
+MODRCVR	EQU	01H		; Your value when receive ready
+MODSNDB	EQU	04H		; Your bit to test for send
+MODSNDR	EQU	04H		; Your value when send ready
+;
+;
+	ORG	100H
+;
+;
+; Change the clock speed as needed for your system.
+;
+	DEFB	0C3H
+	DEFS	2
+;
+PMMIMODEM:
+	DEFB	NO		; Yes=PMMI S-100 Modem						103H
+SMARTMODEM:
+	DEFB	YES		; Yes=HAYES Smartmodem, no=non-PMMI			104H
+TOUCHPULSE:
+	DEFB	'T'		; T=touch, P=pulse (Smartmodem-only)			105H
+CLOCK:	DEFB	40		; Clock speed in MHz x10, 25.5 MHz max. 	106H
+				; 20=2 MHh, 37=3.68 MHz, 40=4 MHz, etc.
+MSPEED:	DEFB	5		; 0=110 1=300 2=450 3=600 4=710 5=1200		107H
+				; 6=2400 7=4800 8=9600 9=19200 default
+BYTDLY:	DEFB	5		; 0=0 delay  1=10ms  5=50ms - 9=90ms			108H
+				; Default time to send character in term-
+				; Inal mode file transfer for slow BBS.
+CRDLY:	DEFB	5		; 0=0 delay 1=100ms 5=500ms - 9=900ms		109H
+				; Default time for extra wait after CRLF
+				; In terminal mode file transfer
+NOOFCOL:DEFB	5		; Number of DIR columns shown				10AH
+SETUPTST:
+	DEFB	YES		; Yes=user-added Setup routine			10BH
+SCRNTEST:
+	DEFB	YES		; Cursor control routine			10CH
+ACKNAK:	DEFB	YES		; Yes=resend a record after any non-ACK 	10DH
+				; No=resend a record after a valid NAK
+BAKUPBYTE:
+	DEFB	NO		; Yes=change any file same name to .BAK 	10EH
+CRCDFLT:DEFB	NO		; No=default to CHECKSUM checking			10FH
+TOGGLECRC:
+	DEFB	YES		; Yes=allow toggling of CRC to Checksum 	110H
+CONVBKSP:
+	DEFB	NO		; Yes=convert backspace to rub				111H
+TOGGLEBK:
+	DEFB	NO		; Yes=allow toggling of bksp to rub			112H
+ADDLF:	DEFB	NO		; No=no LF after CR to send file in			113H
+				; Terminal mode (added by remote echo)
+TOGGLELF:
+	DEFB	YES		; Yes=allow toggling of LF after CR		114H
+TRANLOGON:
+	DEFB	NO		; Not supported by MEX+ 			115H
+				; Write logon sequence at location LOGON
+SAVCCP:	DEFB	YES		; Yes=do not overwrite CCP			116H
+LOCONEXTCHR:
+	DEFB	NO		; Yes=local command if EXTCHR precedes		117H
+				; No=external command if EXTCHR precedes
+TOGGLELOC:
+	DEFB	YES		; Yes=allow toggling of LOCONEXTCHR		118H
+LSTTST:	DEFB	YES		; Yes=allow toggling of printer on/off		119H
+XOFFTST:DEFB	YES		; Yes=chcks for XOFF from remote while		11AH
+				; Sending a file in terminal mode
+XONWAIT:DEFB	NO		; Yes=wait for XON after CR while		11BH
+				; Sending a file in terminal mode
+TOGXOFF:DEFB	YES		; Yes=allow toggling of XOFF checking		11CH
+IGNORCTL:
+	DEFB	YES		; Yes=CTL-chars above ^M not displayed		11DH
+EXTRA1:	DEFB	0		; For future expansion				11EH
+EXTRA2:	DEFB	0		; For future expansion				11FH
+BRKCHR:	DEFB	'D'-40H		; ^D = Send a 300 ms. break tone		120H
+NOCXNNCT:
+	DEFB	'N'-40H		; ^N = Disconnect from the phone line		121H
+LOGCHR:	DEFB	'O'-40H		; ^O = Send Log-On Message					122H
+LSTCHR:	DEFB	'P'-40H		; ^P = Toggle printer						123H
+UNSAVE:	DEFB	'R'-40H		; ^R = Close input text buffer				124H
+TRANCHR:DEFB	'T'-40H		; ^T = Transmit file to remote				125H
+SAVECHR:DEFB	'Y'-40H		; ^Y = Open input text buffer				126H
+EXTCHR:	DEFB	'F'-40H		; ^F = Send Next Character					127H
+;
+;
+	DEFS	2		; 128H
+;
+IN$MODCTL1:
+	LD	A,10H		; Channel 0, reset interrupts.		12AH
+	OUT	(MODCTL1),A
+	IN	A,(MODCTL1)	; Get the status bits 
+	RET
+	DEFS	3
+;
+OUT$MODDATP:
+	OUT	(MODDATP),A
+	RET			; Out modem data port				134H
+	DEFS	7
+IN$MODDATP:
+	IN	A,(MODDATP)
+	RET			; In modem data port					13EH
+	DEFS	7
+ANI$MODRCVB:
+	AND	MODRCVB
+	RET			; Bit to test for receive ready 	148H
+CPI$MODRCVR:
+	CP	MODRCVR
+	RET			; Value of receive bit when rdy 	14BH
+ANI$MODSNDB:
+	AND	MODSNDB
+	RET			; Bit to test for send ready			14EH
+CPI$MODSNDR:
+	CP	MODSNDR
+	RET			; Value of send bit when ready		151H
+;
+DCDTST:	JP	DCDVEC
+RNGDET:	JP	RNGVEC
+;
+OUT$CTL1:
+	OUT	(MODCTL1),A
+	RET			; Out modem control port				15AH
+OUT$CTL2:
+	OUT	(MODCTL2),A
+	RET			; Out modem status port 			15DH
+;
+LOGONPTR:
+	DEFW	LOGON		; For MDM7xx Log-On Message			160H
+	DEFS	6		; 162H
+JMP$GOODBYE:
+	RET			; MEX patch to prevent DSC			168H
+	DEFS	2		; From BYE command.
+JMP$INITMOD:
+	JP	INITMOD		; Go to user written routine			16BH
+JMP$NEWBAUD:
+	JP	NEWBAUD		; Change baudrate					66EH
+	RET
+	NOP
+	NOP			; (by-passes PMMI routine)			171H
+	RET
+	NOP
+	NOP			; (by-passes PMMI routine)			174H
+JMP$SETUPR:
+	JP	SETUPR		; 177H
+	DEFS	3		; 17AH
+JMP$SYSVER:
+	JP	SYSVER		; 17DH
+JMP$BREAK:
+	JP	SENDBRK		; 180H
+;
+;
+; Do not change the following six lines.
+;
+;
+JMP$ILPRT:
+	DEFS	3		; 183H
+JMP$INBUF:
+	DEFS	3		; 186H
+JMP$INLNCOMP:
+	DEFS	3		; 189H
+JMP$INMODEM:
+	DEFS	3		; 18CH
+JMP$NXTSCRN:
+	DEFS	3		; 18FH
+JMP$TIMER:
+	DEFS	3		; 192H
+;
+;
+; Clear sequences -- CLREOS is clear to end of screen, CLRSCRN is clear
+; entire screen.
+;
+;
+CLREOS:	LD	DE,EOSMSG	; 195H
+	LD	C,PRINT
+	CALL	MEX
+	RET
+;
+CLRSCRN:LD	DE,CLSMSG	; 19EH
+	LD	C,PRINT
+	CALL	MEX
+	RET
+;
+	ORG	200H
+;
+SYSVER:	LD	C,ILP		; 1A7H
+	CALL	MEX
+	DEFB	CLS
+	DEFB	CR,LF
+	DEFB	'Version for Epson QX-10 Computer',CR,LF
+	DEFB	'With HAYES external Smartmodem',CR,LF
+	DEFB	'(Rev. 1 - MJB - MEX+ Loadable Remote)',CR,LF
+	DEFB	CR,LF,0
+	RET
+;
+;----------------------------------------------------------
+;
+; You can put in a message at this location which can be called up with
+; CTRL-O  (^-O) if TRANLOGON has been set TRUE.  You can put in several
+; lines if desired.  End with a 0.
+; Note:  Only works with MDM7xx -- Not MEX
+;
+LOGON:	DEFB	'Epson QX-10 Computer Only',CR,LF,0
+;
+;------------------------------------------------------------
+;
+;
+; This routine allows a 300 ms. break tone to be sent to reset some
+; time-share computers.
+;
+SENDBRK:LD	A,5
+	OUT	(MODCTL1),A
+	LD	A,0FAH		; Send a BREAK TONE
+	JP	GOODBYE1
+;
+DCDVEC:	LD	A,0FEH
+	RET
+;
+RNGVEC:	LD	A,0FEH
+	RET
+;
+;
+;
+; This routine sends a 300 ms. break tone and sets DTR low for the same
+; length of time to disconnect some modems such as the Bell 212A, etc.
+;
+GOODBYE:LD	A,5
+	OUT	(MODCTL1),A	; SEND TO THE STATUS PORT
+	LD	A,07AH		; TURN OFF DTR, SEND BREAK
+;
+GOODBYE1:
+	OUT	(MODCTL1),A
+	LD	B,3		; DELAY 300 MS.
+	LD	C,TIMER
+	CALL	MEX
+	LD	A,5
+	OUT	(MODCTL1),A
+	LD	A,0EAH		; RESTORE TO NORMAL, 8 BITS, DTR ON, ETC.
+	OUT	(MODCTL1),A
+	RET
+;.....
+;
+;
+; Epson QX-10 initialization -- sets CTC timer 00H for send and receive
+; baudrate.
+;
+;
+INITMOD:LD	A,00H		; SELECT REG.
+	OUT	(MODCTL1),A
+	LD	A,18H		; THROW OUT OF MODE
+	OUT	(MODCTL1),A
+	LD	A,04H		; SELECT REG.
+	OUT	(MODCTL1),A
+	LD	A,44H		; SET ASCII PARAMETERS
+	OUT	(MODCTL1),A
+	LD	A,03H		; SELECT REG.
+	OUT	(MODCTL1),A
+	LD	A,0C1H		; ENABLE RECEIVE
+	OUT	(MODCTL1),A
+	LD	A,05H		; SELECT REG.
+	OUT	(MODCTL1),A
+	LD	A,0EAH		; ENABLE SEND, DTR, RTS
+	OUT	(MODCTL1),A
+;
+INITMOD1:
+	LD	A,5		; SET FILE TRANSFER TIME
+	LD	(MSPEED),A
+	LD	A,0B6H
+	OUT	(07H),A		; SEND TO 'CTC' TIMER
+
+INITMOD2:
+	LD	A,68H		; DEFAULT TO 1200 BAUD, LSP PORTION
+	OUT	(06H),A		; SEND TO 'CTC' TIMER
+;
+INITMOD3:
+	LD	A,05H		; 300 BAUD, MSP PORTION
+	OUT	(06H),A		; TO TIMER
+	RET
+;.....
+;
+;
+; Sets the modem speed via the SET command.
+;
+;
+SETUPR:	LD	C,SBLANK	; Any arguments?
+	CALL	MEX
+	CALL	C,TELL		; If not, go display baud rate
+	LD	DE,CMDTBL
+	LD	C,LOOKUP
+	CALL	MEX		; Parse argument
+	PUSH	HL		; Save any parsed argument addrs on stack
+	RET	NC		; If we have one, return to it
+	POP	HL		; Input not found in table
+	LD	C,ILP
+	CALL	MEX		; Tell user input not valid
+	DEFB	CR,LF,'Only 300, 600, 1200, 2400, 4800, 9600 or'
+	DEFB	' 19200 allowed on SET command line',BELL,CR,LF,0
+	RET
+;
+CMDTBL:	DEFB	'30','0'+80H
+	DEFW	OK300
+	DEFB	'60','0'+80H
+	DEFW	OK600
+	DEFB	'120','0'+80H
+	DEFW	OK1200
+	DEFB	'240','0'+80H
+	DEFW	OK2400
+	DEFB	'480','0'+80H
+	DEFW	OK4800
+	DEFB	'960','0'+80H
+	DEFW	OK9600
+	DEFB	'1920','0'+80H
+	DEFW	OK19200
+	DEFB	0
+;
+TELL:	LD	C,ILP
+	CALL	MEX		; Print current baud rate
+	DEFB	CR,LF,'Baud rate is now: ',0
+	LD	A,(MSPEED)
+	LD	C,PRBAUD
+	CALL	MEX
+	RET
+;
+;
+OK300:	LD	A,1
+	LD	HL,(BD300)
+	JP	LOADBD
+;
+OK600:	LD	A,3
+	LD	HL,(BD600)
+	JP	LOADBD
+;
+OK1200:	LD	A,5
+	LD	HL,(BD1200)
+	JP	LOADBD
+;
+OK2400:	LD	A,6
+	LD	HL,(BD2400)
+	JP	LOADBD
+;
+OK4800:	LD	A,7
+	LD	HL,(BD4800)
+	JP	LOADBD
+;
+OK9600:	LD	A,8
+	LD	HL,(BD9600)
+	JP	LOADBD
+;
+OK19200:LD	A,9
+	LD	HL,(BD19200)
+;
+LOADBD:	LD	(INITMOD1+1),A	; CHANGE TIME-TO-SEND TO MATCH BAUDRATE
+	LD	A,L		; GET BAUDRATE BYTE
+	LD	(INITMOD2+1),A	; SEND TO 'CTC' FOR NEW BAUDRATE
+	LD	A,H		; 2ND 1/2 OF BAUDRATE
+	LD	(INITMOD3+1),A
+	JP	INITMOD1	; REINITIALIZE TO NEW BAUDRATE, THEN DONE
+;
+;
+NEWBAUD:CP	1
+	JP	Z,OK300
+	CP	3
+	JP	Z,OK600
+	CP	5
+	JP	Z,OK1200
+	CP	6
+	JP	Z,OK2400
+	CP	7
+	JP	Z,OK4800
+	CP	8
+	JP	Z,OK9600
+	CP	9
+	JP	Z,OK19200
+	RET
+;
+;
+; TABLE OF BAUDRATE PARAMETERS
+;
+BD300:	DEFW	01A0H
+BD600:	DEFW	00D0H
+BD1200:	DEFW	0068H
+BD2400:	DEFW	0034H
+BD4800:	DEFW	001AH
+BD9600:	DEFW	000DH
+BD19200:DEFW	0006H
+;
+BAUDBUF:DEFB	10,0
+	DEFS	10
+;
+EOSMSG:	DEFB	01BH,059H,0,0,0,'$'
+CLSMSG:	DEFB	01AH,0,0,0,0,'$'
+;
+; NOTE:  Must Terminate Prior to 0B00H (with Smartmodem)
+;				 0D00H (without Smartmodem)
+;
+	END
+;
+
+

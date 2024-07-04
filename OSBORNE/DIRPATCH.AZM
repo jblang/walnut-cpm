@@ -1,0 +1,285 @@
+;         Copyright 1984 by John M. Blalock
+
+;         ********************************
+;         *                              *
+;         *         DIRPATCH.AZM         *
+;         *                              *
+;         *     An extension to the      *
+;         *     Osborne Executive's      *
+;         *     CP/M Plus extended       *
+;         *     directory program.       *
+;         *                              *
+;         *         Written by:          *
+;         *        John M. Blalock       *
+;         *         Dec 10, 1984         *
+;         *                              *
+;         ********************************
+
+; The  CP/M Plus operating system for the Osborne  Executive 
+; computer  has  many nice features,  including an  extended 
+; directory function that gives useful information about the
+; files on the disks.  It's incomplete,  however,  since  it
+; does not tell you how much space is remaining on the disk.
+; Normally, the program SHOW.COM  must  be  used to get this
+; information.   Digital  Research  did  leave  a  few bytes
+; available in the beginning of DIR.COM for their  copyright
+; notice that can be overlaid with this patch.  With it  you
+; will  no  longer have their copyright notice buried in the
+; program,  but  the extended directory  listing  will  tell
+; you the space remaining on the disk.  
+
+; This  patch was written in Z80 assembly language in  order 
+; to  take  advantage of the Z80 op-codes that were used  to 
+; keep the program short enough  to  fit  in  the  available 
+; space.  Unless you change to a non-Z80 machine they should 
+; cause no problems.
+
+; To  install this patch,  assemble the source with ZASM.COM 
+; or  extract  and use the DIRPATCH.HEX file attached at the
+; end  of  this  source  listing.   A  typical  installation
+; sequence follows:
+
+;    A>SID DIR.COM
+;    CP/M 3 SID - Version 3.0
+;    NEXT MSZE  PC  END
+;    3A00 3A00 0100 D7FF
+;    #RDIRPATCH.HEX
+;    NEXT MSZE  PC  END
+;    041B 3A00 0100 D7FF
+;    #WDIR.COM,100,39FF
+;    0072h record(s) written.
+;    #^C
+;    A>
+
+; Now type  DIR A: [A to see how your new extended directory 
+; program works!
+
+; This  program  can be copied and used  for  non-commercial 
+; purposes  only.   Any other use violates the copyright  of 
+; the  author  who  wouldn't  mind  receiving  payment   for 
+; commercial usages.
+
+; John M. Blalock, W7AAY, PO Box 39356, Phoenix, AZ 85069
+
+
+BDOS	EQU	0005
+
+	ORG	0106H		;START OF PATCH AREA 
+
+PATCH:	LD 	C,25		;RETURN CURRENT DISK
+	CALL	BDOS		; IN REG A
+	LD	E,A		;PASS CURRENT DISK IN REG E
+	LD	C,46		;GET DISK FREE SECTOR COUNT
+	CALL	BDOS		; -NOT K BYTES-IN (80) & (81)
+	LD 	B,3		;3 PASSES = DIVIDE BY 8
+DIVLP:	OR	A		;CLEAR CARRY
+	LD	HL,0081H	;HIGH BYTE OF FREE SPACE
+	RR	(HL)		;DIVIDE BY TWO
+	DEC	HL		;LOW BYTE OF FREE SPACE
+	RR	(HL)		;DIVIDE BY TWO
+	DEC	B		;3 PASSES DONE ?
+	JR	NZ,DIVLP	;NO, THEN REPEAT
+	LD	B,'0'		;ASCII ZERO TO HUNDS
+	LD	C,B		; AND TENS REGISTERS
+	LD	A,(HL)		;GET FREE SPACE (<255K)
+HUND:	SUB	100		;ANY HUNDREDS?
+	JR	C,TENS		;NO, TRY TENS
+	INC	B		;YES, BUMP HUNDS DIGIT
+	JR	HUND		;AND LOOP
+TENS:	ADD	A,100		;ADD BACK 100
+TENLP:	SUB	10		;ANY TENS ?
+	JR	C,ONES		;NO, DO ONES DIGITS
+	INC	C		;YES, BUMP TENS DIGIT
+	JR	TENLP		;AND LOOP
+ONES:	ADD	A,10+'0'	;ADD TEN PLUS ASCII BIAS
+	LD	D,A		;PUT IN ONES DIGIT
+	LD	HL,NUMS		;POINT TO NUMBERS
+	LD	A,'0'		;STILL ZERO IF NONE ADDED
+	CP	B		;ANY HUNDREDS ?
+	JR	Z,NOHUND	;NO, SKIP IT
+	LD	(HL),B		;SAVE HUNDS IN MESSAGE
+NOHUND: INC	HL		;POINT TO TENS POSITION
+	CP	C		;ANY TENS ?
+	JR 	Z,NOTENS	;NO, SKIP IT
+	LD	(HL),C		;SAVE TENS IN MESSAGE
+NOTENS:	INC	HL		;POINT TO ONES POSITION
+	LD	(HL),D		;SAVE ONES IN MESSAGE
+	LD	DE,MSG		;POINT TO MESSAGE
+	LD	C,9		;PRINT STRING FUNCTION
+	CALL	BDOS		;OUTPUT MESSAGE TO CONSOLE
+	JP	0475H		;JUMP TO ORIGINAL EXIT POINT
+
+MSG	DB	'Space Remaining =    '
+NUMS	DB	'   k',13,10,'$'
+	LD	C,D
+	LD	C,L
+	LD	B,D
+LAST	EQU	$		;DON'T GO PAST 016FH
+
+	ORG	0418H		;ORIGINAL JUMP TO EXIT
+
+	JP	PATCH		;JUMP TO OUR PATCH
+
+	END
+
+; DIRPATCH.HEX:
+
+:100106000E19CD05005F0E2ECD05000603B7218121
+:1001160000CB1E2BCB1E0520F40630487ED6643855
+:10012600030418F9C664D60A38030C18F9C63A57F8
+:100136002166013E30B828017023B9280171237267
+:100146001151010E09CD0500C37504537061636535
+:100156002052656D61696E696E67203D2020202002
+:0A0166002020206B0D0A244A4D42B0
+:03041800C3060117
+:0000000000
+
+1, answered, recent,,
+Return-Path: <@seismo.ARPA:noao!terak!jb@seismo.ARPA>
+Received: from seismo.ARPA by SIMTEL20.ARPA with TCP; Fri 14 Dec 84 22:27:46-MST
+Return-Path: <noao!terak!jb@seismo.ARPA>
+Received: from noao.UUCP by seismo.ARPA with UUCP; Sat, 15 Dec 84 00:27:36 EST
+From: noao!terak!jb@seismo.ARPA
+Received: by noao.UUCP (4.12/4.7)
+	id AA16599; Fri, 14 Dec 84 04:59:01 mst
+Date: Fri, 14 Dec 84 04:59:01 mst
+Message-Id: <8412141159.AA16599@noao.UUCP>
+To: noao!seismo!KPETERSEN@SIMTEL20.ARPA
+Subject: Bug in DIRPATCH.AZM 
+
+*** EOOH ***
+Date: Friday, 14 December 1984  04:59-MST
+From: noao!terak!jb at seismo.ARPA
+To:   noao!seismo!KPETERSEN at SIMTEL20.ARPA
+Re:   Bug in DIRPATCH.AZM 
+
+Keith, there was a minor bug in the version of DIRPATCH.AZM I sent you.
+Sorry...
+
+Here's the corrected version:
+;         Copyright 1984 by John M. Blalock
+
+;         ********************************
+;         *                              *
+;         *         DIRPATCH.AZM         *
+;         *                              *
+;         *     An extension to the      *
+;         *     Osborne Executive's      *
+;         *     CP/M Plus extended       *
+;         *     directory program.       *
+;         *                              *
+;         *         Written by:          *
+;         *        John M. Blalock       *
+;         *         Dec 10, 1984         *
+;         *                              *
+;         ********************************
+
+; The  CP/M Plus operating system for the Osborne  Executive 
+; computer  has  many nice features,  including an  extended 
+; directory function that gives useful information about the
+; files on the disks.  It's incomplete,  however,  since  it
+; does not tell you how much space is remaining on the disk.
+; Normally, the program SHOW.COM  must  be  used to get this
+; information.   Digital  Research  did  leave  a  few bytes
+; available in the beginning of DIR.COM for their  copyright
+; notice that can be overlaid with this patch.  With it  you
+; will  no  longer have their copyright notice buried in the
+; program,  but  the extended directory  listing  will  tell
+; you the space remaining on the disk.  
+
+; This  patch was written in Z80 assembly language in  order 
+; to  take  advantage of the Z80 op-codes that were used  to 
+; keep the program short enough  to  fit  in  the  available 
+; space.  Unless you change to a non-Z80 machine they should 
+; cause no problems.
+
+; To  install this patch,  assemble the source with ZASM.COM 
+; or  extract  and use the DIRPATCH.HEX file attached at the
+; end  of  this  source  listing.   A  typical  installation
+; sequence follows:
+
+;    A>SID DIR.COM
+;    CP/M 3 SID - Version 3.0
+;    NEXT MSZE  PC  END
+;    3A00 3A00 0100 D7FF
+;    #RDIRPATCH.HEX
+;    NEXT MSZE  PC  END
+;    041B 3A00 0100 D7FF
+;    #WDIR.COM,100,39FF
+;    0072h record(s) written.
+;    #^C
+;    A>
+
+; Now type  DIR A: [A to see how your new extended directory 
+; program works!
+
+; This  program  can be copied and used  for  non-commercial 
+; purposes  only.   Any other use violates the copyright  of 
+; the  author  who  wouldn't  mind  receiving  payment   for 
+; commercial usages.
+
+; John M. Blalock, W7AAY, PO Box 39356, Phoenix, AZ 85069
+
+; Revised to fix bug that caused 100k Space Remaining to be
+; displayed as 1 0k Space Remaining.  JMB 12/15/84
+
+BDOS	EQU	0005
+
+	ORG	0106H		;START OF PATCH AREA 
+
+PATCH:	LD 	C,25		;RETURN CURRENT DISK
+	CALL	BDOS		; IN REG A
+	LD	E,A		;PASS CURRENT DISK IN REG E
+	LD	C,46		;GET DISK FREE SECTOR COUNT
+	CALL	BDOS		; -NOT K BYTES-IN (80) & (81)
+	LD 	B,3		;3 PASSES = DIVIDE BY 8
+DIVLP:	OR	A		;CLEAR CARRY
+	LD	HL,0081H	;HIGH BYTE OF FREE SPACE
+	RR	(HL)		;DIVIDE BY TWO
+	DEC	HL		;LOW BYTE OF FREE SPACE
+	RR	(HL)		;DIVIDE BY TWO
+	DEC	B		;3 PASSES DONE ?
+	JR	NZ,DIVLP	;NO, THEN REPEAT
+	LD	B,'0'		;ASCII ZERO TO HUNDS
+	LD	C,B		; AND TENS REGISTERS
+	LD	A,(HL)		;GET FREE SPACE (<255K)
+HUND:	SUB	100		;ANY HUNDREDS?
+	JR	C,TENS		;NO, TRY TENS
+	INC	B		;YES, BUMP HUNDS DIGIT
+	JR	HUND		;AND LOOP
+TENS:	ADD	A,100		;ADD BACK 100
+TENLP:	SUB	10		;ANY TENS ?
+	JR	C,ONES		;NO, DO ONES DIGITS
+	INC	C		;YES, BUMP TENS DIGIT
+	JR	TENLP		;AND LOOP
+ONES:	ADD	A,10+'0'	;ADD TEN PLUS ASCII BIAS
+	LD	D,A		;PUT IN ONES DIGIT
+	LD	HL,NUMS		;POINT TO NUMBERS
+	LD	A,'0'		;STILL ZERO IF NONE ADDED
+	CP	B		;ANY HUNDREDS ?
+	JR	Z,NOHUND	;NO, SKIP IT
+	LD	(HL),B		;YES, SAVE HUNDS IN MESSAGE
+NOHUND: INC	HL		;POINT TO TENS POSITION
+	JR	NZ,HUNDS	;SAVE TENS IF HAD HUNDS
+	CP	C		;ANY TENS ?
+	JR 	Z,NOTENS	;NO, SKIP IT
+HUNDS:	LD	(HL),C		;SAVE TENS IN MESSAGE
+NOTENS:	INC	HL		;POINT TO ONES POSITION
+	LD	(HL),D		;SAVE ONES IN MESSAGE
+	LD	DE,MSG		;POINT TO MESSAGE
+	LD	C,9		;PRINT STRING FUNCTION
+	CALL	BDOS		;OUTPUT MESSAGE TO CONSOLE
+	JP	0475H		;JUMP TO ORIGINAL EXIT POINT
+
+MSG	DB	'Space Remaining =    '
+NUMS	DB	'   k',10,'$'
+	LD	C,D
+	LD	B,D
+LAST	EQU	$		;DON'T GO PAST 016FH
+
+	ORG	0418H		;ORIGINAL JUMP TO EXIT
+
+	JP	PATCH		;JUMP TO OUR PATCH
+
+	END
+

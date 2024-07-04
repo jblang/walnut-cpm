@@ -1,0 +1,672 @@
+	title	'tShell (c) 1985 S. Kluger, all rights reserved'
+	name	('tShell')
+.z80
+;
+;	prerelease blues:
+; start:
+;	11/29/85	cold start, drawn up TSHELL.DEF
+;	12/01/85	part 1 and 2
+;	12/05/85	finished up main code
+;	12/08/85	main code bug free
+;	12/09/85	first live test, added hook for drive redef
+;	12/11/85	completed user area lockout, rewrote TIMECL code
+;	12/13/85	completed user 31 exception, added "CNTROL" to
+;			prevent access across network for some fcns,
+;			added terminal config block and access code
+;	12/14/85	moved signon message to login program (from usrsom)
+;	12/15/85	added printer/print mode setup
+;	12/20/85	added return dskast function
+;	12/21/85	added set dskast function, added remote lock
+;	12/22/85	added system reset date/time function, added TIMECL
+;			suppress code to SCREEN byte
+;	12/25/85	fixed AUTUSR bug
+;	01/01/86	changed for USRSUP, added fcn 16,17,18,19
+;	01/02/86	added sneaky serial # check
+;	01/04/86	fixed problem in fcn 15 when date not set
+;
+; alpha:
+; beta:
+;	release updates:
+;
+;
+;	serial number/version stuff
+;
+vers	equ	152h		; version (1.52)
+orig	equ	24
+unit	equ	623
+shel	equ	1		; internal serial #
+;
+	aseg
+?orig?	equ	orig		; set up serial number origin...
+?unit?	equ	unit		; and unit.
+	public	?orig?,?unit?
+;
+;
+;	+-----------------------+
+;	| part 1 - data storage |
+;	+-----------------------+
+;
+;
+	dseg
+;
+	include	TSHELL.DEF
+	include TERMINAL.CFG
+;
+drvtbl:	ds	16*3		; slave's original DSKAST
+flag31:	db	0		; user 31 access flag
+srhsav:	db	0		; search drive save
+;
+fcntbl:	dw	xxfc00		; get parameter block
+	dw	xxfc01		; set parameter block
+	dw	xxfc02		; log off (clear pb and dskast)
+	dw	xxfc03		; send console message
+	dw	xxfc04		; allow/disallow user 31 access
+	dw	xxfc05		; spy on user/attach remote
+	dw	xxfc06		; reset this processor
+	dw	xxfc07		; abort current process
+	dw	xxfc08		; get terminal configuration
+	dw	xxfc09		; set terminal configuration
+	dw	xxfc10		; return dskast
+	dw	xxfc11		; set dskast
+	dw	xxfc12		; lock remote attach
+	dw	xxfc13		; unlock remote attach
+	dw	xxfc14		; return last system reset date/time
+	dw	xxfc15		; set reset date/time
+	dw	xxfc16		; return master node
+	dw	xxfc17		; suspend until date/time
+	dw	xxfc18		; execute program
+	dw	xxfc19		; return tShell serial number
+nmbfcn	equ	($-fcntbl)/2	; number of functions
+;
+lrsdt:	dw	0		; last reset date
+lrstm:	dw	0		;   time
+lrsst:	dw	0		;   tick
+locked:	db	0		; locked flag
+abcpf:	db	0		; flag to abort current process
+resflg:	db	0		; reset active flag
+twxflg:	db	0		; twix active flag
+twxbuf:	ds	128		; twix message buffer
+execut:	db	0		; execute flag
+execp:	dw	execl
+execl:	ds	128		; execute buffer
+;
+id:	db	'.tShell.'
+;
+;
+;	+-------------------------+
+;	| part 2 - initialization |
+;	+-------------------------+
+;
+	common	/?init?/
+;
+usrin@::
+	ld	de,tshpr
+	call	crproc##	; create rsp
+	ld	a,(autusr##)	; get autusr byte
+	and	80h		; see if default logon privileged
+	jr	nz,.nsru.	;   do not patch SRUFCN
+	ld	a,0c3h		; patch SRUFCN
+	ld	(srufcn##+12),a
+	ld	hl,sruint
+	ld	(srufcn##+13),hl
+.nsru.:	ld	hl,timecl	; patch timecl
+	ld	(cmdint##+12),hl
+	ld	de,drvtbl	; move the dskast
+	ld	hl,dskast##
+	ld	bc,16*3
+	ldir
+	ld	a,(srhdrv##)	; get and save search drive
+	ld	(srhsav),a
+	ld	hl,(conast##+1)	; get console entry point
+	ld	(consol),hl	; store it here
+	ld	hl,conint	; get intercept address
+	ld	(conast##+1),hl	; redirect console
+	ld	a,nmbfcn
+	ld	hl,id
+	ret
+;
+;	+------------------------+
+;	| part 3 - mainline code |
+;	+------------------------+
+;
+	cseg
+;
+usrfc@::
+	push	hl
+	push	de
+	push	bc
+	call	xxfc15
+	pop	bc
+	pop	de
+	pop	hl
+	ld	a,l		; get function number
+	cp	nmbfcn+1	; in range?
+	jr	c,..uok.	;   yes, process fcn
+	ld	a,0ffh
+	ret
+;
+..uok.:	ld	h,0		; hl=function #
+	add	hl,hl
+	push	de		; save de
+	ld	de,fcntbl
+	add	hl,de		; hl points to fcn address
+	pop	de
+	ld	a,(hl)
+	inc	hl
+	ld	h,(hl)
+	ld	l,a
+	jp	(hl)		; execute function
+;
+;	+----------------------------------+
+;	| function 0 - get parameter block |
+;	+----------------------------------+
+;
+xxfc00:	ld	d,b		; move destination (dma)
+	ld	e,c
+	ld	hl,LCLID	; point to source
+gspb:	ld	bc,128
+	ldir
+	xor	a		; set ok flag
+	ret
+;
+;	+----------------------------------+
+;	| function 1 - set parameter block |
+;	|	  and log user on	   |
+;	+----------------------------------+
+;
+xxfc01:	call	cntrol		; see if authorized
+	ret	nz
+	ld	a,(LCLLGD)	; get logged flag
+	or	a		; logged?
+	ret	nz		;   yes, barf
+	dec	a		; make a=ff
+	ld	(LCLLGD),a	; set logged true
+	ld	h,b		; move source (dma)
+	ld	l,c
+	ld	de,LCLID
+	call	gspb		; wrap up
+	ld	a,(LCLDPR)	; get default printer/queue
+	ld	(queptr##),a	; reset it
+	ld	a,(LCLDPM)	; get default print mode
+	ld	(prtmod##),a	; reset it
+	ld	a,(LCLSHD)	; get defined search drive
+	ld	(srhdrv##),a	; set new search drive
+	call	redef		; effect drive redefinition
+	ld	b,8		; 16 drives to process twice
+	ld	hl,dskast##	; patch target
+	ld	a,(LCLDRA+1)	; get access for A..H
+	call	..sds.		; patch
+	ld	b,8		; the next 8
+	ld	a,(LCLDRA)	; access for J..P
+	call	..sds.
+	xor	a		; set ok flag
+	ret
+;
+..sds.:	rra			; drive bit into carry
+	jr	c,.sdx.		; skip if allowed
+	ld	(hl),0ffh	;   else patch to offline
+.sdx.:	inc	hl
+	inc	hl
+	inc	hl		; point to next drive
+	djnz	..sds.		; repeat until 8 drives done
+	ret
+;
+;	+----------------------+
+;	| function 2 - log off |
+;	+----------------------+
+;
+xxfc02:	call	cntrol		; authorization check
+	ret	nz
+	ld	hl,LCLID	; clear pb
+	ld	b,128
+..lof.:	ld	(hl),0
+	inc	hl
+	djnz	..lof.
+	ld	hl,drvtbl	; restore dskast
+	ld	de,dskast##
+	ld	bc,16*3
+	ldir
+	xor	a
+	ld	(flag31),a	; set 31 access flag off
+	ld	a,(srhsav)	; reset search drive
+	ld	(srhdrv##),a
+	ret
+;
+;	+-----------------------------------+
+;	| function 3 - send console message |
+;	+-----------------------------------+
+;
+xxfc03:	ld	h,b
+	ld	l,c
+	ld	de,twxbuf
+	ld	bc,128
+	ldir
+	ld	a,0ffh
+	ld	(twxflg),a
+	ret
+;
+;	+-----------------------------+
+;	| function 4 - user 31 access |
+;	+-----------------------------+
+;
+xxfc04:	call	cntrol		; authorized?
+	ret	nz
+	ld	hl,flag31	; point to access flag
+	ld	a,(hl)		; get it to a
+	cpl			; complement (toggle) it
+	ld	(hl),a		; save it
+	ret			; a returns status
+;
+;	+--------------------------+
+;	| function 5 - spy on user |
+;	+--------------------------+
+;
+xxfc05:	xor	a			; not implemented
+	ret
+;
+;	+----------------------------+
+;	| function 6 - reset station |
+;	+----------------------------+
+;
+xxfc06:	ld	a,0ffh
+	ld	(resflg),a		; set reset flag
+	ret
+;
+;	+------------------------------------+
+;	| function 7 - abort current process |
+;	+------------------------------------+
+;
+xxfc07:	ld	a,0ffh		; set abort flag, so that the guy...
+	ld	(abcpf),a	; ...gets blown off at next console I/O
+	ret
+;
+;	+-----------------------------------------+
+;	| function 8 - get terminal configuration |
+;	+-----------------------------------------+
+;
+xxfc08:	call	cntrol		; allowed?
+	ret	nz		; no, return undone
+	ld	d,b		; move destination
+	ld	e,c		;   into bc
+	ld	hl,TCFBLK	; source to hl
+.gspb:	jp	gspb		; move
+;
+;	+-----------------------------------------+
+;	| function 9 - set terminal configuration |
+;	+-----------------------------------------+
+;
+xxfc09:	call	cntrol		; allowed?
+	ret	nz		; no, return undone
+	ld	h,b		; move source
+	ld	l,c		;   into hl
+	ld	de,TCFBLK	; set up destination
+	jr	.gspb		; move it
+;	
+;	+-----------------------------+
+;	| function 10 - return dskast |
+;	+-----------------------------+
+;
+xxfc10:	call	cntrol		; local call?
+	ret	nz		;   no, barf
+	ld	d,b		; move destingation
+	ld	e,c
+	ld	hl,dskast##
+	jr	.gspb
+;
+;	+--------------------------+
+;	| function 11 - set dskast |
+;	+--------------------------+
+;
+xxfc11:	call	cntrol		; local call?
+	ret	nz		;   no, ignore
+	ld	a,(LCLLV)	; get access byte
+	and	3		; mask priv level
+	sub	2		; see if full
+	ret	nz		;   no, ignore
+	ld	h,b		; move source
+	ld	l,c
+	ld	de,dskast##
+	ld	bc,16*3
+	ldir
+	xor	a		; return ok
+	ret
+;
+;	+----------------------------------+
+;	| function 12 - lock remote attach |
+;	+----------------------------------+
+;
+xxfc12:	ld	a,(locked)	; get locked flag
+	inc	a		; test it
+	ret	z		; return if locked
+	ld	a,0ffh
+.lunl.:	ld	(locked),a	; lock
+	ret
+;
+;	+------------------------------------+
+;	| function 13 - unlock remote attach |
+;	+------------------------------------+
+;
+xxfc13:	xor	a
+	jr	.lunl.
+;
+;	+---------------------------------------------+
+;	| function 14 - return last system reset time |
+;	+---------------------------------------------+
+;
+xxfc14:	ld	hl,(lrsdt)		; get last reset date
+	ld	de,(lrstm)		;   hours and minutes
+	ld	bc,(lrsst)		;   seconds and tick count
+	ret
+;
+;	+-----------------------------------+
+;	| function 15 - set reset date/time |
+;	+-----------------------------------+
+;
+xxfc15:	ld	c,10
+	call	otntry##
+	ld	a,0ffh
+	bit	7,h
+	ret	nz			; invalid date/time
+	ld	(lrsdt),hl
+	ld	(lrstm),de
+	ld	(lrsst),bc
+	ld	a,0c9h
+	ld	(xxfc15),a		; inhibit re-entry
+	ret
+;
+;	+----------------------------------+
+;	| function 16 - return master node |
+;	+----------------------------------+
+;
+xxfc16:	ld	hl,(defdid##)
+	ret
+;
+;	+-----------------------------+
+;	| function 17 - suspend until |
+;	+-----------------------------+
+;
+xxfc17:	push	iy
+	push	bc			; save pointer to dma buffer
+	ld	c,10
+	call	otntry##		; get date and time
+	pop	iy			; pointer into IY
+	ld	a,l
+	cp	(iy)
+	jr	nz,.17.n		; skip if negative compare
+	ld	a,h
+	cp	(iy+1)
+	jr	nz,.17.n
+	ld	a,e
+	cp	(iy+2)
+	jr	nz,.17.n
+	ld	a,d
+	cp	(iy+3)
+.17.n:	push	iy
+	pop	bc
+	pop	iy
+	ret	z			; return if done
+	push	bc
+	ld	c,2
+	ld	de,60			; else wait a second
+	call	otntry##
+	pop	bc
+	jr	xxfc17
+;
+;	+------------------------------------+
+;	| function 18 - execute command line |
+;	+------------------------------------+
+;
+xxfc18:	ld	h,b
+	ld	l,c
+	ld	de,execl
+	ld	a,(hl)
+	or	a
+	ret	z
+	call	gspb
+	ld	hl,execl
+	ld	(execp),hl
+	ld	a,1
+	ld	(execut),a
+	ret
+;
+;	+------------------------------------+
+;	| function 19 - return serial number |
+;	+------------------------------------+
+;
+xxfc19:	ld	hl,shel		; return serial #
+	ld	de,vers		; and version #
+	ld	bc,unit
+	ld	a,orig
+	ret
+;
+;
+;	+---------------------------+
+;	| part 4 - resident process |
+;	+---------------------------+
+;
+;
+tshpr:	ld	c,12
+	call	otntry##
+	ld	hl,unit
+	or	a
+	sbc	hl,de
+	jr	nz,.crash
+	ld	c,2			; do it once a second
+	ld	de,60
+	call	otntry##
+	ld	a,(resflg)		; get reset flag
+	inc	a
+	jr	nz,.tshnr		; skip if no reset
+	ld	c,2
+	ld	de,240			; delay 4 seconds
+	call	otntry##
+	call	xreset##		; call external reset
+.crash:	di
+	halt
+;
+.tshnr:	ld	a,(twxflg)		; get twix flag
+	inc	a
+	call	z,sndtwx		; send twix if there
+	jp	tshpr			; and loop
+;
+sndtwx:	ld	hl,twxbuf		; point to buffer
+	ld	a,(hl)			; get length
+	or	a			; empty?
+	ret	z			; yes, return
+	ld	b,a
+	inc	hl
+..stwx:	push	bc
+	push	hl
+	ld	a,(conast##)
+	ld	d,a
+	ld	e,2
+	ld	c,(hl)
+	call	condra##
+	pop	hl
+	pop	bc
+	inc	hl
+	djnz	..stwx
+;
+;
+;	+-------------------------+
+;	| part 5 - intercept code |
+;	+-------------------------+
+;
+; 1. set user number intercept
+;
+sruint:	call	chkusr		; check user access
+	ret	nc		; ignore if restricted
+	ld	(ix+40h),a	;   else store user number
+	ret
+;
+; 2. prompt display intercept
+;
+timecl:	ld	a,(clblen##+9)
+	or	a		;if prompt inhibit...
+	jr	nz,skip		;...then don't display time
+	ld	a,(LCLSCM)	; get screen byte
+	bit	6,a		; see if TIMECL disabled
+	jr	nz,skip		;   skip if disabled
+	ld	c,10
+	call	otntry##	; get time
+	ld	a,d		; get hours
+	call	bytout
+	ld	(timst+1),hl
+	ld	a,e		; get minutes
+	call	bytout
+	ld	(timst+4),hl
+	ld	c,12
+	call	ocntry##
+	ld	a,d
+	add	a,'A'
+	ld	(sta),a
+	ld	a,e
+	call	bytout
+	ld	(net),hl
+	call	dms##
+timst:	db	'[00:00 '
+sta:	db	'A'
+net:	db	'00] ',80h
+skip:	ld	a,(ix+40h)
+	ret
+;
+bytout:	ld	l,'0'-1
+..l:	inc	l
+	sub	10
+	jr	nc,..l
+	add	a,'0'+10
+	ld	h,a
+	ret
+;
+; 3. console I/O intercept
+;
+conint:	ld	a,(abcpf)	; get abort flag
+	inc	a
+	jr	nz,.nabrt	; don't abort
+	ld	(abcpf),a
+	call	dms##		; let the sucker know
+	0dh,0ah,0ah,7
+	'[OPERATOR TERMINATED]',0dh,0ah,80h
+	jp	errxit##	; trash him
+;
+.nabrt:	ld	a,(execut)
+	or	a
+	jr	z,.nexec
+	call	.exab			; abort whatever we're doing
+	ld	a,e
+	cp	2
+	jr	nc,.nexec
+	ld	hl,(execp)
+	inc	hl
+	or	a
+	jr	nz,.exns
+	ld	a,(execl)
+	or	a
+	ret	z
+	ld	c,(hl)
+	ld	a,0ffh
+	ret
+;
+.exns:	ld	a,(execl)
+	dec	a
+	ld	(execl),a
+	jp	m,doexe
+	ld	(execp),hl
+	ld	a,(hl)
+	ret
+;
+doexe:	xor	a
+	ld	(execut),a
+.nexec:	jp	0		; patched later
+consol	equ	$-2
+
+;
+.exab:	ld	a,0c9h
+	ld	(.exab),a
+	jp	errxit##
+;
+;	+------------------------------+
+;	| part 6 - utility subroutines |
+;	+------------------------------+
+;
+;
+; 1. check user
+;    input:  A = desired user area
+;    output: C = allowed or NC = restricted
+;	     no registers altered
+;
+chkusr:	and	1fh			; make 0..1f
+	push	hl
+	ld	hl,LCLLGD
+	bit	7,(hl)
+	pop	hl
+	scf
+	ccf
+	ret	z		; exit if unlogged
+	cp	31		; user 31 requested?
+	jr	nz,n.31.	;   no, continue normally
+	push	hl
+	ld	hl,flag31	; point to user 31 access flag
+	inc	(hl)
+	dec	(hl)
+	pop	hl		; Z if flag off
+	jr	z,n.31.		; check if maybe authorized anyway
+	scf
+	ret			; say yes
+;
+n.31.:	push	bc
+	push	hl
+	ld	c,a		; save requested user area
+	ld	a,(LCLLV)	; get his access level
+	and	3		; mask acl
+	cp	2		; check if full access
+	ld	a,c
+	scf			; preset true
+	jr	z,.n.res	; skip if authorized
+	cp	8		; over 7?
+	ld	hl,LCLUSA
+	jr	c,..ck..
+	cp	16		; over 15?
+	inc	hl
+	jr	c,..ck..
+	cp	24		; over 23
+	inc	hl
+	jr	c,..ck..
+	inc	hl
+..ck..:	and	7		; make 0..7
+	ld	b,a		; into counter
+	inc	b		; iterate at least once
+	ld	a,(hl)		; get access bits
+..ckl.:	rra			; move bits around
+	djnz	..ckl.		;   until right one is in CY
+	ld	a,c		; get user area back
+.n.res:	pop	hl		; restore hl
+	pop	bc		; restore bc
+	ret
+;
+; 2. dskast patch for drive re-definition
+;    no input, output, all regs used
+;    NOTE: for testing, redef is allowed for A:
+;
+redef:
+	ret			; later
+
+;
+; 3. check for authorization.
+;    a call here verifies that DE=FFFF
+;
+cntrol:	inc	de
+	ld	a,d
+	or	e
+	ld	a,0ffh		; set false
+	ret
+
+
+
+	end
+		; check if maybe authorized anyway
+	scf
+	ret			; say yes
+;
+n.31.:	push	bc
+	push

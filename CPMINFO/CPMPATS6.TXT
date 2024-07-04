@@ -1,0 +1,927 @@
+
+6       <-- Increment revision number when making changes
+
+This file contains information and modifications for the CP/M operating
+system. Pages and/or items are separated with FORMFEEDS (^L) with no
+more than 60 printed lines per page. List with PIP.
+
+			A PATCH FOR DDT
+
+From Dr. Dobb's Journal, Apr 1983, p. 76
+
+When DDT is invoked it normally relocates itself to high memory just
+under BDOS. DDT can be modified so that it relocates to a specific
+address.
+If you know where you want DDT to load itself, the most direct way
+is to alter its code. Use DDT to modify DDT.COM. Look at the
+instructions around 0150h; you should find
+
+	0150 SUB A
+	0151 MOV D,A
+
+If you replace those two instructions with the single instruction
+
+	0150 MVI D,xx
+
+you will have a version of DDT that will always load itself at xx00h
+in memory.
+
+
+
+			A PATCH FOR DDT / SID
+
+From Microsystems, May 1983, p. 82
+
+The Dump command of DDT and SID was designed for use with an 80 column
+terminal and makes a poor display if used with a 64 column terminal.
+The following patches allow DDT or SID to give a better appearance on
+a 64 column terminal.
+
+Do the following for DDT vers 2.2:
+
+A>ddt ddt.com
+DDT VER 2.2
+NEXT  PC
+1400 0100
+-sa17
+0A17 05 08		...08 instead of 05
+0A18 08.
+-g0
+A>save 19 ddt64.com
+
+Do the following for SID vers 1.4
+
+A>sid sid.com
+SID VER 1.4
+NEXT  PC  END
+1D00 0100 B3FF
+#saa5
+0AA5 93 96		... 96 instead of 93
+0AA6 08 .
+#g0
+A>save 28 sid64.com
+
+What these patches do is throw out the space characters between each
+display of the hexadecimal representation of each memory content of
+the DDT or SID "Dump" display.
+
+The following is an alternate patch for SID vers 1.4
+
+A>SID
+SID VERS 1.4
+#SA51
+0A51 F0 F8
+0A52 6F
+0A53 11
+0A54 BF 5F
+0A55 00 .
+#SAA3
+0AA3 0F 7
+0AA4 C2 .
+#G0
+
+A>SAVE 28 SID.COM
+
+
+
+			CP/M BUGS
+
+The CP/M BDOS fails to clear Archive Bit t3 in the FCB on Close or
+Rename of a file.  See DDJ, June 1985, p. 14
+
+The values returned by the Rename and Erase function calls are not
+as described in the CP/M Interface Guide. See DDJ, Nov. 1984, p. 50
+
+BDOS Function 37 (Reset Drive) is unreliable. If Function 37 is called
+for the DEFAULT (currently logged-in) drive, it is not re logged-in.
+If the disk in that drive has been changed, the bit map for the former
+disk is still used and can result in the loss of files.
+Substitute Function 13 (Reset Disk System) instead.
+See BYTE, Mar. 1984, p. 70
+
+There is a difference in character processing between standard keyboard
+I/O and SUBMIT-file I/O. When you enter a command line directly from
+the keyboard, all control characters (except for several that serve as
+immediate commands) are echoed back to the terminal in a two character
+^x format. However, if the same command line is taken from a submit file,
+the control characters are sent straight through to the terminal. If that
+character happens to correspond to a cursor movement or control command
+for your particular terminal, you may find your output at strange positions
+or even overlaying previous output thus making it difficult to read.
+For example, the ^Z end-of-string indicator used by PIP.COM and ED.COM
+will send the cursor to the top of the screen on some terminals. You could
+revise your BIOS console output routine to filter the offending characters
+but this may cause problems with a screen editor or word processor that
+needs to use cursor positioning commands.
+
+
+
+				ZSID BUGS
+
+From DDJ, Oct. 1982, p. 7
+
+ZSID doesn't interpret the LDIR instruction correctly when the
+operands (the two strings defined by the HL, DE and BC registers)
+overlap on each other. The LDIR (long move) instruction of the
+Z-80 copies a source string into a target string. When the target
+string overlaps on the source string (as when the source begins
+at 200h, the target at 201h and the length is 255 bytes) LDIR
+becomes a Replicate instruction, duplicating the leading byte
+of the source into the target over and over. ZSID doesn't handle
+it right, though; it stops after copying one byte.
+
+Also, the disassembler in ZSID doesn't seem to handle the LD A,R
+and LD R,A instructions. Its List command won't display them and
+its Assemble command won't accept them.
+
+The number -1 is not correctly interpreted. For example, LD HL,-1
+is interpreted as LD HL,00FF.
+
+
+
+			A PATCH FOR ZSID
+
+From DDJ, Dec. 1981, p. 4
+
+There is a small hidden bug in ZSID version 1.4. It is easily
+demonstrated when trying the following: in the direct assembly
+mode, try to assemble three 16-bit loads with the values of (hex):
+
+	FF7F, FF80, FFFF
+
+Afterwards list the product.
+
+The false values are not only used in the assembler, but in the
+F(ill), M(ove) and D(ump) command as well. The cure is very simple:
+change the byte at 02AE (hex) in ZSID from "C2" to "C3".
+
+SID version 1.4 does not have this "feature", so it may be that
+the routine starting at 02A1H is, at some place, necessary in the
+Z-80 specific parts, e.g. for error checking in relative jumps.
+
+There are no apparent problems after this patch is installed but,
+even so, care should be taken if it is used.
+
+The following demonstrates the bug and fix:
+
+
+A>ZSID
+ZSID VERS 1.4
+#A100
+0100  LD HL,0FF7F
+0103  LD HL,0FF80
+0106  LD HL,0FFFF
+0109  .
+#L100,108
+  0100  LD   HL,FF7F
+  0103  LD   HL,0080
+  0106  LD   HL,00FF
+  0109
+#IZSID.COM
+#R
+NEXT  PC  END
+2900 0100 B9FF
+#L2A1,2BC
+  02A1  PUSH DE
+  02A2  CP   41
+  02A4  JP   NC,0BCF
+  02A7  CALL 0EAA
+  02AA  LD   B,D
+  02AB  LD   A,B
+  02AC  CP   FF
+  02AE  JP   NZ,00B8
+  02B1  LD   A,E
+  02B2  OR   A
+  02B3  JP   P,00B8
+  02B6  LD   B,00
+  02B8  LD   A,E
+  02B9  POP  DE
+  02BA  DEC  B
+  02BB  INC  B
+  02BC  RET
+  02BD
+#S2AE
+02AE C2 C3
+02AF B8 .
+#L2AE,2B0
+  02AE  JP   00B8
+  02B1
+#G0
+
+A>SAVE 40 ZSIDP.COM
+A>ZSIDP
+ZSID VERS 1.4
+#A100
+0100  LD HL,0FF7F
+0103  LD HL,0FF80
+0106  LD HL,0FFFF
+0109  .
+#L100,108
+  0100  LD  HL,FF7F
+  0103  LD  HL,FF80
+  0106  LD  HL,FFFF
+  0109
+#G0
+
+
+			A PATCH FOR ASM.COM
+
+   ASM.COM permits the use of the dollar sign, "$", as a separator
+in labels. However, the underline character ,"_", will make a more
+readable label if it is used as the separator. To use the underline
+in place of the dollar sign load ASM.COM with DDT and change the
+byte at address 116CH from 24H to 5FH. Exit DDT and "SAVE 20 ASM1.COM".
+
+
+
+From XSUB.PAT
+
+The following patch to XSUB.COM will eliminate its nasty
+habit of inserting extra line feeds after each command
+line which it displays on the console.  After installation
+of the patch, console output will look just like it would
+if it were actually typed in, instead of double-spaced.
+     Do the following:
+ 
+ A>DDT XSUB.COM     ;Load old file to memory
+ DDT VERS 2.2       ;Program signs on with version
+ NEXT  PC
+ 0400 0100          ; and displays size
+ -S2CF              ;Substitute at 2CFH
+ 02CF 0A 24         ;Confirm that 0A is the old value!
+ 02D0 23 .          ;Confirm that 23 is the next value!
+ -G0                ;Reboot
+ A>SAVE 3 XSUB1.COM ;Save new file from memory.
+ 
+
+
+			A PATCH FOR ED.COM
+
+From Dr Dobb's Journal, Aug. 1981, p.4
+
+   ED.COM interprets an ASCII FORMFEED (0CH) as an imbedded carriage
+return. ED may be altered to treat FORMFEEDs normally provided some
+other control character is substituted for control-L (0CH), e.g. ^N.
+The new control character must be inserted at the following addresses:
+
+0528H, 162FH, and 1A12H
+
+The following assembly language program will substitute ^N for ^L
+and also add a sign-on message to ED.COM.
+
+; EDPATCH.ASM
+
+	ORG	100H
+	JMP	1B00H	;PRINT SIGNON MESSAGE
+
+	ORG	0528H
+	DB	0EH	;SUBSTITUTE ^N FOR ^L
+
+	ORG	162FH
+	DB	0EH	;	"     
+
+	ORG	1A12H
+	DB	0EH	;	"
+
+	ORG	1B00H
+	LXI	D,IDMESG
+	MVI	C,9	;PRINT STRING
+	CALL	5
+	JMP	01C0H	;ORIGINAL JUMP AT 0100H, ENTER ED
+
+IDMESG:	DB	'ED.COM with FORMFEED'
+	DB	0DH,0AH,0DH,0AH
+	DB	'$'
+	END
+
+Assemble EDPATCH.ASM to generate EDPATCH.HEX and install it with
+DDT as follows:
+
+	A>DDT ED.COM
+	DDT VERS 2.2
+	NEXT  PC
+	1B00 0100
+	-IEDPATCH.HEX
+	-R
+	G0
+
+	A>SAVE 27 ED1.COM
+
+
+
+			A PATCH FOR PIP.COM
+
+From 'MICROSYSTEMS', MAY/JUNE 1982, p.6
+
+   The PIP feature that will optionally filter all FORMFEEDs (0CH)
+from a file as it is copied may be altered so that any desired
+character may be removed during a copy operation.
+   The character to be removed must be patched into PIP.COM (version
+1.5) at two locations using DDT as follows:
+
+	DDT PIP.COM
+	DDT VERS 2.2
+	NEXT  PC
+	1E00 0100
+	-SE54
+	0E54 0C hh		hh = unwanted code to be removed
+	0E55 C2 .
+	-SE64
+	0E64 0C hh		hh = unwanted code to be removed
+	0E65 CA .
+	-G0
+
+	A>SAVE 29 PIPhh.COM
+	A>
+
+
+
+			A PATCH FOR PIP.COM
+
+From DDJ, Nov. 1984, p.16
+
+The following patch can be used to force the verify (V) option
+on at all times. Load PIP.COM with DDT and verify that you have
+version 1.5 by displaying the memory contents between 0200H and
+0240H. Next change the single byte at 0B34H from 1FH to 37H and
+save as follows:
+
+	-SB34
+	0B34 1F 37
+	0B35 D2 .
+	-G0
+
+	A>SAVE 29 PIPV.COM
+
+
+
+	IMPLEMENTING INP: AND OUT: DEVICES IN PIP.COM
+
+This is a composite of several variations of the same concept for
+modifying PIP.COM as found in one or more of the following:
+
+From MICROSYSTEMS, July 1983, p.48
+From DDJ, May 1984, p. 18
+PIPXFR.ASM
+PIP-I/O.ASM
+
+PIP can be used to transfer data between two computers that are connected
+by serial or parallel ports (or modem). PIP must be modified to perform
+this function by creating machine language I/O routines and patching them
+into PIP, so that you may use the INP: and OUT: functions.
+When you are ready to transmit data, initiate the receiving computer
+first with the command:
+
+	PIPIO d:filename.typ=INP:
+
+Activate the sending computer with the command:
+
+	PIPIO OUT:=d:filename.typ,EOF:
+
+This method will send only 7-bit ASCII data, so you cannot send 8-bit
+files or programs without first turning them into .HEX files by using
+the public domain program UNLOAD.COM or other similar utility.
+
+The following routine demonstrates implementing the INP: and OUT:
+function using a Signetics 2661 USART and will have to be modified
+for your specific hardware.
+
+This example also includes echo handshaking so that the sender does
+not overrun the receiver. Each time a character is received, it is
+returned to the sender which waits for the echo before sending the
+next character. If this is not done, PIP will lose characters at
+higher baud rates or when it pauses to write it's memory buffer out
+to disk. The handshaking may not be needed if you use low baud rates,
+only send files small enough to fit in the buffer and/or use the
+PIP [B] option.
+
+The patch should be installed as follows:
+Assemble I/OPATCH.ASM to generate I/OPATCH.HEX and install it with
+DDT.COM as follows
+
+  A>DDT PIP.COM
+  DDT VERS 2.2
+  NEXT  PC
+  1E00 0100
+  -II/OPATCH.HEX
+  -R
+  -G0
+
+  A>SAVE 29 PIPIO.COM
+
+
+;I/OPATCH.ASM
+;
+;THIS FILE WILL PATCH THE I/O ROUTINES INTO
+;PIP FOR CP/M VERSIONS 2.2 AND 3.0 (INP: AND OUT:).
+;
+FALSE	EQU	0
+TRUE	EQU	NOT FALSE
+;
+PIP22	EQU	TRUE
+PIP30	EQU	FALSE
+;
+	 IF	PIP22
+PATCH	EQU	110H
+PATCHEND EQU	1FFH
+INPJMP	EQU	103H
+OUTJMP	EQU	106H
+INPCHR	EQU	109H
+	 ENDIF
+;
+	 IF	PIP30
+PATCH	EQU	188H
+PATCHEND EQU	1FFH
+INPJMP	EQU	180H
+OUTJMP	EQU	184H
+	 ENDIF
+;
+	ORG	INPJMP
+	JMP	INPUT
+;
+	ORG	OUTJMP
+	JMP	OUTPUT
+;
+	ORG	PATCH
+;
+DATA	EQU	84H	;2661 USART PORTS
+STAT	EQU	85H
+MODE	EQU	86H
+COMM	EQU	87H
+;
+INPUT:			;INPUT A CHARACTER
+	LDA	INITFLG
+	ORA	A
+	CZ	INIT	;INIT. USART MAYBE
+	CALL	INPLOP	;GET A CHARACTER
+	ANI	7FH	;HIGH BIT MUST BE ZERO
+;
+	 IF	PIP22
+	STA	INPCHR	;SAVE IF CP/M 2.2
+	 ENDIF
+;
+	STA	SAVCHR	;SAVE HERE ALSO
+	CALL	OUTLOP	;RETURN CHAR. TO SENDER
+	 IF	PIP30
+	LDA	SAVCHR	;NEED CHAR. IN A FOR CP/M 3.
+	 ENDIF
+	RET
+;
+
+;
+OUTPUT:			;OUTPUT A CHARACTER
+	MOV	A,C
+	STA	SAVCHR
+	LDA	INITFLG
+	ORA	A
+	CZ	INIT	;INIT. USART MAYBE
+;
+	CALL	OUTLOP	;SEND A CHARACTER
+	CALL	INPLOP	;AND WAIT FOR ECHO
+	RET
+;
+INPLOP:
+	IN	STAT
+	CMA
+	ANI	3
+	JNZ	INPLOP	;LOOP TIL WE HAVE A CHARACTER
+	IN	DATA	;THEN GET IT
+	RET
+;
+OUTLOP:
+	IN	STAT
+	ANI	1
+	JZ	OUTLOP	;LOOP TIL USART READY FOR CHAR.
+	LDA	SAVCHR
+	OUT	DATA
+	RET
+;
+INIT:			;OPTIONAL USART INITIALIZATION
+	MVI	A,0CEH	;INIT 2661 TO 9600 BAUD, 8 BITS
+	STA	INITFLG	;MAKE FLAG NON-ZERO
+	OUT	MODE
+	MVI	A,03H
+	OUT	MODE
+	MVI	A,27H
+	OUT	COMM
+	IN	DATA
+	IN	DATA	;CLEAR BUFFER
+	MVI	C,9
+	LXI	D,SIGNON ;PRINT THE PATCHED MESSAGE
+	JMP	5
+;
+SIGNON:	DB	'2661 SERIAL PORT AT 9600 BAUD', 0DH, 0AH, '$'
+INITFLG:
+	DB	0
+SAVCHR:	DB	0
+;
+LAST	EQU	$
+;
+	 IF	(PATCHEND-LAST) SHR 15	;TEST FOR OVERFLOW
+ERROR	EQU	1/0	;!PATCH IS TOO LONG !!!
+	 ENDIF
+;
+	END
+
+
+
+The following patch for PIP.COM may also be known by several other names:
+e.g. PIPPATCH.ASM, RPIP.ASM or PIPPTCH2.ASM
+; 
+;                               XPIP
+; 
+;                 From a listing in the public domain  (SIGM V 44)
+;                        entered and debugged by
+;                           Noor Singh Kalsha
+; 
+; An extension of PIP the standard CP/M utility we've all learned to curse.  
+; This has all of the features of PIP as well as giving you the ability to 
+; R(eset) the disk to R/W and do a Q(uick) repeat of the copy.  This is very 
+; good if you need to make several copies of the same file onto different
+; disks or if you get an error message on the first copy.
+;
+; R  resets the disks and  Q  repeats the copy command last given to PIP.
+; To use, enter XPIP <carriage return>
+; You will get:
+; PIP v1.5 with (R)eset disks and (Q)uick repeat
+; and the usual "*" prompt
+; Enter your normal PIP command line.
+; Upon completion if you wish to make another copy to another disk, change the 
+; disks and hit R.  This will reset the disks to R/W without exiting PIP.  If 
+; you then want to duplicate the last PIP command line enter "Q" <carrage 
+; return>.  The program will then repeat your last command.
+;
+;INSTALLATION OF XPIP:
+;
+;ASSEMBLE THIS FILE TO GET XPIP.HEX
+;OVERLAY XPIP.HEX ON PIP.COM AS FOLLOWS:
+;   A>DDT PIP.COM
+;   IXPIP.HEX
+;   R
+;   G0
+;   SAVE 29 XPIP.COM
+;
+BDOS	EQU	0005H
+DBUFF	EQU	0080H
+BUFF	EQU	1ECBH	;PIP'S INPUT BUFFER
+CRLF	EQU	082EH	;PIP'S INTERNAL CR-LF ROUTINE
+;
+	ORG	100H
+;
+	JMP	SIGNON
+;
+	ORG	010AH
+;
+SIGNON:
+	LDA	DBUFF	;WAS A COMMAND GIVEN ON THE COMMAND LINE?
+	ORA	A
+	LXI 	D,MSG1
+	CZ	PSTRING	;SIGN ON IF NO COMMAND LINE.
+	JMP	04CEH	;JOIN MAINLINE CODE.
+
+
+;
+GETCON:
+	LXI	H,BUFF
+	MVI	M,80H	;SPECIFY MAX LENGTH OF REPLY
+	XCHG		;BUFFER ADDRESS TO DE
+	MVI	C,10	;BDOS COMMAND TO READ CONSOLE BUFFER
+	CALL	BDOS	;ASK BDOS TO DO IT
+	LDA	BUFF+1	;LENGTH OF REPLY
+	CPI	1	;JUST 1 CHARACTER ENTERED?
+	JNZ	GOBAK	;LET PIP PROCESS THE COMMAND IF NOT
+	LDA	BUFF+2	;FIRST (AND ONLY) CHAR TYPED
+	ANI	5FH	;CONVERT LOWER TO UPPER CASE
+	CPI	'Q'	;WAS IT THE REPEAT COMMAND?
+	JNZ	GETC1	;JUMP IF NOT
+;
+;
+; REPEAT COMMAND - RESTORE FIRST 4 CHARS OF THE CONSOLE BUFFER TO
+;		   THEIR FORMER CONTENTS, ECHO THE OLD COMMAND TO
+;		   CONSOLE, RESET DISK SYSTEM, AND LET PIP REPROCESS IT.
+;
+	LHLD	STASH	;RESTORE LENGTH AND FIRST CHAR TYPED
+	SHLD	BUFF+1
+	LXI	D,MSG2	;'REPEATING...' MESSAGE
+	CALL	PSTRING	;WRITE IT TO CONSOLE
+	LXI	H,BUFF+1 ;GET LENGTH BYTE
+	MOV	C,M	;TO REG BC
+	MVI	B,0
+	INX	H	;SET BUFFER START ADDRESS TO HL
+	DAD	B	;POINT TO FIRST FREE POSITION IN BUFFER
+	MVI	M,'$'	;FLAG END OF LINE WITH A "$"
+	LXI	D,BUFF+2
+	CALL	PSTRING	;ECHO LINE
+	MVI	C,13	;BDOS COMMAND TO RESET
+	JMP	BDOS
+;
+GETC1:
+	CPI	'R'	;IS IT THE USER SPECIFIED RESET COMMAND?
+	JNZ	GOBAK	;LET PIP PROCESS IF NOT
+;
+; RESET COMMAND - MAKE ALL DISKETTES R/W
+;
+	LXI	D,MSG3	;'DISK SYSTEM RESET' MSG
+	CALL	PSTRING
+	MVI	C,13	;BDOS COMMAND TO RESET
+	CALL	BDOS
+	POP	H	;CLEAR STACK
+	JMP	53CH	;REJOIN COMMAND LOOP WITHIN PIP
+;
+GOBAK:
+	LHLD	BUFF+1
+	SHLD	1D6H
+	RET
+;
+PSTRING:
+	MVI	C,9
+	JMP	BDOS
+;
+MSG1:
+	DB	0DH,0AH
+	DB	'PIP 1.5 with (R)eset Disks and (Q)uick Repeat'
+	DB	0DH,0AH,'$'
+;
+MSG3:
+	DB	0DH,0AH
+	DB	'Resetting all disks to R/W'
+	DB	0DH,0AH,'$'
+;
+MSG2:
+	DB	0DH,0AH
+	DB	'Repeating:   '
+	DB	'$'
+;
+STASH:	DW	0000H	;NO INITIAL COMMAND
+;
+	ORG	96FH	;PATCH PIP TO VECTOR TO THIS ROUTINE
+;
+	JMP	GETCON
+	END
+
+
+			A PATCH FOR MOVCPM.COM
+
+   If the version of MOVCPM for CP/M 2.2 is run on a CP/M 1.4 system
+then a "SYNCHRONIZATON ERROR" will result. To eliminate this problem
+make the following change at address 0234H:
+
+	instructions were:	change to:
+
+	   0234 C2		  NOP
+	   0235 5A		  NOP
+	   0236 02		  NOP
+
+
+   When MOVCPM is run, it compares it's serial number with the serial
+number of the system it is running on. If the two do not match then
+a "SYNCHRONIZATION ERROR" will result. To eliminate this problem make
+the following change at address 02CBH:
+
+	instructions were:	change to:
+
+	   02CB C2		  NOP
+	   02CC 5A		  NOP
+	   02CD 02		  NOP
+
+The various modules of CP/M may be found within MOVCPM.COM as follows.
+This assumes that MOVCPM has the CCP located at 0A00H. If it does not,
+then change the CCPBIAS equate to whereever it is in your system. If
+your BIOS is a non-standard size, you will have to change the SIZE
+equate. You can determine your system size by examining locations
+0802 and 0801 of your movcpm program with ddt, then set the SIZE
+equate accordingly. (Derived from MOVPATCH.ASM by Ron Fowler)
+
+SIZE	EQU	1A00H
+CCPBIAS	EQU	0A00H
+
+MODULE		ADDRESS			BITMAP ADDRESS
+----------------------------------------------------------------
+BOOT		CCPBIAS-80H		CCPBIAS+SIZE-0F0H
+CCP		CCPBIAS			CCPBIAS+SIZE-0E0H
+BDOS		CCPBIAS+800H		CCPBIAS+SIZE+020H
+BIOS		CCPBIAS+1600H		CCPBIAS+SIZE+1E0H
+
+
+
+		A PATCH FOR THE CP/M 2.2 BDOS
+
+From Dr. Dobb's Journal, Nov. 1984, p.50
+
+   Although the CP/M 2.2 Interface Guide states that the Rename and
+Erase functions return the values 0, 1, 2, or 3 on a successful
+operation, in fact CP/M 2.2 returns only 0 on success (and 0FFH on
+failure). Moreover, the Set Attribute function uses the same exit
+code, yet the Guide omits any mention of this function's return
+status value. It is desirable to make the following patch since a
+program that uses one of these functions may occasionally wish to
+access the BIOS directory buffer to retrieve the directory fcb for
+the matched entry.
+
+	ORG   CCP+0F8EH			INSTRUCTIONS WERE:
+
+	   NOP				   MOV	A,M
+	   NOP				   RAL
+	   NOP				   RNC
+	   NOP				   XRA	A
+
+
+
+		UNDOCUMENTED CP/M FUNCTIONS
+
+From DDJ, May 1984, p.16
+
+PIP contains a built-in hardware driver for the physical device IRD:
+(Intel ReaDer) which was used with the Intel Intellec-8 MDS system.
+The following actions are performed when each byte is read from the
+IRD: device during a PIP transfer:
+
+1) The value 0CH is output to port 01H.
+2) The value 08H is output to port 01H.
+   This strobes the paper tape reader mechanism.
+3) PIP loops until bit 5 of port 01H is set
+   to 1. This is the Ready bit.
+4) Finally, the lower 7 bits of port 03H
+   are returned as the input value.
+
+Note that if a system does not contain I/O ports 1 or 3, the net effect
+of all this will be to return a neverending string of 7Fh's.
+
+The following IRD: driver code can be found in PIP.COM at address
+0996H.
+
+	MVI	A,0CH	;TURN READER ON
+	OUT	01H
+	MVI	A,08H	;TURN READER OFF
+	OUT	01H
+WAIT:	IN	01H	;WAIT UNTIL READER HAS CHARACTER
+	RLC
+	RLC
+	RLC
+	RAR
+	JC	INPUT	;IF CARRY, THEN DONE (GET CHAR), ELSE LOOP
+	JMP	WAIT	;LOOP BACK
+INPUT:	IN	03H	;GET CHARACTER
+	ANI	07FH	;MASK PARITY BIT
+	RET
+
+
+
+		UNDOCUMENTED CP/M FUNCTIONS cont.
+
+From DDJ, May 1984, p.17
+
+   There is an unfortunate interaction between BDOS funtion 6 console
+I/O and the rest of the BDOS console I/O calls. Programs should never
+mix 'normal' BDOS calls with function 6 or BIOS calls. Otherwise, input
+characters may 'vanish' mysteriously, only to reappear at a later input
+prompt.
+   Digital Research has a stop-gap patch for the latter problem, but
+only for MPM II 2.1. They have apparently taken a completely different
+approach in CP/M 3. In 3.0 they appear to examine characters as they do
+in 2.2; but if it is not an appropriate control character it is discarded.
+This is why type-ahead routines which worked with 2.2 will not function
+at the CCP level in CP/M 3.
+   In CP/M 2.2 there are three sanctioned ways to perform console I/O:
+via 'normal' BDOS console I/O calls, via BDOS function number 6, and by
+calling the BIOS directly. In fact, the last two methods do exactly the
+same thing. We presume Digital Research was preparing us for systems like
+MP/M and CP/M 3, where accessing the BIOS is a definite 'no-no'.
+   Normal BDOS I/O works as follows: whenever a character is sent out to
+the console, a check is made for an input character being available; it
+is tested to see if it is a Control-S. Note that this is the only
+character that the BDOS is looking for at this time. If it is a Control-S,
+the BDOS enters a tight loop looking for the next character, which may be
+for example, a Control-Q to resume output or a Control-C to warm boot.
+However, if the input character was not a Control-S, it is stored in a
+one-byte buffer in the BDOS, and the BDOS no longer performs any status
+checks during output. When the .COM program terminates with a RET to the
+CCP (as in STAT.COM), the character is still in the BDOS's buffer, and the
+next BDOS input call will retrieve it first, before calling the BIOS for
+more characters. If, however, the .COM program terminates with a warm boot,
+the BDOS is re-loaded, leaving the character buffer empty; hence, one
+character is gone.
+
+   The CP/M 2.2 'Raw Console I/O' BDOS function 6 has an additional
+option. An E register argument of 0FEH merely checks the status of
+the console, and does not return or delete any pending characters.
+This is consistent with raw character handling in CP/M 3.0 and MP/M II.
+However, this function does not work properly because the status
+is not saved prior to execution of the BDOS exit code. A patch must
+be made to the BDOS to restore the intended function.
+
+   The CP/M 2.2 'Reset Disk System' BDOS function 13 returns a result
+parameter in the A register. A is 0 if no $$$.SUB file is active;
+otherwise it is nonzero. This is how the CCP knows whether or not to
+continue from a submit file. However, the function only looks at
+whether or not the first character of any filename is a dollar sign.
+This is why you may have noticed some strange extra disk activity
+and a general sluggishness if you have, for example, a filename
+beginning with a '$' in your directory. It appears that the CCP
+attempts to open $$$.SUB, fails, and then attempts to delete $$$.SUB.
+
+
+
+		UNDOCUMENTED CP/M FUNCTIONS cont.
+
+From Microsystems, May 1983, p.70
+
+   CP/M issues a dummy call to the BIOS 'HOME' routine prior to a
+directory read.
+
+
+   Early versions of the 'CP/M 2.2 Alteration Guide' did not include
+the following sentence in the description of the SELDSK function of
+the BIOS:
+
+	The least significant bit of register E is zero if
+	this is the first occurrence of the drive select
+	since the last cold or warm start.
+
+This information can provide a clue to the BIOS that it may need to
+log-in a disk that has been changed.
+
+
+
+			CP/M SPACE MANAGEMENT
+			     by Don Wiss
+
+CP/M does not require that the size of a file be specified at the time
+of creation as space is allocated dynamically as needed. Space that
+is released as the result of closing a file from which space has been
+deleted can immediately be used by another file. CP/M maintains three
+mechanisms for this: the Allocation Bit Map, the File Control Block
+(FCB) and the File Directory. This description applies to a standard
+8 inch SS/SD disk with 241K data space and 2K directory.
+
+1.  Allocation Bit Map
+
+    When a disk is logged-on the BDOS creates an Allocation Bit Map.
+    This is a matrix of 1's and 0's representing each Allocation Unit
+    on the disk. An Allocation Unit is eight logically consecutive
+    sectors (records) or 1024 bytes. The BDOS creates this matrix by
+    searching the Disk Allocation Map area in each FCB (see next
+    paragraph). When BDOS receives a request to create a file it
+    searches the Allocation Bit Map until it finds a bit containing a
+    0. BDOS then sets the map bit to 1 and places the Allocation
+    Unit number in the map area of the newly created FCB. Each time
+    a write operation is performed the BDOS examines the last alloca-
+    tion unit number and the Next Record number (byte 32) in the FCB.
+    When all eight records (sectors) of an allocation unit have been
+    filled the BDOS searches the Allocation Bit Map for the first bit
+    containing a 0.
+
+2.  File Control Block
+
+    The File Control Block (sometimes called descriptor) is a 36-byte
+    block of RAM containing all the information needed by BDOS to
+    find a file on the disk and to access any specified record. Each
+    FCB corresponds to one extent, which is a logical block of data
+    containing 128 records or 16 Allocation Units. A file is com-
+    prised of at least one, and often more than one, extent. The FCB
+    has a default location in the bottom 256 bytes of memory. If a
+    large file has more than one extent reading operations will cause
+    each directory entry to be brought into this location. However a
+    user program may allocate enough memory in the TPA to hold all of
+    the FCB's of a file simultaneously and include the address of the
+    appropriate FCB as one argument of each access request.
+
+3.  File Directory
+
+    The file directory is on Track 2 of the diskette and contains an
+    entry for each extent of each file. The directory entries are
+    copies of the first 32 bytes of the FCB's. When booting CP/M the
+    contents of the directory are read sequentially from the logged-
+    in disk and the Allocation Bit Map for that drive is recalcu-
+    lated. A request to open a file causes the appropriate directory
+    entry to be copied into the FCB area. If the file has been
+    opened for writing, closing the file causes the BDOS to copy the FCB
+    back to the directory area. The ERAse command does not modify
+    the disk file. It issues a Delete request to BDOS which places
+    an E5 in the first byte of the directory entry to mark it as
+    deleted. BDOS also scans the allocation units in the disk map
+    area of the entry and sets the corresponding bits in the Alloca-
+    tion Bit Map to 0, thereby freeing these units for reuse.
+
+
+
+			UNUSED DISK SECTORS
+
+   When configuring for 8-inch single-sided single-density disks,
+CP/M reserves the first two tracks (track 0 and track 1) for the
+operating system, and the first 16 logical sectors on track 2 for
+the disk directory. It allocates the remaining disk space to files.
+The remaining disk space-  ten 128 byte sectors on track 2 plus 26
+128 byte sectors on tracks 3 through 76, totals 241.75 K. File
+allocation is done in 1K increments, however. Therefore, on a
+standard CP/M disk there are 0.75K or six sectors that are never
+written to or read from by the operating system.
+   The unused sectors are physical sectors 18, 24, 4, 10, 16, and
+22 on track 76 (assuming the standard sector skew factor of 6 is
+employed), corresponding to the last six logical sectors on the
+disk. These sectors can be very useful for BIOS expansion, disk ID,
+data encription, or other system level functions. If they are used
+for BIOS expansion, the cold-start loading and sysgen procedures
+must be appropriately rewritten.
+
+

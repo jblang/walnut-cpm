@@ -1,0 +1,102 @@
+SETTING THE BAUD RATE WITH MEX2Z 
+by Rick Charnes, San Francisco, 9/20/87
+
+    I'd like to share with fellow Z users the solution I created to a 
+problem I was having with the superb MEX2Z, the program by Bruce Morgen 
+and Jay Sage that gives Mex or MexPlus the ability to run as a "virtual 
+shell," i.e. to execute a ZCPR3 command and then automatically return to 
+itself.  The problem is described by Jay on p. 20 of the ZCPR33 User's 
+Guide.  For those who aren't familiar with it...
+
+    The way MEX2Z works is as follows.  Suppose I want to exit MEX, edit 
+a file called JOE.LTR with VDE and then immediately return to MEX.  
+Rather than having to completely exit MEX, wait till returning to the Z 
+command line, and then entering commands, instead at the MEX command 
+line I can simply type 'CPM VDE JOE.LTR'.  Although 'VDE JOE.LTR' is of 
+course completely incomprehensible to MEX itself as they are not MEX 
+commands, we have created an alias in which MEX2Z.COM is invoked next.
+This picks up in memory the "trace" left behind by this MEX command line 
+and sends it to ZCPR3 for execution.  After this is run MEX2Z supplies 
+the command line ';MEX' which is now reinvoked and we are back to where 
+we started; a very nice shell.
+
+    MEX2Z's ability to pick up this trace is fine for MEX command line 
+text, because it is left in memory * above * where MEX2Z runs so the 
+latter program can get to it.  Suppose, however, the information we wish 
+to restore from MEX is located in LOW TPA which is normally overwritten 
+by MEX2Z, or by any other program for that matter.  And it so happens 
+that the particularly information I want from the previous execution of 
+MEX -- the baud rate at which it was running -- is indeed kept in the 
+first record of memory.  I use PC- Pursuit to call Z- Nodes across the 
+country.  As of yet Telenet does not have it set up for 2400 baud 
+communication, so I have to run my Courier 2400 modem at 1200 when I use 
+this service.  When I am making local calls, however, I am free to gun 
+my accelerator to the max at 2400.  I have a *.MEX script file ("read" 
+file) containing a menu, login ID's and other information for each of 
+these two applications -- one for local 2400 calls and one called 
+PCP.MEX.  In each script file I set the baud rate appropriately, but 
+when MEX2Z reinvokes MEX it re-loads the program anew from its default 
+baud rate.
+   
+    How to deal with this problem?  Well, one solution pointed to by Jay 
+in this section is create a type-3 MEX2Z that will run at 8000h, high 
+above this information that we want.  But my knowledge of assembly 
+language is about as extensive as Bill Gates' knowledge of ZCPR33.  I 
+did nothing but get frustrated about it for a month or two, simply 
+trying to remember to do 'SET 1200' or 'SET 2400' as appropriate after 
+MEX2Z loaded MEX for the second time.  But then an idea came to me.
+
+    I have the commercial MexPlus (easily the most exciting non-ZCPR3 
+program available for CP/M computing) and it has a (seldom-used) POKE 
+command.  The only time I've ever seen it used from within a script file 
+is when its author Ron Fowler releases a bug fix.  Ron very cleverly 
+writes his bug fixes as ... MexPlus script files!!  Using a program to 
+fix itself is clever.  This POKE command does exactly what the ZCPR3 
+POKE command does -- it changes a byte in memory.  So I started thinking 
+about ZCPR3 registers and the superb feature of our operating system:  
+the ability of sequential tasks to leave messages to each other.  I 
+settled on an out-of-the-way ZCPR3 register, number 6, which in my 
+system is located in memory at F3B6.  In my MEX read file for 2400 baud 
+calls I included a line 'POKE $F3B6 24' and in PCP.MEX 'POKE $F3B6 12'.  
+Here we are able to get a non-Z program to feed information to ZCPR3.  I 
+made a second copy of MEX2Z.COM and named one MEX2Z24.COM and the other 
+MEX2Z12.COM so their respective functions would be easy to remember.  As 
+an ASCII patch at the top of MEX2Z.COM you write the text of the command 
+line you would like it to re-execute after it exits.  I simply entered 
+the text ';MEX SET 1200' in MEX2Z12.COM whereas in MEX2Z24.COM I put 
+';MEX SET 2400'.  I've renamed MEX.COM to REALMEX.COM.  My alias that 
+runs the whole shebang is:
+
+   MEX realmex;resolve if eq $$r6 24;mex2z24;else;mex2z12;fi
+
+When I run at 2400 baud my script file pokes ZCPR3 register #6 to 24.  
+Then when REALMEX.COM exits, the flow control checks the register, sees 
+its value and runs the appropriate version of MEX2Z, which returns the 
+favor by reloading MEX at the appropriate baud rate.  Note that RESOLVE 
+is necessary here.  Remember that ARUNZ builds its command line and sets 
+the values of any of its parameters such as '$Rn' and '$Mnnnn' _at the 
+moment the alias is invoked._  None of the values that will be changed 
+by the operation of the alias have yet taken into effect.  At the moment 
+this alias is invoked my MEX scripts have not yet POKEd those memory 
+locations, hence the value of register 6 returned by the alias would be 
+the incorrect one.
+
+    There are two ways to deal with this situation.  The one used here 
+is to preface the operation with the symbol in question with RESOLVE.  
+Note that the '$r6' symbol then becomes a parameter of RESOLVE.  Since 
+in an ARUNZ script we must enter '$$' to produce a '$', hence the need 
+for '$$r6' to provide the '$r6' symbol for RESOLVE.COM.
+
+    The other solution would be to make two aliases out of it, as in:
+
+    MEX realmex;mex2
+    REALMEX2 resolve if eq $$r6 24;mex2z;else;mex2z12;fi
+
+    Ah, the multi-colored wonders of Z...
+
+                                          Rick Charnes
+                                          San Francisco
+                                          (415) 826-9448
+ck Charnes
+                                          San Francisco
+                                          (415) 826-

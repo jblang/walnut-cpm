@@ -1,0 +1,1180 @@
+;     Title  'MEX Overlay for the SB180 Version SM 2.0'
+;
+REV	EQU	20		;OVERLAY REVISION LEVEL
+;
+	.HD64
+;
+;  Because the HD64180 adds several instructions not found in the Z80,
+;  the ZAS (2.0 or later) assembler from Echelon is required for assembly.
+;
+;  MEX Overlay for the Micromint SB180, external smartmodems,
+;  either Anchor or Hayes-compatible.
+;  (Based on the Kaypro overlay version SM4.0)
+;
+;  NOTE: Because of a peculiarity in the way serial communication is
+;  implemented in the HD64180 microprocessor, the modem DIP switches
+;  must be set to assert carrier detect (DCD) high for the overlay to
+;  function properly.  Consult your modem manual for the correct
+;  setting.  No special cabling is required.  Because MEX114 does not
+;  refer to the ZCPR3 termcap for terminal characteristics, the user
+;  must alter the terminal-dependent macros CLRCRT and CLREND, which
+;  currently are set up for an ADM-3A terminal.
+;
+;  A full-featured SET command processor is implemented.
+;  The following table outlines the SET command options:
+;
+;		
+;	SET Command
+;
+;	ANCHOR				Sets modem to respond to
+;					Anchor modem commands; although
+;					Anchor modems are considered Hayes
+;					compatible, there ARE a few
+;					differences which require special
+;					processing considerations.
+;
+;	DELAY <N>			Number of seconds to wait before
+;					aborting a call in progress
+;
+;	BAUD <RATE>			Set modem to Baud rate specified.
+;					Baud rates supported are 300, 600
+;					1200, 2400, 4800, 9600, 19200
+;
+;	MODE ANS <or> ORIG              Set modem to Originate mode or
+;					Set modem to Auto-answer mode
+;	DIAL PULSE <or> TONE            Set modem to Tone dial mode
+;                                       or to Pulse dialing mode
+;	MONITOR	ON <or> OFF		Turn Hayes monitor ON/OFF
+;	PARITY                          Set Parity to Odd, Even, or Off
+;	STOPBITS                        Set number of Stop Bits to 1 or 2
+;	LENGTH 				Set word length to 7 or 8
+;
+;	MANUAL ORIG <or> ANS		Place modem in active state and
+;					generate Answer or Originate
+;					carrier tone
+;
+;
+;  This overlay includes the smartmodem dialing routine from
+;  MXO-SM13.ASM by Ron Fowler which has been slightly modified
+;  to allow programmable delay for answer.  (Note that this is
+;  different from the "ATS7=nn".).
+;
+;  This overlay is intended to be fully compatible with the
+;  MEX structure and should be readily upward compatible with
+;  the predicted MEX 2.0.
+;
+;  Calling conventions for the various overlay entry points
+;  are detailed more fully in the PMMI overlay (MXO-PMxx.ASM,
+;  where xx=revision number).
+;
+;  History:
+;
+; SB180 versions:
+;
+;  01/20/86 2.0  Code cleaned up, routines condensed and regrouped
+;		 Set commands changed a bit. (Maintenance update)
+;		 It had to happen.
+;					       -- Rob Milette, Montreal
+;
+;  10/09/85 1.0  Original SB180 version adapted from the Kaypro
+;                version SM4.0.
+;					       -- Ken Davidson
+;
+; Kaypro versions:
+;
+;  12/20/84 4.0  Fixed bugs in send break and initialization routines.
+;					       -- Kim Levitt
+;
+;  11/25/84 3.0  Added SILENT option to quiet that damn beep-beep-
+;		 beep while dialing out. Speaker will come on at
+;	         end of dialing.
+;					       -- Kim Levitt
+;
+;  9/19/84  2.0  Fixed bug in DISCON routine that left DTR/RTS off,
+;		 added "soft" abort (any key except ^C) to abort a
+;		 CALL in progress, but not repeats or next CALL cmds.
+;					       -- Kim Levitt
+;
+;  9/9/84   1.0  The universal Kaypro overlay distributed previously
+;		 combined support for both the internal modem on the 4'84
+;		 and external smartmodems.  This overlay supports external
+;	 	 smartmodems only, and thus provides more flexibility for
+;		 expansion and adaptability to new MEX releases.  The only
+;		 additional feature of this overlay is support for 
+;		 entering Terminal mode via generation of manual Originate
+;		 or Answer carrier tones.  Clarity of documentation for
+;                the SET command has also been improved.
+;						Terry Carroll
+;
+;
+;  Credits:
+;
+;  M7KP-1 overlay structure by Irv Hoff
+;  Smartmodem dialing routine by Ron Fowler
+;  Parity, Length and Stopbits routines by Norm Saunders
+;  MXO-KP overlay structure by John Smith
+;  Art work by Terry Carroll
+;  Bug fix/feature added by Kim Levitt
+;  Adapted for the SB180 by Ken Davidson
+;  Inevitable update by Rob Milette
+;  Based on an idea by an inspired hacker
+;  Music by John Williams
+;  Directed by Stanley Kubrick
+;
+;----------------------------------------------------------------------
+;
+; Miscellaneous equates
+;
+NO	EQU	0
+YES	EQU	0FFH
+;
+TPA	EQU	100H
+;
+CR	EQU	13
+LF	EQU	10
+TAB	EQU	9
+BELL	EQU	7
+;
+;
+; Terminal-dependent macros (the SB180 can use any RS232-serial terminal)
+;
+CLRCRT	MACRO	
+	DB	1AH		;;byte or string to clear entire CRT
+	ENDM			;;	alter as required (^Z)
+;
+CLREND	MACRO	
+	DB	1BH,59H		;;byte or string to clear to bottom of CRT
+	ENDM			;;	alter as required (ESC Y)
+;
+; Don't change this... Have fun with the stuff up there...
+;
+GETTBL	MACRO
+	PUSH	DE		;used to get and save table address then
+	JP	SETTHAT		;jump to routine for lookup table... huh?
+	ENDM
+;
+;
+; Silent dial option:
+;
+SILENT	EQU	YES		;if YES, speaker is silenced during dial
+;
+; (NOTE: This may not work on all "smart" modems, it works on the
+;  Hayes.. Set it to NO if it doesn't dial out ok...)
+;
+; HD64180 port definitions
+;
+EXPORT	EQU	00H		;base external port
+EXTCTL	EQU	EXPORT		;external modem control port
+EXSTAT	EQU	EXPORT+4	;external modem status port
+EXDATO	EQU	EXPORT+6	;external modem data out port
+EXDATI	EQU	EXPORT+8	;external modem data in port
+BAUDRP	EQU	EXPORT+2	;external modem baud rate port
+;
+; HD64180 bit definitions
+;
+MDRCVB	EQU	80H		;modem receive bit (DAV)
+MDRCVR	EQU	80H		;modem receive ready
+MDSNDB	EQU	02H		;modem send bit
+MDSNDR	EQU	02H		;modem send ready bit
+;
+; MEX Service Processor
+;
+MEX	EQU	0D00H		;address of the service processor
+INMDM	EQU	255		;get char from port to A, CY=no more in 100 ms
+TIMER	EQU	254		;delay 100ms * reg B
+TMDINP	EQU	253		;B=# secs to wait for char, cy=no char
+CHEKCC	EQU	252		;check for ^C from KBD, Z=present
+SNDRDY	EQU	251		;test for modem-send ready
+RCVRDY	EQU	250		;test for modem-receive ready
+SNDCHR	EQU	249		;send a character to the modem (after sndrdy)
+RCVCHR	EQU	248		;recv a char from modem (after rcvrdy)
+LOOKUP	EQU	247		;table search: see CMDTBL comments for info
+PARSFN	EQU	246		;parse filename from input stream
+BDPARS	EQU	245		;parse baud-rate from input stream
+SBLANK	EQU	244		;scan input stream to next non-blank
+EVALA	EQU	243		;evaluate numeric from input stream
+LKAHED	EQU	242		;get nxt char w/o removing from input
+GNC	EQU	241		;get char from input, cy=1 if none
+ILP	EQU	240		;inline print
+DECOUT	EQU	239		;decimal output
+PRBAUD	EQU	238		;print baud rate
+;
+CONOUT	EQU	2		;simulated BDOS function 2: console char out
+PRINT	EQU	9		;simulated BDOS function 9: print string
+INBUF	EQU	10		;input buffer, same structure as BDOS 10
+;
+DCONIO	EQU	6		;BDOS Direct Console IO function #
+DCONIN	EQU	0FFH		;BDOS DCONIO Flag for input
+BDOS	EQU	5		;BDOS Function caller
+;
+;
+	ORG	TPA		;we begin
+;
+	DS	3		;MEX has a JMP START here
+;
+	DS	2		;not used by MEX
+TPULSE:	DB	'T'		;T=touch, P=pulse (Used by this overlay)
+CLOCK:	DB	61		;clock speed x .1, up to 25.5 mhz.
+MSPEED:	DB	1		;sets display time for sending a file
+				;0=110	1=300  2=450  3=600  4=710
+				;5=1200 6=2400 7=4800 8=9600 9=19200
+BYTDLY:	DB	5		;default time to send character in
+				;terminal mode file transfer (0-9)
+				;0=0 delay, 1=10 ms, 5=50 ms, 9=90 ms
+CRDLY:	DB	5		;end-of-line delay after CRLF in terminal
+				;mode file transfer for slow BBS systems
+				;0=0 delay, 1=100 ms, 5=500 ms, 9=900 ms
+COLUMS:	DB	5		;number of directory columns
+SETFL:	DB	YES		;yes=user-defined SET command
+SCRTST:	DB	YES		;yes=if home cursor and clear screen
+				;routine at CLRSCRN
+	DB	0		;was once ACKNAK, now spare
+BAKFLG:	DB	YES		;yes=make .BAK file
+CRCDFL:	DB	YES		;yes=default to CRC checking
+				;no=default to Checksum checking
+TOGCRC:	DB	YES		;yes=allow toggling of Checksum to CRC
+CVTBS:	DB	NO		;yes=convert backspace to rub
+TOGLBK:	DB	YES		;yes=allow toggling of bksp to rub
+ADDLF:	DB	NO		;no=no LF after CR to send file in
+				;terminal mode (added by remote echo)
+TOGLF:	DB	YES		;yes=allow toggling of LF after CR
+TRNLOG:	DB	NO		;yes=allow transmission of logon
+				;write logon sequence at location LOGON
+SAVCCP:	DB	YES		;yes=do not overwrite CCP
+LOCNXT:	DB	NO		;yes=local cmd if EXTCHR precedes
+				;no=not local cmd if EXTCHR precedes
+TOGLOC:	DB	YES		;yes=allow toggling of LOCNXTCHR
+LSTTST:	DB	YES		;yes=allow toggling of printer on/off
+				;in terminal mode. Set to no if using
+				;the printer port for the modem
+XOFTST:	DB	NO		;yes=allow testing of XOFF from remote
+				;while sending a file in terminal mode
+XONWT:	DB	NO		;yes=wait for XON after sending CR while
+				;transmitting a file in terminal mode	
+TOGXOF:	DB	YES		;yes=allow toggling of XOFF testing
+IGNCTL:	DB	NO 		;yes=do not send control characters
+				;above CTL-M to CRT in terminal mode
+				;no=send any incoming CTL-char to CRT
+EXTRA1:	DB	0		;for future expansion
+EXTRA2:	DB	0		;for future expansion
+BRKCHR:	DB	'@'-40H		;^@ = Send a 300 ms. break tone
+NOCONN:	DB	'N'-40H		;^N = Disconnect from phone line
+LOGCHR:	DB	'L'-40H		;^L = Send logon
+LSTCHR:	DB	'P'-40H		;^P = Toggle printer
+UNSVCH:	DB	'R'-40H		;^R = Close input text buffer
+TRNCHR:	DB	'T'-40H		;^T = Transmit file to remote
+SAVCHR:	DB	'Y'-40H		;^Y = Open input text buffer
+EXTCHR:	DB	'^'-40H		;^^ = Send next character
+;
+	DS	2		;not used
+;
+; Low-level modem I/O routines.
+;
+INCTL1:	JP	INC		;in modem control port
+	DB	0,0,0,0,0,0,0	;spares if needed for non-PMMI
+;
+OTDATA:	JP	OUTD		;out modem data port
+	DB	0,0,0,0,0,0,0	;spares if needed for non=PMMI
+;
+INPORT: JP	IND		;in modem data port
+	DB	0,0,0,0,0,0,0	;spares if needed for non-PMMI
+;
+; Bit-test routines. 
+;
+MASKR:	AND	MDRCVB		;bit to test for receive ready
+	RET
+TESTR:	CP	MDRCVR		;value of receive bit when ready
+	RET
+MASKS:	AND	MDSNDB		;bit to test for send ready
+	RET
+TESTS:	CP	MDSNDR		;value of send bit when ready
+	RET
+;
+	DS	12
+;
+LOGON:	DS	2		;needed for MDM compat, not ref'd by MEX
+DIALV:	JP	DIAL
+DISCV:	JP	DISCON
+GOODBV:	JP	GOODBYE		;called before exit to CP/M
+INMODV:	JP	NITMOD		;initialization. Called at cold-start
+NEWBDV:	JP	PBAUD		;set baud rate
+NOPARV:	RET			;set modem for no-parity
+	NOP
+	NOP
+PARITV:	RET			;set modem parity
+	NOP
+	NOP
+SETUPV:	JP	SETCMD		;SET cmd: jump to a RET if you don't write SET
+SPMENV:	RET			;not used with MEX
+	NOP
+	NOP
+VERSNV:	JP	SYSVER		;Overlay's voice in the sign-on message
+BREAKV:	JP	SBREAK		;send a break
+;
+; MDM calls supported in MEX 1.0 but not recommended for use.
+;
+ILPRTV:	DS	3		;replace with MEX function 9
+INBUFV:	DS	3		;replace with MEX function 10
+ILCMPV:	DS	3		;replace with table lookup funct. 247
+INMDMV:	DS	3		;replace with MEX function 255
+NXSCRV:	DS	3		;not supported by MEX (returns w/no action)
+TIMERV:	DS	3		;replace with MEX function 254
+;
+CLREOS:	LD	DE,EOSMSG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+;
+CLS:	LD	DE,CLSMSG
+	LD	C,PRINT
+	CALL	MEX
+	RET
+;------------------------------------------------------------
+;
+; end of fixed area
+;
+;------------------------------------------------------------
+;
+; Low level modem routine area
+;
+INC:	IN0	A,(EXSTAT)
+	RET
+;
+IND:	IN0	A,(EXDATI)
+	RET
+;
+OUTD:	OUT0	(EXDATO),A
+	RET
+;
+; Print out the overlay version
+;
+SYSVER:	  CALL	MILP
+	  DB	'SB180 Overlay (Hitachi HD64180)'
+	  DB	CR,LF,' Hayes Smartmodem Version SM'
+	  DB	REV/10+'0'
+	  DB	'.'
+	  DB	REV MOD 10+'0'
+	  DB	CR,LF,LF
+	  DB    0
+	  RET
+;
+; Break, disconnect and goodbye routines
+;  (The HD64180 doesn't support break transmit or receive.)
+;
+SBREAK:	  RET
+;
+; Disconnect Routine
+;
+DISCON:	  LD	A,(MODMTYP)
+	  OR   A
+	  JP	Z,DISCONH
+;
+; Disconnect Anchor Modem.
+; Anchor does not respond to DTR so the only way to disconnect is through
+; standard Smartmodem disconnect commands
+;
+DISCONA:  LD	B,20	
+	  CALL  MTIME		;wait 2 seconds
+	  LD	HL,SMATN		;send '+++'
+	  CALL	SMSEND
+	  LD	B,40            ;wait 4 more seconds (Anchor is slow)
+	  CALL  MTIME
+	  LD	HL,SMDISC	;send 'ATH'
+	  CALL	SMSEND
+	  LD	B,10		;wait 1 second
+	  CALL  MTIME
+	  RET
+;
+; Disconnect Hayes, etc.
+;
+DISCONH:  IN0	A,(EXTCTL)	;Get current setting
+	  OR	10H		;Turn off DTR/RTS
+	  OUT0	(EXTCTL),A
+	  LD	B,10		;DELAY 1 SEC.
+	  CALL  MTIME
+	  IN0	A,(EXTCTL)
+	  AND	0EFH		;Turn 'em back on again
+	  OUT0	(EXTCTL),A
+	  RET
+;
+; GOODBYE routines are called by MEX prior to exit to CP/M
+;
+GOODBYE:  RET			;NOTE: EXIT TO CP/M WITH NO CHANGE TO
+				;CONNECT STATUS OR SETTINGS (PARITY, ETC)
+;
+; Initialize RS-232 port, Smartmodem, and default modes.
+;
+
+;NITMOD:   CALL	INC		;SEE IF MODEM IS CONNECTED, I.E., RETURNING
+;	  AND	08H		;   TO ACTIVE MODEM FROM CPM
+;	  RET	NZ			;SKIP IF CONNECTED
+NITMOD:	  CALL  NITSIO
+	  LD	A,(MSPEED)	;GET DEFAULT BAUD RATE
+	  CALL	PBAUD		;SET IT
+	  LD	A,(MONFLG)	;GET MONITOR DEFAULT
+	  OR	A
+	  LD	A,'0'		;SPEAKER OFF
+	  JP	Z,NITMOD4
+	  LD	A,'1'		;SPEAKER ON
+NITMOD4:  LD	(SMINIT+3),A	;PUT IT IN SMINIT STRING
+	  LD	A,(ANSFLG)	;GET MODE DEFAULT
+	  OR	A
+	  LD	A,'0'		;ORIGINATE
+	  JP	Z,NITMOD5
+	  LD	A,'1'		;ANSWER
+NITMOD5:  LD	(SMINIT+8),A	;PUT IT IN SMINIT STRING
+	  LD	HL,SMINIT
+SINIT:	  CALL	SMSEND		;SEND THE INIT STRING
+SMTLP1:	  LD	C,INMDM		;WAIT FOR MODEM RESPONSE
+	  CALL	MEX
+	  JP	NC,SMTLP1	;EAT EVERYTHING UNTIL SILENCE FOR
+	  RET			; 100 MSEC
+;
+;	Initialize the HD64180 chip
+;
+NITSIO:	  IN0	A,(EXTCTL)
+	  AND	0EFH		;Turn on RTS
+	  OR	68H		;Enable xmit, recv, clr errors
+	  OUT0	(EXTCTL),A
+	  RET
+;
+; Set command processor
+;
+SETCMD:	  LD	C,SBLANK	;ANY ARGUMENTS?
+	  CALL  MEX
+	  JP	C,SETSHO	;IF NOT, DISPLAY DEFAULT(S)
+	  LD	DE,CMDTBL
+          LD	C,LOOKUP
+	  CALL  MEX		;PARSE THE ARGUMENT
+	  PUSH	HL		;SAVE ANY PARSED ARGUMENTS ON STACK
+	  RET	NC		;IF WE HAVE ONE, RETURN TO IT
+	  POP	HL		;OOPS, INPUT NOT FOUND IN TABLE
+SETERR:	  LD	DE,SETEMS
+	  LD	C,PRINT
+	  CALL	MEX
+	  CALL  CRLF
+	  RET
+SETEMS:	  DB	CR,LF,BELL,'SET command error',CR,'$'
+;
+; Argument table
+;
+CMDTBL:   DB	'?'+80H			; HELP
+	  DW	SETHELP
+	  DB	'MOD','E'+80H		; SET AUTO-ANSWER/ORIGINATE MODE
+	  DW	STMODE
+	  DB	'DIA','L'+80H		; SET PULSE/TONE DIALING
+	  DW	DIALMOD
+	  DB	'MONITO','R'+80H	; SET MONITOR OFF/ON
+	  DW	STMON
+	  DB	'BAU','D'+80H		; SET BAUD
+	  DW	STBAUD
+	  DB	'DELA','Y'+80H		; SET DELAY
+	  DW	DELAY
+	  DB	'PARIT','Y'+80H		; SET PARITY
+	  DW	STPRTY
+	  DB	'STOPBIT','S'+80H	; SET STOPBITS
+	  DW    STSTOP
+	  DB	'LENGT','H'+80H		; SET LENGTH
+	  DW	STBITS
+	  DB	'ANCHO','R'+80H		; SET TO ANCHOR MODEM
+	  DW	SETANCH
+	  DB	'MANUA','L'+80H		; SET TO MANUAL MODE
+	  DW	MANUAL
+	  DB	0			;TABLE TERMINATOR
+;
+;
+;  "SET (no args): PRINT CURRENT STATISTICS
+;
+SETSHO:	  CALL	MILP
+	  DB	CR,LF,0
+	  CALL	SYSVER
+	  CALL  MILP
+	  DB	'SET values:',CR,LF,0
+	  CALL	CRLF
+	  CALL  MDMSHOW
+	  CALL	CRLF
+	  CALL	MDSHOW
+	  CALL	CRLF
+	  CALL	TPSHOW
+	  CALL	CRLF
+	  CALL	BDSHOW
+	  CALL  CRLF
+	  CALL	DLSHOW
+	  CALL	CRLF
+	  CALL	MONSHO
+	  CALL  CRLF
+	  CALL  SHPRTY
+	  CALL	CRLF
+	  CALL	SHSTOP
+	  CALL	CRLF
+	  CALL  SHBITS
+	  CALL	CRLF
+	  CALL  CRLF
+	  RET
+;
+; "SET ?" processor
+;
+SETHELP:  CALL	MILP
+	  DB	CR,LF,'SB180 (Hitachi HD64180) Smartmodem SM Overlay'
+	  DB	CR,LF,LF,'SET command options:',CR,LF
+	  DB	CR,LF,TAB,'ANCHOR    - Set modem for Anchor modem commands'
+	  DB	CR,LF,TAB,'MODE      - ORIG, Originate mode '
+	  DB	'(Disable auto-answer)'
+	  DB	CR,LF,TAB,'          - ANS, Set modem to auto-answer mode'
+	  DB	CR,LF,TAB,'DIAL      - TONE, Set modem for Touchtone dialing'
+	  DB	CR,LF,TAB,'          - PULSE, Set modem to Pulse dialing'
+	  DB	CR,LF,TAB,'DELAY     - <N> seconds to wait for answer'
+	  DB	CR,LF,TAB,'PARITY    - OFF, EVEN or ODD'
+	  DB	CR,LF,TAB,'STOPBITS  - 1 or 2, Set number of stop bits'
+	  DB	CR,LF,TAB,'LENGTH    - 7 or 8, Set word length'
+	  DB	CR,LF,TAB,'MONITOR   - ON or OFF, Modem monitor speaker'
+	  DB	CR,LF,TAB,'BAUD      - 300, 600, 1200, 2400, '
+	  DB	'4800, 9600 or 19200 bps'
+	  DB	CR,LF,TAB,'MANUAL    - ORIG or ANS Manual Answer '
+	  DB	'or Originate carrier'
+	  DB	CR,LF,LF,0
+	  RET
+;
+;  Common code segment used for routines using lookup tables..
+;
+SETTHAT:  LD	C,SBLANK	;check for code... What?
+	  CALL	MEX		;
+	  POP	DE		;get ADDR of table, will get destroyed
+				;if error detected on JP below
+	  JP	C,SETERR	;if none, print error
+	  LD	C,LOOKUP	;check for syntax
+	  CALL	MEX
+	  PUSH	HL		;match found, go do it!
+	  RET	NC		;
+	  POP	HL		;no match: fix stack and
+	  JP	SETERR		;  print error
+;
+; SET ANCHOR processor
+;
+SETANCH:  LD   A,0FFH
+	  LD   (MODMTYP),A
+	  LD   A,041H
+	  LD	(DIALAB),A
+	  LD   A,00H
+	  LD   (MONFLG),A
+MDMSHOW:  CALL	MILP
+	  DB	'Modem:  ',0
+	  LD	A,(MODMTYP)
+	  OR	A
+	  JP	Z,MDMSHOH	
+	  CALL	MILP
+	  DB	'Anchor Modem',0
+	  RET
+MDMSHOH:  CALL	MILP
+	  DB	'Hayes Smartmodem',0
+	  RET
+;
+; Set manual processor
+; Note: manual mode does not change the auto-answer status of the modem
+;
+MANUAL:	  LD	DE,MANTBL	;check for proper syntax
+	  GETTBL
+;***
+;
+MANORIG:  LD	B,20		;FORCE 2 SECOND DELAY ON ORIGINATE END
+	  CALL  MTIME
+	  LD	HL,SMATD	;SEND OUT 'ATD'
+	  CALL	SINIT
+	  CALL  MILP
+	  DB    CR,'Manual originate mode - Carrier sent',CR,LF,0
+	  RET
+MANANS:	  LD	HL,SMATA	;SEND OUT 'ATA'
+	  CALL	SINIT
+	  CALL  MILP
+	  DB    CR,'Manual answer mode - Carrier sent',CR,LF,0
+	  RET
+;
+SMATD:	  DB	'ATD',CR,0
+SMATA:	  DB	'ATA',CR,0
+;
+; Manual originate / answer command table
+;
+MANTBL:   DB	'ORI','G'+80H		;MANUAL ORIGINATE MODE
+	  DW	MANORIG
+	  DB	'AN','S'+80H		;MANUAL ANSWER MODE
+	  DW	MANANS
+	  DB	0
+;
+; "SET BAUD" processor
+;
+STBAUD:	  LD	C,BDPARS	;FUNCTION CODE: PARSE A BAUDRATE
+	  CALL	MEX		;LET MEX LOOK UP CODE
+	  JP	C,SETERR	;JUMP IF INVALID CODE
+	  CALL	PBAUD		;NO, TRY TO SET IT
+	  JP	C,SETERR	;IF NOT ONE OF OURS, BOMB OUT
+BDSHOW:   CALL	MILP
+	  DB	'Modem Speed:  ',0
+	  LD	A,(MSPEED)	;GET CURRENT BAUD RATE
+	  LD	C,PRBAUD	;LET MEX PRINT IT
+	  CALL	MEX
+	  RET 
+;
+; This routine sets baud rate passed as MSPEED code in A.
+; Returns CY=1 if baud rate not supported.
+;
+PBAUD:	  PUSH	HL		;DON'T ALTER ANYBODY
+	  PUSH	DE
+	  PUSH 	BC
+	  LD	E,A		;MSPEED CODE TO DE
+	  LD	D,0
+	  LD	HL,BAUDTB	;OFFSET INTO TABLE
+	  ADD	HL,DE
+	  LD	A,(HL)		;FETCH CODE
+	  OR	A		;0 MEANS UNSUPPORTED CODE
+	  SCF			;PREP CARRY IN CASE UNSUPPORTED
+	  JP	Z,PBEXIT	;EXIT IF BAD
+	  OUT0	(BAUDRP),A	;IF OK, SET IT
+	  LD	A,E		;GET MSPEED CODE BACK
+	  LD	(MSPEED),A	;SET IT
+	  OR	A		;RETURN NO ERRORS
+PBEXIT:	  POP	BC
+	  POP	DE
+	  POP	HL
+	  RET
+;
+BAUDTB:	  DB	0		;110 (not supported)
+	  DB	0DH		;300
+	  DB	0		;450 (not supported)
+	  DB	0CH		;600
+	  DB	0		;710 (not supported)
+	  DB	0BH		;1200
+	  DB	0AH		;2400
+	  DB	09H		;4800
+	  DB	08H		;9600
+	  DB	01H		;19200 
+;
+; SET modem status, to enable or disable Auto-answer and originate
+;
+STMODE:	  LD	DE,MODETBL	;check for proper syntax
+	  GETTBL
+;***
+;
+MODETBL:  DB	'ORI','G'+80H	;"set monitor off"
+	  DW	ORIG
+	  DB	'AN','S'+80H	;"set monitor on"
+	  DW	ANS
+	  DB	0		;<<== end of monitor table
+;
+ORIG:	  XOR	A
+	  LD	(ANSFLG),A	;SET ORIG FLAG
+	  LD	HL,SMO		;SEND OUT ATS0=0
+	  CALL	SINIT
+	  JP	MDSHOW
+;
+SMO:	  DB	'ATS0=0',CR,0
+SMA:	  DB	'ATS0=1',CR,0
+;
+ANS:	  LD	A,0FFH
+	  LD	(ANSFLG),A	;SET ANS FLAG
+	  LD	HL,SMA		;SEND OUT ATS0=1
+	  CALL	SINIT
+;
+MDSHOW:	  LD	A,(ANSFLG)
+	  OR	A
+	  JP	Z,MDORIG		
+	  CALL	MILP
+	  DB	'Auto-answer mode (Originate disabled)',0
+	  RET
+MDORIG:	  CALL	MILP
+	  DB	'Originate mode (Auto-answer disabled)',0
+	  RET
+;
+;
+; Monitor control processor
+;
+STMON:	  LD	DE,MONTBL	;check for proper syntax
+	  GETTBL
+;***
+;
+MONTBL:	  DB	'OF','F'+80H	;"set monitor off"
+	  DW	QUIET
+	  DB	'O','N'+80H	;"set monitor on"
+	  DW	MONIT
+	  DB	0		;<<== end of monitor table
+;
+QUIET: 	  XOR	A		;Monitor off
+	  LD	(MONFLG),A
+	  LD	HL,SMQT
+	  CALL	SINIT
+	  JP	MONSHO
+;
+MONIT: 	  LD	A,0FFH		;Monitor on
+	  LD	(MONFLG),A
+	  LD	HL,SMMON
+	  CALL	SINIT
+;
+MONSHO:	  CALL	MILP
+	  DB	'Monitor Speaker ',0
+	  LD	A,(MONFLG)
+	  OR	A
+	  JP	Z,MONOFF
+	  CALL	MILP
+	  DB	'ON',0
+	  RET
+;
+MONOFF:	  CALL	MILP
+	  DB	'OFF',0
+	  RET
+;
+SMQT:	  DB	'ATM0',CR,0
+SMMON:	  DB	'ATM1',CR,0
+;
+; Set dial processor
+;
+DIALMOD:  LD	DE,DIALTBL
+	  GETTBL
+;
+DIALTBL:  DB	'PULS','E'+80H	;"set pulse dial mode"
+	  DW	STPULSE
+	  DB	'TON','E'+80H	;"set touchtone dial mode"
+	  DW	STTONE
+	  DB	0		;<<== end of Dial mode table
+;
+STTONE:	  LD	B,'T'
+	  JP	SDIAL1
+;
+STPULSE:  LD	B,'P'
+;
+SDIAL1:   LD	A,(TPULSE)
+	  CP	B
+	  JP	Z,TPSHOW
+	  LD	A,B
+	  LD	(TPULSE),A
+	  CP	'P'
+	  LD	A,01010000B	;PULSE DIAL
+	  JP	Z,SDIAL2
+	  LD	A,01000000B	;TONE DIAL
+;
+SDIAL2:   LD	(DIALWD),A
+;
+TPSHOW:	  CALL	MILP
+	  DB	'Dialing Mode:  ',0
+	  LD	A,(DIALWD)
+	  AND	00010000B
+	  JP	Z,TPTONE
+	  CALL	MILP
+	  DB	'Pulse',0
+	  RET
+TPTONE:	  CALL	MILP
+	  DB	'Touchtone',0	  
+	  RET
+;
+; Set delay processor
+;
+DELAY:	  LD	C,EVALA
+	  CALL	MEX
+	  LD	A,H
+	  OR	A
+	  JP	NZ,SETERR
+	  LD	A,L
+	  LD	(NDELAY),A
+DLSHOW:	  CALL	MILP
+	  DB	'Answer Delay is ',0
+	  LD	A,(NDELAY)
+	  LD	L,A
+	  LD	H,0
+	  LD	C,DECOUT
+	  CALL	MEX
+	  CALL	MILP
+	  DB	' seconds',0
+	  RET
+;
+;	SET PARITY command: reset transmit/receive parity
+;
+;		Parity is controlled by bit 1 of EXTCTL and
+;		bit 4 of BAUDRP as follows:
+;
+;				BAUDRP	   EXTCTL
+;		   Parity	Bit 4	   Bit 1
+;	             Off          -          0
+;	 	     Odd	  1	     1
+;		     Even	  0	     1
+;
+STPRTY:	  LD	DE,PARTBL	;check for proper syntax
+	  GETTBL
+;***
+;
+PROFF:	  IN0	A,(EXTCTL)
+	  AND	0FDH		;reset bit 1
+	  PUSH	AF		;save
+	  IN0	A,(BAUDRP)	;just load other reg
+	  JP	PARTB1		;
+PREVEN:	  IN0	A,(EXTCTL)
+	  OR	02H		;set bit 1
+	  PUSH	AF		;save
+	  IN0	A,(BAUDRP)
+	  AND	0EFH		;reset bit 4
+	  JP	PARTB1		;
+PRODD:	  IN0	A,(EXTCTL)
+	  OR	02H		;set bit 1
+	  PUSH	AF		;save
+	  IN0	A,(BAUDRP)
+	  OR	10H		;set bit 4
+PARTB1:	  OUT0	(BAUDRP),A	;set even/odd
+	  POP	AF
+	  OUT0	(EXTCTL),A	;set parity/noparity
+	  CALL	NITSIO		;re-initialize the USART
+	  CALL	SHPRTY		;print the result
+	  RET     		;
+SHPRTY:	  CALL	MILP		;display parity
+	  DB	'Parity:  ',0
+	  IN0	A,(EXTCTL)	;
+	  AND	02H		;test bit 1
+	  CP	0		;if bit1=0 then parity off
+	  JP	NZ,SHPRT1	;
+	  CALL	MILP		;
+	  DB	'Off',0		;
+	  RET
+SHPRT1:	  IN0	A,(BAUDRP)	;
+	  AND	10H		;test bit 4
+	  CP	0		;if bit4=0 then parity even
+	  JP	Z,SHPRT2	;
+	  CALL	MILP		;
+	  DB	'Odd',0		;
+	  RET			;
+SHPRT2:	  CALL	MILP		;
+	  DB	'Even',0	;
+	  RET
+;
+;	SET PARITY command table
+;
+PARTBL:	  DB	'OF','F'+80H	;"set parity off"
+	  DW	PROFF
+	  DB	'EVE','N'+80H	;"set parity even"
+	  DW	PREVEN
+	  DB	'OD','D'+80H	;"set parity odd"
+	  DW	PRODD
+	  DB	0		;<<== end of parity table
+;
+;	SET STOPBITS command: reset number of stop bits
+;
+;		The number of stop bits is controlled by bit
+;		0 of EXTCTL, as follows:
+;
+;		    Stop bits	   Bit 0
+;			1	     0
+;			2	     1
+;
+;
+STSTOP:	  LD	DE,STPTBL	;check for proper syntax
+	  GETTBL
+;***
+;
+STOP01:	  IN0	A,(EXTCTL)	;get ctrl register
+	  AND	0FEH		;reset bit 0
+	  JP	STSTP1		;
+STOP02:	  IN0	A,(EXTCTL)	;
+	  OR	01H		;set bit 0
+STSTP1:	  OUT0	(EXTCTL),A	;
+	  CALL	NITSIO		;
+	  CALL	SHSTOP		;print the result
+	  RET
+SHSTOP:	  CALL	MILP		;display stop-bits
+	  DB	'Stop bits:  ',0
+	  IN0	A,(EXTCTL)	;
+	  AND	01H		;test bit 0
+	  CP	0		;if bit0=0 then 1
+	  JP	NZ,SHSTP1	;
+	  CALL	MILP		;
+	  DB	'1',0		;
+	  RET
+SHSTP1:	  CALL	MILP		;
+	  DB	'2',0		;
+	  RET
+;
+;	SET STOPBITS command table
+;
+STPTBL:	  DB	'1'+80H		;"set stop 1"
+	  DW	STOP01
+	  DB	'2'+80H		;"set stop 2"
+	  DW	STOP02
+	  DB	0		;<<== End of stop-bits table
+;
+;	SET LENGTH command: set bits per character
+;
+;		The number of bits per character is controlled by
+;		bit 2 of EXTCTL as follows:
+;
+;		    BPC		Bit 2
+;		     7		  0
+;		     8		  1
+;
+STBITS:	  LD	DE,BITTBL	;check for proper syntax
+	  GETTBL
+;***
+;
+BIT7:	  IN0	A,(EXTCTL)	;
+	  AND	0FBH		;reset bit 2
+	  JP	STBTS1		;
+BIT8:	  IN0	A,(EXTCTL)	;
+	  OR	04H		;set bit 2
+STBTS1:	  OUT0	(EXTCTL),A	;
+	  CALL	NITSIO		;
+	  CALL	SHBITS		;print the result
+	  RET
+SHBITS:	  CALL	MILP		;display bits/char
+	  DB	'Bits/char:  ',0
+	  IN0	A,(EXTCTL)	;
+	  AND	04H		;test bit 2
+	  CP	0		;if bit2=0 then 7 bpc
+	  JP	Z,SHBTS1	;
+	  CALL	MILP		;
+	  DB	'8',0		;
+	  RET			;
+SHBTS1:	  CALL	MILP		;
+	  DB	'7',0		;
+	  RET			;
+;
+;	SET LENGTH command table
+;
+BITTBL:	  DB	'7'+80H		;"set bits 7"
+	  DW	BIT7
+	  DB	'8'+80H		;"set bits 8"
+	  DW	BIT8
+	  DB	0		;<<== end of bpc table
+;
+; Smartmodem dialing routine from Ron Fowler's MXO-SM10.ASM
+;
+DIAL:	  LD	HL,(DIALPT)	;FETCH POINTER
+	  CP	254		;START DIAL?
+	  JP	Z,STDIAL	;JUMP IF SO
+	  CP	255		;END DIAL?
+	  JP	Z,ENDIAL	;JUMP IF SO
+;
+; Not start or end sequence, must be a digit to be sent to the modem
+;
+	  LD	(HL),A		;PUT CHAR IN BUFFER
+	  INC	HL		;ADVANCE POINTER
+	  LD	(DIALPT),HL	;STUFF PNTR
+	  RET			;ALL DONE
+;
+; Here on a start-dial sequence
+;
+STDIAL:   LD	HL,DIALBF	;SET UP BUFFER POINTER
+	  LD	(DIALPT),HL
+	  RET
+;
+; Here on an end-dial sequence
+;
+ENDIAL:
+;
+	   IF	SILENT
+	  LD	A,(MONFLG)	;check monitor speaker flag
+	  OR	A		;to see if on or off
+	  JP	Z,LEAVOFF	;if off, leave it off
+	  LD	(HL),'M'	;if we silenced speaker to dial,
+	  INC	HL		;turn it on again
+	  LD	(HL),'1'
+	  INC	HL
+LEAVOFF:
+	   ENDIF
+;
+	  LD	(HL),CR		;STUFF END-OF-LINE INTO BUFFER
+	  INC	HL		;FOLLOWED BY TERMINATOR
+	  LD	(HL),0
+	  LD	A,(TPULSE)	;GET OVERLAY'S TOUCH-TONE FLAG
+;
+	   IF	SILENT
+	  LD	(SMDIAL+5),A
+	   ENDIF
+;
+	   IF	NOT SILENT
+	  LD	(SMDIAL+3),A	;PUT INTO STRING
+	   ENDIF
+;
+	  LD	HL,SMDIAL	;POINT TO DIALING STRING
+	  CALL	SMSEND		;SEND IT
+;
+WAITSM:	  LD	C,INMDM
+	  CALL	MEX		;CATCH ANY OUTPUT FROM THE MODEM
+	  JP	NC,WAITSM	;LOOP UNTIL NO MORE CHARACTERS
+;
+; THE FOLLOWING LOOP WAITS FOR A RESULT FROM THE MODEM.
+;
+RESULT:	  LD	A,(NDELAY)	;GET DELAY COUNT
+	  LD	C,A
+SMWLP:	  PUSH	BC
+	  LD	B,1		;CHECK FOR A CHAR, UP TO 1 SEC WAIT
+	  LD	C,TMDINP	;DO TIMED INPUT
+	  CALL	MEX
+	  POP	BC
+	  JP	NC,SMTEST	;JUMP IF MODEM HAD A CHAR
+	  PUSH	BC		;NO, TEST FOR CONTROL-C FROM CONSOLE
+	  LD	C,DCONIO
+	  LD	E,DCONIN	;USE BDOS DIRECT CONSOLE INPUT FUNCTION
+	  CALL	BDOS
+	  POP	BC
+	  CP	'C'-40H		;^C?
+	  JP	NZ,SMNEXT	;IF NOT, JUMP
+	  CALL	SMDMOFF		;YES, SHUT DOWN THE MODEM
+	  LD	A,3		;RETURN ABORT CODE
+	  RET
+SMNEXT:	  CP	0		;ANY OTHER KEY
+	  JP	NZ,SMTIMO	;YES, TREAT LIKE TIMEOUT
+	  DEC	C		;NO
+	  JP	NZ,SMWLP	;CONTINUE
+;
+; NO MODEM RESPONSE WITHIN THE TIME SPECIFIED IN SET DELAY COMMAND
+;
+SMTIMO:	  CALL	SMDMOFF
+	  LD	A,2		;RETURN TIMEOUT CODE
+	  RET
+;
+; MODEM GAVE US A RESULT, CHECK IT
+;
+SMTEST:	  AND	7FH		;IGNORE ANY PARITY
+	  CALL	SMANAL		;TEST THE RESULT
+	  JP	C,RESULT	;GO TRY AGAIN IF UNKNOWN RESPONSE
+	  LD	A,B		;A=RESULT 
+	  PUSH	AF		;SAVE IT
+SMTLP:	  LD	C,INMDM		;EAT ANY ADDITIONAL CHARS FROM SMARTMODEM
+	  CALL	MEX
+	  JP	NC,SMTLP	;UNTIL 100MS OF QUIET TIME
+	  POP	AF		;RETURN THE CODE
+	  RET
+;
+; Analyze character returned from External Modem
+;
+SMANAL:   PUSH  AF
+	  LD	A,(MODMTYP)
+	  OR	A
+	  JP	Z,SMANALH
+;
+; Analyze Modem response codes for Anchor modems.
+; Anchor echoes the digits as they are being dialed.  The returned digits
+; are interpreted as call return codes, shutting down the modem too early.
+;
+SMANALA:  POP   AF
+          LD	B,0		;PREP CONNECT CODE
+	  CP	'C'		;"CONNECT"?
+	  RET	Z
+	  INC	B		;PREP BUSY CODE B=1
+	  CP	'B'
+	  RET	Z
+	  INC	B		;PREP NO CONNECT MSG B=2
+	  CP	'N'		;N=NO CONNECT
+	  RET	Z
+	  LD	B,4		;PREP MODEM ERROR
+	  CP	'E'		;E=ERROR
+	  RET	Z
+	  JP	WTLF
+;
+; Analyze Modem response codes for Hayes, etc.
+;
+SMANALH:  POP   AF
+          LD	B,0		;PREP CONNECT CODE
+	  CP	'C'		;"CONNECT"?
+	  RET	Z
+	  CP	'1'		;NUMERIC VERSION OF "CONNECT"
+	  RET	Z
+	  CP	'5'		;NUMERIC VERSION OF "CONNECT 1200"
+	  RET	Z
+	  INC	B		;PREP BUSY CODE B=1
+	  CP	'B'
+	  RET	Z
+	  INC	B		;PREP NO CONNECT MSG B=2
+	  CP	'N'		;N=NO CONNECT
+	  RET	Z
+	  CP	'3'		;NUMERIC VERSION OF "NO CONNECT"
+	  RET	Z
+	  LD	B,4		;PREP MODEM ERROR
+	  CP	'E'		;E=ERROR
+	  RET	Z
+	  CP	'4'		;NUMERIC VERSION OF "ERROR"
+	  RET	Z
+;
+; UNKNOWN RESPONSE, RETURN CARRY TO CALLER. BUT FIRST,
+; FLUSH THE UNKNOWN RESPONSE LINE FROM THE MODEM.
+;
+WTLF:	  CP	LF		;LINEFEED?
+	  SCF
+	  RET	Z		;END IF SO
+	  LD	C,INMDM		;NO. GET NEXT CHAR
+	  CALL	MEX
+	  JP	NC,WTLF		;UNLESS BUSY, LOOP
+	  RET
+;
+; Send string to the External Modem
+;
+SMSEND:	  LD	C,SNDRDY	;WAIT FOR MODEM READY
+	  CALL	MEX
+	  JP	NZ,SMSEND
+	  LD	A,(HL)		;FETCH NEXT CHARACTER
+	  INC	HL
+	  OR	A		;END?
+	  RET	Z		;DONE IF SO
+	  LD	B,A		;NO, POSITION FOR SENDING
+	  LD	C,SNDCHR	;NOPE, SEND THE CHARACTER
+	  CALL	MEX
+	  JP	SMSEND
+;
+; Shut down (disconnect) External Modem
+;
+SMDMOFF:  LD	A,(DIALAB)
+	  LD	B,A
+	  LD	C,SNDCHR
+	  CALL	MEX
+	  LD	B,20		;TWO SECOND WAIT TO SETTLE DOWN
+	  CALL	MTIME
+	  LD	A,(MODMTYP)	;TEST MODEM TYPE
+	  OR	A
+	  JP	Z,DISCON	;IF HAYES TYPE, JUMP TO DISCON
+	  RET			;IF ANCHOR, RETURN
+;
+; General utility routines
+;
+MILP:	  LD	C,ILP		;IN-LINE PRINT
+	  JP	MEX
+	  RET
+;
+MTIME:	  LD	C,TIMER		;MEX TIMER
+	  JP	MEX
+	  RET
+;
+CRLF:	  CALL	MILP		;PRINT CARRIAGE RETURN, LINE FEED
+	  DB	CR,LF,0
+	  RET
+;
+;==========================================================================
+;                            Data Area
+;==========================================================================
+;
+; Miscellaneous Default Data
+;
+SMDIAL:	  DB	'AT'
+;
+	   IF	SILENT
+	  DB	'M0'		;Turn off speaker during dialing
+	   ENDIF
+;
+	  DB	'DT'		;Smartmodem dial prefix
+;
+DIALBF:	  DS	52		;2* 24 CHAR MAX, + CR + NULL + SLOP
+DIALPT:	  DS	2		;DIAL POSITION POINTER
+DIALWD:	  DB	01000000B	;PULSE/TONE DIAL WORD
+DIGIT	  DB	0		;SAVE DIALED DIGIT
+MSPDSV:	  DB	0		;SAVE EXTERNAL MODEM MSPEED
+MONFLG:	  DB	0FFH		;0: MONITOR OFF - 0FFH: MONITOR ON
+ANSFLG:	  DB	0		;0: ORIGINATE   - 0FFH: ANSWER
+NDELAY:	  DB	30		;NO. SECONDS FOR ANSWER
+MODMTYP:  DB    0		;0=HAYES, ETC., - 0FFH=ANCHOR MODEM
+DIALAB:	  DB	CR		;CHARACTER TO USE TO ABORT DIAL SEQUENCE
+;
+SMATN:    DB	'+++',0		;Smartmodem online 'attention'
+SMDISC:	  DB	'ATH',CR,0	;Smartmodem disconnect (used by Anchor)
+SMINIT:   DB	'ATM1 S0=0 S7=60 Q0 X1',CR,0	;MODEM INIT STRING
+;
+EOSMSG:	  CLREND			;CLEAR TO END-OF-SCREEN
+	  DB	'$'
+CLSMSG:	  CLRCRT			;CLEAR WHOLE SCREEN
+	  DB	'$'
+;
+	  END
+TRING
+;
+EOSMSG:	  CLREND

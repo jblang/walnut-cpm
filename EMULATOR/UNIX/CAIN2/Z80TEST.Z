@@ -1,0 +1,197 @@
+; Z80TEST
+; tests the validity of a z80 emulation
+;
+
+; First we test a few flags to make sure that the emulator works enough
+; to test itself.  Basically we want to make sure we can test the flags
+; and jump to 0 if the processor does something unexpected.  If it passes
+; all of our tests then the OK string is printed and the program ends.
+; if there is a problem the program should end just after the problem
+; instructions.  This allows us to examine the debugger output at that
+; point without having to painstakingly follow the code all the way.
+
+	org     100h
+
+; test some flags flags first
+	ld		a, 0ffh
+	add     a, a
+	jp		nc, 0
+
+	ld		a, 1
+	add     a, a
+	jp		c, 0
+
+	xor		a, a
+	jp		nz, 0
+
+	inc     a
+	jp		z, 0
+
+	dec		a
+
+	jp		m, 0
+	dec		a
+	jp      p, 0
+
+	ld		a, 7fh
+	inc		a
+	jp		po, 0
+
+	and		0ffh
+	jp		pe, 0
+
+; adc and add
+add_test1	macro	reg
+	ld		reg, 34h
+	ld		a, 21h
+	add		a, reg
+	jp		c, 0
+	cp		55h
+	jp		nz, 0
+	scf
+	ld		a, 21h
+	adc		a, reg
+	jp		c, 0
+	cp		56h
+	jp		nz, 0
+	adc		a, a
+	jp		po, 0
+	adc		a, a
+	jp		nc, 0
+	ld		a, 0fh
+	ld		reg, 55h
+	and		reg
+	cp		5
+	jp		nz, 0
+	endm
+
+	ld		hl, test_var
+	add_test1	(hl)
+	ld		ix, test_var - 7
+	add_test1	(ix+7)
+	ld		iy, test_var - 7
+	add_test1	(iy+7)
+	add_test1	b
+	add_test1	c
+	add_test1	d
+	add_test1	e
+	add_test1	h
+	add_test1	l
+
+add_test2	macro	reg
+	ld		hl, 1234h
+	ld		reg, 4321h
+	add		hl, reg
+	jp		c, 0
+	ld		a, l
+	cp		h
+	jp		nz, 0
+	cp		55h
+	jp		nz, 0
+	scf
+	adc		hl, hl
+	ld		a, l
+	dec		a
+	cp		h
+	jp		nz, 0
+	cp		0aah
+	jp		nz, 0
+	endm
+
+	add_test2	bc
+	add_test2	de
+	add_test2	sp
+
+add_test3	macro	reg
+	ld		ix, 1234h
+	ld		reg, 4321h
+	add		ix, reg
+	jp		c, 0
+	push	ix
+	pop		hl
+	ld		a, l
+	cp		h
+	jp		nz, 0
+	cp		55h
+	jp		nz, 0
+	add		ix, ix
+	push	ix
+	pop		hl
+	ld		a, l
+	cp		h
+	jp		nz, 0
+	cp		0aah
+	jp		nz, 0
+	ld		iy, 1234h
+	ld		reg, 4321h
+	add		iy, reg
+	jp		c, 0
+	push	iy
+	pop		hl
+	ld		a, l
+	cp		h
+	jp		nz, 0
+	cp		55h
+	jp		nz, 0
+	add		iy, iy
+	push	iy
+	pop		hl
+	ld		a, l
+	cp		h
+	jp		nz, 0
+	cp		0aah
+	jp		nz, 0
+	endm
+
+	add_test3	bc
+	add_test3	de
+	add_test3	sp
+
+	ld		a, 21h
+	add		a, 34h
+	jp		c, 0
+	cp		55h
+	jp		nz, 0
+	scf
+	ld		a, 21h
+	adc		a, 34h
+	jp		c, 0
+	cp		56h
+	jp		nz, 0
+	adc		a, a
+	jp		po, 0
+	adc		a, a
+	jp		nc, 0
+	ld		a, 0fh
+	and		55h
+	cp		5
+	jp		nz, 0
+
+; that finishes the As!
+
+ld_imm	macro	reg
+	ld		reg, 34h
+	ld		a, 34h
+	cp		reg
+	jp		nz, 0
+	endm
+	ld_imm		a
+	ld_imm		b
+	ld_imm		c
+	ld_imm		d
+	ld_imm		e
+	ld_imm		h
+	ld_imm		l
+	ld_imm		(hl)
+
+	ld		de, ok
+	ld		c, 9
+	call	5
+	jp		0
+
+ok:
+	db		'OK', 0dh, 0ah, '$'
+
+test_var:
+	ds		100h
+

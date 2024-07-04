@@ -1,0 +1,197 @@
+15 April 1988
+
+Some time ago, I uploaded a file showing how to mailmerge letters
+using the popular public-domain ROFF4 formatter and a dBASE II
+database.  My first attempt was inelegant, to say the least -- it
+depended on cleaning things up with FINREP, and cutting the file
+vertically and PASTEing it together horizontally.  YECHH.
+
+What follows is a MUCH revised and much faster version.  Each section
+is described following the code.  Further, all you need on disk,
+besides the code given here, is dBASE II, a copy of GSUB20.COM, your
+favorite editor (see below) and ROFF4 (naturally).  Hope this is
+useful to somebody besides me -- it sure has made MY life easier!
+
+----------------------------------------------------------------
+1.  LIST.CMD -- dBASE's part of the job
+----------------------------------------------------------------
+SET TALK OFF
+STORE 0 TO RANGE
+STORE 1 TO CLASS
+SET DEFAULT TO C
+USE ZZZ
+ERASE
+@ 10,5 SAY "B0   Program to Generate Mailing List from DBASE II   C0"
+@ 15,5 SAY " "
+INPUT "Enter B01C0 for initial mailing, 0 for thankyou letters " TO CLASS
+	IF CLASS=1
+		ACCEPT "Enter date as MM/DD/YY" TO DATE
+			SET DATE TO &DATE
+			REPLACE LDATE WITH DATE() FOR &RANGE
+	ENDIF
+ACCEPT "Specify category of records to output" TO RANGE
+SET RAW ON
+	SET ALTERNATE TO C:MAIL
+		SET ALTERNATE ON
+			LIST OFF '*N1*'TRIM(FIRSTNAME)'**N2*'TRIM(LASTNAME)'**A1*'TRIM(ADDRESS)'*';
+		'*A2*'TRIM(CITY)'**A3*'STATE'**A4*'ZIPCODE'*' FOR &RANGE
+	SET ALTERNATE OFF
+ERASE
+@ 10,20 SAY "B0DONE!C0"
+	IF CLASS=1
+		QUIT TO 'S MERGE'
+	ENDIF
+QUIT TO 'S MERGE2'
+----------------------------------------------------------------
+COMMENTS:
+This .CMD file sets up a bunch of options for the merging.  In my
+particular case, I had to send out letters requesting interviews and
+then thank you notes afterwards, hence the 'CLASS' stuff.  It was
+important to know the date the interview was set for, but not the date
+that the 'thanks' letters were sent out, so I only update DATE() when
+sending out the first letters.
+
+The program allows you to specify a category of letters to merge.  You
+might enter something like 'INTERVIEW,' which would generate letters
+for all records where the variable INTERVIEW=true.  Any standard dBASE
+II expression or compound expression works here.
+
+The data are listed, spaced by '**,' to the file MAIL.TXT, and DATE()
+is updated IFF this is an initial mailing, and dBASE quits and calls
+GSUB20 (renamed to S.COM) on one of two 'sub' files.  The only
+difference is that MERGE sets up the list to call the INITIAL letter,
+and MERGE2 calls the 'thanks' letter.  See below for more details...
+
+
+----------------------------------------------------------------
+2.  MERGE.SUB (run by GSUB20.COM)
+----------------------------------------------------------------
+;this GOSUB file calls PW to edit the MAIL.TXT dBASE II file
+<^G^[B0TYPE BACKSPACE WHEN EDITOR STARTS^[C0^G||>
+A:PW MAIL.TXT
+{^[R^M*N1^[^M.SO RLET^M*N1^[^[R**^[*^M.DS *^[^[R^M*^[^M.DS *^[^K^K^K^XIHEADER^M^[>^M.SO RLET^M^X^S^X^C}
+<^G^[B0Ready for Merging with ROFF^[C0^G>
+----------------------------------------------------------------
+COMMENTS:
+I used Perfect Writer's editor to do this job, but I'll run through
+the commands in a minute.
+
+The first thing to note is that MOST editors (including VDE) will not
+accept command input from GSUB until a key is pressed -- hence the
+'warning' line prior to the line that calls the editor.  This warning
+is sent to the console -- otherwise, yu'll sit there and watch the
+screen doing nothing for quite a while.
+
+Then PW.COM goes to work.  It does the following, in the following
+order.  this can probably be improved upon, but since I run PW from a
+RAMdisk, I'm not going to worry about it.  It's FAST now!
+
+A.  REPLACE <CR>*N1 WITH .SO RLET<CR>*N1 [if this were MERGE2, it
+    would be TLET.  That's the only difference!]
+B.  REPLACE ** WITH *<CR>.DS *
+C.  REPLACE <CR>* WITH <CR>.DS *
+D.  DELETE 3 lines
+E.  INSERT the file HEADER
+F.  MOVE to EOF
+G.  ADD the text: <CR>.SO RLET<CR>
+H.  SAVE the file
+I.  EXIT to CP/M (still under GSUB control)
+
+And then you get the message:  READY FOR MERGING.  Ta Da!
+
+The text of the HEADER file appears below:
+
+
+----------------------------------------------------------------
+3.  HEADER (to make sure ROFF defaults are right)
+----------------------------------------------------------------
+.HE ////
+.LS 1
+.12
+..\DATE\
+..\CALLDATE\
+\DATE\ \CALLDATE\
+.BJ
+.CE 1
+^B*** LETTERS FOLLOW THIS PAGE ***^b
+..Do 'NR RAP.OUT' TO MERGE PROPERLY
+..BP
+----------------------------------------------------------------
+COMMENTS:
+This text sets the defaults of ROFF to NO HEADER, SINGLE SPACING, and
+sends the code to set my Anderson-Jacobson printer into 12 pitch
+(that's optional, controlled through the ROFF macro '.12').  Next, the
+header asks for two dates -- DATE, which is the date of the letter,
+and CALLDATE, which is used in the text of the initial mailing.  These
+can be entered however you like -- e.g., '15 April 1988.'  Then a
+cover page for the run is printed (in my case, to allow the A-J to get
+into 12-pitch properly) and ejected.
+
+What happens now is that ROFF reads in the first set of fields from
+MAIL.TXT (N1-A4), and then calls the letter text, RLET.  A sample
+letter (TLET) appears below:
+----------------------------------------------------------------
+4.  RLET:  the Thanks LETter, and the final step.
+----------------------------------------------------------------
+.BP
+.TI +40
+\DATE\
+.SP 2
+.NF
+Mr. \N1\ \N2\
+\A1\
+\A2\  \A3\ \A4\
+.FI
+.SP
+Dear Mr. \N2\:
+.SP
+Thank you for allowing me to interview you as part of my study of the
+-------- ----------- --------.  Your cooperation has made my work much
+easier, and it is my hope that my completed dissertation will be
+useful to --- in return.     
+                             
+I expect to take about one year to complete the interviews and writing
+of my dissertation.  If you should have any questions during that
+time, or if you come across anything that you think might be useful in
+my study (old newspaper clipping relating to ---, etc), please feel
+free to write to me at the address given above.
+
+Again, many thanks for being so generous with your time.
+.SP 2
+.IN +40
+.NF
+Sincerely,
+
+
+
+Andrew Marchant Shapiro
+.IN
+----------------------------------------------------------------
+COMMENTS:
+The .BP makes sure each letter begins on a new page.  Then the
+formatter moves over 40 columns (temporarily) to print the value of
+the variable DATE.  It spaces down 2 lines, turns filling off (so the
+address will appear verbatim) and fills out the address with the
+values of N1, N2, A1, A2, A3 and A4, respectively.
+
+Then it turns filling back on, spaces, uses N2 again in the
+salutation, spaces, and types out the body of the letter.  Note that
+the letter ends with .IN -- this is critical! Otherwise, the next
+letter will start at column 40, and each letter after that likewise. 
+And you wouldn't want that!
+----------------------------------------------------------------
+
+That does it.  It looks confusing, I know, but it works.  The major
+advantage of this over, for example, WS, is that since ROFF is a
+formatter, the text doesn't get handled until AFTER variables are
+substituted.  So, if you wanted to insert somebody's name into a
+letter, neither very long or very short names would cause problems. 
+ROFF would 'fill' the text to fit.  Besides, ROFF is FREE!!  You can't
+beat that...
+
+	                             Andrew Marchant Shapiiro
+                              Chicago
+                              Contact via:
+                              ADVOCATE/312-939-4411
+
+ A1, A2, A3 and

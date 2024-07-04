@@ -1,0 +1,738 @@
+.op
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              
+                              
+                                   Hitachi HD64180
+                                 Summary of Features
+                                      Revision 2
+                              
+                                     Prepared  by
+                                     Richard Conn
+                              
+                              
+                                      10 Sep 85
+                              
+                              
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+Information Taken From        ||||||||||||||||||||||||||
+"Hitachi HD64180 8-Bit        ||||||||||||||||||||||||||
+ High Integration CMOS        ||||||||||||||||||||||||||
+ Microprocessor Data Book",   ||||||||||||||||||||||||||
+ Advance Information,         ||||||||||||||||||||||||||
+ February 1985                ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              
+                                   Echelon, Inc.
+                                   101 First Street
+                                   Suite 427
+                                   Los Altos, CA  94022
+                                   415-948-3820
+                              
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+                              ||||||||||||||||||||||||||
+.pa
+
+
+
+               Hitachi HD64180 Summary of Features
+
+
+
+
+
+                T A B L E   OF   C O N T E N T S
+
+  1. Hitachi HD64180............................................1
+
+  2. Central Processing Unit (CPU)..............................2
+     2.1. Z80 Instruction Set with additions....................2
+     2.2. Registers.............................................2
+     2.3. Interrupt Modes.......................................3
+
+  3. Memory Management Unit.....................................7
+     3.1. MMU Registers: CBAR, CBR, BBR.........................7
+     3.2. Address Translation Examples..........................9
+
+  4. Direct Memory Access Controller...........................11
+
+  5. Asynchronous Serial Communication Interface (ASCI)........12
+
+  6. Clocked Serial Input/Output Port (CSI/O)..................13
+
+  7. Programmable Reload Timer (PRT)...........................13
+
+
+.pa
+.pn 1
+
+
+                         1. Hitachi HD64180
+
+
+     64-pin DIP Chip which provides the functions of
+     many elements of a computer system, including:
+
+
+          o Central Processing Unit (CPU)
+
+               - Upward compatable to the Z80
+
+
+          o Memory Management Unit (MMU)
+
+               - Allows addressing of 512K bytes
+
+
+          o 12-Level Vectored Interrupt Controller
+
+               - Supports both internal and external
+                 interrupt sources
+
+
+          o 2-channel Direct Memory Access Controller (DMAC)
+
+               - Allows memory-to-memory, memory-to-I/O,
+                 and memory-to-memory-mapped-I/O transfers
+
+
+          o 2-channel Asynchronous Serial Communications
+            Interface (ASCI)
+
+               - Like UARTs, with speeds from 150 baud to
+                 38,400 baud
+
+
+          o 1-channel Clocked Serial I/O Port (CSI/O)
+
+               - For high-speed interprocessor communication
+                 at 200K baud
+
+
+          o 2-channel Programmable Reload Timer (PRT)
+
+               - 16-bit counter driven by phi/20
+
+
+          o Dynamic RAM Refresh Circuit
+
+               - Refreshes dynamic RAMs without the need for
+                 additional external support chips
+
+.pa
+
+                  2. Central Processing Unit (CPU)
+
+
+               2.1. Z80 Instruction Set with additions:
+
+               o SLP (SLEEP Mode)
+                    - Similar to HALT, but low-power
+                    - Compare SLEEP and HALT
+
+          Function            HALT           SLEEP
+          Internal CPU Clock  Active         Stops
+          Int Crystal Oscill  Active         Active
+          Interrupt System    Functional     Functional
+          DRAM Refresh        Active         Stops
+          Internal I/O Sys    Active         Active
+          DMAC System         Active         Stops
+          Address Bus         Active (Dummy) High
+          Data Bus            Active (Dummy) Tristate
+          Exits
+               Reset          Operational    Operational
+               Interrupt      Operational    Operational
+
+
+               o MLT (Multiply)
+                    - BC=B*C, DE=D*E, HL=H*L, SP=S*P
+
+               o Special I/O Instructions for On-Chip Devices
+                    - IN0, OUT0 like IN, OUT
+                    - OTIM, OTIMR, OTDM, OTDMR are Block I/O
+                         Load from (HL) to port (C) for (B)
+                         bytes, increment HL and C, decrement B
+
+               o Test Instructions (Non-Destructive AND)
+                    - Test register, immediate, memory
+                    - Test I/O port
+
+
+                            2.2. Registers
+
+               o Same Set as Z80
+
+               o Interrupt Vector Register functions are
+                    extended over the Z80
+
+.pa
+            Central Processing Unit (CPU), Continued
+
+
+                         2.3. Interrupt Modes
+
+               o 12 Interrupt Sources
+                    - TRAP (Undefined Op-code Trap)
+                    - NMI (Non-Maskable Interrupt from pin)
+                    - INT0, INT1, INT2 (Maskable from pin)
+                    - Internal Timers 0 and 1
+                    - DMA Channels 0 and 1
+                    - Clocked Serial I/O Port
+                    - ASCI channels 0 and 1
+
+               o NMI is similar to NMI on the Z80
+
+               o INT0 is similar to Maskable Interrupts on Z80
+                    - Mode 0 allows instruction fetch from
+                      data bus (1-byte RST, like 8080)
+                    - Mode 1 forces restart at 38H
+                    - Mode 2 fetches low byte of vector table
+                      from the address bus, high byte from I
+                      register; this is address of address of
+                      interrupt service routine
+
+               o INT1 and INT2 similar to INT0 Mode 2, but
+                 low-order 5 bits are fixed (00000 for INT1
+                 and 00010 for INT2), IL register provides
+                 next 3 bits (set by user), and I register
+                 provides upper 8 bits (set by user)
+
+               o Other interrupt sources, such as timers,
+                 DMACs, CSI/O, and ASCI, function like INT1
+                 and INT2; values supplied to low-order 5
+                 bits are:
+
+          Interrupt      Low-Order 5 Bits    Priority
+          INT1              0 0 0 0 0        Highest
+          INT2              0 0 0 1 0
+          Timer 0           0 0 1 0 0
+          Timer 1           0 0 1 1 0
+          DMAC 0            0 1 0 0 0
+          DMAC 1            0 1 0 1 0
+          CSI/O             0 1 1 0 0
+          ASCI 0            0 1 1 1 0
+          ASCI 1            1 0 0 0 0        Lowest
+
+
+.pa
+            Central Processing Unit (CPU), Continued
+
+                   Interrupt Modes, Continued
+
+               o Short Explanations of Interrupts
+
+
+                               NMI
+
+     1. Interrupt is Signalled on NMI Pin
+     2. PC is pushed onto stack by CPU
+     3. Instruction at 66H is executed as first instruction of
+          Interrupt Service Routine
+     4. RETN instruction returns from Non-Maskable Interrupt
+
+
+                          INT0, Mode 0
+
+     1. Interrupt is Signalled on INT0 Pin
+     2. Interrupting Device Places 1-byte Instruction (RST)
+          on Data Bus
+     3. Processor Performs Subroutine Call to Memory Locations
+          0, 8, 10H, 18H, 20H, 28H, 30H, or 38H
+     4. Interrupt Service Routine runs from there
+
+
+                          INT0, Mode 1
+
+     1. Interrupt is Signalled on INT0 Pin
+     2. PC is pushed onto stack by CPU
+     3. Instruction at 38H is executed as first instruction of
+          Interrupt Service Routine
+     4. RETI instruction returns from Interrupt
+
+
+                          INT0, Mode 2
+
+     1. Interrupt is Signalled on INT0 Pin
+     2. PC is pushed onto stack by CPU
+     3. Interrupting device places low-order 8 bits of address
+          of address table on data bus and is picked up by CPU
+     4. I Register contains high-order 8 bits of address of
+          address table
+     5. I Register + 8-bit Data Bus forms 16-bit Address of
+          address table entry low-byte; next byte is high-byte;
+          high-byte and low-byte combine to form address of
+          Interrupt Service Routine
+     6. PC is pushed onto stack by CPU
+     7. RETI instruction returns from Interrupt
+     8. Various devices work in this way, such as Z80-CTC,
+          Z80-DMA, Z80-SIO, Z80-DART, and they sense the RETI
+          instruction on the data bus to reset themselves as
+          well as providing the low-order 8 bits of the address
+          of the address table entry
+.pa
+            Central Processing Unit (CPU), Continued
+
+                   Interrupt Modes, Continued
+
+               o Short Explanations of Interrupts, Continued
+
+
+   -- Picture of INT0, Mode 2 Interrupt Vector Acquisition --
+
+          16-bit Vector                 Memory
+
+     -----------------------
+     | I Reg    | Data Bus |
+     -----------------------
+          |          |               --------------------
+     Base Page    Offset             | High-order bits  |
+          |          |               --------------------
+          -------------------------> | Low-order 8 bits |
+          |                          --------------------
+         ...                                 ...
+          |                          --------------------
+          -------------------------> | First entry, Low |
+                                     --------------------
+
+
+               INT1, INT2, and Internal Interrupts
+
+     1. Interrupt is Signalled on INT1 or INT2 Pin or by
+          Internal Interrupt Source (Timer 0 or 1,
+          DMAC 0 or 1, CSI/O, or ASCI 0 or 1)
+     2. Like INT0, Mode 2 Interrupts except:
+          Low-order 5 bits come from fixed code associated
+          with the source, next 3 bits come from IL register,
+          and high-order 8 bits come from I register
+     3. PC is pushed onto the stack
+     4. RETI returns from Interrupt
+
+
+-- Picture of INT1, INT2, and Internal Interrupt Vector Acquisition --
+
+          16-bit Vector                 Memory
+         8        3     5
+     ------------------------
+     | I Reg    | IL | Code |
+     ------------------------
+          |          |               --------------------
+     Base Page    Offset             | High-order bits  |
+          |          |               --------------------
+          -------------------------> | Low-order 8 bits |
+          |                          --------------------
+         ...                                 ...
+          |                          --------------------
+          -------------------------> | First entry, Low |
+                                     --------------------
+.pa
+            Central Processing Unit (CPU), Continued
+
+                   Interrupt Modes, Continued
+
+               o Short Explanations of Interrupts, Continued
+
+
+                         TRAP Interrupt
+
+     1. Triggered by undefined op-code fetch in 1st, or 2nd
+          byte of instruction
+     2. PC, which points to bad byte, is saved on stack
+     3. Vector to logical (depending on bank) address 0
+     4. Can be used to handle "extended" instruction set
+
+
+
+              ITC (Interrupt/Trap Control) Register
+
+     1. TRAP bit indicates if TRAP interrupt occurred; may
+          be reset by software
+     2. UFO (Undefined Fetch Object) bit indicates which opcode
+          TRAP occurred on
+     3. ITE0, ITE1, and ITE2 bits enable/disable INT0, INT1, and
+          INT2 interrupts
+     4. EI and DI instructions apply to enabled interrupts only
+
+
+                   IL (Interrupt Low) Register
+
+     1. Used in conjunction with INT1 and INT2
+     2. High 3-bits may be read and written by software
+
+
+                     I (Interrupt) Register
+
+     1. Used in conjunction with INT0 Mode 2, INT1, and INT2
+     2. Similar to Z80 I Register
+     3. May be read and written by software
+
+
+.pa
+
+                     3. Memory Management Unit
+
+
+     o 19 address pins are coming off the chip (A0 to A18)
+
+
+     o the 19th pin is software selectable as address or
+          timer pulse (timer 1)
+
+
+     o all memory is divided into 64K banks, each bank containing
+          three areas:
+
+                    ---------------------
+                    |                   |
+                    |  Common Area 1    |
+                    |                   |
+     CBAR High ---> ---------------------
+                    |                   |
+                    |  Bank Area        |
+                    |                   |
+     CBAR Low ----> ---------------------
+                    |                   |
+                    |  Common Area 0    |
+                    |                   |
+                    ---------------------
+
+
+
+                  3.1. MMU Registers: CBAR, CBR, BBR
+
+
+     o CBAR (Common/Bank Area Register) contains the high-order
+          4 bits of the base address of Common Area 1 in
+          its high-order 4 bits (CBAR High) and the high-order
+          4 bits of the base address of Bank Area in its
+          low-order 4 bits (CBAR Low)
+
+                              CBAR
+
+               4 bits              4 bits
+          -------------------------------------------
+          | Common Area 1 Base | Bank Area Base     |
+          -------------------------------------------
+
+.pa
+                Memory Management Unit, Continued
+
+                    MMU Registers, Continued
+
+
+     o CBR (Common Base Register) specifies high-seven bits
+          of 19-bit effective address of Common Area 1; if
+          16-bit address is in Common Area 1 (high 4 bits
+          >= CBAR high), then add CBR to high 4 bits to
+          get high 7-bits of address
+
+                              16 Bits Total
+                         -------------------------------
+     Logical Address     | High 4 | Lower 12 Bits      |    
+                         -------------------------------
+                              +         |
+                  -----------------     |
+     CBR          | Hi 3 | Low 4  |     |
+                  -----------------     |
+                    |                   |
+                    |                   |
+                    V                   V
+                         19 Bits Total
+                  --------------------------------------
+Physical Address  | High 7 Bits   | Lower 12 Bits      |
+                  --------------------------------------
+
+     o BBR (Bank Base Register) specifies high-seven bits
+          of 19-bit effective address of Bank Area; if
+          16-bit address is in Bank Area (high 4 bits
+          >= CBAR low and < CBAR high), then add BBR to
+          high 4 bits to get high 7-bits of address
+
+                              16 Bits Total
+                         -------------------------------
+     Logical Address     | High 4 | Lower 12 Bits      |    
+                         -------------------------------
+                              +         |
+                  -----------------     |
+     BBR          | Hi 3 | Low 4  |     |
+                  -----------------     |
+                    |                   |
+                    |                   |
+                    V                   V
+                         19 Bits Total
+                  --------------------------------------
+Physical Address  | High 7 Bits   | Lower 12 Bits      |
+                  --------------------------------------
+
+
+.pa
+                Memory Management Unit, Continued
+
+                  3.2. Address Translation Examples
+
+          1. CBAR Low = 0, CBAR High = F
+
+                    Memory
+               ----------------
+               | Common Area 1|  4K
+     F000H --> ----------------
+               |              |
+               | Bank         | 60K
+               |    Area      |
+               |              |
+     0000H --> ----------------
+
+
+
+     Let CBR = 70H, BBR = 0
+
+     Memory Regions Mapped
+          Common Area 0: Not Mapped
+          Bank Area    : 00000H to 0EFFFH
+          Common Area 1: 7F000H to 7FFFFH
+
+          Logical Address     Physical Address
+               0 000          0 000 + 0 0 000 = 00000H (Bank)
+               4 02C          4 02C + 0 0 000 = 0402CH (Bank)
+               E FFF          E FFF + 0 0 000 = 0EFFFH (Bank)
+               F 000          F 000 + 7 0 000 = 7F000H (Common 1)
+               F 21A          F 21A + 7 0 000 = 7F21AH (Common 1)
+ 
+     Let CBR = 60H, BBR = 20H
+
+     Memory Regions Mapped
+          Common Area 0: Not Mapped
+          Bank Area    : 20000H to 2EFFFH
+          Common Area 1: 6F000H to 6FFFFH
+
+          Logical Address     Physical Address
+               0 000          0 000 + 2 0 000 = 20000H (Bank)
+               4 02C          4 02C + 2 0 000 = 2402CH (Bank)
+               E FFF          E FFF + 2 0 000 = 2EFFFH (Bank)
+               F 000          F 000 + 6 0 000 = 6F000H (Common 1)
+               F 21A          F 21A + 6 0 000 = 6F21AH (Common 1)
+ 
+
+.pa
+                Memory Management Unit, Continued
+
+             Address Translation Examples, Continued
+
+          2. CBAR Low = 2, CBAR High = F
+
+                    Memory
+               ----------------
+               | Common Area 1|  4K
+     F000H --> ----------------
+               |              |
+               | Bank         | 52K
+               |    Area      |
+               |              |
+     2000H --> ----------------
+               | Common Area 0|  8K
+     0000H --> ----------------
+
+
+
+     Let CBR = 70H, BBR = 20H
+
+     Memory Regions Mapped
+          Common Area 0: 00000H to 01FFFH
+          Bank Area    : 20000H to 2EFFFH
+          Common Area 1: 7F000H to 7FFFFH
+
+          Logical Address     Physical Address
+               0 000          0 000 + 0 0 000 = 00000H (Common 0)
+               4 02C          4 02C + 2 0 000 = 2402CH (Bank)
+               E FFF          E FFF + 2 0 000 = 2EFFFH (Bank)
+               F 000          F 000 + 7 0 000 = 7F000H (Common 1)
+               F 21A          F 21A + 7 0 000 = 7F21AH (Common 1)
+ 
+     Let CBR = 60H, BBR = 40H
+
+     Memory Regions Mapped
+          Common Area 0: 00000H to 01FFFH
+          Bank Area    : 40000H to 4EFFFH
+          Common Area 1: 6F000H to 6FFFFH
+
+          Logical Address     Physical Address
+               0 000          0 000 + 0 0 000 = 00000H (Common 0)
+               4 02C          4 02C + 4 0 000 = 4402CH (Bank)
+               E FFF          E FFF + 4 0 000 = 4EFFFH (Bank)
+               F 000          F 000 + 6 0 000 = 6F000H (Common 1)
+               F 21A          F 21A + 6 0 000 = 6F21AH (Common 1)
+
+
+.pa
+
+                 4. Direct Memory Access Controller
+
+
+     o Source and Destination Memory Addresses are 19 bits
+          long (anywhere within 512K bytes)
+
+     o I/O addresses are 16 bits long
+
+     o Transfer Length is 64K bytes (16-bit length register)
+
+     o Channel 0 can do memory-to-memory, memory-to-I/O, and
+          memory-to-memory-mapped-I/O transfers; registers:
+               SAR0      Source Address Register
+               DAR0      Destination Address Register
+               BCR0      Byte Count Register
+
+     o Channel 1 can do memory-to-I/O transfers only; registers:
+               MAR1      Memory Address Register
+               IAR1      I/O Address Register
+               BCR1      Byte Count Register
+
+     o Other registers and some of their data:
+               DSTAT     DMA Status
+                              Enable/Disable Channels 0 and 1
+                              Enable/Disable Interrupts 0 and 1
+               DMODE     DMA Mode (Channel 0 Only)
+                              Destination Memory or I/O
+                              Source Memory or I/O
+               DCNTL     DMA/WAIT Control
+                              Memory Wait, I/O Wait
+                              Memory-to-I/O or I/O-to-Memory
+
+
+                      -- The DMA Concept--
+
+     1. Set up DMA Controller to Perform Transfer Function
+          Specify source, destination, etc
+
+     2. Initiate Transfer Function and then Proceed with
+          other Processing
+
+     3. Either check for transfer complete at later time or
+          be interrupted by DMA controller
+
+     4. With 2 DMA Channels, two DMA transfers can be going
+          on at once
+
+.pa
+
+       5. Asynchronous Serial Communication Interface (ASCI)
+
+
+     o Full Duplex
+     o 7- or 8-bit Data Length
+     o Software-controlled 9th Data Bit for Multiprocessor Comm
+     o 1 or 2 Stop Bits
+     o Odd, Even, or No Parity
+     o Parity, Overrun, or Framing Error Detection
+     o Programmable Baud Rate Generator to 38,400 baud
+     o Control Signals
+          Channel 0 has DCD (in), CTS (in), RTS (out)
+          Channel 1 has CTS (in)
+     o Can Generate Internal Interrupts
+     o Works with DMA Controllers
+
+
+
+                       -- SPECIAL NOTE --
+
+     The  DCD line for ASCI Channel 0 shuts down the receiver  of 
+Channel 0 when not true (logic 1,  since it is active low)!  This 
+prohibits  operation  of the ASCI with devices which use  DCD  to 
+indicate  the  presence of a carrier but need to be  communicated 
+with whether a carrier is available or not.   One such device  is 
+the  DC  Hayes Smartmodem.   The CTS line may not be used  as  an 
+alternate to DCD since loss of CTS shuts off the transmitter TDRE 
+bit (but not the transmitter itself - just the status bit).  This 
+information  is  documented in the 64180 manual on page  67,  2nd 
+paragraph, and page 72, 1st and 2nd paragraphs.
+
+     A  possible  solution,  which requires  additional  external 
+circuitry,  is to OR the Channel 0 RTS output with the DCD  input 
+and  feed this into the Channel 0 DCD input.   With this circuit, 
+when the software needs to communicate regardless of the state of 
+the  carrier,  RTS  can  be set true.   ORing with  a  false  DCD 
+generates  a  true  input to  the  64180,  and  communication  is 
+enabled.  When normal communication is in play, RTS should be set 
+to  false so that DCD can truly be monitored and loss of  carrier 
+detected.   The  RS-232C RTS signal should be forced true if this 
+external circuitry is in place.
+
+
+          HD64180            Incoming DCD
+     ---------------------    V
+     |                   |    ---| OR ->--   NOTE:
+     |       RTS0/Pin 42 -->-----|       |   All logical
+     |                   |               |   levels are
+     |       DCD0/Pin 44 ----------<------   inverted, so
+     |                   |                   a simple OR
+     ---------------------                   should be enough
+
+
+.pa
+
+     Another  possible  solution  (proposed by  Ken  Davidson  at 
+Micromint)  is to wire the incoming DCD to the CTS input.   While 
+loss  of DCD terminates the output status checking  function,  it 
+does not terminate the output function itself.   Hence, chars may 
+be output by entering a relatively long timing loop (to make sure 
+the  last  byte had plenty of time to be clocked  out)  and  then 
+outputting the next byte.   This solution requires no significant 
+additional  wiring  and the SB180 (from Micromint) can handle  it 
+easily.
+
+
+
+            6. Clocked Serial Input/Output Port (CSI/O)
+
+
+     o Uses Internal or External Clock
+
+     o Can be polled or interrupt-driven
+
+     o Speeds up to 200K baud
+
+
+
+
+                 7. Programmable Reload Timer (PRT)
+
+
+     o Two Channels
+
+     o 16-bit Down Counter and 16-bit Reload Register
+
+     o Output can be in the form of interrupts or pulsing the
+          A18/TOUT pin
+
+
+                         -- Operation --
+
+     1. Set Down Counter and Reload Registers
+     2. Set control flags (use interrupts, use TOUT, use both)
+     3. Start timer
+     4. When timer goes off, it starts over from reload
+          register value
+     5. Timer can be stopped at any time
+
+
+

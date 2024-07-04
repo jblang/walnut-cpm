@@ -1,0 +1,385 @@
+
+NOTES ON USING THE RBBxxx27 PROGRAMS WITH COMPLETE SAMPLES
+                     OF SUPPORT FILES
+ 
+     (Ben Bronson, HP/RCPM, 312-955-4493, 10/31/81)
+
+-------------------------------------------------------------
+The 3 BAS files that accompany this are the versions of
+ENTERBBS, MINIRBBS, and EXITBBS currently being run on the
+Hyde Park Remote CP/M system, as of October 30, 1981.  They
+represent a good many small changes from ENTBBS26 & MINBBS26
+as released several months ago.  Their names have also been
+changed so that they stay together when listed by a sorting
+directory program.  They are now called:
+
+              RBBENT27.BAS (or BQS if squeezed)
+              RBBMIN27.BAS and
+              RBBEXIT1.BAS
+
+The 3rd is identical with EXITBBS1.BAS; if you already have
+that, there is no need to take it again.  Maintenance on
+several of the files has to be performed by
+
+             RBBUTL22.BAS
+
+which seems to be too good a program for anybody to have
+tried changing.  You will need it.
+
+The general way one gets these programs up and running as
+parts of a remote system is described in RBBSNSTL.DOC.  The
+versions presented here have been tested extensively and
+should run right out of the box with MBASIC 5.x (for testing)
+and with any recent BASCOM (for actual use--an interpreter
+is much too slow for BBS-type functions.)  The only thing
+you're likely to have trouble with is integrating your clock
+(if you own one, and they're nice to have on a RCPM system)
+with the other routines.  These particular versions are con-
+figured to run with a Mountain Hardware 100,000-day clock,
+one of the most old-fashioned and hardest to handle of the
+major brands.  Other sysops are urged to separate out their
+own clock routines and make these available on the RCPM net-
+work.  If they are called something like "RBSCLK1.BAS", etc.,
+then the filenames will make their function clear.
+
+In order to put these programs on line, you could easily
+enough do without a clock for a while (in which case you
+might delete the time stuff--it's easy enough to identify),
+but you'll still need BYE (to answer the telephone and do
+all the rest of the modem handling) and a program like
+SECURITY (to jump the user to the user area where you keep
+ENTERBBS.COM, MINIRBBS.COM & EXITBBS.COM with their various
+support files--if they can't find those files, they'll hang 
+the system up).  The latest BYE as of 10/30/81 is BYE72 or
+73, but any version will do just as long as it has the capab-
+ility of loading a COM file.  The COM file in question is of
+course ENTERBBS.
+ 
+For security's sake, most of these files should be made $SYS
+files and tagged to be unxmodemable with TAG.COM if they are
+to be left in user areas accessible to remote users.  Many
+sysops prefer to keep all such files in high user areas and
+to use SECURITY.COM to let users communicate with them.
+
+Note that these are the 'split' RBBS or RIBBS, with the
+log-on and message-service parts divided into separate
+modules and a log-off module added.  If you're planning to
+emphasize messages (to run a real BBS), you'll probably be
+happier using RBBS24 or RBBS25 and adding whichever features
+of RBBENT27 and RBBMIN27 look useful.  Most RCPM sysops, on
+the other hand, prefer to have the message-exchange part of
+their systems in a more inaccessible position, to discourage
+people interested primarily in bulletin board functions and
+to conserve disk space for software rather than chitchat.
+The 'split' RBBS was invented for them.
+
+Note too that the program size cost of splitting RBBS when
+compiled with the old BASCOM is much less severe now that
+BASCOM 3.0 is available.  ENTERBBS, MINIRBBS and EXITBBS
+used to need almost 80 K between them for the COM files
+alone, not counting the support files.  With BASCOM 3.0,
+they are down to less than 50K, counting BRUN.
+
+The compiled versions are fast-running.  Although slightly
+slower than assembly-language programs like CBBS (which you
+should certainly try if you're good at programming in assem-
+bler), they are fast enough that most people don't notice the
+difference.  The still-substantial size of the programs makes
+them slow to load, however.  ENTERBBS is pre-loaded by BYE,
+so its size is not an issue.  And MINIRBBS and EXITBBS load 
+fast enough when CHAINed-to by ENTERBBS.  But when loaded
+from CP/M, either can take 10 or more seconds, and that can 
+boredom among your users.  Keep them on outer disk tracks,
+and make sure BRUN is nearby if you're using versions compiled
+with BASCOM 3.0.  And if your controller and disks are slow,
+comsider doing without EXITBBS entirely.
+
+Below are samples of all the support files used by the
+programs.  Looking at them and the programs themselves should
+make it fairly clear how they work.
+
+There are 13 files in all, none with filetypes added to their
+names:
+     :  LASTCALR,  CALLERS,  USERS,     PWDS,   COUNTERS,
+        MESSAGES,  SUMMARY,  COMMENTS,  ENTRY,  NEWCOM,
+        BULLETIN,  DATA,     SPECIAL
+
+---------------------------------------------------------------
+
+0. The LASTCALR file:
+         (Created by ENTERBBS; used by all 3 programs)
+
+CHUCK,WITBECK,SP,10/28/81
+
+[A very short file whose main function is to pass name, status
+ and date information between the programs.  If at the next
+ log-on, ENTERBBS discovers that the new caller has the same
+ name as that stored in LASTCALR, it drops that person to CP/M
+ immediately.  Otherwise it overwrites the old name with the
+ new one]
+
+---------------------------------------------------------------
+
+1. The CALLERS file:
+         (Created & used only by ENTERBBS)
+
+ 12                                                       
+MICHAEL KATZ  28- 0:32                                    
+TODD DUPONT  28- 2:15                                     
+PETE JONES  28- 6:15                                      
+DOUG MEYERS  28- 7:26                                     
+ROD HART  28- 8: 8                                        
+DAVID STERNLIGHT  28- 8:44                                
+GEORGE KOTCHER OAK PARK, IL 28- 9:13                      
+BOB FISHER  28-10: 0                                      
+DAVID BORUFF  28-12:20                                    
+EARL BOCKENFELD  28-12:41                                 
+JACK RUBIN  28-13:10                                      
+DICK LIEBER  28-17:26                                     
+
+[The number at the beginning counts lines; those following the
+ names are the day and time when that user logged on.  First-
+ time callers get their city and state recorded as well as 
+ their names.  
+
+[Between 40 and 180 chaacters of garbage will usually follow
+ the last line of the file itself. The first 2 or 3 of these 
+ 'garbage' characters are actually used by MBASIC in handling
+ the file; if you go into CALLERS (or USERS or COUNTERS) with
+ an editor, leave these chars alone...  Each line is 59 chars 
+ long (plus CR/LF, etc.), no matter how long the caller's name
+ and city/state is.  You'll have to use an editor sometimes
+ to cut it down unless you just wipe it out periodically and
+ let a new CALLERS file accumulate.  As with most other files
+ listed here, you'll probably want to hide this as a $SYS file
+ if you keep it in a publicly accessible user area.]
+--------------------------------------------------------------
+
+2. The USERS file :
+  (Created & used only by ENTERBBS)
+
+ 12                                                         
+- JOHN BOWDEN CHICAGO,IL                            19 10/16
+* TWEETY BIRD HILLSIDE,IL                            4 10/10
+  STUART SCHUMKLER CHICAGO,IL                        1 09/20
+  JEFF BARRINGTON ROANOKE, VA                        1 09/21
+* NONE OF YOUR BUSINESS, SCREW YOU                   2 09/22
+  KEN METHENY LISLE,IL                               1 09/22
++ CHUCK WITBECK CHICAGO, IL                         29 10/25
+  JACK JONES CHGO,ILL                                1 09/26
++ EARL BOCKENFELD CHICAGO,IL                        38 10/27
+  GREG WILLIAMS HOMEWOOD,IL                          7 10/08
+  PAVEL BREDER DALY CITY,CA                          1 09/26
+  IVAN THE TERRIBLE CHICAGO,IL                       2 09/27
+
+[The symbols in the first space of each line are inserted
+ with an editor (Wordmaster or WordStar in N (not D) mode)
+ that does not automatically lengthen the line to accomodate
+ an inserted char.  Making any line even 1 char longer willŠ confuse MBASIC. The symbols indicate that Chuck Witbeck, a
+ fellow sysop, is a special ("SP") user, that John Bowden
+ is a regular ("RG") user, that Tweety Bird is a twit and
+ will be logged off immediately, and that the rest are rel-
+ atively new ("NW") users who receive no special privileges.
+
+[The rest of each line is created automatically by ENTERBBS
+ when a user first logs in.  The program keeps track of the 
+ number of later logons by that user as well as the month &
+ day of his latest call.
+
+[Again, the garbage at the end is necessary and should not be
+ removed during editing.]
+
+-------------------------------------------------------------
+
+3. The PWDS File:
+         (Created with editor, used by ENTERBBS)
+
+BEN,BANANA,ORANGE
+
+ [The first is P1$, the second P2$, etc.  You can get as
+  fancy as you like by extending the number of password
+  steps in ENTERBBS]
+
+-------------------------------------------------------------
+
+
+4. The COUNTERS File:
+         (created & changed by ENTERBBS and MINIRBBS)
+
+ 54   4343 605 
+
+ [As you see, it's very short.  The first number is that of
+  active messages and the second that of total calls since 
+  the system went into operation, while the third counts the
+  total number of users.  ENTERBBS & RBBSUTIL take care of this
+  one.  You don't have to do anything except be sure that it
+  is on the same disk whenever CALLERS & USERS are incremented
+  and messages are left or purged.]
+
+---------------------------------------------------------------
+
+5. The MESSAGES File:
+         (Created & added to by MINIRBBS):
+
+ 183                                                           
+ 326                                                           
+08/31/81                                                       
+SYSOP                                                          
+ALL                                                            
+BACKUP S-100 SYS WANTED                                        
+ 4                                                             
+I'm still in the market for a backup S-100 system.  With an    
+8" drive and otherwise in integrated, working condition.       
+Leave a msg if you have anything like that you might be inter- 
+ested in selling.                                              
+ 455                                                           
+10/5/81                                                        
+CHUCK FORSBERG                                                 
+BEN BRONSON                                                    
+PMMI YAM                                                       
+ 3                                                             
+Still no sign on a pmmi version of yam.  Perhaps one of you    
+folks could talk pmmi into sending me a board?? I have a       
+s-100 system here also, so wouldn't take long. ....            
+ 9999                                                        
+
+[There are only 2 messages in this sample file, which endsŠ with a 9999 marker.  The heading for each message contains
+ the message number, the date (entered automatically if you 
+ have a clock or manually otherwise), the sender, the
+ receiver, the subject, and the number of lines.
+
+[All maintenance is done by MINIRBBS & RBBSUTIL.  You normally
+ never have to enter MESSAGES with an editor.]
+
+-------------------------------------------------------------
+
+6. The SUMMARY File:
+         (Created and added to by MINIRBBS)
+
+ 183                        
+07/13/81                    
+CHUCK WEINGART              
+ALL                         
+CP/M CLUBS AND DISKS        
+ 12                         
+ 326                        
+08/31/81                    
+SYSOP                       
+ALL                         
+BACKUP S-100 SYS WANTED     
+ 4                          
+ 455                        
+10/5/81                     
+CHUCK FORSBERG              
+BEN BRONSON                 
+PMMI YAM                    
+ 3                          
+ 9999                       
+
+[SUMMARY is just the heading of each MESSAGE separated out
+ into a duplicate file, for speed in searching.  It too is
+ completely maintained by MINIRBBS & RBBSUTIL and is rarely
+ if ever edited directly]
+
+--------------------------------------------------------------
+
+7. The COMMENTS File:
+         (Created by & added to by MINIRBBS & EXITBBS)
+
+ 17                                                            
+From: CARMI WEINZWEIG 10/29/81                                 
+Thank you for the use of your system.                          
+               Sincerly,                                       
+                       Carmi Weinzweig                         
+From: ROY LIPSCOMB                                             
+Ben, one of the special commands is on the fritz again.        
+sorry about the # of logons today.  Trying to use              
+modem73 with short stack and screen-save (see 602).            
+Just kept blowing me away.                                     
+From: SIDNEY BRATKOVICH 10/29/81                               
+It would be nice if you could make your help a little more     
+useful: why print a line such as "level   2/  1: ~~^=CP/M      
+^=Level .=root ...." or "2: EOI  ^C=CP/M M=Menu S=Start ..."   
+when the beginning user has no idea of what they mean!!        
+does the modem boot routine work with Apple CP/M?              
+ It's a little difficult answering some of your survey         
+questions in 34 chars. or less. No other complaints though.    
+                               Sid                             
+
+
+ [COMMENTS is like a disorganized MESSAGES file with no
+  SUMMARY.  Since it is meant to be read by the sysop only,
+  it should always be TAGged so that it cannot be taken
+  with XMODEM or MLIST.  While you can read it remotely
+  (if you're the sysop) by using the '9' command from MINI-
+  RBBS, I find that I usually just read through it using
+  TYPE when a non-RCPM CP/M disk is in the "A" drive.  When
+  it gets too long, it has to be cut down in length using
+  an editor.  As before, be careful to keep the lines to
+  their original length and to leave the garbage at the
+  end.  MINIRBBS does not put the date in while EXITBBS
+  does; this could easily be changed.]
+--------------------------------------------------------------
+
+8. The ENTRY File:
+         (created by you with an editor)
+
+
+: THE MONDAY 'B' DISK WILL AGAIN BE EXTENDED DUE TO SYS CHANGES.
+: THE REGULAR 'B' PROGRAMS NOW WILL NOT BE BACK ON LINE UNTIL
+: NEXT TUESDAY.  THERE IS HOPE OF GETTING A 3RD DRIVE BY THEN.
+
+
+[ENTRY serves to pass a short bulletin or two to each caller.
+ On HP/RCPM, the "This is 312-955-4483" stuff is kept in a
+ in a similar file (also creaed with an editor) named WELCOME,Š which is called by BYE before it passes control to ENTERBBS. 
+ Except for the time stamp, ENTRY is the first thing the caller
+ sees that is printed by ENTERBBS and not BYE.
+
+ Any editor will do.  Even WordStar in Document mode if you
+ want.  But the file must be called ENTRY with no filetype.]
+
+---------------------------------------------------------------
+
+9. The NEWCOM File:
+          (created by you with an editor):
+
+[No sample is given here.  For first-time callers, it is the
+ next text file that is printed after ENTRY.  It gives whatever
+ system information you figure new callers should know about.
+ Unless you have screwed up the USERS file by using your editor
+ carelessly, no user should see this one after the first time 
+ he has signed on the system.
+
+---------------------------------------------------------------
+
+10. The BULLETIN File:
+          (created by you with an editor):
+
+[I use it to present 2-6 line reviews of very new programs, 
+ with the newest on top.  But you may prefer to use it for 
+ something else.  The BULLETIN file on HP/RCPM can be taken 
+ with XMODEM or TYPE (=MLIST) if you don't have time to write
+ all the mini-reviews yourself.  Read by both ENTERBBS &
+ MINIRBBS.]
+
+---------------------------------------------------------------
+
+11. The DATA File:
+         (Created by you with an editor)
+
+[It's helpful to use this for a few short reminders of what to
+ do once the user enters CP/M.  It's the last thing he sees
+ before dropping into it out of ENTERBBS]
+
+---------------------------------------------------------------
+
+12. The SPECIAL File:
+         (Created by you with an editor)
+
+[Bulletins for special users.  The file makes it possible, for
+ instance, to tell trusted indivduals about commands and other
+ system features that could cause trouble if known to inexper-
+ ienced or irresponsible users.]
+
+---------------------------------------------------------------

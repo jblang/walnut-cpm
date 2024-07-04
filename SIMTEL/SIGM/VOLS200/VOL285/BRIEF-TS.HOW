@@ -1,0 +1,220 @@
+      Last revision: May 15, 1986 at 16:08
+
+file: BRIEF-TS.HOW - instructions for adding time/date stamps to Brief
+by: H.M. Van Tassell - a no rights reserved public Domain donation...
+                                                                 
+In the BRIEF Editor version 1.31 from the UnderWare Inc. (gosh, sure
+wish I had thought of that neat name!), a function was added that will
+get the DOS system date and time. I thought it would be nice to time
+stamp certain files  such as "C", Pascal, dBASE etc.  The code below
+when added to the files STARTUP.M and  SYSTEM.M and then recompiled by
+using >CM STARTUP will make a new Brief STARTUP.CM that automatically
+adds a time stamp with the proper remark symbols for the file of type
+".C & .H", ".PRG", ".PAS", ".M", ".ASM", or ".PRG". In other files just
+hit the F10 key and invoke the "today" macro to get a time stamp at the
+then current cursor position.
+
+If the words "Last revision:" are on the first line of a file it will
+be updated by the "write_it" macro in SYSTEM.M.
+
+*********************>>>>> changes to file STARTUP.M <<<<< ***************
+
+>>>>>> Look for this in the STARTUP.M file as your position finder <<<<<<
+		(extended)     <----
+	)                      <----
+)                              <----
+>>>> This next code replaces all the code to the end of the file STARTUP.M <<<<<
+
+      ;**   This next macro will either over-write or insert a
+      ;**   Last revision: date & time on the first line of a buffer.
+      ;**   It is the callers duty to put the comment symbol in front
+      ;**   of the new line.
+
+(macro today
+   (
+      (string month_string rev_msg rev_time)
+      (int year month day hours minutes)
+ 	   (date year month day month_string)
+      (time hours minutes)
+      (sprintf rev_msg "   Last revision: %s %d, %d" month_string day year)
+      (if (< minutes 10)
+        (sprintf rev_time " at %d:0%d" hours minutes)
+      ;else
+        (sprintf rev_time " at %d:%d" hours minutes)
+      )
+      (+= rev_msg rev_time)
+      (insert rev_msg)
+   )
+)
+
+(macro no_date
+   (
+      (int found)
+      (move_abs 1 1)
+      (search_string "Last revision:" (read) found)
+      (returns (! found))
+   )
+)
+
+
+;**	The following macros are called when files with their names as
+;**	extensions are read into buffers.
+
+;**		This macro, which is called when a file with a .c extension is read
+;**	into a buffer, sets the tabs.
+;**
+;**		Note that the (tabs) macro primitive replicates the distance of the
+;**	last tab stop until the end of the line.
+
+
+(macro .c
+   (
+      (if (no_date)
+         (
+           (insert "\n")
+           (move_abs 1 1)
+           (insert "/* ")
+           (today)
+           (insert "  */\n")
+         )
+      )
+	   (tabs 4 7)
+   )
+)
+
+(macro .h
+	(.c)								;** same as a c file.
+)
+
+(macro .m
+   (
+      (if (no_date)
+         (
+           (move_abs 1 1)
+           (insert "\;** ")
+           (today)
+           (insert "\n")
+         )
+      )
+	   (tabs 4 7)
+   )
+)
+
+(macro .asm
+   (
+      (if (no_date)
+         (
+           (insert "\n")
+           (move_abs 1 1)
+           (insert "\; ")
+           (today)
+           (insert "\n")
+         )
+      )
+	   (tabs 9 17)
+   )
+)
+
+(macro .prg
+   (
+      (if (no_date)
+         (
+           (insert "\n")
+           (move_abs 1 1)
+           (insert "** ")
+           (today)
+           (insert "\n")
+         )
+      )
+    	(tabs 3 5 7 9 11 13 15)    ;** Tabs for dBase III source code
+   )
+)
+
+(macro .pas
+   (
+      (if (no_date)
+         (
+           (insert "\n")
+           (move_abs 1 1)
+           (insert "(* ")
+           (today)
+           (insert "  *)\n")
+         )
+      )
+	   (tabs 4 7)
+   )
+)
+
+;**
+;**	The next macro is called if the extension of the file does not match
+;**	any of the previous macros (".h", ".c", ".m", ".asm", ".prg", ".pas").
+;**
+
+(macro default
+	(tabs 9 17) 	;** By default, use assembler-style tabs.
+)
+;[eof] STARTUP.M 
+
+*********************>>>> end of changes to file SYSTEM.M <<<<<*************
+
+*************************>>>>> Changes to file SYSTEM.M <<<<<****************
+
+>>>>> Replace the write_it macro in the file SYSTEM.M with this code <<<<<
+
+;**
+;**		write_it:
+;**
+;**	This macro decides what to do when Alt-w is pressed -- if a block
+;**	is marked, then the "write_block" primitive is called.  Otherwise,
+;**	write_buffer is called to write out the entire buffer.
+;**
+
+(macro write_it
+	(
+		(int		old_msg_level)
+
+		(= old_msg_level (inq_msg_level))
+		(set_msg_level 0)
+
+		(if (inq_marked)
+			(write_block)
+		;else
+         (
+            (if (inq_modified)
+               (
+                  (int c_symbol p_symbol c_line c_col)
+                  (inq_position c_line c_col)
+                  (if (! (no_date))    ;** if there is a time stamp
+                      (
+                         (move_abs 1 1)
+                         (search_string "/*" (read 2) c_symbol)
+                         (search_string "(*" (read 2) p_symbol)
+                         (move_abs 1 4)
+                         (delete_to_eol)
+                         (today)       ;** update the time stamp
+                         (if c_symbol (insert "  */"))
+                         (if p_symbol (insert "  *)"))
+                      )
+                  )
+                  (move_abs c_line c_col)
+               )
+            )
+ 		      (write_buffer)
+         )
+		)
+		(set_msg_level old_msg_level)
+	)
+)
+******************>>>> end of changes to file SYSTEM.M <<<<<************** 
+>>>> Use this as your position finder so you know where write_it ends <<<<
+;**                             <----
+;**		next_word:      <----
+;**                             <----
+;**		Locates the next word in the file using a regular expression.  If
+;**	there are no following words in the file, the cursor does not move.
+;**                             <----
+
+[ end of file BRIEF-TS.HOW ]
+
+
+

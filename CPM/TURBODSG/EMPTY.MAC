@@ -1,0 +1,78 @@
+; EMPTY.MAC by ESKAY - v1.00 of 05/30/85
+;
+; this program finds all empty user areas on the current
+; drive and displays them. turbodos only.
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+	cseg
+;
+.z80
+.request syslib
+;
+start:	ld	sp,stack
+	call	print##
+	cr,lf
+	'EMPTY v1.10 by ESKAY shows free user areas:',cr,lf,0
+	ld	de,fcb
+	call	f$open##
+..lp:	ld	de,fcb
+	call	f$read##
+	jp	nz,done
+	ld	ix,80h
+	ld	hl,usrs
+	ld	a,(ix+0)
+	call	zeru
+	ld	a,(ix+20h)
+	call	zeru
+	ld	a,(ix+40h)
+	call	zeru
+	ld	a,(ix+60h)
+	call	zeru
+	jr	..lp
+;
+done:	ld	b,32
+	ld	c,16		; 16 to a line max.
+..dl:	ld	a,(hl)
+	cp	0ffh
+	call	nz,du
+	inc	hl
+	djnz	..dl
+	call	print##
+	cr,lf,lf,0
+	rst	0
+;
+du:	push	af
+	cp	10
+	jr	nc,..dus
+	ld	a,' '
+	call	cout##
+..dus:	pop	af
+	call	pafdc##
+	ld	a,' '
+	call	cout##
+	dec	c
+	jp	z,crlf##
+	ret
+;
+zeru:	cp	0e5h
+	ret	z
+	ld	e,a
+	ld	d,0
+	push	hl
+	add	hl,de
+	ld	(hl),0ffh
+	pop	hl
+	ret
+;
+	dseg
+;
+fcb:	db	0,'$       DIR',0,0,0,0
+	ds	22
+;
+usrs:	db	0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	db	16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	ds	100
+stack	equ	$
+	end

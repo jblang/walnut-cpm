@@ -1,0 +1,599 @@
+========================================================================
+
+This file contains transcripts of some articles which appeared on the
+Usenet (comp.os.cpm) between Dec 23, 1988, and Jan 12, 1989.  The
+discussion is about ways in which a high level language might learn
+about the Z-system environment in which it is operating, and developed
+into a plea for a formal system of passing this information.
+
+My apologies for the lengthy headers on each message, but I thought it
+best to leave everything in context.
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Posting-Version: version 10.1 Portal gateway; site portal
+Path: portal!cup.portal.com!dgee
+From: dgee@cup.portal.com (David O Goodman)
+Newsgroups: comp.os.cpm
+Subject: Zcpr & High Level Languages
+Message-ID: <12879@cup.portal.com>
+Date: 23 Dec 88 18:32:09 GMT
+Date-Received: 23 Dec 88 18:33:19 GMT
+Distribution: world
+Organization: The Portal System (TM)
+Lines: 46
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1415.1
+
+Does anyone have suggestions for a graceful way in which to pass the
+address of a ZCPR 3.x environment descriptor to a program written in a
+high level language, so that the program can make use of the various ZCPR
+facilities?  Specifically, rather than hard-wiring the environment
+descriptor address into the program, thus making it non-portable, what
+would be a good way for a utility written in bds-c to learn the
+environment descriptor address?
+
+
+Discussion:
+----------
+
+As some of you know, an assembly language program using the zcpr
+environment is written with a header which tells the command processor
+that it is a 'Z3ENV' program.  At run time, the command processor plugs
+the environment descriptor address into a specific location in this
+header; now the program contains the address needed to get information on
+its environment.
+
+Since the object code of a program compiled under bds-c starts with the
+bds runtime package, there seems to be no way to create the required
+header, other than (perhaps) relocating the runtime package and finding
+some way to link in a header underneath the package.  I have not yet
+played with this approach, but it does not seem very fruitful, since 1)
+the bds documentation indicates that all code must run directly above the
+runtime package, and 2) even if it could be done, relocating the runtime
+package would require a full reassembly and/or recompilation of the
+libraries, making them completely non-standard.
+
+A second mechanism for communicating the environment descriptor address
+from the command processor to a transient program apparently exists.
+Inspection of the source code for ZCPR 3.3 (I haven't checked other
+versions, yet) reveals that when zcpr 'calls' the transient program,
+register pair HL contains the desired address.  However, upon entry into
+the runtime package, this register is immediately clobbered.
+
+Any ideas, suggestions, or further discussion would be appreciated.  If I
+receive mail on this subject, I will summarize to the net.
+
+Thanks.
+
+--
+
+Dave Goodman
+dgee@cup.portal.com
+...sun!portal!cup.portal.com!dgee
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Path: portal!atari!imagen!sun!decwrl!ucbvax!hplabs!hp-sdd!ncr-sd!crash!mwilson
+From: mwilson@crash.cts.com (Marc Wilson)
+Newsgroups: comp.os.cpm
+Subject: Re: Zcpr & High Level Languages
+Message-ID: <3649@crash.cts.com>
+Date: 26 Dec 88 04:53:26 GMT
+Date-Received: 27 Dec 88 08:27:11 GMT
+References: <12879@cup.portal.com>
+Reply-To: mwilson@crash.CTS.COM (Marc Wilson)
+Organization: Mesa College, San Diego, Ca.
+Lines: 37
+Keywords: ZCPR3 Z33 ENV HLL
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1415.2
+
+In article <12879@cup.portal.com> dgee@cup.portal.com (David O Goodman) writes:
+>Does anyone have suggestions for a graceful way in which to pass the
+>address of a ZCPR 3.x environment descriptor to a program written in a
+>high level language, so that the program can make use of the various ZCPR
+>facilities?
+
+     The *easiest* way is to code a loop that begins at the top of memory
+and scans downwards for the string "Z3ENV".  As long as you're between the
+BIOS and the top of memory, the only place that that string should appear
+is at address ENV+3.  That'll give you the environment address.
+
+     Note that this technique is *extremely* dangerous on any system that
+supports memory-mapped I/O ( i.e. Apple CP/M ), for obvious reasons.
+
+     This technique is not new.  Several of the Z-System utilities include
+a routine called FENV.  This is the _F_ind _ENV_ironment routine, originally
+developed by Joe Wright.  The first program I saw use this technique was a
+version of LX.
+
+     Note that this method *should* work under NZ-COM, as long as you use
+the address of the pseudo BIOS, rather than the real one.
+
+>--
+>
+>Dave Goodman
+>dgee@cup.portal.com
+>...sun!portal!cup.portal.com!dgee
+
+
+-- 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marc Wilson
+     ARPA: ...!crash!mwilson@nosc.mil
+           ...!crash!pnet01!pro-sol!mwilson@nosc.mil
+     UUCP: [ cbosgd | hp-sdd!hplabs | sdcsvax | nosc ]!crash!mwilson
+     INET: mwilson@crash.CTS.COM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Path: portal!atari!imagen!sun!pitstop!sundc!seismo!uunet!lll-winken!lll-lcc!ames!pasteur!ucbvax!LL.ARPA!SAGE
+From: SAGE@LL.ARPA
+Newsgroups: comp.os.cpm
+Subject: Finding the Z Environment
+Message-ID: <SAGE.36247463@LL.ARPA>
+Date: 27 Dec 88 17:11:03 GMT
+Date-Received: 28 Dec 88 08:52:14 GMT
+Sender: daemon@ucbvax.BERKELEY.EDU
+Organization: The Internet
+Lines: 48
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1419.1
+
+
+   Mark Wilson's proposed method for determining the Z3ENV address by
+scanning high memory is a suggestion in the right direction, but it ignores
+some very important details.  A program I tried using recently failed on my
+system because it used the very scheme Mark describes.
+ 
+   ENV+3 is not the only place in memory where the string "Z3ENV" may occur. 
+On my system I have a directory with that name (it's where I work on the
+source code for the ENV module).  A user might have loaded that name into
+one of the four system file names in the message buffer.  There might be a
+reference to "Z3ENV" in a pending command line in the multiple command line
+buffer.  The disk deblocking buffers in the BIOS might happen to contain
+this string if a file had been accessed that contained that text.  In short,
+there are quite a few other places where such a string might appear.
+ 
+   ONE CANNOT ASSUME THAT ANYTHING ONE IS LOOKING FOR IS UNIQUE!  It is
+always necessary to validate the address that one thinks is the ENV.  This
+can be done by looking at the word in offset 1BH in the assumed ENV
+descriptor.  That is where the ENV address itself is stored in the ENV. 
+This might have seemed redundant; after all, if you know where the ENV is,
+why do you need to look it up in the ENV?  This is one good reason.
+ 
+   So, the strategy comes down to this.  Determine the range of memory to be
+scanned and the direction.  Then scan for the string "Z3ENV".  When it is
+found, assign an address 3 lower as the tentative ENV address.  Add 1BH to
+this, and see if the word there is the same ENV address.  If it is, you can
+be pretty sure that you have the ENV.  If not, continue the scan where you
+left off last time.
+ 
+   There are probably various arguments that could be made as to what range
+of memory should be scanned and in which direction.  Joe Wright has
+experimented with putting Z-System modules (notably the FCP) in an RSX that
+lives not only below the BIOS but below the command processor.  To cover
+such a case, the lower bound in memory should probably be the bottom of
+protected memory, namely, the address stored at location 0006H.  From here
+one would have to scan up all the way to FF03H (the highest possible
+location for a two-record ENV descriptor).  Scanning up is probably safer
+than scanning down, I think, since it would be less likely to hit memory-
+mapped I/O before finding the ENV.
+ 
+   I suppose there is always a slight chance that this procedure will detect
+the image of a different ENV descriptor whose file was examined and happens
+to be in the BIOS deblocking buffer.  It would be hard to prevent this kind
+of problem.  That memory image would, indeed, pass every test for an ENV
+module since it is, in fact, such a module.  However, this would be unlikely
+in general and virtually impossible if one has just loaded a transient
+program, since its code would be in the buffer.
+ 
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Path: portal!atari!imagen!sun!pitstop!sundc!seismo!uunet!lll-winken!lll-lcc!ames!pasteur!agate!ucbvax!RAND.ORG!bridger%rcc
+From: bridger%rcc@RAND.ORG (Bridger Mitchell)
+Newsgroups: comp.os.cpm
+Subject: Passing Z3ENV to BDS-C
+Message-ID: <8812271905.AA06973@newton>
+Date: 27 Dec 88 19:05:13 GMT
+Date-Received: 28 Dec 88 14:07:51 GMT
+References: <8812250903.AA16431@rand.org>
+Sender: daemon@ucbvax.BERKELEY.EDU
+Organization: The Internet
+Lines: 70
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1422.1
+
+David O Goodman requested suggestions for passing the system's
+external environment address to a BDS-C or other high level
+language application.
+
+This is a sketch of an approach that should be usable with most any
+existing .COM file.  It requires patching together the final .COM
+(after linking the BDS-C relocatable modules)j.
+
+The standard Z-System application begins with this structure
+(addresses are when loaded to 0100h):
+
+	0100:	jp	start		; 
+	0103:	db	'Z3ENV',1	; signature for ZCPR command processor
+	0109:	dw	0000		; where ZCPR puts z3env address
+
+When the ZCPR 3.3 or 3.4 command processor loads a COM file to 100h
+and finds the 'Z3ENV' signature at 103 it "installs" the z3env
+external environment address at 109.
+
+Append a copy of the first 10 bytes of the linked .COM file to the end
+of the file.  Follow that with some startup code:
+
+	image100:
+		ds	10
+
+	start:	ld	hl,(0109)		; save z3env address
+		ld	xxxx,hl			; at a known, safe location
+		ld	hl,image100		; restore the original
+		ld	de,100			; code at 100
+		ld	bc,10
+		ldir
+		jp	100			; and execute it
+
+The address xxxx needs to be known, at compile/link time, 
+to your HLL routines.  On most systems 003Bh will be ok, just following
+the RST 38 jump location.  Another possibility is to check the BDS-C
+runtime library's locations for storing pointers to the parsed
+command line.  I remember there being room for perhaps 30 pointers; in
+almost any application the 30th should be free!
+
+I believe this patching process can be largely automated into a ZEX
+script that loads a debugger, which then loads the .COM image, and
+finds the end of the image from the address of the external data area
+in the first bytes of the BDS-C header. The code above can the
+be assembled in the debugger, using a "load hl direct" instead
+of "ld hl, image100", and the 10 bytes moved with the debugger's
+Move command.
+
+This approach should run on any Z-System, including Apples with
+"non-readable" high memories.  The C code should check the z3env value
+for non-zero before using it, for the cases in which the code runs on
+a non-ZCPR 3.3 or 3.4 system.  In fact, this test should really also
+fail if the patch itself has not been made to the linked BDS-C file.
+(That may be a good reason to choose a free NUL word inside the BDS-C
+library for the xxxx address).  And the startup code should be
+extended to include a Z-80 test.
+
+When you have a smooth approach, please post an application note "for
+the rest of us"!
+
+Marc Wilson suggested the approach of scanning high memory for the
+string 'Z3ENV'.  This technique, necessary for pre-ZCPR version 3.3
+systems, needs to be made rigorous.  After finding a match, the
+routine must check that the "self-reference" address in the z3env
+structure does, in fact, agree with the address at which the match has
+been found, and, if not, continue searching.  High memory may contain
+several Z3ENV strings -- a named directory, or the host disk buffer.
+
+
+-- bridger
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Path: portal!atari!imagen!sun!pitstop!sundc!seismo!uunet!husc6!bbn!apple!well!bandy
+From: bandy@well.UUCP (Andrew Scott Beals)
+Newsgroups: comp.os.cpm
+Subject: Re: Passing Z3ENV to BDS-C
+Message-ID: <10150@well.UUCP>
+Date: 28 Dec 88 15:50:01 GMT
+Date-Received: 29 Dec 88 11:05:01 GMT
+References: <8812250903.AA16431@rand.org> <8812271905.AA06973@newton>
+Reply-To: bandy@well.UUCP (Andrew Scott Beals)
+Organization: Whole Earth 'Lectronic Link, Sausalito, CA
+Lines: 15
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1422.2
+
+
+Have my eyes been deceiving me?
+
+Everyone who owns a [legal] copy of BDS C knows that you get the source to
+"C.CCC", which is the run-time header that gets prepended to all .COM
+programs.  The solution is to simply take Bridger's code (jmp 10bh ! db
+'ZENV3',1 ! dw 0) and put it at the head of the source to C.CCC (sorry I
+can't do this for you, as I'm at the office and not at home - GNUUCP doesn't
+work on my system yet) and use the ZCPR3-compatible C.CCC file with your
+programs that know to check for the signature bytes at 103h.
+
+	andy
+-- 
+for those of you who don't trust the headers:
+bandy@lll-crg.llnl.gov or {pacbell,lll-winken,hoptoad,hplabs,apple}!well!bandy
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Posting-Version: version 10.1 Portal gateway; site portal
+Path: portal!cup.portal.com!dgee
+From: dgee@cup.portal.com (David O Goodman)
+Newsgroups: comp.os.cpm
+Subject: Zcpr & HLLs - Summary (long)
+Message-ID: <13221@cup.portal.com>
+Date: 5 Jan 89 11:26:17 GMT
+Date-Received: 5 Jan 89 11:26:12 GMT
+Distribution: na
+Organization: The Portal System (TM)
+Lines: 136
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1434.1
+
+Recently, in article <12879@cup.portal.com>, I inquired:
+> Does anyone have suggestions for a graceful way in which to pass the
+> address of a ZCPR 3.x environment descriptor to a program written in a
+> high level language, so that the program can make use of the various ZCPR
+> facilities?  Specifically, rather than hard-wiring the environment
+> descriptor address into the program, thus making it non-portable, what
+> would be a good way for a utility written in bds-c to learn the
+> environment descriptor address?
+> ...
+> Any ideas, suggestions, or further discussion would be appreciated.  If I
+> receive mail on this subject, I will summarize to the net.
+
+Most of the comments received were public postings, so  I won't quote them
+extensively.
+
+Apparently, according to the collective wisdom of the net, there is no
+formal mechanism for passing a pointer to the environment descriptor (ENV)
+to a program written in an HLL.  Should such a mechanism exist?  More on
+that latter.
+
+Several different approaches were mentioned, some of which were generally
+applicable to any language, and some of which were peculiar to bds-c.
+
+
+I. Find the environment descriptor by searching memory for the identifying
+string 'Z3ENV'.
+
+  Marc Wilson (mwilson@crash.cts.com) in <3649@crash.cts.com> wrote:
+  >      The *easiest* way is to code a loop that begins at the top of memory
+  > and scans downwards for the string "Z3ENV".  As long as you're between the
+  > BIOS and the top of memory, the only place that that string should appear
+  > is at address ENV+3.  That'll give you the environment address.
+  >
+  >      Note that this technique is *extremely* dangerous on any system that
+  > supports memory-mapped I/O ( i.e. Apple CP/M ), for obvious reasons.
+
+  Both Jay Sage (SAGE@LL.ARPA) and Bridger Mitchell (bridger%rcc@RAND.ORG)
+  pointed out that a simple memory search is not sufficient, since 'Z3ENV'
+  could exist at other locations than the ENV, (named directory buffer,
+  disk i/o buffers, etc).  They mentioned that if this technique is used,
+  a check should be made to be sure the ENV address indicated by the
+  search agrees with the self-contained address at ENV+1Bh.
+
+  I used this technique several years ago for a few programs, but finally
+  rejected it because it is not bulletproof.  As Marc Wilson mentioned,
+  the search can produce very interesting results on any system with
+  memory mapped i/o; that alone seems sufficient reason to reject it for
+  any program meant for general distribution.
+
+
+II. Write a module, perhaps ASM or a C structure, which mimics the z3env
+header, then jumps to the runtime package entry point; link this module in
+at the correct address.
+
+  Several good folks from whom I received mail suggested this approach.
+  The catch, of course, is linking such a module at the correct address.
+  I don't see that one has that option.  I'm no authority on HLLs as run
+  under cp/m, but since the final binary must start execution at 100h,
+  would not a designer place the runtime package/initialization code at
+  that address?
+
+
+III. Compile and link in the usual way; hand patch the final binary by
+moving the first few bytes (where the Z3 header goes) to the end of the
+file, together with a mover routine.  Patch a Z3 header in the space thus
+left at the beginning.  At run time, pick up the ENV pointer from the
+header, store it at some fixed location, move the first few bytes back to
+the beginning of the file, and jump to the beginning.
+
+  This ingenious idea came from Bridger Mitchell (bridger%rcc@RAND.ORG).
+  It is certainly generally applicable, not only to bds-c, but to any .COM
+  file.  The only negative is the rather kludgy way in which the final
+  binary must be put together, but even that could be automated, as
+  Bridger points out, with a ZEX script.
+
+
+IV. Incorporate a Z3 header in CCC.ASM, the source code for the bds-c
+runtime package.  Assemble to a customized runtime package (C.CCC) to be
+used with ZCPR.
+
+  Andrew Scott Beals (bandy@well.UUCP) in <10150@well.UUCP> wrote:
+  > Have my eyes been deceiving me?
+  >
+  > Everyone who owns a [legal] copy of BDS C knows that you get the source to
+  > "C.CCC", which is the run-time header that gets prepended to all .COM
+  > programs.  The solution is to simply take Bridger's code (jmp 10bh ! db
+  > 'ZENV3',1 ! dw 0) and put it at the head of the source to C.CCC ...
+
+  No, Andy, your eyes haven't been deceiving you!  And yes, I own a legal
+  copy of bds-c!
+
+  Andy's suggestion makes a lot of sense, though it is applicable to bds-c
+  only, and is not a general solution to the problem of Zcpr/HLLs.  It was
+  also my first tentative solution to the problem, before posting my
+  inquiry.  It can perhaps be done, but it is not quite as simple as Andy
+  suggests, and has a few disadvantages.
+
+  According to the documentation (I haven't actually tried this, yet), and
+  without going into excessive detail, that part of the standard library
+  which is written in C would have to be recompiled, using a new standard
+  header which accorded with the new C.CCC.  That part of the library
+  written in assembly language would have to be reassembled, as most such
+  functions reference absolute addresses in the runtime package.  So, now
+  we have a second, non-standard set of libraries and a second,
+  non-standard runtime package, different files with identical names, and
+  we must remember to get the right pieces of the right package when we
+  put it all together at 4:00 AM!
+
+  Also, the linker (CLINK) plugs certain information into absolute
+  addresses in C.CCC.  This can be worked around by using various linker
+  options; unfortunately using those options deprives us of the
+  possibility of using the -n (no warm boot) option, which allows the
+  application to simply 'return' rather than warm booting.
+
+  Nevertheless, this could work for bds-c.
+
+
+Without getting into a debate on the side-issue of assembly language vs
+high-level language programming for cp/m, a few thoughts come to mind.
+
+Cp/m has come a long way since plain vanilla cp/m 2.2, and offers many
+more advanced facilities.  The environment descriptor is fundamental to
+making use of these facilities.  If we were designing the operating system
+from scratch, no doubt the environment descriptor address would be
+available from a system call.
+
+This could not be done when we had only the Digital Research bdos.  Now,
+however, we have a whole new generation of bdos replacements being used in
+our 'Z' systems.  Would it not be appropriate to consider incorporating a
+system call which returns a pointer to ENV in these new bdos's?
+
+--
+
+Dave Goodman
+dgee@cup.portal.com
+...sun!portal!cup.portal.com!dgee
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Path: portal!atari!imagen!sun!amdcad!ames!pasteur!ucbvax!LL.ARPA!SAGE
+From: SAGE@LL.ARPA
+Newsgroups: comp.os.cpm
+Subject: ZCPR and HLLs
+Message-ID: <SAGE.01053864@LL.ARPA>
+Date: 10 Jan 89 18:57:44 GMT
+Date-Received: 11 Jan 89 15:14:24 GMT
+Sender: daemon@ucbvax.BERKELEY.EDU
+Organization: The Internet
+Lines: 28
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1447.1
+
+
+   There is one comment about gaining access to Z-System facilities with
+programs written in high level languages that I neglected to make earlier. 
+There is, in a weak sense, an operating system call that returns the ENV
+address.  The ZCPR command processor since version 3.3 has placed the
+environment address in the HL register on entry to a program.  If the high
+level language allows the user to gain control before some initialization
+package loses the information in HL, then this can be used (but, as always,
+should be validated before it is trusted).  This is essentially a
+modification of Bridger's patch suggestion or the suggestion of recoding
+C.CCC.  It is much easier just to save the contents of HL than it is to
+create the whole Z header as Bridger described.  Such a program, however,
+will fail with versions of ZCPR before 3.3.  BackGrounder ii has supported
+this facility from the beginning, however, and will work fine.
+ 
+   Having a real DOS call is a very interesting idea.  Perhaps the DOS
+version function call could return the ENV address as well.  The problem is
+that the new DOSs may already be absolutely full, with no spare bytes for
+this.  But it is certainly a suggestion worth passing along to the authors. 
+Also, if you are using one of the public-domain DOSs (Z80DOS, P2DOS,
+NOVADOS), then you can try putting it in yourself.
+ 
+   Another possibility is to load an RSX that would provide this extended
+service.  The roughly 2K memory cost might, however, be too much to pay.  It
+might be an interesting and easy way to experiment, however.
+ 
+-- Jay
+
+
+========================================================================
+
+
+Relay-Version: version B 2.10.3 4.3bsd-beta 6/6/85; site portal.UUcp
+Posting-Version: version 10.1 Portal gateway; site portal
+Path: portal!cup.portal.com!dgee
+From: dgee@cup.portal.com (David O Goodman)
+Newsgroups: comp.os.cpm
+Subject: ZCPR and HLLs
+Message-ID: <13471@cup.portal.com>
+Date: 12 Jan 89 23:39:54 GMT
+Date-Received: 12 Jan 89 23:39:55 GMT
+References: <SAGE.01053864@LL.ARPA>
+Distribution: na
+Organization: The Portal System (TM)
+Lines: 43
+Portal-Origin: Usenet
+Portal-Type: text
+Portal-Location: 1038.3.1447.2
+
+In article <SAGE.01053864@LL.ARPA> SAGE@LL.ARPA writes:
+	
+> There is, in a weak sense, an operating system call that returns the ENV
+> address.  The ZCPR command processor since version 3.3 has placed the
+> environment address in the HL register on entry to a program.  If the high
+> level language allows the user to gain control before some initialization
+> package loses the information in HL, then this can be used (but, as always,
+> should be validated before it is trusted).  ...
+
+The problem, or course, is that the IF ("if the high level language..."), 
+is a very big IF indeed!  It seems to me that most HLLs running 
+under cp/m must, of necessity, have the entry to their initialization 
+routines at 100h, where they will execute before any routine the 
+programmer provides.
+
+>   Having a real DOS call is a very interesting idea.  Perhaps the DOS
+> version function call could return the ENV address as well.  The problem is
+> that the new DOSs may already be absolutely full, with no spare bytes for
+> this.  But it is certainly a suggestion worth passing along to the authors. 
+
+The suggestion was a system call which would return the ENV address.  It 
+seems to me that this would provide a standardized way for any program, 
+ASM or HLL, to obtain the information.  Presumably, the present system 
+would also have to be maintained for backward compatibility.
+
+But the present system is really, with all due respect to Jay, a kludge, 
+albeit an ingenious one.  When ZCPR 3.0 was written, the Cp/m world was 
+stuck with the Digital Research bdos, so another way had to found to 
+transfer the ENV address to a transient program.  Z3INS was the answer; 
+and under ZCPR 3.3/3.4 Jay ingeniously converted the original installation 
+system to an auto-install system.
+
+Now, however, we have alternatives to the Digital Research bdos, and one 
+or the other of these alternatives are probably going to be used on most 
+up to date systems.  We expect to be able use calls such as #27 (return 
+ALLOC address), #31 (return DPB address); what is conceptually different 
+about call #nn (return ENV address)?
+
+--
+
+Dave Goodman
+dgee@cup.portal.com
+...sun!portal!cup.portal.com!dgee
+

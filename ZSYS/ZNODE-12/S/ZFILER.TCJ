@@ -1,0 +1,866 @@
+ThiÛ documenÙ containÛ thÂ texÙ oÊ twÔ articleÛ oÓ ZFILE“ b˘ Ja˘ ç
+SagÂ whicË originall˘ appeare‰ iÓ ThÂ ComputeÚ JournaÏ issueÛ #3∂ ç
+an‰ #37Æ  Reprinte‰ witË permissioÓ oÊ thÂ publisher:
+
+     ThÂ ComputeÚ Journal
+     P.OÆ Bo¯ 12
+     SÆ Plainfield¨ N   07080-0012
+
+
+                     ZFILER, The Point-and-Shoot Shell
+
+     Now let's turn to the technical subject for this issue, the ZFILERç
+shell.  Having written about shells so much in the past few columns, I amç
+tempted to jump right into the thick of the subject.  However, judging fromç
+the number of new subscriptions that SME alone takes each month, TCJ mustç
+have lots of new readers with each issue.  Therefore, I will begin at theç
+beginning.  Since time and energy are in short supply, however, I will notç
+attempt to provide the same comprehensive documentation that I did forç
+ARUNZ.  Instead, I will concentrate on the basics, on the one hand, and onç
+some of the special features that many users may overlook, on the other.
+
+Z-System Shells
+
+     A Z-System shell is a program that takes over the user-input functionç
+of the command processor.  The way this works is that the Z-Systemç
+environment includes a special area in memory called the shell stack whereç
+shell command lines can be kept.  Whenever the ZCPR3 command processor isç
+finished processing all the commands that have been passed to it in theç
+command line buffer (another special area in memory), it checks the shellç
+stack.  Only if no command line is present there does the command processorç
+itself prompt the user for the next command line.  If there is an entry inç
+the shell stack, then that command line is run instead, and the user noç
+longer sees the command processor directly.
+
+     Some shells, like the EASE history shell, while making a big change inç
+how the system is actually running, make relatively little change in how itç
+appears to run.  A command prompt is still presented, and one entersç
+commands more or less as usual.  The difference is that one has a moreç
+capablÂ editoÚ aÙ one'Û disposal¨ an‰ thÂ commandÛ arÂ save‰ tÔ · histor˘ filÂ ç
+froÌ whicË the˘ caÓ bÂ recalled¨ edited¨ an‰ ruÓ againÆ  AÛ wÂ shalÏ see¨ thÂ ç
+ZFILE“ shelÏ presentÛ thÂ useÚ witË · dramaticall˘ differenÙ useÚ interface.
+
+What is ZFILER For?
+
+     Historically, ZFILER is a descendant in the line of file maintenanceç
+utilities like SWEEP and NSWP (hence the "filer" part of the name).  Fileç
+maintenance is generally concerned with copying files, looking at theirç
+contents, renaming them, erasing them, and so on.  ZFILER provides all theseç
+functions and more.
+
+     ZFILER's immediate parent was VFILER, where the "V" stood for video. ç
+The TCAP facility in Z-System makes it easy for programs to take advantageç
+of the full-screen capabilities of whatever video display terminal happensç
+to be in use at any time.  In contrast to applications under CP/M, Z-Systemç
+programs need not be configured to match the terminal.  It was, therefore,ç
+natural to build a file maintenance program in which the files are displayedçägraphically on the screen.  When I decided to explore some new directionsç
+with VFILER, to avoid confusion I gave the program the new name ZFILER, forç
+Z-System Filer.
+
+     The file maintenance tasks described above would not require a shell. ç
+Making the program a shell, however, allows it to go beyond the functionsç
+included in the program's own code.  Because a shell can pass command linesç
+to the operating system, ZFILER can perform any operation that the computerç
+is capable of.  Like a menu system, however, it helps the user by generatingç
+the commands automatically at the touch of a key.
+
+     When ZFILER is running, the screen is filled with an alphabetizedç
+display of the files in a specified directory, and there is a pointer thatç
+the user can manipulate using cursor control keys.  If we had a mouse toç
+move the pointer, it would be a little like having a Macintosh.  Actually,ç
+it would be a lot more.  It would be like having a mouse with fifty buttons! ç
+Once the pointer has been positioned on a file, pressing a key (or two orç
+three© causeÛ an˘ oÊ · greaÙ numbeÚ oÊ functionÛ tÔ bÂ invoke‰ tÔ acÙ oÓ †thaÙ ç
+fileÆ  WÂ wilÏ describÂ ho˜ thiÛ workÛ iÓ morÂ detaiÏ shortly.
+
+Invoking ZFILER
+
+     Since ZFILER performs full-screen operations, a proper Z-Systemç
+terminal descriptor (TCAP) must have been loaded.  If you have not doneç
+that, or if you have selected a terminal that does not support all theç
+functions ZFILER needs, then ZFILER will give you an error message.  Theç
+TCAP, unfortunately, does not include information about whether dim orç
+reverse video is used by the terminal, and since these two modes forç
+highlighting regions on the screen are so different, ZFILER is madeç
+available in separate versions for each.
+
+     There is also an option to have either four or five columns of fileç
+names in the display.  Personally, I prefer the four-column version, whichç
+gives an uncluttered screen with plenty of restful white space and a veryç
+distinct¨ eas˘-tÔ-spoÙ pointerÆ  OtherÛ thinÎ iÙ iÛ morÂ importanÙ tÔ bÂ ablÂ ç
+tÔ seÂ thÂ maximuÌ numbeÚ oÊ fileÛ oÓ eacË screeÓ an‰ prefeÚ thÂ fivÂ-columÓ ç
+display.
+
+     Then there is the issue of support for time and date stamping of files. ç
+ZFILER contains the code for preserving the time stamps when files areç
+copied.  So as not to inflict the overhead of this code on those who haveç
+not implemented DateStamper (though they should do that!), ZFILER is alsoç
+provided in versions with and without the DateStamper code.
+
+     If we supported all combinations of the above choices, there would beç
+eight different versions of ZFILER.  Typically, the distribution libraryç
+contains four or five of the combinations.  For example, a five-column fileç
+display is not particularly compatible with reverse video highlighting,ç
+because the reverse video of tagged files runs into the reverse-videoç
+pointer.
+
+     When you get ZFILER, you have to choose which version you prefer,ç
+extract it for the distribution library, and give it a working name (some ofç
+the early Z-System shells had to have a specific name, but you can giveç
+ZFILER any name you like).  I prefer the name ZF, since it is very quick andçäeasy to type, and I will use that name in all the examples that follow.
+
+     The general syntax for invoking ZFILER is
+
+		ZF filespec
+
+where "filespec" is a standard Z-System ambiguous file specification (thatç
+is, it may contain the wildcard characters "?" and "*").  The filespecç
+selects the directory area and the files from that area to be included inç
+the screen display.
+
+     Various parts of the filespec can be omitted.  If no filespec is givenç
+at all, then "*.*" for the currently logged directory is assumed. ç
+Similarly, if only a directory is specified (e.g., B: or 3: or B3: orç
+WORK:), then all the files ("*.*") in that directory are displayed.  If aç
+file name/type is included, then it will serve as a mask on the files to beç
+displayed.  Thus "ZF WORK:*.DOC" will show only files of type DOC in theç
+directory WORK:.
+
+     The directory and file mask can both be changed from inside ZFILER asç
+well using the "L" or LOG command.  I bring this up now because there is aç
+confusing difference in the way the "L" command works.  VFILER originallyç
+allowed one to change only the directory and not the file mask from insideç
+the program.  To save the user the trouble of typing the colon after aç
+directory, its inclusion was made optional.  Since users became soç
+accustomed to this shorthand, it was carried over into ZFILER.  Because ofç
+this, if you want to change only the file mask, you must remember to precedeç
+it with a colon.  Otherwise your mask will be taken as the name of aç
+directory (which generally results in an error message).
+
+     One brief aside for programmer types.  ZFILER can be loaded from anyç
+directory.  One of the special features of Z-System since version 3.3 of theç
+command processor allows a program to find out both its own name and theç
+directory from which it was actually loaded, perhaps as the result of a pathç
+search.  ZFILER builds the shell stack entry to invoke ZFILER under itsç
+current name from the directory in which it is actually located.  Thisç
+sometimes makes it run faster, and it allows ZFILER to be invoked from aç
+directory that is not on the search path.
+
+The ZFILER Display
+
+     The main ZFILER display contains three parts.  At the top of the screenç
+there is a message line.  In the version of ZFILER that is current at theç
+time I am writing this column (version 1.0L), this line contains, from leftç
+to right, the following information: (1) the directory that has beenç
+selected, in both DU and DIR (named directory) format; (2) the indicatorç
+"[PUBLIC]" if that directory is a ZRDOS public directory (if you don't knowç
+what this is, just ignore it); (3) the current time of day if DateStamper orç
+one of the new DOSs (ZSDOS or ZDDOS) is running; (4) the program's officialç
+name and version; (5) the text string "Current File:"; and (6) the name ofç
+the file currently being pointed to (this changes as the pointer is moved).
+
+     At the bottom of the screen is a command prompt of the form
+
+		Command? (/=Help, X=Quit):ä
+The cursor (don't confuse this with the file pointer) is positioned afterç
+this command prompt to indicate that ZFILER is waiting for you to press aç
+key.
+
+     The center 20 lines of the screen show the selected files.  Theç
+character string "-->" (only "->" in the five-column display) floats betweenç
+the rows of file names and designates the so-called "pointed-to" file.  Manyç
+of the ZFILER commands automatically operate on this file.
+
+     What we have described so far is the main ZFILER screen, but it is notç
+the only one.  As the command prompt suggests, pressing the slash characterç
+(or "?" if you prefer) brings up a help screen that summarizes the built-inç
+commands of ZFILER.  This help screen replaces the file display but leavesç
+the status line at the top and the command line at the bottom, except thatç
+"/=Help" changes to "/=Files".  As you might, therefore, guess, pressingç
+slash again will take you back to the file display screen.
+
+     I do not know if anyone makes use of this feature, but all ZFILERç
+command operations can be invoked from the help screen.  Although you cannotç
+see the file pointer, you can manipulate it in the usual way, and you canç
+tell what file you are pointing to from the name displayed at the upperç
+right on the status line.
+
+ZFILER Commands
+
+     I am not going to attempt to describe all of ZFILER's commands, but Iç
+will try to list most of them.  Basically, the commands fall into severalç
+classes.
+
+     One classification reflects where the code for the command resides. ç
+There are two categories:
+
+	A. Built-In Commands
+	B. Macro Commands
+
+Class A includes the functions for which the code is part of ZFILER.  Macroç
+commands are like aliases in that they generate command lines that areç
+passed to the command processor for execution.  These commands make ZFILER aç
+shell.  In this column I will discuss only the built-in commands, and I willç
+take up the more complex subject of macro commands next time.
+
+     A second classification depends on what the command acts on.  Threeç
+categories describe the object of the commands:
+
+	1. the pointed-to file
+	2. a group of tagged files
+	3. neither of the above
+
+We will begin the discussion with commands of class A3, resident commandsç
+that do not perform any action on the files.
+
+Pointer Commands
+
+     Class A3 includes the commands that move the file pointer.  These areçäshown on the help screen, and I will not list them here.  One can move theç
+pointer to the next file on the screen or to the previous one (withç
+wraparound); up, down, left, or right (with wraparound); to the first orç
+last file on the current screen; or to the very first or very last file ofç
+those selected by the file mask.  One can advance to the next screen ofç
+files or to the previous screen.  Obviously, some of these functions will beç
+redundant in some cases, such as when all the selected files can fit on oneç
+screen (think what happens when there is exactly one file selected).
+
+     ZFILER learns from the TCAP the control characters sent by any specialç
+cursor keys on the keyboard (provided they send a single control characterç
+and provided the TCAP has been set up correctly), and it makes them generateç
+the up, down, left, and right functions.  If the cursor keys generateç
+control codes normally used for another function, then that function will beç
+lost (the cursor keys take precedence).  That can cause problems.  Oneç
+solution is to eliminate the definition of the cursor keys in the TCAP andç
+simply use the default WordStar diamond keys for those functions. ç
+Alternatively, one can patch ZFILER to use different keys for its ownç
+functions, but this is not straightforward to do, and I will not describe itç
+here.
+
+     The "J" (Jump) command allows you to jump to a file that you name. ç
+This is very handy when there are many files in the display or when the fileç
+you want is not on the current screen.  Press the "J" key, and you will beç
+prompted for a file name.  You do not have to enter the exact name.  ZFILERç
+automatically converts what you type into a wildcard filespec, and it findsç
+the first file that matches.  For example, if you enter only "Z" followed byç
+a return, this is equivalent to "Z*.*", and ZFILER will move the pointer toç
+the first file that starts with a "Z".  Similarly, if you enter ".D", ZFILERç
+will move to the first file with a file type that starts with "D".
+
+     The "J" function is very handy; however, there is more.  Many peopleç
+are not aware that you may press control-J to repeat the same search andç
+find the next matching file.  The search will wrap around from the end ofç
+the files back to the beginning.  This function is not listed on the helpç
+screen because I could not find room for it.
+
+Other Non-File Commands
+
+     Some other commands that do not act on files are: X, L, A, S, E, H, Z,ç
+and O.  "X", as the command prompt reminds you, is used to exit from ZFILER. ç
+Besides terminating the current execution of the program, it also removesç
+ZFILER's entry in the shell stack (if it did not, you would just reenter itç
+right away).
+
+     We already spoke about the "L" (Log) command earlier.  The "A"ç
+(Alphabetize or Arrange or Alpha sort) toggles the way in which the filesç
+are sorted, namely alphabetically by the file name or by the file type.      ç
+The "S" (Status) command prompts you for a disk drive letter and then tellsç
+you the amount of space remaining on that disk.
+
+     The "E" command (refresh scrEEn -- I know that's stretching things, butç
+"R" was already used) redraws the screen.  You might think that this wouldç
+never be needed, but there are two circumstances in which it comes in veryç
+handy.  One is when ZFILER is being used on a remote system.  It is trueçäthat very few RASs make ZFILER available, but I do on Z-Node #3.  If you getç
+some line noise, the screen can become garbled.  Then the "E" key can beç
+used to draw a fresh screen.
+
+     The other circumstance in which the "E" command saves the day is withç
+Backgrounder-ii if you do not have a screen driver (I don't for my Conceptç
+108 terminal -- never got around to writing one, partly because all theç
+programs I use frequently have a redraw key like this one).  I simply defineç
+a BGii key macro specifying "E" as the "redraw" key, save the keyç
+definitions to ZFILER.BG, and attach that definition to ZF.COM.  Thenç
+whenever I swap tasks back into ZFILER, BGii simulates my pressing the "E"ç
+key, and the screen is redrawn.  This often gives a faster screen refreshç
+than one gets with a full-fledged screen driver.
+
+     The "H" (Help) command generates a macro command to invoke the Z-Systemç
+HELP facility.  To tell the truth, I have not used this and don't evenç
+remember precisely what it does.  I would have to look at the source code.
+
+     The "Z" (Z-system) command prompts you for a command, and whatever youç
+enter is passed on to the Z-System multiple command line buffer forç
+execution.  When that command line is complete, ZFILER is reinvokedç
+automatically.
+
+     When you use the "Z" command, you will normally be logged into theç
+directory that is currently displayed.  However, this will not always beç
+possible.  ZFILER allows you to select directories with user numbers from 0ç
+to 31.  Unless you are using a version of ZCPR33 or ZCPR34 with the HIGHUSERç
+option enabled, you cannot log into user areas above 15.  In that caseç
+ZFILER will put you in the directory your were in when you invoked ZFILER. ç
+In any case, the command prompt will indicate the directory from which yourç
+command line will be executed.
+
+     Since commands you run using the "Z" function may put some informationç
+on the screen that you would not want ZFILER to obliterate immediately,ç
+there is a flag set that signals ZFILER to prompt you and to wait for you toç
+press a key before putting up its display.  Here is a tip for advancedç
+users.  If you enter your command line with one or more leading spaces, thisç
+shell-wait flag will not be set, and ZFILER will return without your havingç
+to press a key.  The leading spaces are stripped from the command lineç
+before it is passed to the command processor.  This means that you cannotç
+use a leading space to force invocation of the extended command processorç
+(ECP); you have to use the slash prefix instead.  A space and a slash willç
+force invocation of the ECP and will disable the shell-wait flag.
+
+     The final command in class A3 is the "O" (Options) command.  It is aç
+complex topic, and I will leave it for next time.  If you can't wait untilç
+then, experiment with it.  It should not be able to do any harm to yourç
+system.
+
+Single-File Built-In Functions
+
+     Now let's discuss the commands in class A1, the built-in commands thatç
+act on the pointed-to file.  These are invoked by pressing one of theç
+following keys, whose meaning is indicated in parentheses: C (Copy), Mç
+(Move), D (Delete), R (Rename), V (View), P (Print), F (File size), T (Tag),çäand U (Untag).  Some of these are self-explanatory, and I will not discussç
+them.
+
+     The "C" command copies a file to another directory under the same name;ç
+it does not allow one to give a new name for the destination file (however,ç
+you can do that with a macro command).  The "M" command does not really moveç
+a file; it copies the file and then, if the copy was successful, deletes theç
+original file.  It is really a combination of "C" and "D".  Moving a fileç
+this way is inefficient if the destination directory is on the same drive asç
+the source file.  A macro command that invokes an ARUNZ alias can get aroundç
+this limitation (and almost all other ZFILER limitations).
+
+     The tag and untag commands are used to select a group of files on whichç
+operations can be performed.  Tagged files are indicated in two ways.  Aç
+special character ("#") is placed after the file name in the display, and,ç
+if the terminal supports video highlighting, the file is highlighted.
+
+     Two related commands are W (Wild tag) and Y (Yank back?).  "W" allowsç
+you to tag or untag groups of files designated by an ambiguous file spec. ç
+After tagged files are operated on by the built-in group commands describedç
+below, the tag marker "#" is changed to "'" (a soft tag).  The "Y" commandç
+changes the soft tags back into hard tags so that further group operationsç
+can be performed on those files.
+
+Built-In Group Commands
+
+     Group commands are initiated by pressing the "G" (Group) key.  Theç
+command prompt at the bottom of the screen changes to
+
+	Command? (/=Help, X=Quit)  Group: (A,C,D,F,M,P,R,T,U,V)
+
+For now we will consider only the built-in group functions (class A2) andç
+will take up group macro commands (class B2) next time.
+
+     Except for the four functions described below, the letters invoke theç
+same action as the individual command corresponding to that letter, but theç
+function is performed on all the tagged files.  We will not discuss thoseç
+further.  Note in particular that the keys "A" and "R", however, have aç
+group function that is completely different from the individual function.
+
+     The "U" and "T" group functions do not act on the tagged files; theyç
+change the tagging.  The former untags all files; the latter tags them all.
+
+     The "R" group function is another one that does not, strictly speaking,ç
+act on the tagged files.  It reverses the tags, tagging the files that hadç
+been untagged and untagging the ones that had been tagged.  This can be veryç
+handy in several circumstances.  For example, you might want to copy all theç
+files except two.  It is easier to tag those two and then to reverse theç
+tags.  As another example, you might want to copy some of the displayedç
+files to one diskette and the others to a second diskette.  I do thisç
+frequently.  I begin by tagging the ones to go to the first diskette.  Thenç
+I group copy ("GC") them to the destination diskette.  Next, I yank back theç
+tags using the "Y" command and then reverse the tags with "GR".  Now I canç
+group copy the rest to the second diskette.
+ä     The "A" (Archive) group command is very handy for automating backups. ç
+When it is entered, the tags are removed from any tagged file whose archiveç
+flag is set.  As a result, only files that have been modified since the flagç
+was last set will remain tagged.  In addition, the "A" group commandç
+automatically initiates a group copy operation but with one special feature. ç
+After the file has been copied successfully, the archive flag on the sourceç
+file is set to indicate that the file has been backed up.
+
+     Under later versions of VFILER, the group "A" command automaticallyç
+tagged all unarchived files; under ZFILER it untags the archived ones.  Thisç
+difference is very important.  With VFILER, you were forced to back up allç
+the files selected by the VFILER file mask.  Under ZFILER you can select theç
+files that will be candidates for backing up.  If you want the achieve theç
+same function as under VFILER, just tag all the files first with "GT" andç
+then archive them with "GA".  On the other hand, if you want to exlude BAKç
+files from the backup, you can "GT" all files, untag the "*.BAK" files usingç
+the "W" command, and then use the "GA" command.
+
+     After you enter the command "GA", you will be prompted for aç
+destination directory.  You do not have to supply one!  If you simply enterç
+a carriage return, the copy operation will be skipped, and you will be leftç
+with tags on the files that need to be backed up.  You can then use a macroç
+function to back them up in a specialized way, such as crunchingç
+(compressing) them to the backup disk (instead of copying them as they are)ç
+or putting them into a library on the backup diskette.  Next time we willç
+discuss the macro techniques required to do this.
+
+
+                           ZFILER, Installment 2
+                           =====================
+
+   Last time we covered most of the built-in functions and had left theç
+macro commands for this time.  One built-in function was also deferred, theç
+option command "O", and we will take up that subject first.
+
+
+                             The Option Command
+
+   When the option command letter "O" is pressed, a special options screenç
+is displayed.  Eleven operating characteristics can be changed from a menuç
+with the following appearance (approximately):
+
+	A. single replace query		Y
+	B. group replace query		Y
+	C. archive replace query	N
+	D. verify query			Y
+	E. verify default		Y
+	F. suppress SYS files		Y
+	G. sort by file name		N
+	H. set copied file attributes	Y
+	I. use dest file attributes	Y
+	J. archive destination		Y
+	K. search path for CMD file	N
+
+We will explain the meaning of each of these options in a moment.  First açäfew words about the mechanics.  While the options menu is displayed,ç
+pressing the index letter at the left will cause the setting of theç
+corresponding option to be toggled, and the new state will be shown in theç
+column at the right.  The listing above shows the initial state of theç
+options in my personal version of ZFILER.  When you are finished togglingç
+options, just press carriage return to return to the main ZFILER menu. ç
+These option settings are stored in the ZFILER shell stack entry and willç
+thus continue in effect through all ZFILER operations until the command "X"ç
+is used to terminate the shell.
+
+   The first three options concern how ZFILER responds when copying (orç
+moving) files and a file of the same name already exists in the destinationç
+directory.  Item A applies when individual files are copied (commands "C"ç
+and "M"); item B applies when a group copy is performed (commands "GC" andç
+"GM"); and item C applies when performing an archiving operation (commandç
+"GA").  If the option is "YES", then ZFILER will prompt one before existingç
+files are erased and give one the chance to cancel the operation for thatç
+file, leaving the existing file intact.  If the option is toggled to "NO",ç
+then existing files will be overwritten without even a message.
+
+   The next two options affect the verification of the copied file in theç
+destination directory.  Item D determines whether or not the user will beç
+asked about verification.  If this option is set to "N", then the state ofç
+option E will determine whether or not verification is performed on fileç
+copies.  If this option is set to "Y", then before each copy, move, groupç
+copy, or group move, ZFILER will put up the prompt "Verify (Y/N)?".
+
+   The next two options affect the way files are displayed on the screen. ç
+If item F is set to "Y", then files with the "system" or SYS attribute willç
+be suppressed, that is, not included among the selected files on whichç
+ZFILER acts.  This is a reasonable choice for this option, since the mostç
+common use of the SYS attribute is to make the files disappear fromç
+consideration during file maintenance and display operations.  Item G on theç
+options menu determines whether files are sorted first by name and then byç
+type or vice versa.  Changing this option is presently equivalent to the "A"ç
+command from the main ZFILER command menu.
+
+   The next three options concern how file attributes are treated when filesç
+are copied.  One possibility is to create new files with a clean slate ofç
+attributes (that is, all attributes reset: not read-only, not SYS, notç
+archived).  This is what will happen when option H is set to "N" (but noteç
+option J, which may override this).  When the attributes of the destinationç
+file are to be set, they can be set in two possible ways.  If a file of theç
+same name existed in the destination directory, then its file attributesç
+could be used for the copy that replaces it.  This is what will be done ifç
+option I is set to "Y".  If option I is set to "N" or if there was noç
+matching file in the destination directory, then the attributes will be setç
+to match those of the source file.
+
+   Option J can set a special override for the archive or ARC attribute.  Ifç
+the option is set to "N", then the ARC attribute is treated just like theç
+other attributes according to options H and I.  If option J is set to YES,ç
+then the destination file always has its ARC attribute set.
+
+   There was at one time a great deal of controversy over the way the ARCçäattribute is handled under ZFILER.  At one time it was always reset, so thatç
+the destination file would be marked as not backed up.  Another school ofç
+thought asserted that, on the contrary, the file was backed up, since thereç
+was a copy of it on the source disk from which the file was copied.  Thatç
+latter argument made considerable sense in the case of copying files from aç
+master disk to a RAM disk before a work session.  Here it was certainlyç
+important to start with all files marked with the ARC attribute so that oneç
+could easily tell at the end of the session which files had been modified soç
+that they could be copied back to the permanent storage medium.
+
+   All in all, I never understood this controversy.  Both approaches clearlyç
+have merit, and since ZFILER supports both, I saw no reason for all theç
+argument.  In a future version of ZFILER, I think I would like to add a flagç
+word that would indicate which drives should automatically set the ARC flagç
+when the J option is set to YES.  That way, the option could be made toç
+apply to RAM drives only.
+
+   The final item on the option menu, option K, determines how the macroç
+command file ZFILER.CMD (see discussion below) will be located.  There areç
+two choices.  If option K is set to YES, then ZFILER will look for it firstç
+in the currently displayed directory and then along the entire ZCPR3 searchç
+path.  This option is useful if one wants to have different macro commandç
+files that apply to specific directory areas.  Alternatively, if option K isç
+set to NO, then ZFILER locates the CMD file without using the path. ç
+Depending on how ZFILER is configured (this will be discussed another time),ç
+the file will be sought either in the root directory of the path (the lastç
+directory specified on the search path) or in a specific drive/user areaç
+code‰ intÔ ZF.COMÆ  ThiÛ alternativÂ resultÛ iÓ fasteÚ operation¨ especiall˘ ç
+iÊ thÂ specifie‰ director˘ resideÛ oÓ · RAÕ disk.
+
+   The options controlled by the option menu can also be permanently changedç
+in the ZFILER program file using a patching utility like ZPATCH.  In theç
+first page of the file, you will see the ascii string "OPT:".  The elevenç
+bytes following this string contain the startup values for the elevenç
+options.  Patch a byte to 00 for NO or FF for YES.
+
+
+                               ZFILER Macros
+
+   Although ZFILER can accomplish many tasks using its built-in functions,ç
+its real power comes from the macro facility, which allows it to be extendedç
+to include any functions that can be performed using combinations of otherç
+programs.  This is where ZFILER really makes use of its power as a shell. ç
+First I will describe how the macro facility is used, and then I willç
+describe how the user defines the macro functions.  As with the built-inç
+functions, macro functions can operate either on single files or on groupsç
+of files.  The single-file macro facility is well developed and was alreadyç
+present in nearly the same form in VFILER; the group macro facility is newç
+with ZFILER and has not been fully developed yet.
+
+
+Invoking Macros
+
+   One way to initiate a macro operation on the pointed-to file is to pressç
+the macro invocation key, which is normally the escape key.  A prompt ofçä"Macro:" will appear after the normal ZFILER command prompt.  At this pointç
+you have several choices.  If you know the key corresponding to the macroç
+you want to run, then you can simply press that key.  ZFILER will thenç
+construct a command line and pass it on to the command processor forç
+execution.  If ZFILER is configured for instant macro operation (itç
+generally is), then macros associated with the number keys "0" through "9"ç
+can be initiated without the macro invocation key; the number key enteredç
+alone at the main ZFILER command prompt will generate the macro function.
+
+   If you press the macro invocation key a second time, a user-created helpç
+screen will be displayed.  This screen generally lists the available macroç
+functions.  You can now press the key for the desired function, or you canç
+press carriage return to cancel the macro operation and return to the mainç
+ZFILER menu.  The help menu screen will also be displayed if you press theç
+"#" key.  This is a holdover from VFILER and arises in part because of theç
+structure of the file in which the macros are defined (more on thisç
+shortly).
+
+   Group macros are invoked in a similar way from the group function commandç
+line.  After you have tagged a group of files, press the "G" key to enterç
+group mode.  The prompt will list only the built-in group functions, but ifç
+you press the macro invocation key, you can proceed as described above forç
+single-file macro operations, except that the macro function will beç
+performed on each of the tagged files.
+
+   The group macro facility works a little differently than the single-fileç
+macro facility.  Since the command line would generally not be long enoughç
+to contain the commands for all the tagged files, the group macro facilityç
+works by writing out a batch file for processing by ZEX or SUBMIT.  In thisç
+way there is virtually no limit to the number of files on which group macrosç
+can operate.
+
+   There are many configurable options (described below) that are associatedç
+with the group macro operation.  These include the name of the ZEX or SUBç
+batch file, the directory to which it is written, and the command line thatç
+ZFILER generates to initiate the batch operation.  The NZ-COM version ofç
+ZFILER uses a file called ZFILER.ZEX and the command line "ZEX ZFILER".  Theç
+Z3PLUS version, under which ZEX will not run, uses a file called ZFILER.SUBç
+and a command line of "SUBMIT ZFILER".
+
+   Since macros (and the main menu "Z" function) work by passing commands toç
+the command processor, file tags will be lost in the process, and whenç
+ZFILER resumes operation, it starts afresh.  In a future version of ZFILER,ç
+I hope to preserve the tag information by having it optionally written to aç
+temporary file (the shell stack entry is far too small) and read back inç
+when ZFILER resumes.
+
+
+Defining Macros -- The CMD File
+
+   Now let's learn how to define the macro functions we want.  As Iç
+indicated earlier, the macros are defined in a file called ZFILER.CMD (theç
+ZFILER ComManD file).  In the version of ZFILER distributed with NZ-COM andç
+Z3PLUS, the CMD file is searched for in the root directory of the ZCPR3ç
+command search path.  As described earlier, the option menu allows theçäentire path to be used.  There are also some additional configurable optionsç
+that will be discussed another time.  You must be sure to put yourç
+ZFILER.CMD file in the appropriate directory.  If the file cannot beç
+located, you will still get the macro prompt, but, after you have specifiedç
+a macro key, the error message "ZFILER.CMD NOT Found" will be displayed.
+
+   The ZFILER.CMD file is an ordinary text file that you can create with anyç
+editor or wordprocessor that can make plain ascii files (WordStar inç
+nondocument mode, for example).  The CMD file has two parts.  The first partç
+contains the macro command definitions; the second contains the help screenç
+(described earlier).
+
+   In the first part of the CMD file, each line defines a macro.  Theç
+character in the first column is the key associated with that definitionç
+(case does not matter).  Macros can be associated with the 10 number keys,ç
+26 letter keys, and all printable special characters except for "#"ç
+(explained below).  The space character and all control characters are notç
+allowed.  Owing to an oversight, the rubout character can be associated withç
+a macro!
+
+   After the character that names the macro there can be any number ofç
+blanks (including zero).  If the first non-blank character is "!", then theç
+"strike any key" (shell-wait) prompt will appear before ZFILER puts up theç
+file display after a macro command is run.  This should be used whenever theç
+macro will leave information on the screen that you will want to read. ç
+After the "!" there can again be any number of spaces.  Any remaining textç
+on the line is taken as the script for the macro command.
+
+   The second part of the CMD file starts when a "#" character is found inç
+the first column (hence the exclusion of that character as a macro name). ç
+Once that character appears, all remaining text, including text on the line,ç
+will be used as the help screen.  Since ZFILER will add some information toç
+the display (the name of the pointed-to file and a prompt), you willç
+generally want to keep the help screen to no more than 20 lines, includingç
+an extra blank line at the end for spacing.  With some experimentation youç
+will get the hang of designing this screen.
+
+
+Macro Scripts
+
+   ZFILER macro scripts are similar to those in ARUNZ and in the other menuç
+shells (MENU, VMENU, FMANAGER) in that parameter expressions can appear. ç
+The critical parameters -- the ones that implement functions that cannot beç
+achieved any other way -- are those that convey information about theç
+directory currently displayed by ZFILER and about the pointed-to file. ç
+Parameters consist of a "$" character followed by one of the charactersç
+listed below.
+
+	User prompt parameters
+
+		'	User input prompt
+		"	User input prompt
+
+	Parameters for directories
+	  - currently displayed directoryä		C	DIR form
+		D	Drive letter
+		U	User number
+	  - home directory (from which ZFILER was invoked)
+		H	DU form
+		R	Home DIR
+
+	Parameters for pointed-to file
+
+		P	Full information (DU:FN.FT)
+		F	File name (FN.FT)
+		N	File name only
+		T	File type only
+
+	Special parameters
+
+		!	GO substitution indicator
+		$	The dollar character
+
+
+   The parameters are listed in a special order above, and we will explainç
+that later.  First we will just present the meaning for each parameter.
+
+   The parameter expressions $" and $' are used to display a prompt messageç
+to the user and to read in a response string.  Single and double quotes areç
+equivalent.  Once the prompt parameter has been detected, all subsequentç
+characters up to one of the quote characters are displayed as the userç
+prompt.  Thus, if I am not mistaken, there is presently no way to put eitherç
+quote character into the prompt.  The end of the line or the end of the fileç
+will also terminate the prompt.
+
+   No special character interpretation is performed while expanding theç
+prompt.  If you want to make fancy screens, you can include escape sequencesç
+and some control characters (obviously carriage return won't work).  In theç
+future, ZFILER should be enhanced to provide a means to generate all controlç
+characters, to allow special characters to invoke screen functions based onç
+the current terminal definition, and to expand directory and file parametersç
+in the prompt.
+
+   Now for the directory parameters.  Parameters C, D, and U returnç
+information about the currently displayed directory, while H and R returnç
+information about the home directory, the one from which ZFILER wasç
+originally invoked.  PLEASE NOTE: macros always operate from the homeç
+directory.  The reason for this is that ZFILER can display directories withç
+user numbers higher than 15 even when it is not possible to log into theseç
+areas.  If you want to operate in the displayed directory, then your scriptç
+must include an explicit directory-change command of the form "$D$U:" at theç
+beginning (or "$C:" if your system requires the use of named directories)ç
+and a command of the form "$H:" (or "$R:") at the end.
+
+   One special note about the parameters that return directory names.  Ifç
+the directory has no name, then the string "NONAME" is returned.  This willç
+presumably not match any actual name and will lead, one hopes, to a benignç
+error condition.  These parameters are included only for systems that do notç
+allow directories to be indicated using the DU form (I hope that few if anyçäsystems are set up this way).
+
+   Now we come to the four file name parameters.  They allow us to generateç
+easily the complete file specification or any part of it.  Note that "$F" isç
+not quite the same as "$N.$T".  The latter always contains a dot; the formerç
+does not if the file has no file type.
+
+   Finally, we have two special parameters.  "$$" is included to allow aç
+dollar sign character to be entered into the script.  "$!" is a controlç
+parameter that is used only when a group macro is executed.  If it is placedç
+immediately before a token (string of contiguous characters), then thatç
+token will be replaced by the string "GO" on all but the first expansion ofç
+the script.  This allows group macro scripts to operate faster by avoidingç
+repetitive loading of a COM file.  It must be used with great care andç
+consideration, however, for reasons that I will not go into here.
+
+
+Rules for Script Expansion
+
+   ZFILER follows a specific sequence of steps when expanding a script, oneç
+that gives it a special feature that, I would guess, few users are aware of. ç
+The first step in the expansion is to process only the user-input promptç
+parameters, substituting for the prompt whatever the user entered inç
+response.  This results in a modified script that is then processed by theç
+second step in the expansion.  Because the expansion is handled this way,ç
+the user input can include ZFILER script parameters!  Thus the script canç
+be used to write a script.  You will see an example of this later.
+
+   The second step in the expansion is to substitute values for theç
+directory parameters, which are a kind of constant.  They do not change as aç
+function of the pointed-to file.  Finally, in a third step, the remainingç
+parameters are expanded.  For group macros, this final step in the expansionç
+is repeated for each of the tagged files.  The file parameters are expandedç
+differently for each file, and, starting with the second tagged file, theç
+"$!" parameter causes "GO" substitution.
+
+
+Macro Examples
+
+   Listing 3 shows an example of a ZFILER.CMD file, one designed toç
+illustrate some techniques of macro writing.  While writing this article, Iç
+discovered that one can include blank lines as shown to make the CMD fileç
+easier to read.  The help screen part of the listing is taken from myç
+personal script file (which, I have to confess, I have not really workedç
+very hard at).  The macro definition part of the listing includes only a fewç
+of the definitions.
+
+   The macro "Q" is included to illustrate a very simple, but useful, typeç
+of macro.  It invokes the very powerful file typing program QL (quick look)ç
+on the pointed-to file.  This is handy when you want more powerful viewingç
+capability than that offered by the built-in "V" command.  QL can handleç
+crunched files and libraries, and it can display text or hex forward orç
+backward.
+
+   Macro "U" uncompresses a file.  It illustrates a more complex script thatçäinvolves flow control and parameters that extract individual components ofç
+the pointed-to file name.  It tests the file type to see if the middleç
+letter is "Q" or "Z".  In the former case, it unsqueezes the file; in theç
+latter, it uncrunches it.  The uncompressed file it put into the sourceç
+file's directory.
+
+   Macros S, K, and B illustrate the use of input prompting.  The first oneç
+allows the user to specify the file attributes to be set.  Note that theç
+prompt includes a helpful reminder of the syntax required by SFA.
+
+   Macro K crunches files to a user-specified destination.  It alsoç
+illustrates how one logs into the currently displayed directory.  I do thisç
+here so that a null answer to the prompt (i.e., just a carriage return) willç
+result in the crunched files being placed in the currently displayedç
+directory rather than in the home directory, as would otherwise be the caseç
+(since that is where the macro runs from, remember).  As a result, however,ç
+this macro will not operate properly in user areas above 15 under BGii orç
+versions of the command processor that do not allow logging into high userç
+areas.
+
+   Macro B performs a slightly more complex function.  It not onlyç
+compresses the pointed-to file to a specified destination directory, but itç
+then marks the source file as having been backed up.  A combination of theç
+group archive built-in command (to tag files that need backing up) and aç
+group macro B (to perform the backup) gives the ZFILER user a way to back upç
+files in crunched form on the backup disk.
+
+   Macro M is included to show that a ZFILER macro, when it needs to doç
+something more complex than it is capable of doing all by itself, can passç
+the task to an ARUNZ alias.  The MOVE alias first determines whether theç
+source and destination are on the same drive.  In that case, MOVE.COM isç
+used to perform the move.  Otherwise, the source file is copied to theç
+destination and then deleted.  What we have, therefore, is a MOVE commandç
+that frees the user of the responsibility of worrying about which drives areç
+involved -- another example of how Z-System can free you from considerationsç
+that need not concern you, that do not require human intelligence to decide.
+
+   The final three macro examples are execution macros.  Macro X causes theç
+pointed-to file to be executed.  A more sophisticated version might check toç
+make sure that the file type is COM.  I opted for the flexibility ofç
+pointing, for example, to PROGRAM.Z80 and having PROGRAM.COM run.  If thereç
+is no COM file with a matching name, the error handler will take care ofç
+things.  You will note the leading colon before the "$n" parameter.  Itç
+makes sure that the current directory is searched even if it is not on theç
+path.  Prompted input is used to allow a command tail to be included.
+
+   The Z macro performs a user-specified function on the pointed-to file. ç
+Two separate user prompts allow both the command and a command tail to beç
+given.  For example, if you wanted to squeeze the file to A0:, you wouldç
+enter "SQ" in response to the first prompt and "A0:" in response to theç
+second.
+
+   The 0 macro illustrates how the response to a prompt can be used as aç
+ZFILER script.  This macro takes care of all those functions we forgot toç
+include in ZFILER.CMD.  The whole macro is just prompted input, and whateverçäwe answer will be run as a script.  I use this function so often that I putç
+it on a number key so that it can be invoked with a single key rather thanç
+the usual pair.  Also, as you may have noticed, I include in the macro helpç
+screen a list of the parameters that can be used.
+
+   The only real limitation of this macro-to-write-a-macro approach is thatç
+prompted input cannot be included in the response.  As I write this,ç
+however, it occurs to me that this limitation could be overcome byç
+recursively parsing the prompt parameters until none remain, and only thenç
+going on to the subsequent macro expansion steps.
+
+   Well, I was going to discuss patching and configuring ZFILER, but thisç
+article is already too long, so that will just have to wait for anotherç
+time.  I hope that this article will help you get more out of ZFILER.  Seeç
+you in the next issue!
+
+
+
+                                  LISTIN« 3
+                                  ---------
+
+Q   ql $p
+
+U ! if $t=?q?;$!sys:uf $p $d$u:;else;$!sys:uncr $p $d$u:;fi
+
+S ! $!sfa $p $" SFA Options (/o,o.. o=ARC,-ARC,R/O,R/W,SYS,DIR): "
+K ! $d$u:;$!crunch $f $"Destination directory (DU:) -- ";$h:
+B   $d$u:;crunch $f $"Destination directory (DU:) -- ";sfa $f /arc;$h:
+
+M ! /move $p $"Destination directory for move: "
+
+X ! $d$u:;:$n $" Command Tail: ";$h:
+Z ! $d$u:;$" Command to perform on file: " $f $" Tail: ";$h:
+0 ! $"Enter ZFILER macro script: "
+#		   SAMPLE ZFILER MACROS FOR TCJ
+
+0. on-line macro	A. set Archive bit		N. NULU
+1. LPUT			B. Backup (cr/sfa)		O.
+2. Z80ASM to COM	C. CRC				P. Protect
+3. Z80ASM to REL	D. Date display			Q. QL
+4. Compare Files	E. Edit				R.
+5.			F.				S. SFA
+6.			G.				T. Type
+7.			H.				U. Uncompress
+8.			I.				V. VLU
+9.			J.				W.
+			K. Krunch			X. eXecute
+			L. LDIR				Y.
+			M. Move				Z. run command
+
+$!  ZEX 'GO'		$D  DRIVE		$P  DU:FN.FT	$F  FN.FT
+$".."  PROMPT		$U  USER		$N  FN		$T  FT
+$'..'  PROMPT		$H  HOME
+
+

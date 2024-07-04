@@ -1,0 +1,203 @@
+
+            Using the 25th line for user info display
+                         with MBYE/MBBS
+
+On my Kaypro 10 system I have been using the 25th line to display the user
+information provided by MBYE41/MBBS44.  I know there are many systems running
+MBBS on Kaypro machines so I thought it would be a good idea to show others
+how to install MBYE to implement this feature.  The same video protocol is
+used on the Kaypro 10 and all the other 84 models (284,484,2X,etc) so this
+modification will work on any of these systems.  If you do not like the
+inverse video, just take the ESC,'B0', ESC,'B1', ESC,'C0', and ESC,'C1'
+out of the DB strings near the end of the file.  An easy way to install
+these changes would be to simply rip out the original code and replace it
+with the modified code using the block delete and insert feature of your
+favorite editor.  This file also includes fixes for two conditional
+assembly bugs in the original source code which I also included in
+MBYE41.FIX.
+
+In the beginning of the MBYE41.ASM file, set the equates TOPDSP and NORMAL
+to NO.  Set the equate LINE25 to YES.
+
+I made the following changes to the MBYE41 source code to make the 25th
+line display work a bit more smoothly.  In the original release it was
+possible to display an empty 25th line by pressing ^W with no user logged
+in.  All the changed lines are shown with ;** so you can easily locate
+them.
+
+Murray Simsolo
+LIKUG MBBS-RCP/M
+(516)825-8465
+(300/1200/2400, 24 hrs)
+
+TOGUSR:
+	 IF	MBBS AND (TOPDSP OR LINE25)
+	LDA	DSPUSF
+	ORA	A
+	JZ	SETUDO
+	XRA	A
+	STA	DSPUSF
+	 ENDIF
+;
+	 IF	MBBS AND NODSP24
+	STA	DSPUSX
+	 ENDIF
+;
+	 IF	MBBS AND LINE25		;** I added
+	LDA	CURUSR			;** these lines
+	CPI	' '			;**
+	JZ	UDOFF			;**
+	LXI	H,CLR25			;**
+	JMP	FKEX			;**
+	 ENDIF				;**
+;
+	 IF	MBBS AND (TOPDSP OR LINE25)
+UDOFF:	LXI	H,USROFF
+	JMP	FKEX
+SETUDO:
+	MVI	A,ON
+	STA	DSPUSF
+	 ENDIF
+;
+	 IF	MBBS AND NODSP24
+	STA	DSPUSX
+	 ENDIF
+;
+	 IF	MBBS AND (TOPDSP OR LINE25)	;** I added
+	LDA	CURUSR				;** these lines
+	CPI	' '				;**
+	JNZ	USRDSP				;**
+	LXI	H,USRON				;**
+	JMP	FKEX				;**
+	 ENDIF					;**
+;
+	 IF	MBBS
+USRDSP:	LXI	H,CURUSR+35
+	SHLD	DPTR
+	LHLD	RTCBUF+7
+	CALL	DOUT
+	 ENDIF
+;
+
+At the end of the file there are some DB strings which must be set for the
+necessary escape codes to be sent to the Kaypro to use the 25th status line.
+I also added a message to be sent to the sysop confirming that the user
+display is on when ^W is pressed with no user logged in.
+
+	 IF	MBBS AND (LINE25 OR TOPDSP)
+USROFF:	DB	CR,LF,'[User display OFF]',CR,LF,0 ;** I changed this
+USRON:	DB	CR,LF,'[User display ON]',CR,LF,0  ;** and added this
+	 ENDIF
+;
+;------------------------------------------------------------------
+;
+; MBBS USER DISPLAY OPTIONS:
+;
+; To make the USER message appear at the top of your screen on your
+; console terminal, be sure to patch these escape sequences as needed
+; for your system, the ESC sequences shown here are for the Kaypro 2,
+; (ADM-31). (Except for LINE25 stuff which is for Kaypro 10)
+;
+	 IF	MBBS AND LINE25
+CLR25:	DB	ESC,'B6',ESC,'=8 ',ESC,'R',ESC,'C7',ESC,'C6',0 ;** I changed
+	 ENDIF	;**this string to work with the K10
+;
+USRMSG:
+;
+	 IF	MBBS AND NORMAL
+	DB	CR,LF
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPDEL)
+	DB	ESC,'=',23+' ',0+' '	;bottom line (Kaypro 2)
+	DB	LF 			;and linefeed (scrollup)
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP
+	DB	ESC,'=',0+' ',0+' '	;home cursor (Kaypro 2)
+	 ENDIF
+;
+	 IF	MBBS AND (TOPDSP OR NORMAL)
+	DB	'[         Who/Where               '
+	DB	'Mins Usr#  Date Logons Msg#  '
+	 ENDIF
+;
+	 IF	MBBS AND (TOPDSP OR NORMAL) AND MTDISP
+	DB	'Maxt'
+	 ENDIF
+;
+	 IF	MBBS AND (TOPDSP OR NORMAL)
+	DB	'   ]'
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND TOPEOL
+	DB	'X'-40H,CR,LF		;erase to end of line/CR/LF
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND (NOT MTDISP)
+	DB	'            '
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND MTDISP
+	DB	'        '
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND (NOT TOPWRP)
+	DB	CR,LF
+	 ENDIF
+;
+	 IF	MBBS AND LINE25
+	DB	ESC,'B6',ESC,'B7',ESC,'=8 ',ESC,'B0',ESC,'B1' ;** I changed
+	 ENDIF	;** this string to work with the K10
+;
+	 IF	MBBS AND NORMAL
+	DB	CR,LF
+	 ENDIF
+;
+	 IF	MBBS
+	DB	'>> '
+CURUSR:	DB	'                                ' ;64 byte buffer poked
+	DB	'                                ' ;by MLOGIN or MBBS
+	 ENDIF	;** This ENDIF was inadvertently left out
+;
+	 IF	MBBS AND MTDISP	;** I changed the conditional here
+MTOS:	DB	'    '
+	 ENDIF
+;
+	 IF	MBBS
+	DB	' <<'
+	 ENDIF
+;
+	 IF	MBBS AND NORMAL
+	DB	CR,LF,0
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND TOPEOL
+	DB	'X'-40H,CR,LF		;erase to end of line/CR/LF
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND (NOT MTDISP)
+	DB	'            '
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND MTDISP
+	DB	'        '
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND (NOT TOPEOL) AND (NOT TOPWRP)
+	DB	CR,LF
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP AND TOPDEL
+	DB	ESC,'R'			;delete line (Kaypro 2)
+	 ENDIF
+;
+	 IF	MBBS AND TOPDSP
+	DB	ESC,'=',23+' ',0+' ',0	;bottom line, col 1 (Kaypro 2)
+	 ENDIF
+;
+	 IF	MBBS AND LINE25
+	DB	ESC,'C0',ESC,'C1',ESC,'C6',0 ;** I changed
+	 ENDIF	;** this string to work with the K10
+
+

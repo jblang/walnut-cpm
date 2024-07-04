@@ -1,0 +1,544 @@
+	title	'BDSNEW - New BDS C Library Functions'
+
+;
+;	BDSNEW - New BDS C Library Functions
+;
+;	File creation date:	April 12, 1982 @ 15:33 by BDR
+;	Last revision date:		new file
+;
+;	Operating System:	CP/M 2.x
+;	Software Revision:	1.0
+;
+;
+;	This file replaces several of the BDS C library functions that were
+;	written in C.  The functions, being written in assembly rather than
+;	C, are much faster than the old functions.  The most impressive speed
+;	increase was found in the 'strcmp' function, which is used fairly often
+;	in many applications.
+;
+;	These functions are believed to accurately replace the corresponding
+;	BDS C functions.  If any bugs are found, please notify me either
+;	through Uucp (ucbvax(shriek)ucivax(shriek)csuf(shriek)bruce), or
+;	through the Garden Grove Data Exchange RCPM system:  (714) 534-1547.
+;	(Gee, I wish MAC allowed exclamation marks in comments...)
+;
+;				Bruce Robertson
+;
+	page
+;
+;	Modification History
+;	====================
+;
+;	July 21, 1982  Modified to include two block move functions MOVE and
+;		       MOVDN which assemble with the Z80 move instructions if
+;		       the 'z80' equate is true.(Incidently using conditionals
+;		       with CASM isn't easy..it doesn't recognize 'if..endifs')
+;			  J.R.
+;	July 19, 1982  Modified to be compatible with the CASM preprocessor.
+;				Jack Riley (303) 499-9169 RCPM
+;
+; v1.0		April 12, 1982 @ 13:33 by BDR
+;	Original file was created.
+;
+	page
+	maclib	bds
+	page
+
+	z80	equ	1	; set to 1 only if code used on z80 computer
+
+;
+;	This macro is used with the character argument functions to fetch
+;	the argument from the stack.  The argument is placed into register A.
+;
+
+getbyte	macro
+	lxi	h,2		;; load the offset to the argument
+	dad	sp		;; HL now points to the argument
+	mov	a,m		;; fetch the argument from the stack
+	endm
+	page
+;
+;	Character functions:	isupper(), islower(), isalpha(), isdigit(),
+;				toupper(), tolower(), isspace()
+;
+;	Each of these functions expects a single 'char' as an argument.  The
+;	functions starting with 'is' return either TRUE or FALSE for a given
+;	character argument, depending on the condition the function is testing.
+;	the functions starting with 'to' return a (possibly altered) character.
+;
+
+
+;
+;	Return TRUE if upper case.
+;
+
+	FUNCTION	isupper
+
+	getbyte			; fetch the argument from the stack
+	lxi	h,0		; assume that it isn't upper case
+	cpi	'A'		; can't be lower than an A...
+	rc			; return with FALSE if it is
+	cpi	'Z'+1		; can't be greater than a Z...
+	rnc			; return with FALSE if it is
+	inr	l		; change the result to TRUE
+	ret			; return to caller
+
+	ENDFUNC isupper
+
+
+;
+;	Return TRUE if lower case.
+;
+
+	FUNCTION	islower
+
+	getbyte			; fetch the argument from the stack
+	lxi	h,0		; assume that it isn't lower case
+	cpi	'a'		; can't be lower than an 'a'...
+	rc			; return with FALSE if it is
+	cpi	'z'+1		; can't be greater than a 'z'...
+	rnc			; return with FALSE if it is
+	inr	l		; change the result to TRUE
+	ret			; return to caller
+
+	ENDFUNC islower
+
+
+;
+;	Return TRUE if upper or lower case.
+;
+
+	FUNCTION	isalpha
+
+	getbyte			; fetch the argument from the stack
+	lxi	h,0		; assume that it isn't alphabetic
+	ani	0DFh		; if lower case, convert to upper case
+	cpi	'A'		; can't be lower than an A...
+	rc			; return with FALSE if it is
+	cpi	'Z'+1		; can't be larger than a Z...
+	rnc			; return with FALSE if it is
+	inr	l		; change the result to TRUE
+	ret			; return to caller
+
+	ENDFUNC isalpha
+
+
+;
+;	Return TRUE if digit.
+;
+
+	FUNCTION	isdigit
+
+	getbyte			; fetch the argument from the stack
+	lxi	h,0		; assume that it isn't a digit
+	cpi	'0'		; can't be lower than a zero...
+	rc			; return FALSE if it is
+	cpi	'9'+1		; can't be larger than a nine...
+	rnc			; return FALSE if it is
+	inr	l		; change the result to TRUE
+	ret			; return to caller
+
+	ENDFUNC isdigit
+
+
+;
+;	Convert to upper case if lower case.
+;
+
+	FUNCTION	toupper
+
+	getbyte			; fetch the argument from the stack
+	mov	l,a		; assume that the character isn't lower case
+	mvi	h,0		; (this is placing the character into HL)
+	cpi	'a'		; can't be lower than an 'a'...
+	rc			; return with the original character if it is
+	cpi	'z'+1		; can't be larger than a 'z'...
+	rnc			; return with the original if it is
+	ani	05Fh		; it's lower case - convert to upper case
+	mov	l,a		; put the new character into HL
+	ret			; return to caller
+
+	ENDFUNC toupper
+
+
+;
+;	Convert upper case to lower case.
+;
+
+	FUNCTION	tolower
+
+	getbyte			; fetch the argument from the stack
+	mov	l,a		; assume that the character isn't upper case
+	mvi	h,0		; (this is placing the character into HL)
+	cpi	'A'		; can't be lower than an A...
+	rc			; return with the original character if it is
+	cpi	'Z'+1		; can't be larger than a Z...
+	rnc			; return with the original if it is
+	ori	020h		; it's upper case - convert to lower case
+	mov	l,a		; put the new character into HL
+	ret			; return to caller
+
+	ENDFUNC tolower
+
+
+;
+;	Return TRUE if character is a space, tab or newline.
+;
+
+	FUNCTION	isspace
+
+	getbyte			; fetch the argument from the stack
+	lxi	h,1		; assume that it is a white space character
+	cpi	' '		; check for a space
+	rz			; return if we have one
+	cpi	'I'-040h	; check for a tab
+	rz			; return if we have one
+	cpi	'J'-040h	; check for a newline
+	rz			; return if we have one
+	dcr	l		; make the result FALSE
+	ret			; return to caller
+
+	ENDFUNC isspace
+	page
+;
+;	Function:	atoi()
+;
+;
+;	This function converts an ascii integer to its binary equivalent. White
+;	space at the front of the string is ignored, and a minus sign is
+;	recognized.
+;
+;	int	atoi(str)
+;	char	*str;
+;
+
+	FUNCTION	atoi
+
+	pop	h		; fetch the return address
+	pop	d		; fetch the pointer to the string
+	push	d		; put everything back the way it was
+	push	h
+	push	b		; save the BC register
+	lxi	h,0		; zero the number accumulator
+	xra	a		; set the sign flag to POSITIVE
+	push	psw		; save the sign flag on the stack
+
+atoi10:	ldax	d		; fetch the next byte of the string
+	inx	d		; increment the string pointer
+	cpi	' '		; check for a leading space
+	jz	atoi10		; go skip the space
+	cpi	'I'-040h	; check for a leading tab
+	jz	atoi10		; go skip the tab
+	cpi	'-'		; check for the minus sign
+	jnz	atoi20		; jump if no minus sign
+	pop	psw		; fetch the sign flag
+	inr	a		; change the flag to NEGATIVE
+	push	psw		; put the sign flag back
+	ldax	d		; fetch the next string character
+	inx	d		; increment the pointer
+
+atoi20:	sui	'0'		; convert the alleged digit to binary
+	cpi	10		; it can't be larger than 9
+	jnc	atoi30		; jump if this isn't an ascii digit
+	mov	b,h		; copy the accumulator into BC
+	mov	c,l
+	dad	h		; multiply the accumulator by 8
+	dad	h
+	dad	h
+	dad	b		; adding the original accumulator in twice...
+	dad	b		;   multiplies the accumulator by 10.
+	mov	c,a		; put the current digit into BC
+	mvi	b,0
+	dad	b		; add in the current digit
+	ldax	d		; fetch the next string character
+	inx	d		; increment the string pointer
+	jmp	atoi20		; go check for another digit
+
+atoi30:	pop	a		; end of number - fetch the sign flag
+	pop	b		; restore the BC register
+	rz			; return if the sign flag is POSITIVE
+	mov	a,h		; two's complement the accumulator
+	cma
+	mov	h,a
+	mov	a,l
+	cma
+	mov	l,a
+	inx	h
+	ret			; return to caller
+
+	ENDFUNC atoi
+	page
+;
+;	Function:	strlen()
+;
+;
+;	This function returns the length in bytes of its string argument.  The
+;	terminating zero byte is not counted in the length.
+;
+;	unsigned strlen(str)
+;	char	*str;
+;
+
+	FUNCTION	strlen
+
+	pop	h		; fetch the return address...
+	pop	d		; fetch the string pointer
+	push	d		; put everything back the way it was
+	push	h
+	mov	h,d		; copy the string pointer into HL
+	mov	l,e
+
+slen10:	ldax	d		; fetch the next byte of the string
+	inx	d		; increment the string pointer
+	ora	a		; check for a zero byte
+	jnz	slen10		; loop until we reach the end of the string
+
+;
+;	To compute the length, we subtract the original string pointer from
+;	the new string pointer (which is pointing to the zero byte at the
+;	end of the string).
+;
+
+	dcx	d		; we don't want to count the zero byte
+	mov	a,e		; subtract the low order bytes first
+	sub	l
+	mov	l,a
+	mov	a,d		; subtract the high order bytes next
+	sbb	h
+	mov	h,a
+	ret			; return to caller with the string length
+
+	ENDFUNC strlen
+	page
+;
+;	Function:	strcmp()
+;
+;
+;	This function compares two strings.  If the first argument is either
+;	longer than the second argument, or one if its bytes is arithmetically
+;	greater than the corresponding byte of the second argument (using the
+;	ASCII collating sequence), then a positive number is returned.  If the
+;	second argument is greater than the first, a negative number is
+;	returned.  If the strings are equal, zero is returned.
+;
+;	If a positive or negative number is returned, the actual value returned
+;	is meaningless.  Only the sign is of use.
+;
+;	int	strcmp(s1, s2)
+;	char	*s1, *s2;
+;
+
+	FUNCTION	strcmp
+
+	call	arghak		; hack apart the arguments
+	lhld	arg1		; fetch the string 1 pointer
+	xchg			; put it into DE
+	lhld	arg2		; fetch the string 2 pointer
+
+scmp10:	ldax	d		; fetch the next byte of string 1
+	cmp	m		; compare with the next byte of string 2
+	jnz	scmp20		; jump if the bytes are not equal
+	inx	h		; increment the string pointers
+	inx	d
+	ora	a		; if the byte is zero, we're all done
+	jnz	scmp10		; loop if we're not done yet
+	lxi	h,0		; return zero - the strings are equal
+	ret			; return to caller
+
+scmp20:	sub	m		; figure out which byte (and string) is larger
+	mov	h,a		; return the result in HL
+	ret			; return to caller
+
+	ENDFUNC strcmp
+	page
+;
+;	Function:	strcpy()
+;
+;
+;	This function copies the source string onto the destination string.  If
+;	the destination string should happen to be valid, it will be destroyed.
+;	There MUST be enough room allocated for the destination string to hold
+;	the entire source string, or the code or data following the destination
+;	string will be overwritten.
+;
+;	The function returns a pointer to the destination string.
+;
+;	char	*strcpy(dest, source)
+;	char	*dest, *source;
+;
+
+	FUNCTION	strcpy
+
+	call	arghak		; go hack apart the arguments
+	lhld	arg1		; fetch the destination string pointer
+	xchg			; put the pointer into DE
+	lhld	arg2		; fetch the source string pointer
+
+scpy10:	mov	a,m		; fetch the next byte of the source string
+	stax	d		; store the byte into the destination string
+	inx	d		; increment the string pointers
+	inx	h
+	ora	a		; if A is zero, we've reached the string end
+	jnz	scpy10		; loop if we're not at the end
+	lhld	arg1		; return a pointer to the destination string
+	ret			; return to caller
+
+	ENDFUNC strcpy
+	page
+;
+;	Function:	strcat()
+;
+;
+;	This function concatenates the source string onto the destination
+;	string.  There MUST be enough room allocated at the end of the
+;	destination string to hold the entire source string.
+;
+;	char	*strcat(dest, source)
+;	char	*dest, *source;
+;
+
+	FUNCTION	strcat
+
+	call	arghak		; go hack apart the arguments
+	lhld	arg2		; fetch the source string pointer
+	xchg			; put the pointer into DE
+	lhld	arg1		; fetch the destination string pointer
+
+;
+;	The loop below finds the end of the destination string.
+;
+
+scat10:	mov	a,m		; fetch the next byte of the destination string
+	inx	h		; increment the string pointer
+	ora	a		; if A is non-zero, we need to keep searching
+	jnz	scat10		; loop until we reach the end of the string
+	dcx	h		; point back to the zero terminating byte
+
+;
+;	Now we copy the source onto the end of the destination.
+;
+
+scat20:	ldax	d		; fetch the next source string byte
+	mov	m,a		; store the byte into the destination string
+	inx	h		; increment the string pointers
+	inx	d
+	ora	a		; if A is zero, we've reached the end
+	jnz	scat20		; loop if we have more to do
+	lhld	arg1		; return a pointer to the destination string
+	ret			; return to caller
+
+	ENDFUNC strcat
+
+	page
+;
+;	Function:	move()
+;
+;
+;	This function moves <length> bytes from location <source> to
+;	location <destination>. The move is performed from first to
+;	last bytes so if there is overlap of range, be sure that
+;	<source> greater than <destination>. If this condition is not
+;	true use the 'movdn' function instead.  The block move 
+;	instruction is used if the Z80 equate is true.
+;
+;	move(dest, source,length)
+;	char	*dest, *source;
+;	int	length
+
+	FUNCTION	move
+
+	call	arghak		; go hack apart the arguments
+	lhld	arg1		; fetch the destination pointer
+	xchg			; put the pointer into DE
+	lhld	arg3		; fetch the length
+	mov	a,h
+	ora	l		; return on zero
+	rz
+	push	h
+	pop	b		; put into BC
+	lhld	arg2		; fetch the source pointer
+mve10:
+	if	z80
+
+	db	0edh,0b0h	; perform LDIR instruction
+	ret			; return to caller
+
+	else	; 8080
+
+	mov	a,m		; fetch the next byte of the source string
+	stax	d		; store the byte into the destination string
+	inx	d		; increment the string pointers
+	inx	h
+	dcx	b		; decrement count
+	mov	a,b		; test zero in b
+	ora	c		; and c
+	
+	endif
+
+	jnz	mve10		; loop if we're not at the end
+	ret			; return to caller
+
+	ENDFUNC move
+
+	FUNCTION	movdn
+	page
+;
+;	Function:	movdn()
+;
+;
+;	This function moves <length> bytes from location <source> to
+;	location <destination>. The move is performed from last to
+;	first bytes so if there is overlap of range, be sure that
+;	<source> less than <destination>. If this condition is not
+;	true use the 'move' function instead.  Also use 'move' if
+;	there is no overlap since it is more efficient. The block move 
+;	instruction is used if the Z80 equate is true.
+;
+;	movdn(dest, source , length)
+;	char	*dest, *source;
+;	int	length
+
+	call	arghak		; go hack apart the arguments
+	lhld	arg3		; fetch the length
+	mov	a,h
+	ora	l		; return on zero
+	rz
+	push	h		; save
+	xchg			; into DE
+	lhld	arg1		; fetch the destination pointer
+	dad	d		; add length
+	dcx	h		; one too many
+	push	h
+	lhld	arg3		; fetch the length
+	xchg			; into DE
+	lhld	arg2		; fetch the source pointer
+	dad	d		; add length
+	dcx	h		; one too many
+	pop	d		; get back destination
+	pop	b		; and length
+
+mvdn10:
+	if	z80
+
+	db	0edh,0b8h	; perform LDDR instruction
+	ret			; return to caller
+
+	else	; 8080
+
+	mov	a,m		; fetch the next byte of the source string
+	stax	d		; store the byte into the destination string
+	dcx	d		; increment the string pointers
+	dcx	h
+	dcx	b		; decrement count
+	mov	a,b		; test zero in b
+	ora	c		; and c
+	
+	endif
+
+	jnz	mvdn10		; loop if we're not at the end
+	ret			; return to caller
+
+	ENDFUNC movdn
+
+	end
+ 

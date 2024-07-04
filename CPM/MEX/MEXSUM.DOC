@@ -1,0 +1,288 @@
+.he MEXSUM.DOC                                            page #
+.op
+
+     MEX 1.0 Documentation Summary
+
+          Compiled by John Wical
+
+3) Precepts
+
+<filespec>     =    [<d><u>:][<filename>][.<ext>]
+<string>       =    must be surrounded by quotes ('"')
+                    caret ('^') prefixes a control char
+'*'            =    optional prefix to primary options
+';'            =    multiple command separator (see STAT ESC)
+
+/R    specifies a newline (Carriage return code only; same as ^M)
+/N    specifies carriage-return+linefeed
+/T    specifies a tab
+//    specifies the '/' character
+/Onnn specifies any binary value (except 0): nnn is the decimal 
+      value (all three digits must be present)
+
+4) Terminal mode
+
+<ESC>-E         exits back to command level
+<ESC>-?         prints a menu of escape sequences
+<ESC>-S         start copying incoming text into file buffer
+<ESC>-U         end (un-start) copying text into file buffer
+<ESC>-P         toggle copy-to-printer on/off
+<ESC>-T         transmit a file to the remote 
+                (prompts for a filename)
+
+5) Single-character commands (Primary options)
+
+S: Send a file or group of files using Christensen protocol
+R: Receive a file or group of files using Christensen protocol
+T: Enter terminal mode
+E: Enter terminal mode with echo
+L: Enter terminal mode with local-echo only
+
+6) Secondary commands (Secondary options)
+
+                        COMMANDS
+OPT       NAME          USED WITH       ACTION
+---     --------        ---------       ------
+A       Append          E,L,T           Append to a file
+B       Batch           R and S         BATCH file transfers
+D       Disconnect      R and S         Disconnects after transfer
+L       Local           T,E             Local-character echo
+Q       Quiet           R and S         "quiet mode" file transfer
+R       Recv-view       R and S         Shows received-chars only
+S       Send-view       R and S         Shows trans chars only
+T       Terminal-mode   R and S         Enter Term after file xfer
+V       View            R and S         Views the file transfer 
+X       Exit            R and S         Disconnect,exit after xfer
+
+.pa
+
+     MEX 1.0 Command Summary
+
+ALT <Drive><user>:  - drive + user to search for MEX LOAD files 
+                         (.PHN, .KEY)
+
+BYE                 - exit to CP/M, modem not disconnected
+
+CALL <numblist> [ # [ <retries> ] ]
+                    - dials <numblist> and stops after <retries> 
+                      goes into 'T'erminal mode when a computer 
+                         is reached
+                    - if no argmnt, phone lib listed 
+                         and prompts for numb to call
+
+CLONE <filespec>    - saves MEX with defined phone numbers and 
+                         keystrings
+                      default filename = '        .   '
+
+COLD                - restarts MEX. clears defined phone numbers 
+                         and keystrings
+
+CPM                 - (same as BYE)
+
+DEL                 - deletes open capture file
+
+DIAL <numblist> [ # [ <retries> ] ]
+                    - dials <numblist> and stops after <retries> 
+                      returns to COMMAND mode when a computer is 
+                         reached
+
+DIR <filespec>      - display directory
+                      defaults to logged DU:*.*
+
+DSC                 - disconnedts modem (not implemented in all)
+
+ERA <filespec> [V]  - erase file
+                    - [V] will ask for verification before 
+                         erasing each file
+
+GLOBAL <2ndopt>     - cause secondary option <2ndopt> to be on 
+                         for all primary options
+
+EXIT                - (same as BYE)
+.pa
+HELP <topic>        - provides help information on <topic>
+                      <topic>='?' will list the available topics
+                      NOTE:  HELP.MEX is opened with this command 
+                         and can be close only with a LOG command
+
+ID <string>         - set <string> for MEX's prompt
+                      NOTE:  default length=28 chars
+
+KEY [ <key>=[ <string> ] ]
+                    - define <key> (1 char) to <string>
+                      if <string> is omitted, <key> is erased
+                      if all arguments omitted, <keys>s listed
+                      invoked in 'T'erm mode with '<esc><key>'
+                      affected by STAT switch WTECHO
+
+LOAD <filespec>     - load MEX's LOAD files (.KEY,.PHN)
+
+SAVE <filespec>     - save MEX's LOAD files (.KEY,.PHN)
+
+LOG <du>:           - reset and log to <du>:
+
+PHONE [<name>=[<number> [<bps>]]]
+                    - set <name> equivalent to <number> with baud 
+                         rate set to <bps> whenever used
+                      if <number> [<bps>] omitted, <name> erased
+                      if all argmts omitted, phone <name>s listed
+
+PREFIX [<string>]   - set <string> to be sent before SENDOUT 
+
+SUFFIX [<string>]   - set <string> to be sent after SENDOUT
+
+READ <filespec> [parmlist]
+                    - execute batch file <filespec>
+                      <filespec> may contain any valid MEX 
+                         command except READ
+                      default ext = '.MEX' (ext='.   ' illegal)
+                      ^C aborts
+                      execution stops while in 'T'erminal mode
+                      (see also STAT variables :  EXTEND, SILENT)
+                      braces ({}) may be used for command line 
+                         param to include imbedded spaces
+
+{<parmno>:[ <default parm> ]}
+                    - parms in READ's <filespec>
+                      NOTE:  <default parm> does not define, it 
+                         just provides the <parm> for the 
+                         occation it is used
+.pa
+REN <newfile>=<oldfile>
+                    - renames <oldfile> to <newfile>
+                      both names must be on same <du>
+
+SENDOUT <string>    - send <string> to remote
+                      affected by commands :  PREFIX, SUFFUX
+                      STAT var : WTECHO, RETRY, CANCHR, TRIGGER
+
+SET                 - (defined by overlay)
+
+SLEEP <no-secs>     - invokes delay.  ^C aborts
+                      useful in testing STAT's CLOCK
+                      useful in READ files
+
+STAT [<keyword> [<newvalue>] ]
+                    - set <keyword> variable to <newvalue>
+                      if <newvalue> omitted, present value shown
+                      if <keyword>='?', variables are listed
+
+TYPE <filespec> [P] - display contents of <filespec> on screen
+                      if 'P' is present, STAT PAGE variable is 
+                         reversed
+
+SYSTEM              - (same as BYE)
+
+WRT                 - writes, closes open capture file to disk
+
+
+.pa
+
+     MEX 1.0 STAT variables
+
+for {on|off} variables, the 'on' option is provided
+
+
+ALERT <val>         - set # of beeps made when a connection with 
+                         a remote system is made resulting from a 
+                         repeating CALL or DIAL 
+
+BAKFILE {on|off}    - change file to backup
+                      else ask for erasure
+
+BELL {on|off}       - bell sent at all prompts in MEX
+
+BUFFER              - displays capture buffer stats (size, usd, spc)
+                      displays batch-filenames buffer size
+
+TRIGGER <char>      - sets <char> to wait for before SENDOUT
+
+CANCEL <char>       - sets <char> to continue SENDOUT until
+
+CHAR                - lists status of all CHARacter variables
+
+CHECKSUM {on|off}   - set file transfer verification method
+                      mutually exclusive with CRC
+
+CRC {on|off}        - set file transfer verification method
+
+CIS {on|off}        - special file transfer protocol used by 
+                         Compuserve in Term mode
+
+CLOCK <val>         - set clock speed in Mhz*10
+                      <val> = 1 to 255 => .1 to 25.5 Mhz
+
+DEBUG {on|off}      - incoming data in Terminal mode
+                      displayed in DDT's Dump format.
+                      disables FILTER and CIS when 'on'
+
+HEX {on|off}        - set default radix for MEX
+                      including SLEEP, VAL, file transfers
+                      number prefixes: $=hex, #=decimal
+                      mutually exclusive with DECIMAL
+
+DECIMAL {on|off}    - set default radix for MEX
+
+ERRID {on|off}      - print ID's string at MEX's prompt
+
+EXCLUDE {on|off}    - ignore SYS files when <filespec> is ambig
+
+EXTEND {on|off}     - cause illegal MEX commands to be 
+                         interpreted as READ commands
+
+ESC <char>          - define Term mode escape char
+.pa
+FILTER {on|off}     - ignore uncommon control chars 
+                      (other than CR, LF, BS, TAB)
+
+INITFILE {on|off}   - search for INI.MEX when booting MEX
+
+LF {on|off}         - add LF to all CR in Term file transfers
+
+LIST {on|off}       - enable LST device
+
+PAGE {on|off}       - paginate TYPE scrolling
+
+REPLY [<val>]       - set time (0-255 secs) for SENDOUT to wait 
+                         for a reply from remote system
+                      if no argmnt, present setting is shown
+
+RETRY [<val>]       - set SENDOUT retries (1-255) before aborting
+                      WTECHO must be on
+                      if no argmnt, present setting is shown
+
+RTIME <val>         - set wait (1-30 secs) before timeout 
+
+RUB {on|off}        - backspaces sent converted to rubs
+
+SEARCH <val>        - set search pattern used for READ files, 
+                         phone libraries, keystring files, and 
+                         capture files (with Append option)
+                      0 - logged DU     2 - logged DU, ALT
+                      1 - ALT           3 - ALT, logged DU
+
+SPLIT {on|off}      - phone library listed 1 per line with bps
+                      else listed 2 per line without bps
+
+SILENT {on|off}     - suppress echo of READ file command lines
+
+SWITCH              - list all '{on|off}' variables
+
+VAL                 - list all <val> variables
+
+WCHAR <val>         - delay after each char (0-9 in 10s of ms)
+
+WLINE <val>         - delay after each line (0-9 in 100s of ms)
+
+WTECHO {on|off}     - verify commands sent with their echo
+                      halves transmission time
+
+SEP <char>          - set command separator for mult. cmd lines
+
+XLINE {on|off}      - for Term mode file transfers
+                      waits for XON after each line (uncommon)
+
+XON {on|off}        - for Term mode file transfers
+                      sends until XOFF, continues at XON
+
+...

@@ -1,0 +1,149 @@
+
+; B5R4-1.INS - BYE5 insert for TRS-80 Model IV - 07/17/85
+;
+;	     TR1865 I/O and BR1943 baudrate generator
+;
+;	      Note:  This is an insert not an overlay
+;
+;
+; This BYE5 insert is for the TRS-80 model IV and Model IV Gate Array
+; computers using the Montezuma Micro CP/M 2.2.
+;
+; NOTE:  The MDCARCK routine contains a "XRI" statement other similar
+;	 inserts do not have.  The TRS-Model IV seems to invert the
+;	 DCD line from the modem.  If having problems installing this
+;	 insert, you might try nulling out the XRI instruction.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/17/85  Written to work with BYE5			- Irv Hoff
+; 06/15/85  Modified from my previous B31865 insert	- Tom Brady
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; Modem port equates
+;
+PORT	EQU	0EBH		; Modem port
+MDCTL1	EQU	PORT-1		; Status port
+MDCTL2	EQU	PORT-2		; Baud rate port
+MDCTL3	EQU	PORT-3		; Reset port
+;
+MDRCV	EQU	80H		; Data available
+MDSND	EQU	40H		; Xmit buffer empty
+MDDCD	EQU	20H		; Data carrier detect
+;
+;
+B300	EQU	55H		; 300 baud
+B1200	EQU	77H		; 1200 bps
+B2400	EQU	0AAH		; 2400 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flat set
+;
+MDCARCK:IN	MDCTL3		; Read port
+	ANI	MDDCD		; Isolate the DCD response
+	XRI	MDDCD		; Invert the signal
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,0EBH		; DTR, RTS off to hang up phone
+	OUT	MDCTL1
+	PUSH	B
+	MVI	B,20		; 2 seconds to let modem settle down
+	CALL	DLP1
+	MVI	A,01		; Reset UART, enable modem control
+	OUT	MDCTL3
+	MVI	A,0ECH		; Turn DTR back on
+	OUT	MDCTL1
+	MVI	B,2		; Slight additional delay
+	CALL	DLP1
+	POP	B
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Read port
+	ANI	MDRCV		; Mask crap
+	RZ			; Nope, nothing there
+	ORI	0FFH		; We got something...
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1		; Read port
+	ANI	MDSND		; Mask crap
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Send ATZ and ATS0=0 (auto-answer off)
+	 ENDIF			; IMODEM
+;
+;
+; Called by main program after caller types BYE
+;
+MDSTOP:	MVI	A,0EBH		; Turn off DTR so that modem will quit
+	OUT	MDCTL1
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE5 asks for the maximum
+; speed you have available.
+;
+SETINV:	ORI	0FFH		; Make sure the zero flag is not set
+	RET
+;.....
+;
+;
+SET300:	MVI	A,B300
+	JMP	SETBAUD
+;
+SET1200:MVI	A,B1200
+	JMP	SETBAUD
+;
+SET2400:MVI	A,B2400
+;
+SETBAUD:OUT	MDCTL2
+	XRA	A
+	RET
+;.....
+;
+;			       end
+;-----------------------------------------------------------------------
+

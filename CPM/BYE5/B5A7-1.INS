@@ -1,0 +1,209 @@
+; B5A7-1.INS for the Apple ][ and CCS 7710 interface for BYE5 - 02/02/87
+;
+;	       6850 ACIA, no internal baudrate generator
+;
+;
+; This version is for Apple ][ computers, using the Microsoft CP/M card
+; and the CCS 7710 serial interface card.
+;
+;	The 6850 has no baudrate generator.  It relies on the user
+;	setting a dip switch to the maximum speed he wants to use.
+;	The program then uses the 6850 in the "divide by 16" mode
+;	to get that speed.  It can then change to "divide by 64"
+;	to get the only other speed available.	This type system
+;	normally limits the user to 1200 and 300 baud.	If you
+;	set the dip switches for 2400, then you could only get
+;	2400 and 600, eliminating both 1200 and 300 baud.  Using
+;	either the Apricorn or CCS 7710 board just about precludes
+;	the user from wanting to obtain a new modem with 2400 bps.
+;	The 6850 uses the last two bits to select the divisor.	01
+;	gives "divide by 16" and 10 gives "divide by 64".
+;
+;-----------------------------------------------------------------------
+;
+; The CCS 7710 serial card is set up as DCE rather than the more usual
+; DTE, and requires a special cable.....the following cable configura-
+; ion is necessary to work with this overlay -----
+;
+;		      MODEM pin       CCS pin
+;
+;			 2		 3
+;			 3		 2
+;			 5		 4
+;			 8		20
+;			 7		 7
+;			20		 5
+;
+; =   =  =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =	 =   =
+;
+;-----------------------------------------------------------------------
+;
+; For the Apple //e, a user entered CTL-Q can trash the local display by
+; reverting back to 40 column mode.  This is a patch to turn CTL-Q into
+; a backspace.
+;
+; In BYE5 find the label MINP2A:  Just prior to MINP2A should be the
+; lines:
+;		JNZ	MINP2A
+;		MVI	A,08H
+;
+;
+; Add the following code just before JNZ MINP2A
+;
+;		JZ	CHNGIT
+;		CPI	'Q'-'@'
+;		JNZ	MINP2A
+;	CHNGIT: MVI	A,08H	<< note the added label
+;
+;
+; When using a Softcard CP/M system and the CCS 7710, a warmboot causes
+; the serial baud rate port to reset to its default setting.  (Whatever
+; the switches are set to on the card.)  The problem is fixed by zeroing
+; out the CALL in the warmboot routine that resets the baud rate.
+;
+; Find the following code in BYE5:
+;
+;			JMP	VWARMBT
+;
+; Just before this instruction, add the following code:
+;
+;			PUSH	PSW	 ;Save AF
+;			XRA	A	 ;Make it zero
+;			STA	0DAD8H	 ;Patch out the opcode
+;			STA	0DAD9H	 ;Patch out the operand byte 1
+;			STA	0DADAH	 ;Patch out the operand byte 2
+;			POP	PSW	 ;Make it like it was
+; Here's the end -->
+; For reference -->	JMP	VWARMBT
+;
+;
+; NOTE:  This change may work only with the 60k version version of the
+;	 MicroSoft CP/M, their v2.2.3.
+;
+;
+;=  =  =  =  =	=  =  =  =  =  =  =  =	=  =  =  =  =  =  =  =	=  =
+;
+; 02/02/87  Adapted for the CCS 7710 serial interface card - Irv Hoff
+;
+;=  =  =  =  =	=  =  =  =  =  =  =  =	=  =  =  =  =  =  =  =	=  =
+;
+; Equates for Microsoft Softcard CP/M and Super Serial Card
+;
+SLOT	EQU	2		; Slot of serial interface
+SLOTOFF	EQU	16*SLOT		; Serial card slot offset
+MAPOFF	EQU	2000H		; Microsoft offset
+;
+PORT	EQU	0C081H+SLOTOFF+MAPOFF ; Data port
+MDCTL1	EQU	PORT-1		; Control port
+MDRCV	EQU	1		; Bit to test for receive
+MDSND	EQU	2		; Bit to test for send
+;......
+;
+;
+;-----------------------------------------------------------------------
+;
+; Routine to check carrier.  If no carrier, return with zero flag set.
+;
+MDCARCK:LDA	MDCTL1		; Get status byte
+	ANI	4		; Check for DCD
+	XRI	4		; Reverse the zero flag (the 6850
+	RET			;   has status 0 for DCD true)
+;.....
+;
+;
+; This routine will turn off the serial card and hang up the phone.
+;
+MDINIT:	MVI	A,0D5H		; Turn off DTR
+	STA	MDCTL1
+	PUSH	B		; Save register
+	MVI	B,20		; Delay 2 sec to drop carrier
+;
+OFFTI:	CALL	DELAY		; 1 sec per loop
+	DCR	B
+	JNZ	OFFTI		; Keep going until finished
+	POP	B		; Restore register
+	MVI	A,0B5H		; Turn everything back on, 8 bits, 1 stop
+;
+	 IF	IMODEM
+	CALL	IMINIT
+	 ENDIF
+;
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	Return with zero
+; flag set, if not.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	MDCTL1		; Get modem status
+	ANI	1		; Is data available?
+	RZ			; If no, return
+	ORI	0FFH		; Otherwise return true
+	RET
+;.....
+;
+;
+; See if the output is ready for another character.
+;
+MDOUTST:LDA	MDCTL1		; Get modem status
+	ANI	2		; Mask out junk
+	RZ
+	ORI	0FFH
+	RET
+;.....
+;
+;
+; Input a character from the modem port.
+;
+MDINP:	LDA	PORT		; Get character
+	RET
+;.....
+;
+;
+; This routine will output a character to the data port.
+;
+MDOUTP:	STA	PORT		; Send character
+	RET
+;.....
+;
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM		; If using a smartmodem
+	CALL	IMQUIT		; Tell it to shut down
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,0D5H		; Drop DTR, set to 1200 speed
+	STA	MDCTL1
+	RET
+;.....
+;
+;
+; If you do not support a particular baud rate, put it here before
+; SETINV:
+;
+SET2400:
+SET4800:
+SET9600:
+SETINV:	ORI	0FFH
+	RET
+;.....
+;
+;
+SET300:	MVI	A,16H
+	JMP	SETBAUD
+;
+SET1200:MVI	A,15H
+;
+SETBAUD:STA	MDCTL1
+	XRA	A		; Shows the baud rate was changed ok
+	RET
+;.....
+;
+;			    end
+;---------------------------------------------------------------------
+

@@ -1,0 +1,163 @@
+
+; B3AP-2.INS - APPLE ][ with Mountain CPS Serial Card - 07/30/85
+;
+;		2651 with internal baudrate generator
+;
+;	       NOTE: This is an insert, not an overlay.
+;
+; WARNING:  Carrier detect (DCD) from the modem must go to DSR input on
+;	    the 2651 to provide proper operation for both autodialing
+;	    and autoreceiving.	If you use the DCD input, it requires
+;	    voltage (normally unavailable) during dialing to allow
+;	    result codes to be used.
+;
+;	To build "a better modem cable", on the apple side of the cable,
+;	hook the following pins together:
+;		5, 8, 20	- this will force CTS and DCD high when
+;				  DTR is on.
+;		6		- tie the real DCD (pin 8 on the modem)
+;				  to this pin.
+;
+;    	This program assumes you use the DSR pin (80H) to check carrier
+;	from the modem.
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 07/30/85  Restored original format			- pst
+; 07/24/85  Fixed minor bug with 2400 baud setting	- pst
+; 01/20/84  Created overlay using BY2-2651.ASM		- Norman Beeler
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; Define the CPS card slot you are using (normally 1 or 2)
+;
+SLOT	EQU	2		; CPM card slot
+;
+;=======================================================================
+;
+; Modem port equates
+;
+DPORT	EQU	0E0FAH+SLOT*100H ; Modem data port
+SPORT	EQU	0E0FBH+SLOT*100H ; Modem status port
+XPORT	EQU	0E0FEH+SLOT*100H ; Modem swap port
+;
+; Status port equates
+;
+TBMT	EQU	00000001B	; Transmit buffer empty
+DAV	EQU	00000010B	; Data available
+DCD	EQU	10000000B	; Data carrier detect
+;
+; Mode port equates
+;
+EBASE	EQU	30H		; Mode register 2 base
+B300	EQU	EBASE+5		; 300 baud
+B1200	EQU	EBASE+7		; 1200 bps
+B2400	EQU	EBASE+10	; 2400 bps
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:LDA	SPORT		; Read port
+	ANI	DCD		; Check DSR for carrier (do not use DCD)
+	RZ
+	ORI	255
+	RET
+;
+; Disconnect and wait for an incoming call
+;
+MDINIT:	MVI	A,80H		; Open CPS command register
+	STA	XPORT		; By storing 80H in XPORT
+	MVI	A,15H		; Turn DTR off, modem will quit
+	STA	SPORT
+	MVI	B,20		; 2 seconds to drop any carrier
+;
+MDINIT1:CALL	DELAY		; .1 second delay
+	DCR	B
+	JNZ	MDINIT1
+	MVI	A,17H		; With DTR on, modem accepts commands
+	STA	SPORT
+	XRA	A		; Close the command port
+	STA	XPORT		; By storing 0 in XPORT
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;
+; Input a character from the modem port
+;
+MDINP:	LDA	DPORT		; Get character
+	RET
+;
+; Check the status to see if a character is available.	If not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	LDA	SPORT		; Read port
+	ANI	DAV		; Check receive ready bit
+	RZ			; Nope, nothing there
+	ORI	255		; We got something...
+	RET
+;
+; Send a character to the modem
+;
+MDOUTP:	STA	DPORT		; Send it
+	RET
+;
+; See if the output is ready for another character
+;
+MDOUTST:LDA	SPORT		; Read port
+	ANI	TBMT		; Check transmit ready bit
+	RZ
+	ORI	255
+	RET
+;
+; Reinitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT		; Initialize modem to default settings
+	 ENDIF			; IF IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,80H		; Open CPS command register
+	STA	XPORT		; By storing 80H in XPORT
+	XRA	A		; Turn DTR off, modem will quit
+	STA	SPORT
+	CALL	DELAY		; Let it stabilize
+	RET
+;
+; The following routine sets the baudrate.  BYE3 asks for the maximum
+; speed you have available.
+;
+SET300:	CALL	BSETUP
+	MVI	A,B300
+	JMP	FSETUP
+;
+SET1200:CALL	BSETUP
+	MVI	A,B1200
+	JMP	FSETUP
+;
+SET2400:CALL	BSETUP
+	MVI	A,B2400
+	JMP	FSETUP
+;
+BSETUP:	MVI	A,80H
+	STA	XPORT
+	MVI	A,37H		; Initialize the serial chip
+	STA	SPORT		; By storing 37H in SPORT
+	MVI	A,4EH		; 1 stop, 8 bits, no parity
+	STA	DPORT
+	XRA	A
+	RET
+;
+FSETUP:	STA	DPORT
+	XRA	A
+	STA	XPORT		; Close command port by storing 0
+	RET
+;			       end
+;-----------------------------------------------------------------------
+

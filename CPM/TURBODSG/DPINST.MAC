@@ -1,0 +1,126 @@
+; DIRPAT3 Install program (c) ESKAY
+;
+.z80
+.request syslib
+;
+cr	equ	0dh
+lf	equ	0ah
+;
+	cseg
+;
+start:	ld	sp,stack
+	call	print##
+	cr,lf,lf
+	'DIRPAT v3.xx INSTALL program    (c) 1985 ESKAY',cr,lf,lf,0
+	ld	de,record
+	ld	c,26
+	call	bdos##
+	ld	de,fcb
+	call	f$open##
+	jr	z,..ok.
+	call	print##
+	'ERROR: DIRPAT.COM not found!',cr,lf,7,0
+	rst	0
+;
+..ok.:	call	f$read##
+..cls:	call	print##
+	cr,lf
+	'Current CLS bytes : ',0
+	ld	hl,cls
+	call	get5
+	call	print##
+	cr,lf,lf
+	'Current cursor positioning bytes : ',0
+	ld	hl,curpos
+	call	get5
+	call	print##
+	cr,lf,lf
+	'Is Row or Column first? (R or C) ',0
+	call	capin##
+	cp	'R'
+	ld	a,0
+	jr	z,.row.
+	dec	a
+.row.:	ld	(xory),a
+	call	print##
+	cr,lf,lf
+	'Enter cursor offset in hex (normally 20H) ',0
+	call	bbline##
+	call	eval16
+	ld	(coffs),a
+	call	print##
+	cr,lf,lf
+	'Do you want continuous time-display on the screen? (Y or N) ',0
+	call	capin##
+	cp	'Y'
+	ld	a,0ffh
+	jr	z,..to.
+	inc	a
+..to.:	ld	(timeon),a
+	call	print##
+	cr,lf,lf
+	'Inexplicably, WYSE-50 terminals get confused at high baud rates',cr,lf
+	'with DIRPAT cursor addressing. If you wish to add delays to',cr,lf
+	'Prevent erratic cursor movements, enter "Y", else enter "N" : ',0
+	call	capin##
+	cp	'Y'
+	ld	a,0ffh
+	jr	z,..dl.
+	inc	a
+..dl.:	ld	(wyse),a
+	call	print##
+	cr,lf,lf
+	'Thanks.',0
+	ld	de,fcb
+	ld	hl,0
+	ld	(fcb+32),hl
+	ld	(fcb+34),hl
+	ld	c,34
+	call	bdos##
+	call	print##
+	' DIRPAT.COM installed.',cr,lf,lf,0
+	rst	0
+;
+get5:	ld	b,5
+	push	hl
+.clsd.:	ld	a,(hl)
+	call	pa2hc##
+	ld	a,' '
+	call	cout##
+	inc	hl
+	djnz	.clsd.
+	call	print##
+	cr,lf
+	'Enter new bytes in hex, one at a time, '
+	'fill remainder with 0:',cr,lf,0
+	pop	hl
+	ld	b,5
+.clg..:	push	hl
+	call	print##
+	cr,lf,': ',0
+	call	bbline##
+	call	eval16##
+	pop	hl
+	ld	(hl),a
+	inc	hl
+	djnz	.clg..
+	ret
+;
+	dseg
+;
+fcb:	db	0,'DIRPAT  COM',0,0,0,0
+	ds	24
+	ds	60
+stack	equ	$
+;
+record	equ	$
+	ds	2
+cls:	db	1bh,'E',0,0,0,0		; clear screen
+curpos:	db	1bh,'F',0,0,0,0		; cursor pos
+xory:	db	0			; 0=xy, nz=yx
+coffs:	db	32			; cursor offset
+timeon:	db	0
+wyse:	db	0
+;
+	end
+RPAT cursor addressing. If you wish to add delays to',

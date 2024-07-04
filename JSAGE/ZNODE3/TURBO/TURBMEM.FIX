@@ -1,0 +1,41 @@
+{File TURBMEM.FIX, from "A TURBO Pascal Module" by Jim
+Gronek, FOGHORN VI.6, March 1987), 29.}
+
+{A module to allow TURBO Pascal programs to automatically
+adjust its Stack Pointer, Recursion Pointer and Heap Pointer
+to use all available memory in the TPA.
+ Note that this routine will require that you compile your
+program twice, once without this routine to get the default
+code and data block sizes, and once with this module after
+adjusting the Heap Pointer address.}
+
+{To calculate the correct Heap Pointer address, compile the
+program with the deafult address used by TURBO in the .COM
+file mode...
+
+Code End Address + (Data End Address - Data Start Address) + 200h
+
+is rounded up to the next full "page" (multiple of 100h)}
+
+
+
+{add this global variable declaration to your list of
+variables}
+
+Var
+  MemTop :Integer Absolute $6;
+  {CP/M FDOS address, top of memory}
+
+{after the first Begin in your main program,
+insert the following lines}
+
+(* {<-- remove these after setting HeapPtr address}
+
+  StackPtr:= MemTop - $826; {place Stack Pointer under CCP}
+  RecurPtr:= StackPtr - $400;{Recursive Stack Pointer 1k lower}
+  HeapPtr := $??? ; {16 bytes higher than compiler end add.}
+
+{remove these after setting HeapPtr address -->} *)
+
+(*That's all there is to it!*)
+

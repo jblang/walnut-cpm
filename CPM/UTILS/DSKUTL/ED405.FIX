@@ -1,0 +1,109 @@
+
+; ED405.FIX		ED405.ASM dated 1984 May 
+
+; This file is an overlay to EDFILE.COM which provides modifications.
+; Since EDFILE is a particularly popular public domain program and
+; since more fixes and modifications are sure to follow, this patch
+; will be referred to by its date...4 for 1984 and 05 for May.
+
+; This patch by Clint Lew, Russell Gaspari and Dan Taylor
+; South Bay Technical Support Group RCP/M (213) 970-9238
+
+; === PART 1...patch to allow use of hex addresses
+
+
+     ; EDFILE as originally written jumps to addresses in decimal, 
+     ; and only jumps to hex addresses if entry is followed by "H".
+
+     ; For example, Address? 23C9 is interpreted as decimal
+     ;                       23C9H is interpreted as hex
+
+     ; If you wish all addresses to be input in hex (as in DDT) 
+     ; then make the following patch modification to EDFILE.COM.
+
+     ;    Address   old contents   new contents
+     ;      1C62        0A              10
+
+ 	ORG	1C62H
+	DB	10H
+
+; === PART 2...patch to provide use of function keys
+
+
+	ORG	2AC5H
+      ;	LXI	H,2AB4H		;replace this
+	LXI	H,KEY		;with end of orig program
+
+JOUT:	EQU	2AB4H
+
+
+	ORG	2C00H		;orig version ended here
+
+KEY:	CPI	80H		;see if bit 8 set
+	CNC	KEYFN		;if so, call the subroutine
+	JMP	JOUT		;return to EDFILE.COM
+
+KEYFN:				;subroutine to replace fn keys
+	MOV	D,A		;save the char for future use
+	LXI	H,KEYTABL	;prepare to search table
+KEYFN1:				;start the search
+	MOV	A,D		;retrieve for KEYFN3 return
+	CMP	M		;compare the char to the table
+	JZ	KEYFN4		;if match go make exchange
+KEYFN2:				;no match so continue search
+	INX	H		;next byte in the table
+	MOV	A,M		;move it in for inspection
+	CPI	0FFH		;because FF marks end of table
+	JNZ	KEYFN3		;if not end continue search
+	MVI	A,0		;no more char in table so...
+	RET			;return a zero
+KEYFN3:				;keep searching
+	CPI	80H		;bytes below 80 are replacements
+	JC	KEYFN2		;jump past replacement bytes
+	JMP	KEYFN1		;compare the function key bytes
+KEYFN4:				;substitution
+	INX	H		;the substitution is the byte 
+	MOV	A,M		;....after the match
+	RET			;....so return with it
+KEYTABL:			;my function key replacement table
+	DB	82H,0BH		;if  up-arrow    send a ^K
+	DB	86H,0CH		;if  right-arrow send  ^L
+	DB	88H,08H		;if  left-arrow  send  ^H
+	DB	8AH,0AH		;if  down-arrow  send  ^J
+	DB	0DBH,42H	;if  key F1      send  B
+	DB	0E9h,5AH	;if  key F15     send  Z
+	DB	0FFH		;important -- marks end of table
+;
+	END			;this will be the new end address
+				;... of EDFILE.COM 
+
+
+;*************************************************************
+;    General usage instructions for using ASM overlays 
+;*************************************************************
+
+;               I N S T R U C T I O N S
+;
+;
+; First, edit this file to your preferences using any editor.
+; Wordstar in non-document mode works very well for this.
+;
+; Second, assemble this file using Digital Research's CP/M
+; assembler ASM.COM.  For the file ED405.ASM,  enter ASM ED405.
+;
+; Lastly, use DDT to overlay the results of this EDOVR program 
+; onto EDFILE.COM.  The procedure for this overlay follows:
+;
+;		A>DDT EDFILE.COM
+;		DDT VERS 2.2
+;		NEXT  PC
+;		2C00 0100		(size varies with version)
+;		-IED405.HEX		(note the "I" command)
+;		-R			("R" loads in the .HEX file)
+;		NEXT  PC
+;		2C80 0000
+;		-G0			(return to CP/M)
+;		A>SAVE 44 EDFILE.COM	(now have a modified .COM file)
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+

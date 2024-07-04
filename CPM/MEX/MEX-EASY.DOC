@@ -1,0 +1,174 @@
+=================================================================
+     MEX-EASY.DOC         05/20/84         STEVE SANDERS
+=================================================================
+
+So  you  got  MEX10  and can't quite figure out  what  steps  are
+necessary to input the phone numbers and such...
+
+Well,  you are not alone!   I have most of it figured out after a
+week of playing with it and will pass on what little I do know.
+
+ENTRY OF PHONE LIBRARY
+======================
+
+From  the  MEX prompt enter "PHONE  id=number", like this:
+
+          [MEX] A0>>phone a=1-555-111-1111
+
+                       or
+
+          [MEX] A0>>phone alan=997-0020
+
+The "id" string may be up to twelve characters or as few as one.
+
+By entering "PHONE" now, the following will be displayed:
+
+          [MEX] A0>>phone
+
+          A       = 1-555-111-1111
+          ALAN    = 997-0020
+
+The simplest way to enter a pre-done library is to make up a file
+to be "READ" in by MEX.   Use Wordstar in non-doc mode and edit a
+file called PHONE.PHN, enter the following:
+
+PHONE A=1-555-111-1111
+PHONE ALAN=997-0020
+PHONE id=numbers
+PHONE etc...
+
+Fill in as many as you want up to a maximum of 30 numbers.   Then
+bring up MEX and enter:
+
+          [MEX] A0>>read phone.phn
+
+You  will then see MEX "read" in each of the phone command  lines
+until  it  reaches the end of the phone.phn file.   You  may  now
+check the newly installed phone library by entering:
+
+          [MEX] A0>>phone
+
+To make this new library a permanent part of your MEX,  just  use
+the  CLONE  command now to copy an image of MEX from memory  with
+the library installed:
+
+          [MEX] A0>>clone mex1.com
+
+You will now have a new file called MEX1.COM which will have  the
+phone library already in it.
+
+WHAT IS  INI.MEX ??
+===================
+
+When MEX is first brought up,  it is pre-set to look for the file
+called INI.MEX.  This file contains commands to be READ in to MEX
+when  it  is  first initialized.   This is very  similar  to  the
+STARTUP  command  under  ZCPR2 which also holds  a  multi-command
+statement  to  be executed after a cold  boot.   You  may  create
+INI.MEX  with  Wordstar in non-doc mode and include  any  "legal"
+MEX10 command line.  Such as:
+
+          GLOBAL T;ID "[ MY-MEX ] ";CAL A
+
+The form of the file is:   command;command;command
+
+Each "legal" MEX command MUST BE seperated by semicolons.
+
+This  would make the return to terminal (T) mode default after  a
+file "R"eceive or "S"end operation;  change the ID string to read
+"[ MY-MEX ]"  rather  than "[MEX]";  and automatically  dial  the
+number associated with the id "A".
+
+... Or,  you can  forget  INI.MEX  altogether and  just receive a
+"Can't find INI.MEX" error message on initialization.  Which does
+not hurt anything,  it just indicates that the file is not on the
+current drive/user if SEARCH = 0.
+
+
+INSTALLING "KEY" STRINGS
+========================
+
+Just as MDM7xx has a CTRL-L logon, you can set one up in MEX much
+the same way.   Once in "T"erminal mode,  the only escape back to
+command  state is with a CTRL-J followed by an "E".   A  complete
+menu  of  escape "CTRL-J" functions is seen by entering a  CTRL-J
+followed by a "?" from Terminal mode.
+
+Any other ASCII key character is a "legal" definable key that can
+be  used in Terminal mode for special functions.   To set up  the
+"L" key the same as the logon key in MDM7xx, enter:
+
+          [MEX] A0>>key l="firstname;lastname^M"
+
+NOTE:  The carat "^" indicates a CTRL key and ^M is the same as a
+       carriage return.   It MUST be inside the quote marks  that
+       define the keystring entered.
+
+Now  once  you are connected with the remote system and  wish  to
+send your logon in, simply enter a CTRL-J followed by an "L".
+
+If  you attempt to specify one of the characters that is  already
+used as a Terminal mode command an error is returned.   Also note
+that  MEX will always prompt you with a "Syntax error" message if
+the command you are trying to enter is illegal.
+
+USING THE HELP COMMAND
+======================
+
+MEX has an extensive on-line HELP facility if the HELP.MEX is  on
+the  current drive/user along with your MEX.COM file.   From  the
+MEX prompt enter:
+
+          [MEX] A0>>help ?
+
+The  complete  list of help files available is  displayed.   Then
+just enter HELP followed by the command name desired:
+
+          [MEX] A0>>help call
+
+This would list the help info for the auto-dial command CAL
+
+
+USING THE SENDOUT COMMAND
+=========================
+
+The SENDOUT command is used in .MEX files for automatic operation
+of MEX.COM with the remote host system.  The SENDOUT command will
+send a string out the modem port (hence the name  SENDOUT).   You
+can  specify  a  prefix  and a suffix  for  all  SENDOUT  strings
+allowing  real flexibility.   Most commonly used would be a  null
+string for the prefix and a "^M" (carriage return) as the suffix.
+The prefix and suffix can be set by INI.MEX at startup or defined
+by  you  after MEX is up and running.   Type HELP PREFIX or  HELP
+SUFFIX for full info on this.
+
+If  you  know the DIRectory of the system you  are  calling,  you
+can build a file like this:
+
+SENDOUT "XMODEM S B5:SD-88.LBR^M";R SD-88.LBR
+SENDOUT "XMODEM S B1:MEXNEWS.0Q2^M";R MEXNEWS.0Q2
+SENDOUT "XMODEM S A0:RCPM-049.LQT^M";R RCPM-049.LQT
+DSC;EXIT
+
+After connecting with the host system,  signing in,  and entering
+the CP/M system - use CTRL-J then E to get to command prompt.
+Let's say this file is called AUTO.MEX, use the following:
+
+          [MEX] A0>>read auto.mex
+
+MEX  will now send the commands to the host system to XMODEM  the
+three  files  listed  above  in the  SENDOUT  commands  and  then
+initiates  the "R"eceive mode and save all 3  files.   When  it's
+done,  MEX  will disconnect from the host (DSC),  and exit MEX to
+your CP/M operating system.
+
+I  think  you can see the possibilities here  are  endless.   The
+above  sequence could have been performed UNATTENDED.   This  can
+save  you a lot of $$$ on long distance charges if you know  what
+files you want in advance.
+
+There are many more commands than the ones I have described here,
+but  this should get you started in the  right  direction.   Just
+remember  that  MEX  can be as simple as as  complicated  as  you
+desire.  It is a great program and will get even better.
+

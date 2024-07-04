@@ -1,0 +1,275 @@
+[krd: The following instructions were snarfed off the SMUG BBS (since 
+demised)]
+
+------------------------------------
+
+From:    Matthew Geier 
+To:      All                                      Msg #106, 31-Dec-89 08:12
+Subject: UPGRADE YOUR PREMIUM TO A TC PART 1
+
+
+       OR: How to fit a 256TC keyboard to your premium 'bee
+
+Parts Needed :- 1 x 256TC/Gamma keyboard
+                1 x Teleterminal Keyboard interface board - 8507 
+Parts Handy  :- 1 x 256TC kernel/boot ROM
+                1 x 256TC boot disk
+                256/512k memory upgrade
+
+ It also helps to have a circuit diagram of both the premium and the 256TC
+handy as a reference. First the background ..
+
+ This modification , which effectively enables your premium to work like a TC
+as far as most software is concerned I did to my premium about 2 years ago
+now. Since then the orignal keyboard has seen little use , and has decayed to
+the point that most of the original keys no longer function.
+ The modification is made easy by the fact that the MicroBee Teleterminal
+machine was just a premium PC85 , in a new case , with a new keyboard and a
+fancy set of ROMs ..
+ Looking a page 1 of the 256TC circuit diagrams reveals how the TC keyboard
+works. U60 is a decated CPU whos sole aim in life is to scan the keyboard, the
+output of this chip is buffered by U61 , and each time the Z80 does a read
+from port 0x18 (hex) , a keyboard scan code is returned if one is available.
+Some other circuitry based around U71 enable the keyboard CPU to interupt the
+Z80 via Bit 1 of PIO channel B when there is a code available to be read. In
+this and earlyer microbees this bit is the Cassette output bit , with the TC
+ROM altering the data direction on this pin as the need arises. This is what
+causes many software incompabilitys , as some programs which need the serial
+port reprogram the PIO , and assume that the Cassette Output bit is ALWAYS an
+output and program the PIO accordingly. Unfortunatly this is not true of the
+TC !
+
+ Now to the premium circuit diagram page 1 ( 8501-4 ) , just under the PIO you
+find IC16 , a 76489AN , which happens to be a simple sound synth chip ( I
+actually have one of these chips installed ! ). You will notice if you have
+the same circuit diagram as mine , a comment under IC16 reading 'wired for
+tele-term keyboard'. Its this that makes installation of the keyboard so easy
+!. If you have a revision 4 premium , the entire mod consists on fitting a IC
+socket to position IC 16 , and plugging in a 16pin ribbon cable to your
+keyboard encoder board ( Ensuring that you get it in the right way round !! Be
+carefull !)
+
+ If you have a Rev -02 or -03 premium , a few mods to the board need to done
+first. This first is to change what was the write signal to the 76489 to be
+the interupt line to the PIO , this involves cutting the track leading to pin
+5 on IC16 and running a link from Pin5 IC 16 to pin 28 on the PIO ( Which
+happens to be nearby .. ).
+ The other mod involves changing the port address of IC 16 from 0x10 as used
+by the sound chip , to 0x18 as used by the keyboard. This is best done at IC71
+where the ports are decoded .. Remove pin 11 of IC71 ( Port 0x10 ) from the
+board so that it no longer connects to the PCB and run a short link from IC71
+pin 9 ( Port 0x18 ) to the pad on the PCB where pin 11 once lived.
+ From there is just a case of plugging the keyboard in as before.
+
+ If you have a TC kernel ROM , replace your orginal Boot rom with the TC
+kernel ROM and powerup .. You should be able to then run the self test and
+More [Y,n]? 
+check out the machine. IF you boot a 56k system disk , it will talk to the new
+keyboard , a 128k system disk will ignore the new keyboard. A 256TC disk will
+boot and run , on a 128k machine , as LONG AS YOU DONT USE THE RAM DISK !
+
+ The next section is really not about the keyboard - its what else needs to be
+done to get 256TC compatablity !
+
+Continued next message ..
+                                        
+From:    Matthew Geier 
+To:      All                                      Msg #107, 31-Dec-89 08:13
+Subject: PREMIUM TO TC UPGRADE PART 2
+
+Now for the TC compatablity bit ...
+
+ To get full 256TC function you need at least 256K of memory installed , but
+the Peter Broughton upgrade is not compatable with the 256TC as microbee
+re-defined the use of a bit on the port 0x50 bank switch latch instead of
+using one of the 2 spare bits. The Broughton upgrade uses spare Bits 6 & 7 to
+switch the extra banks up to 512k of memory. For only 256K only one extra bit
+is needed .. MicroBee , instead of using the next spare bit ( Bit 6 ) , the
+re-defined the use of Bit 5 , it was used to bank-switch extra ROMs on the
+8342 DRAM core-boards .. As this was only every used 'in house' on a special
+set of ROMs they decided to change its use. ( Sound familar ???? ... )
+
+ I worked around this problem by biggy backing a 74LS86 top of IC11 and
+connecting it to the existing memory 512k memory upgrade so that Port 50 Bit 5
+was XORed with Port 50 Bit 7 , enabling both Broughton's system and microbee's
+to work on the same machine. This mod , although probably not the neatest ,
+has worked for 2 years quite happly !.
+Details - Take a 74LS86 and bend out ALL pins except the power supply pins 7 &
+14. I then biggy backed this over IC11 ( only because it was a convenant 14
+pin chip ) soldering pins 7 & 14 to there IC11 counter-parts , supplying power
+to the LS86. I then ran 2 wires from the 25way X1 connector from pins 23 & 25
+to pins 9 & 10 on the LS86 , this connects D5 and D7 to the XOR. I then ran a
+wire from pin 8 on the LS86 to where D7 orginally connected to the Broughton
+upgrade , in my case D7 was connected to pin14 of the HC174 ( piggy back IC16
+) It could equally well have been pin 11 ( Which in my case was D6. Pins 11 &
+14 could be swaped around .. )
+ That then enables either D5 or D7 to effect the bank switch , keeping both
+operating systems happy.
+ I have never had any thing to do with a 256k upgrade , but the idea is the
+same , only in this case is D5 XOR D6 , as D7 is not used for only 256K. As I
+dont know how the 256k upgrade is connected I cant give Pin numbers on where
+to connect to the Broughton upgrade - the rest is the same though !.
+
+ The rest of the problem is now software. If running the 256TC system on a
+512k machine , you lose access to half your memory. If runing the 512k system
+you lose the keyboard. I do know of at least one person running a Broughton
+BIOS and a TC keyboard - I dont have the later Broughton Software so I dont
+know if it can do this as standard or not.  My machine is currently running a
+Custom BIOS written by Philip Hutchision which is giving me access to 512k of
+RAM , a 10 meg hard disk AND the Teleterminal keyboard.
+
+[krd: My machine is running the Peter Broughton BIOS with the 256TC 
+keyboard... so it is possible. All that is necessary is to use a different 
+version of BIOS.SYS to talk to the new keyboard]
+
+ After the above changes , the machine is nearly 256TC hard-ware compatable -
+the 256TC has extra character ROM space and another video attribute , but the
+extra ROM was never used , and the extra attribute ( Hardware Inverse ) I have
+only seen used in the kernel ROM ! ( Self test !! ) [krd: The WS4 VDU 
+driver uses this attribute]
+ My revison 3 premium has video changes worked out by Philip that give it
+256TC video attributes , but I have since long lost the intructions I was
+given .. It was a fairly messy operation at any rate and not easy to explain
+without circuit diagrams. Its really a mod for the pedantic any way , as it
+makes no difference to the compatablity , and the only program I ever recall
+using it was the 256TC self test program !.
+
+[krd: Instructions to do this are at the end of this message]
+
+ I have a version 1.15 TC kernal in my premium , I once tryed a latter TC
+kernal ROM ( the one without the Network option ) and it would not work .. I
+never bothered to figure out why .. So if copying a TC kernal ROM for the
+'upgrade' make sure its an old one ! .. Its guarrenteed to work !
+ The TC kernal ROM is required if you want 56K CP/M systems , and the microbee
+auto-boot protected disks to use the new keyboard , as these systems use the
+keyboard routines in the boot rom to scan the keyboard. If you keep the old
+ROM installed , these disks will use the old keyboard.
+ The 256TC system is also capable of booting from drive B , and as an older
+premium boot rom could NOT do this , it DOES NOT INITIALIZE the byte that
+tells CP/M d from what drive its booting from. This can result in the TC
+system starting to Boot from the A drive , and wanting to finnish the boot
+from the B drive !!. Undesirable and confuzing to say the least !. This can be
+sort of cured by using the monitor program to fill all of low memory with 0's
+first .. ie F 0 fff 0 <CR> I found the cure was a TC kernel ROM ...
+
+ Ill make the usuall disclaimers as to the suitablity of the modifications and
+such rubbish. If you break your machine , its still your machine ...
+
+Happy Hacking .... 
+                                                                              
+---------------------
+[krd: The following instructions weren't part of the original message. they 
+are included by me for completeness. Again, if you break your machine while 
+carrying out the mods, it is still your machine.]
+
+                premium to 256TC part 3 - video attributes
+
+0) Getting the flashing cct to work in the first place.
+
+Parts reqd: IC60 74LS393
+
+[ ] 1.        Install the 74LS393 in the IC60 position.
+[ ] 2.        On the component side of the motherboard, cut the track 
+leading from the bottom end of C62 down under C63 and IC69 near C62
+[ ] 3.        Link one of W6-1 .. W6-4. These set the character flashing 
+speed and range from W6-1 () to W6-4 ()
+
+0a) Half-Intensity monochrome display
+
+Parts reqd: 1x 1N914 diode
+            1x 680R resistor
+
+[ ] 1.        Fit the diode to the D17 position on the right hand side of 
+              the motherboard.
+[ ] 2.        Fit the resistor to the R23 position (near D17). The value of 
+              this resistor may need changing. I found that a 1K resistor 
+              in this position worked best for me.
+
+1) Changing the flashing circuit on the 8501-3 motherboard
+
+The flashing cct on this motherboard is set up so that characters will 
+flash normal-inverse rather than on-off. To change this do the following:
+
+NB. If you want hardware inverse, include the steps marked with a '*'
+    If you do not want hardware inverse, include the steps marked with a 
+    '+'
+
+[ ] 1.        Remove IC69 74LS86
+[ ] 2.        Remove IC68 74LS08
+[ ] 3.        Break the connection between IC69 pin 12 and the track 
+              running next to it.
+[ ] 4.        Break the track connecting IC68 pins 2 4 and 5 between pins 2 
+              and 4 and between pins 4 and 5.
+[ ] 5.        Break the track between IC68 pin 8 and IC69 pin 10 near IC69 
+              pin 10
+[ ] 6.        Break the track leading to IC69 pin 2 near IC69 pin 2.
+[ ] *6.       Break the track connecting IC69 pin 14 IC68 pins 1 and 2 
+              between IC69 pin 14 and IC68 pin 1, also between IC68 pins 1 
+              and 2.
+[ ] 7.        Replace IC69 74LS86
+[ ] 8.        Replace IC68 74LS08
+[ ] 9.        Join IC68 pin 8 to IC59 pin 11
+[ ] 10.       Join IC59 pin 10 to IC69 pin 12
+[ ] 11.       Join IC69 pin 11 to IC68 pin 5
+[ ] 12.       Join IC68 pin 6 to IC69 pin 2
+[ ] 13.       On the underside of the board, join IC68 pin 4 to the pin 
+              through between IC69 pins 3 and 4
+[ ] +14.      Join IC69 pin 10 to IC68 pin 7
+[ ] *14.      Join IC69 pin 10 to IC68 pin 3
+[ ] *15.      Join IC68 pin 1 to IC67 pin 1
+[ ] *16.      Join IC68 pin 2 to IC39 pin 15
+
+The bits in the attribute RAM will now have the following function
+
+bit   7   6   5   4   3   2   1   0
+      ^   ^           ^   ^   ^   ^
+      |   |           +---+---+---+-- PCG bank select
+      |   +-------------------------- Hardware Inverse
+      +------------------------------ Flashing        
+
+2) Extra video attribute and colour RAM
+
+The premium has the capacity to address up to 8k of video RAM. 
+Unfortunately many MicroBee programs are written assuming that there is 
+only 2K of video RAM fitted. This means that a method of disabling the 
+extended video RAM is required. Fortunately this is trivial.
+
+Assuming that your motherboard already has 6264's installed as video 
+memory, proceed as follows:
+
+[ ] 1.        Remove the link you will see in the IC43 position.
+[ ] 2.        Take a 74LS157, bend pin 15 up and install it in the IC43 
+              position.
+[ ] 3.        Take a 74LS00 and bendd up all pins except pins 14 and 7
+[ ] 4.        Piggyback this 74LS00 on top of a nearby 14 pin IC (IC6 is a 
+              convenient one).
+[ ] 5.        Join pin 11 of the 74LS00 to pin 15 of IC43 (the bent - up 
+              one)
+[ ] 6.        Join pin 12 of the 74LS00 to pin 15 IC27 (LV5)
+[ ] 7.        Join pin 13 of the 74LS00 to pin 5 IC27 (LV7)
+[ ] 8.        Link together pins 9 7 5 2 of the 74LS00
+
+Now the VML bits will have the following functions:
+
+bit  7   6   5   4   3   2   1   0
+     ^       ^   ^   ^   ^   ^   ^
+     |       |   |   +---+---+---+--- PCG/video bank select             
+     |       |   +------------------- Attribute RAM select
+     |       +----------------------- Extended SCREEN ram select
+     +------------------------------- Premium goodies select
+
+When the extended screen ram is enabled, the 6545 will address all 8k of 
+the screen memory. However only 2k at a time will appear in the CPU memory 
+map. Screen ram pages are selected by setting bits 2 - 0 in the VML, 
+(exactly the same as if you were selecting PCG banks).
+
+I am unsure as to how 256TC compatible this part of the upgrade is. I don't 
+know of any software using this extra video RAM.
+
+On cassette premiums, bit 5 of the VML is another ROM select bit (used to 
+select which half of basic rom A (a 27128) appears in the memory map at 
+8000h). I have not come across any cassette premiums which have the 8k 
+screen rams fitted. 
+
+This concludes the discussion.
+

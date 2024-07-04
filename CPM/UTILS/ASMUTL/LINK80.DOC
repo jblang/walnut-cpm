@@ -1,0 +1,122 @@
+2.1.1	LINK-80 Command Strings
+	------- ------- -------
+
+To run LINK-80, type L80 followed by a carriage return.  Link-80 will return
+the prompt "*" indicating that it is ready to accept commands.	Each command
+to LINK-80 consists of a string of filenames and switches, separated by
+commas.
+
+objdev1:filename.ext/switch1,objdev2:filename.ext/s,....
+
+If the input device for a file is omitted, the default is the currently
+logged disk.  If the extension of a file is omitted, the default is .REL.
+After each line is typed, LINK will load or search (see /S below) the
+specified files.  After LINK finishes this process, it will list all symbols
+that remained undefined followed by an asterisk.
+
+	Example:
+
+	*TESTPROG
+
+	 DATA	0100	0200
+
+	 LABEL1 	(label1 is undefined)
+
+	 DATA	0100	0300
+
+	*LABEL1
+	*/G		(starts execution - see below)
+
+Typically, to execute a FORTRAN and/or COBOL program subroutines, the user
+types the list of filenames followed by /G (begin execution).  Before
+execution begins, LINK-80 will always search the system library (FORLIB.REL
+or COBLIB.REL) to satisfy any unresolved external references.  If the user 
+wishes to first search libraries of his own, he should append the filenames
+that are followed by /S to the end of the loader command string.
+
+2.1.2	LINK-80 Switches
+	------- --------
+
+A number of switches may be given in the LINK-80 command string to specify
+actions affecting the loading process.	Each switch must be preceded by
+a slash (/).  These switches are:
+
+SWITCH		ACTION
+------		------
+R		Reset.	Put loader back in its initial state.  Use /R if
+		loaded the wrong file by mistake and want to restart.
+		/R takes effect as soon as it is encountered in a command
+		string.
+
+E or E:Name	Exit LINK-80 and return to the Operating System.  The system
+		library will be searched on the current disk to satisfy any
+		existing undefined globals.  The optional form E:Name (where
+		Name is a global symbol previously defined in one of the
+		modules) uses Name for the start address of the program.
+		Use /E to load a program and exit back to the monitor.
+
+G or G:Name	Start execution of the program as soon as the current command
+		line has been interpreted.  The system library will be searched
+		on the current disk to resolve existing undefined globals
+		(external references) if they exist.  Before execution begins,
+		LINK-80 prints three numbers and a BEGIN EXECUTION message.
+		The three numbers are the start address, the address of the
+		next available byte, and the number of 256-byte pages used.
+		The optional form G:Name (as with /E above) uses Name for
+		the start address of the program.
+
+N		If a FILENAME/N is specified, the program will be saved on disk
+		under the selected name (with a default extension of .COM for
+		CP/M) when a /E or /G is done.	A jump to the start of the
+		program is inserted if needed so the program can run properly 
+		(at 100H for CP/M).
+
+P and D 	/P and /D allow the origin(s) to be set for the NEXT program
+		loaded.  /P and /D take effect when seen (not deferred), and
+		they have NO effect on programs already loaded.  The form is
+		P:ADDRESS> or /D:ADDRESS>, where ADDRESS> is the desired
+		origin in the current typeout radix.  (Default radix for
+		non-MITS versions is hex.  /O sets radix to octal; /H for hex.)
+		LINK-80 does a default /P:LINK origin>+3 (i.e., 103H for CP/M
+		and 4003H for ISIS) to leave room for the jump to the start
+		address.
+
+		NOTE: Do not use /P or /D to load programs or data into the
+		locations of the loader's jump to the start address (100h to
+		102h for CP/M and 2800h to 2802h for DTC), unless it is to 
+		load the start of the program there.  If programs or data are
+		loaded into these locations, the jump will not be generated.
+
+		If no /D is given, data areas are loaded before program areas
+		for each module.  If a /D is given, all Data and Common areas
+		are loaded starting at the data origin and the program area
+		at the program origin.
+		Example:
+		-------
+
+		*/P:200,F00
+		Data	200	300
+		*/R
+		*/P:200 /D:400,F00
+		Data	400	480
+		Program 200	280
+
+
+U		List the origin and end of the program and data area and all
+		undefined globals as soon as the current command line has been
+		interpreted.  The program information is only printed if a /D
+		has been done.	Otherwise, the program is stored in the data
+		area.
+
+M		List the origin and end of the program and data area, all
+		defined globals and their values, and all undefined globals
+		followed by an asterisk.  The program information is only
+		printed if a /D has been done.	Otherwise, the program is
+		stored in the data area.
+
+S		Search the filename immediately preceding the /S in the
+		command line to satisfy any undefined globals.
+
+END OF FILE
+
+S		Search the fi

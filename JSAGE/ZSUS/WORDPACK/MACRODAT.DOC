@@ -1,0 +1,273 @@
+THE DATE AT A TOUCH OF A FUNCTION KEY         April 9, 1989
+by Rick Charnes                                   ^   ^
+                                                Like this
+
+
+MACRODAT is a nifty way I've put together for my ZSDOS/ZDDOS 
+system to have the date appear at the touch of a macro key while 
+in VDE.
+
+REQUIRED:  
+--------
+ZEX403    NZEX-D will NOT work here.  You can continue using 
+          NZEX-D as your default ZEX; you will simply be using 
+          ZEX403 for this application.
+
+
+MACRODAT requires that, after reading your standalone STARTUP.COM 
+(or whatever name is used in your system), your ZCPR3 startup 
+procedure then access both an ARUNZ alias and a ZEX script.  If 
+your startup procedure doesn't now access a ZEX script at cold 
+boot, adding one in certainly makes for a little longer startup, 
+but you may judge for yourself whether it is worth it.  
+Considering that my startup procedure provides not only for this 
+but also displays to me -- in beautiful reverse video graphics -- 
+the time I last turned my computer on, I consider it time well 
+spent.
+
+I'd like to show and tell my entire startup procedure here.  I 
+find it so useful and am so proud of it that I'm going to 
+describe the whole thing.  I'll get to the date-on-the-macro-key 
+part fairly quickly.
+
+In everything that follows, you will often see the letter 'l' as 
+a standalone command.  As an extremely frequent ARUNZ user I am 
+always cognizant of when I'm pushing up against the ZCPR3 command 
+line buffer's 200-character limit.  As flow control is an 
+essential part of alias programming, years ago I permanently 
+renamed the ELSE in my FCP to L.  If I use it three times in an 
+alias that's 9 characters I've saved, often meaning the 
+difference between a successful alias and the dreaded 'OVFL' 
+message.
+
+Here we go.
+
+My standalone STARTUP.COM alias loads LAP.COM (containing all my 
+environment system segments) and my hard disk, and then, extended 
+command processing now being available, passes control to an 
+ARUNZ alias named START, which is as follows:
+
+START	
+if gt $dh 17
+t m eve
+l
+if gt $dh 11
+t m aft
+l
+if gt $dh 05
+t m morn
+l
+t m wee
+zif
+dly /p4
+reg s2 $dd q
+go s3 $dc q
+go s7 $dm q
+go s8 $dd q
+go s9 $dy q
+laston
+
+As explained in my TIMOFDAY.LBR, 'EVE, 'AFT', 'MORN' and 'WEE' 
+are all text files displaying box-graphics with messages to the 
+effect of "GOOD EVENING, SIR!", 'GOOD AFTERNOON!', 'GOOD 
+MORNING!', and 'STAYING UP TILL THE WEE HOURS AGAIN, ARE YOU?" 
+respectively.  You can see how IF.COM and flow control will 
+display one or the other of these files depending on the time of 
+day.  T.COM is a version of the ancient TYPEL.COM patched to NOT 
+translate control characters, and it types files out of my 
+'message library' M.LBR which contains dozens of various 
+'status-reporting' files such as the four above.  DLY.COM is my 
+version of SAK.COM patched to *not* display its "Resuming..." 
+message after the four seconds of sleeping are up.
+
+Then we (quietly) set register 2 to today's date and register 3 
+to the current hour, in civil form.  We'll be using these later 
+for a couple of purposes.  Then, so we can use Naj Najarian's 
+great method for inserting the date into dBASE as explained in 
+his DBPATCHS.DOC, we put today's month, date and year into three 
+consecutive registers.  Since we're now using LSH, and not EASE 
+which eats up registers 7, 8 and 9, these three serve our 
+purposes perfectly.  Finally we go to the next alias, LASTON, 
+which was written up in my column in TCJ #37.  Its primary 
+purpose is to read and write the shell variable used to display 
+the last time we turned our computer on.  Since I wrote the 
+article I have modified and made much more flexible the method by 
+which we do this (see my DAY10.LBR.)
+
+LASTON
+q s
+rs laston %startdat $$|shf %$dm$dy
+rs reg s25 %pcph$dm$dy q$$|reg s26 %pcpm$dm$dy q$$| <<
+   ze4 startup %$dd %$dm$dy $rf02 $dy $rf03:$dn $da
+
+RESOLVE loads LASTON.COM, which displays the shell variable 
+STARTDAT containing the time we last turned on our computer.  
+Then the '$$|' acts as RESOLVE's substitute command-separator (be 
+sure to keep the space character immediately after the 
+'%STARTDAT') and, assuming the month of March, 1989 SHFILE sets 
+the current variable file to WEDNESDA.VAR.  See my DAY10.LBR for 
+more on this.
+
+The first part of the next RESOLVE line is for my PCPMX+ script.  
+The variables named 'PCPHmmyy' and 'PCPMmmyy', where mm = today's 
+month and yy = today's year, hold the number of hours and minutes 
+respectively I have used PC Pursuit so far that month.  I set 
+register 25 to the value held by the string variable '%PCPHmmyy' and 
+register 26 to the value held by '%PCPMmmyy'.  
+
+Still using RESOLVE's multiple command separator '$|' which 
+translates into a ';', we come to the crucial part, our ZEX 
+script.  First we need to understand the rather complex commad 
+line we are giving ZEX here.  We've got two programs that will 
+resolve variables here, ARUNZ and then RESOLVE.  After ARUNZ does 
+its work on that ZE4 line, assuming a date of April 9, 1989 and 
+a time of 7:30 am, and remembering that register 2 holds the 
+current date and 3 the hour, we get:
+
+ze4 startup %$dd %$dm$dy $rf02 $dy $rf03:$dn $da
+             |       |     |     |      |      |                   
+ze4 startup %09   %0489    9    89    7:30    am
+
+The reason we previously put the date and hour into registers 2 
+and 3 respectively might be a little hard to fathom.  You might 
+ask here: why not simply use the '$dd' and '$dh' ARUNZ symbols 
+here instead of '$rf02' and $rf03'?
+
+Here's why.  '$dd' and '$dh' always return their values as two 
+digits, even if the value is only a single digit, as they are 
+here.  The beauty of the $RFnn symbol (see the ARUNZ 
+documentation) is that it generates a 'floating decimal' result 
+-- if there are 2 digits you get 2, and if there is only 1 you 
+get only 1.  This greatly adds to the readability and 
+attractiveness of our result; seeing that today's date is 
+
+                       April 9 at 7:30 am
+
+gives us a much nicer feeling than 
+
+                      April 09 at 07:30 am
+
+which seems stilted and impersonal.  (Whaddaya expect, it's a 
+computer.)  I think this little extra effort is well worth it.
+
+Ok, now let's see what RESOLVE does with what ARUNZ gave us:
+
+ze4   startup      %09      %0489     9      89     7:30     am
+
+ze4   startup    sunday     april     9      89     7:30     am
+
+The '%09' and '%0489' variables are each defined in our SH.VAR 
+file as 'sunday' and 'april' respectively.  I explained most of 
+this in my TCJ article.
+
+So this is the command line passed to ZEX, which brings us to...
+
+DATE-ON-A-MACRO-KEY
+-------------------
+
+...the relevant part.  I have renamed Joe Wright's ZEX403, which 
+is necessary here, to ZE4.  The following is the ZEX script named 
+STARTUP.ZEX, with comments to the right.
+
+^<^[=0:* Loading system segments *^|^>  ; Displays message, using terminal
+                                        ;  cursor positioning codes
+^.era date                              ; Turns console display off
+                                        ;  and erases file 'DATE'
+dprog                                   ; Initializes my printer
+^%vde date                              ; Opens up file 'DATE' and
+                                        ;  and prepares to send ZEX
+                                        ;  command stream into it
+$2 $3, 19$4^qs^d^kx             
+
+COMMENT: The above is the crucial line.  After opening up the file DATE, we 
+send (remembering our ZEX parameters as above) 'APRIL 9, 1989' as input 
+into the file.  Easy!  However, since all command-processor input such as 
+parameters are always upper case, our job isn't over yet.  We want it to 
+look nice, so we'll convert all letters of the name of the month except the 
+first to lower case.  We use VDE's CTL-^ feature which toggles case.  With 
+CTL-QS we return to the beginning of the line we just created which places 
+the cursor on top of the first character, here 'A.' Then with CTL-D we move 
+to the second.  Then follows a series of exactly 8 CTL-^ characters (enter 
+them with VDE into your STARTUP.ZEX by first holding down CTL-P, then the 
+'^'.  We allow for the possibility of the longest-named month, 
+S-E-P-T-E-M-B-E-R, and convert all letters in it after the initial 'S' to 
+lower case.  For shorter-named months we'll just have wasted a few extra 
+CTL-^'s -- no big deal.
+
+Then with CTL-KX we save the file.  We've just created a file named 'DATE' 
+that consists of the exact string 'April 9, 1989'.
+
+The rest of my STARTUP.ZEX is not germane to MACRODAT, but...
+
+shellini                                ; Initialize shell stack.
+shfile sh                               ; Return SH.VAR to default.
+^.^<^[=4>^[G2Still loading...^[G0^>     ; Might be wondering what's 
+                                        ;  going on, so turn console display 
+                                        ;  ON and display 2nd message!
+                                        ;  ESC-G2 turns blink mode on for
+                                        ;  my Qume102, ESC-G0 turns it off.
+^.shvar startdat $1, $2 $3, 19$4  $5 $6 ; All this is explained in my 
+                                        ;  column in TCJ #37.  Turns display
+                                        ;  OFF, then writes variable to VAR file
+                                        ;  to display last time powered-up.
+lsh                                     ; Bye-bye, EASE!
+zerr                                    ; Error handler.
+^.^<^[=4 ^[T^[=4EDone.^[.^>             ; Console display back ON, say we're
+                                        ;  done.
+
+                                    * * *
+
+Now we have our file named DATE, residing on A0:.  All that 
+remains is to write a simple VDE macro.  Using Fred Haines' 
+wonderful VDECOM or VDE's inbuilt macro editor, we simply enter:
+
+                        q^KRA0:DATE^M^QD
+
+The initial 'q' turns MACRO QUIET mode ON, which is very 
+important.  Then CTL-KR prepares to read in a file.  We respond 
+'A0:DATE' and ^M (carriage return) which reads in our 
+just-created file.  Since after a file is read in with the ^KR 
+command the cursor is placed at the *begining* of the file, we 
+simply add a 'CTL-QD' to place the cursor AFTER the file we've 
+just read, which just happens to be our date string!  And we're 
+done.
+
+Quite nifty, I think.
+
+                              * * *
+
+MACRODAT also (sort of) works with WS or NW, but we're really 
+taking advantage of VDE's 'QUIET' mode for macros here and since 
+WS4's 'shorthand' feature (nor other key redefiners with any 
+other WS or NW) has nothing comparable, on these other programs 
+it's much more sluggish, inelegant and doesn't look really like a 
+macro like it does with VDE.  Since 95% of my writing is with 
+VDE, though, it doesn't bother me a bit.
+
+I used to not go to all this 'trouble' -- floating decimal 
+registers, ZEX scripts, case toggle commands.   I used to use Rob 
+Friefeld's wonderful ZSDOS-supporting NT42 in a similar way to 
+write a file consisting of nothing but the date and time.  But 
+here's what NT42's output looks like:
+
+                      09 Apr 1989  20:45:04
+
+If you're writing a letter to your girlfriend, you don't want to 
+start it off '09 Apr 1989'.  What's she going to think, that a 
+computer wrote your letter?  You can erase the '20:45:04' if you 
+want, but 'Apr' for 'April' just doesn't do.  And let's face it, 
+we Americans simply will never get used to European format and 
+that's our prerogative.  Using ZEX and ARUNZ and going through 
+all that 'trouble,' which, let's face it, for us computer nerds 
+is no trouble at all, is all the joy in the world.
+
+Have fun with MACRODAT.  You can, of course, excerpt from what I 
+have described as suits your needs.
+
+
+Rick Charnes, San Francisco, April 9, 1989
+                               |   |    |
+                         Works every time...
+
+Human voice: (415) 826-9448
+

@@ -1,0 +1,64 @@
+	title	"tShell check utility"
+;
+;	(c) 1985 S. Kluger. All Rights Reserved.
+;
+;	This program displays the contents of TSHELL.LOG
+;
+.z80
+.request syslib
+;
+cr	equ	0dh
+lf	equ	0ah
+cfunc	equ	5
+tfunc	equ	50h
+;
+	dseg
+;
+	include	TSHELL.DEF
+;
+logfcb:	db	1,'TSHELL  LOG',0,0,0,0
+	ds	100
+stack	equ	$
+;
+	cseg
+;
+start:	ld	sp,stack
+	ld	c,26
+	ld	de,LCLID
+	call	cfunc
+	ld	bc,41
+	ld	h,0
+	call	tfunc
+	ld	a,(LCLLV)	; get access level
+	cp	12h		; sysadmin, full?
+	jr	z,admin		;   yes, skip
+	call	print##
+	cr,lf
+	'Cannot execute',cr,lf,7,0
+	rst	0
+;
+admin:	ld	c,32
+	ld	e,31
+	call	cfunc		; log into 31:
+	ld	de,80h
+	ld	c,26
+	call	cfunc
+	ld	de,logfcb
+	call	f$open##	; open log
+	jp	nz,nolog	;   failed to open log
+rdlp:	call	f$read##	; read a block
+	jr	nz,endlog	; quit if done
+	ld	hl,80h
+dsplp:	ld	a,(hl)		; get tag byte
+	cp	1ah		; tag?
+	jr	nz,endlog	;   no, must be done
+	
+
+
+endlog:
+
+
+nolog:
+
+
+	end

@@ -1,0 +1,129 @@
+; NUC-TV.INS -- Televideo TS800/802/802H -- 03/18/86
+;
+; Note: This is an insert, NOT an overlay.
+;       Set BCDBIN to YES in NUBYE.
+;
+;  NU-CLKTV - NUBYE clock rutine for Televideo TS802 & TS802H
+;	   Version 1.0 -- 03/18/86 -- by Joe Earls
+;
+;  This subroutine is designed to work on a Televideo computer,
+;  models 800, 802, 802H (and perhaps others).  Use the TOD
+;  program to initialize the clock outside of NUBYE.
+;
+;  This routine obtains the date/time from the date/time routines
+;  in the Televideo BIOS.  The seconds obtained are compared to the
+;  seconds in the RTC buffer.  If no change, we return, else the
+;  new date/time data is copied to the RTCBUF, with appropriate
+;  formatting.
+;
+; ========
+; 03/18/86   First version by Joe Earls
+; ========
+;
+TIME:	PUSH	B
+	PUSH	D
+	PUSH	H
+	CALL	RDCLOK		;get ts802 date/time
+	LDA	TS8BUF+18	;see if seconds changed
+	LXI	H,RTCBUF+2
+	XRA	M
+	ANI	0FH
+	JZ	CLKEXIT		;no change, so exit
+	LXI	H,RTCBUF+0	;reformat into RTCBUF
+	LDA	TS8BUF+11
+	CALL	CLOK3
+	LDA	TS8BUF+12
+	CALL	CLOK4
+	LXI	H,RTCBUF+1
+	LDA	TS8BUF+14
+	CALL	CLOK3
+	LDA	TS8BUF+15
+	CALL	CLOK4
+	LXI	H,RTCBUF+2
+	LDA	TS8BUF+17
+	CALL	CLOK3
+	LDA	TS8BUF+18
+	CALL	CLOK4
+	LXI	H,RTCBUF+3
+	LDA	TS8BUF+6
+	CALL	CLOK3
+	LDA	TS8BUF+7
+	CALL	CLOK4
+	LXI	H,RTCBUF+4
+	LDA	TS8BUF+8
+	CALL	CLOK3
+	LDA	TS8BUF+9
+	CALL	CLOK4
+	LXI	H,RTCBUF+5
+	LDA	TS8BUF+0
+	CALL	CLOK3
+	LDA	TS8BUF+1
+	CALL	CLOK4
+	LXI	H,RTCBUF+6
+	LDA	TS8BUF+3
+	CALL	CLOK3
+	LDA	TS8BUF+4
+	CALL	CLOK4
+CLKEXIT:
+	LDA	RTCBUF		
+	CALL	BCDBIN
+	STA	CCHOUR
+	LDA	RTCBUF+1
+	CALL	BCDBIN
+	STA	CCMIN
+	POP	H
+	POP	D
+	POP	B	
+	RET
+;
+;  read the ts802 clock
+;
+RDCLOK:
+	LXI	H,RDCLO2
+	PUSH	H
+	LHLD	27
+	LXI	D,19
+	DAD	D
+	LXI	D,TS8BUF
+	MVI	C,0
+	PCHL
+RDCLO2:
+	RET
+;
+;  fmt cvt routine
+;
+CLOK3:
+	ANI	0FH
+	RLC
+	RLC
+	RLC
+	RLC
+	MOV	M,A
+	RET
+;
+CLOK4:
+	ANI	0FH
+	ORA	M
+	MOV	M,A
+	RET
+;
+;  ts802 date/time buffer area
+;
+TS8BUF:
+	DS	2	;mm
+	DS	1
+	DS	2	;dd
+	DS	1
+	DS	4	;yyyy
+	DS	1
+	DS	2	;hh
+	DS	1
+	DS	2	;mm
+	DS	1
+	DS	2	;ss
+	DS	1
+	DS	2	;tt
+;
+; end of insert
+; -------------
+

@@ -1,0 +1,195 @@
+                                                              26 November 1984
+                             ZCPR3 NEWSLETTER 101
+
+Z3 TIPS:  Creating menus with ZCPR3 tools is easy, once the technique has been 
+learned.  Everything needed is in the online HELP system, for MENU, VMENU, and 
+VFILER.   But it takes a little doing to get used to creating!   So now we do. 
+Command  syntax  and grammar for MENU and VMENU are similar;  differences  are 
+noted as we come to them.
+     Until  ZCPR3:  The  Manual is available we are obliged to  use  available 
+online help facility to learn ins-and-outs of various utilities.   We urge you 
+to study these help files.   If you don't like reading from your CRT, then use 
+HELPPR to print-out VFILER, VMENU and MENU HLP files.
+     VMENU's  power  to  scroll forward/backward a 16  file-display  and  move 
+cursor pointer indicating Current File makes it the general favorite for menus 
+though MENU actually has more flexibility;  but,  why not mix MNU's and VMN's? 
+The beauty of ZCPR3 menus is they may "come and go" depending which  directory 
+you  are in.   Your system can be a hybrid.   Flexibility--no operating system 
+has more!
+     Directories  may have simple,  quick (for-the-programmer who  hasn't  yet 
+found  menus,  or  a mix there of,  to be efficient)  command-line  completion 
+capability (command- vs menu-driven).   On the other hand, menus may be set-up 
+to  manage  complex  functions  used too infrequently to  justify  the  mental 
+overhead required to remember what's required...DISCAT uses such  menus.   Why 
+would  you  want  to remember little-used,  multitude of commands  with  their 
+trailing  parameter possibilities?   But if you do,  ZCPR3 lets you  use  your 
+recall  (organic memory) ability;  and if you forget,  a menu can be there  to 
+serve.  A complex three-menu skeleton to show some possibilities (command-line 
+VMENU entry is VMENU <*.typ> <fn.VMN><cr>):
+
+-x
+#
+    ^A+++^B Word Processing Display ^A+++^B            Current Directory: $D$U
+
+1 - ^AEdit Current File using WordStar^B   C - ^ACopy Current File to BACKUP^B
+2 - ^AType (Page) Current File^B           G - ^AGoto System Utility Menu^B
+3 - ^ACopy File(s) to Another Directory^B  Z - ^AEnter ZCPR3 Command Line^B
+#
+1ws $Pf
+2page $Pf
+3mcopy "Destination DIR? "="Source DIR:afn? "
+cmcopy $Pf
+g:3
+z!"ZCPR3:Command>"
+#
+ (put display text for menu #2 here and..
+#
+ ..put commands for menu #2 here)
+#
+    ^A+++^B System Utility Menu ^A+++^B                Current Directory: $D$U
+
+C - ^ARun DISCAT Catalog System^B     D - ^ADisplay Selected Directory Files^B
+Z - ^ARun ZCPR3 Command(s)^B
+#
+ccd cat:
+d!xdir "Enter DIR:AFN and trailing options (U for all users): "
+z!"ZCPR3:Command>" 
+##
+
+     Menu  displays have an automatically generated command line allowing  the 
+user to go from menu to menu, forward and backward, and to jump to first menu. 
+Goto's   may  be  added  to  menu  lines  to  custom-jump  to  menus.    MCOPY 
+automatically  copies  files to directory BACKUP if a destination DIR  is  not 
+declared.   Going  to  the  CAT directory loads ST which  runs  MENU  and  its 
+associated MNU file.  $Pf expands to full filename cursor arrow points to, the 
+Current File.   Using n after the P would evaluate to just the file name, with 
+file  type  left off.   The latter is useful during ASM or MAC and  LOAD/MLOAD 
+operations.
+     Options  are different between VMENU and MENU:   only "x" (permission  to 
+exit)  is available with VMENU,  but "cdpx" (command line  expansion,  display 
+menu,  and  page  screen)  with MENU.   The usage intended  for  each  program 
+established options available.
+
+A  simple but powerful menu example:   Richard Conn uses an  interesting  menu 
+for spreadsheet and database management.  In Rick's environment, DBASE.COM and 
+its  overlays are in A9:,  with all *.CMD files (these are dBASE files and not 
+VFILER CMD's) and data files in B9:.  Each dBASE II invocation logs into A: so 
+that dBASE runs from a directory which contains its overlays.   The  indicated 
+command  file does is set the default disk to B:  which logs dBASE II into  B: 
+for command file and data file processing.   The menu-driven process continues 
+until  a Quit (which drops Rick into dBASE) or an Exit (which drops him out of 
+dBASE  and  back to ZCPR3).   Upon leaving dBASE,  command "B:"  is  executed, 
+putting him back into B9:, and the menu then resumes.  His complete DBMENU.MNU 
+file:
+
+-dpx
+#
+		*** Access to dBASE II and MultiPlan (MP) ****
+
+dBASE II
+	D -- Invoke dBASE II and Set Options
+dBASE II Applications to Run
+	1 -- Check Book                	6 -- Labels
+	2 -- Income Tracking           	7 -- Software Inventory
+	3 -- Business Expense Tracking 	8 -- Hardware Inventory
+	4 -- Time Cards                	9 -- Itemized Inventory
+	5 -- Name and Address           0 -- <spare>
+MultiPlan                          Editor
+	M -- Invoke MultiPlan           E -- Invoke Editor on File
+Miscellaneous Functions
+	B -- Run Microsoft BASIC	X -- Directory Display
+	T -- Time and Date		Z -- Enter Any ZCPR3 Command
+#
+da:;dbase DPSETUP;b:
+1A:;dbase B:cb;B:
+2A:;dbase B:it;B:
+3A:;dbase B:be;B:
+4A:;dbase B:tc;B:
+5A:;dbase B:nad;B:
+6A:;dbase B:labels;B:
+7A:;dbase B:sw;B:
+8A:;dbase B:hw;B:
+9A:;dbase B:itm;B:
+ma:;mp MPSETUP.MP;b:
+ewm "Name of File to Edit? 
+becho use command 'SYSTEM' to exit;mbasic
+t!time
+x!xd
+z!"Command Line? 
+##
+--------------
+
+     DBMENU  file  is for use with MENU and not VMENU (VMENU allows up  to  16 
+display text lines versus MENU's 22,  here Rick has 19).   Notice the 'SYSTEM' 
+he  reminder uses.   Highlight display text using ^A and ^B to start  and  end 
+highlighting,  respectively. When designing screen layout, try to achieve text 
+separation,  more  than  provided  by  the  characters  alone.   For  example, 
+highlight   headers   or  highlight  functions  but   never   both.    Achieve 
+distinctiveness!
+     Remember, study the capabilities of the system and you are set free--free 
+to do exactly what you wish to do!
+
+Good  News:   Zilog  Z800 microprocessor details released indicate  one  super 
+chip...25 mHz clock rate,  8-bit bus,  4-DMA channels, CTC's, a UART, math co-
+processor for number crunching,  instruction set downward compatible with  Z80 
+and 8080,  etc.   Write to Zilog,  Inc. (1315 Dell Avenue, Campbell, CA 95008) 
+expressing  your interest in 8-bit microprocessor advancement.  Direct letters 
+to Edgar A. Sack, new president of Zilog; Jerry Higgins, Systems Division; Tom 
+Popek,  Components Division;  William Walker,  Finance;  Harry W.  Look,  Z800 
+Product  Manager;  and John Johnen,  Software Marketing.   Let them know  they 
+could  be "numero uno" in 8-bit computers for both industrial  and  individual 
+use.   (Additionally,  first  S-100 board manufacturer announcing Z800 product 
+will do a brisk business,  coming from pent-up hobbyist and system  integrator 
+demand.)
+     But  along with good comes bad:   samples of Z800 chips are now scheduled 
+for  April  '85,  not mid-February,  as was previously announced  by  ex-Zilog 
+president Franc deWeeger (he recently resigned to become president of Advanced 
+Semiconductor Materials-America, a subsidiary of ASM-Holland).
+
+New-Users-of-CP/M_Corner:  Many ask why, for so little money, we supply source 
+code to our ZCPR3;  can we make enough money to stay in business?  Our answer, 
+"We want you to be more than a computer user, to know about computer software, 
+to  understand  what makes your machine tick!"  Being a user  is  a-okay,  but 
+there's  so  much  more to learn,  learning that  alters  your  perception  of 
+reality!   Being  simply a user is much like simple consumption...get  beneath 
+surfaces and enjoy wonders to behold!
+     By  the  way,  we  make  a staying-in-business  profit  from  application 
+programs,  Discat,  Z3-Dot-Com,  and others to follow,  like Term3,  and  from 
+ZCPR3: The Manual.
+
+Big Business:  Several months back we stated that competition in long-distance 
+telephone  (satellite) arena would create largest redistribution of  corporate 
+and  personal  wealth in history of our free  enterprise  system...well,  such 
+musing  could  be  more  than true.   AT&T is spending most  of  their  energy 
+worrying about IBM and not about customers,  outcome of which could be loss of 
+their  vitality!   Watch  profit and loss statements for  next  nine  months--
+indication of vigor, management discipline.
+
+Echelon  customers  are members of a family,  a family connected by  a  common 
+thread:   understanding.   We  all  want  to  learn,  learn  through  working, 
+thinking, doing, thus becoming what we are capable of becoming.  We expect not 
+instant  gratification from our actions--we know doing,  in itself,  is reward 
+enough!   But  neither do we forget the value of quality  of  results--lasting 
+value.
+     When  we  reach for stars,   we sometimes don't come up  with  one,   but 
+seldom do  we get a hand-full of mud either!   Echelon--your single source for 
+economical,  efficient,  and generally overall useful 8-bit CP/M-80 compatible 
+software.
+
+See you down the lines...
+
+		                                                 Echelon, Inc.
+					                      101 First Street
+					                   Los Altos, CA 94022
+					               Telephone: 415/948-3820
+					       ZCPR3 BBS & RCP/M: 415/489-9005
+
+Trademarks:   CP/M,  Digital Research;  Z3-Dot-Com,  Alpha Systems; Bookshelf, 
+Ampro Computers;  Z80,  Zilog;  Unix,  AT&T Bell Laboratories; ZCPR3, Syslib3, 
+Term3,  Richard L.  Conn;  Discat, Lasting-Value Software, Disk7, Echelon; PC-
+DOS,  IBM,  Int'l Business Machines;  Xenix,  Microsoft; WY-50, Wyseword, Wyse 
+Technology; ZRDOS, Dennis L. Wright; Metal, Delphi Data Systems.
+
+Newsletter 101 is Copyright 1984 Echelon,  Inc.  All Rights Reserved.  Permis-
+sion to reprint automatically granted if source credit is given to Echelon.
+

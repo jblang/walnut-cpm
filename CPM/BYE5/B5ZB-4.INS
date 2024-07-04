@@ -1,0 +1,194 @@
+;----------------------------------------------------------------------
+; B5ZB-4.INS - BYE5 insert for ZORBA computers - 12/16/85
+;
+;		8251A and Intel 8254-2 timer 3.9936 MHz
+;
+;	      Note:  This is an insert, not an overlay
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+; 12/16/85  Removed some redundant code in the 300 baud set routine.
+;		  - John Maclean - Instructed and
+;		    greatly helped by   - Irv Hoff
+; 				
+; 12/15/85  Rewrote baudrate selectin area to better handle 300 baud.
+;					- Irv Hoff
+;
+; 12/11/85  Corrected a MVI to a MOV which ASM.COM and MAC.COM missed
+;	    reporting as an error.	- Irv Hoff
+;
+; 07/17/85  Written to work with BYE5	- Irv Hoff
+;
+; =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+;
+;
+; The following define the port addresses to use
+;
+PORT	EQU	20H		; Modem base port
+MDCTL1	EQU	PORT+1		; Modem control port
+RCVPORT	EQU	20H		; Receive speed 8254 port
+XMTPORT	EQU	1AH		; Transmit speed 8254 port
+;
+MDRCV	EQU	2		; Modem receive ready bit
+MDSND	EQU	1		; Modem send ready bit
+RESET	EQU	38H		; Framing, overrun and parity errors
+;
+MDMODE	EQU	82H		; Insures 8251 is out of mode, DTR high
+MDRSET	EQU	42H		; Resets USART for additional commands
+MDSET1	EQU	4EH		; 1 stop bit, no parity, 8 bits, x16
+MDSET2	EQU	0CEH		; 2 stop bits, no parity, 8 bits, x16
+COMMND	EQU	03H		; 8254 Timer control/status
+BRPORT	EQU	00H		; Baudrate generator timer 0 (port A)
+LSB300	EQU	83H
+MSB300	EQU	06H
+;
+;
+; Baudrate table
+;
+BD300:	DW	1667		; 300 baud
+BD1200:	DW	417		; 1200 bps
+BD2400:	DW	208		; 2400 bps
+BD9600:	DW	52		; 9600 bps
+;
+;
+;-----------------------------------------------------------------------
+;
+; See if we still have a carrier - if not, return with the zero flag set
+;
+MDCARCK:IN	MDCTL1		; Get status
+	ANI	80H		; Check DSR for carrier from modem
+	RET
+;.....
+;
+;
+; Disconnect and wait for an incoming call.
+;
+MDINIT:	MVI	A,10H		; Clear DTR
+	OUT	MDCTL1		; Causing hangup
+	PUSH	B		; Preserve in case we need it
+	MVI	B,20		; 2 seconds to drop DTR
+
+OFFTI:	CALL	DELAY		; 0.1 second delay
+	DCR	B
+	JNZ	OFFTI		; Keep waiting until carrier drops
+	POP	B		; Restore BC
+	MVI	A,MDMODE	; Insure 8251 is out of mode
+	OUT	MDCTL1
+	XTHL			; Delay a little
+	XTHL			; Delay a little
+	MVI	A,MDRSET	; Reset the 8251A for new command
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,MDSET1	; Set stop pulse, no parity 8 bits, x16
+	OUT	MDCTL1
+	XTHL
+	XTHL
+	MVI	A,17H		; Reset error flags, RCV, DTR, TX ready
+	OUT	MDCTL1
+	XTHL
+	XTHL
+;
+	 IF	IMODEM
+	CALL	IMINIT		; Initialize smartmodem
+	 ENDIF			; IMODEM
+;
+	RET
+;.....
+;
+;
+; Input a character from the modem port
+;
+MDINP:	IN	PORT		; Get character
+	RET
+;.....
+;
+;
+; Check the status to see if a character is available.	if not, return
+; with the zero flag set.  If yes, use 0FFH to clear the flag.
+;
+MDINST:	IN	MDCTL1		; Get status
+	ANI	MDRCV		; Got a character?
+	RZ			; Return if none
+	IN	MDCTL1		; Get status again
+	ANI	RESET		; Check for framing and overrun
+	JZ	MDINST1		; No errors
+	MVI	A,17H		; Reset error flags
+	OUT	MDCTL1
+	XRA	A		; Return false
+	RET
+;...
+;
+;
+MDINST1:ORI	0FFH		; We have a character
+	RET
+;.....
+;
+;
+; Send a character to the modem
+;
+MDOUTP:	OUT	PORT		; Send it
+	RET
+;.....
+;
+;
+; See if the output is ready for another character
+;
+MDOUTST:IN	MDCTL1
+	ANI	MDSND
+	RET
+;.....
+;
+;
+; Renitialize the modem and hang up the phone by dropping DTR and
+; leaving it inactive.
+;
+MDQUIT:	 IF	IMODEM
+	CALL	IMQUIT
+	 ENDIF			; IMODEM
+;
+;
+; Called by the main program after caller types BYE
+;
+MDSTOP:	MVI	A,10H		; DTR low hangs up phone, keep DTR low
+	OUT	MDCTL1		; So will not auto-answer at any time
+	RET
+;.....
+;
+;
+; The following routine sets the baudrate.  BYE-3 asks for the maximum
+; speed you have available.
+;
+SETINV:	MVI	A,0FFH
+	ORA	A		; Make sure the Zero flag isn't set
+	RET
+;...
+;
+;
+SET300:	LHLD	BD300  		; Get value for 300 bps
+	JMP 	LOADBD		; Load it
+;
+SET1200:LHLD	BD1200		; Get value for 1200 bps
+	JMP	LOADBD		; Load it
+;
+SET2400:LHLD	BD2400		; Get value for 1200 bps
+	JMP	LOADBD		
+;
+LOADBD:	MOV	A,L
+	STA	LSBD+1
+	MOV	A,H
+	STA	MSBD+1
+	MVI	A,36H
+	OUT	COMMND
+;
+LSBD:	MVI	A,LSB300
+	OUT	BRPORT
+;
+MSBD:	MVI	A,MSB300
+	OUT	BRPORT
+	EI			; Enable interrupts
+	RET
+;.....
+;
+;			       end 
+;-----------------------------------------------------------------------

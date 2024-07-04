@@ -1,0 +1,222 @@
+This file was put together to help folks understand and use the Kaypro
+floppy disk formats.  John Shotsky. 2-20-88
+
+There is no source code included for obvious reasons, however, with this
+information, one could write programs that need to know this stuff.
+
+;Disk Equates and Parameters
+
+bitport equ	01CH		; bit port (m80 does not support extrn bytes)
+drvmask equ	0FCH		; drive select mask
+denmask equ	0DFH		; density bit mask
+ddbit	equ	00H		; double density bit
+sdbit	equ	20H		; single density bit
+control equ	10H		; I/O port of disk controller
+status	equ	control+0	; status register
+cmnd	equ	control+0	; command register
+track	equ	control+1	; track register
+sector	equ	control+2	; sector register
+data	equ	control+3	; data register
+ficmd	equ	11010000B	; force interrupt (Abort current command)
+rdcmd	equ	10000000B	; read command
+wrtcmd	equ	10100000B	; write command
+seekcmd equ	00010000B	; seek command
+rstcmd	equ	00000000B	; home (restore) command
+adrcmd	equ	11000000B	; read track address
+rdmask	equ	10011100B	; read status mask
+wrtmask equ	11111100B	; write status mask
+tries1	equ	4		; re-home on bad sector # of tries+1
+tries2	equ	15		; re-read/write # of retries+1
+retcod	equ	0C9H		; return op code
+nmivec	equ	0066H		; non-maskable int vector (used in rd/wt loop)
+
+; This section defines the disk parameters (dph's are images moved to RAM)
+dph0:	defw	0,0,0,0 	; dph for unit A:
+	defw	dirbuf,dpbd	; directory buffer, Disk Parameter Block
+	defw	csva, alva	; check sum pointer, allocation map pointer
+	defb	ddbit		; density flag for this drive
+
+	defw	0,0,0,0 	; dph for unit B:
+	defw	dirbuf,dpbd	; directory buffer, Disk Parameter Block
+	defw	csvb, alvb	; check sum pointer, allocation map pointer
+	defb	ddbit		; density flag for this drive
+
+;dpbs:	;single sided single density
+	defw	18		; (spt) sectors per track
+	defb	3		; (bsh) block shift factor
+	defb	7		; (blm) block mask
+	defb	0		; (exm) extent mask
+	defw	82		; (dsm) max logical block
+	defw	31		; (drm) max directory
+	defb	80H		; (al0) directory allocation map
+	defb	00H		; (al1)
+	defw	8		; (cks) size of directory check vector
+	defw	3		; (off) reserved tracks
+
+;dpbd:	; single sided double density
+	defw	40		; (spt) sectors per track
+	defb	3		; (bsh) block shift factor
+	defb	7		; (blm) block mask
+	defb	0		; (exm) extent mask
+	defw	194		; (dsm) max logical block
+	defw	63		; (drm) max directory
+	defb	0F0H		; (al0) directory allocation map & BIOS space
+	defb	00H		; (al1)
+	defw	16		; (cks) size of directory check vector
+	defw	1		; (off) reserved tracks
+
+; sector interleave table
+
+	defb	1,6,11,16
+	defb	3,8,13,18
+	defb	5,10,15,2
+	defb	7,12,17,4
+	defb	9,14
+enddph:
+
+;      Logical BIOS entry points
+;      Sector Deblocking Algorithms
+
+blksiz	equ	1024		;CP/M allocation size
+hstsiz	equ	512		;host disk sector size
+hstspt	equ	10		;host disk sectors/trk
+hstblk	equ	hstsiz/128	;CP/M sects/host buff
+cpmspt	equ	hstblk * hstspt ;CP/M sectors/track
+secmsk	equ	hstblk-1	;sector mask
+secshf	equ	2		;log2(hstblk) sector mask
+wrall	equ	0		;write to allocated
+wrdir	equ	1		;write to directory
+wrual	equ	2		;write to unallocated
+
+=================================================================
+This next set is from the Microcornucopia Rom source and provides
+both the double sided and the quad density formats. [jbs]
+
+; Disk Equates and Parameters
+
+drvmask equ	11111100b	; drive select mask
+denmask equ	11011111b	; density bit mask
+ddbit	equ	00000000b	; double density bit
+sdbit	equ	00100000b	; single density bit
+sidmsk	equ	11111011b	; side mask
+sid0	equ	00000000b	; side 0
+sid1	equ	00000100b	; side 1
+control equ	16		; I/O port of disk controller
+status	equ	control+0	; status register
+cmnd	equ	control+0	; command register
+track	equ	control+1	; track register
+sector	equ	control+2	; sector register
+data	equ	control+3	; data register
+ficmd	equ	11010000B	; force interrupt (Abort current command)
+rdcmd	equ	10001000B	; read command
+wrtcmd	equ	10101100B	; write command
+seekcmd equ	00010000B	; seek command
+rstcmd	equ	00000000B	; home (restore) command
+stpic	equ	01001010b	; step in command
+stpoc	equ	01101010b	; step out command
+adrcmd	equ	11000100B	; read track address
+rdmask	equ	10011100B	; read status mask
+wrtmask equ	11111100B	; write status mask
+tries1	equ	4		; re-home on bad sector # of tries+1
+tries2	equ	15		; re-read/write # of retries+1
+ssmblk	equ	194
+dsmblk	equ	ssmblk*2
+retcod	equ	0C9H		; return op code
+nmivec	equ	0066H		; non-maskable interupt vector
+				; (used in rd/wt loop)
+spdsafe equ	03h		; mask to steprate
+
+; This section defines the disk parameters (dph's are images moved to RAM)
+dph0:	defw	0,0,0,0 	; dph for unit A:
+	defw	dirbuf,dpbd	; directory buffer, Disk Parameter Block
+	defw	csva, alva	; check sum pointer, allocation map pointer
+	defb	ddbit		; density flag for this drive
+
+	defw	0,0,0,0 	; dph for unit B:
+	defw	dirbuf,dpbd	; directory buffer, Disk Parameter Block
+	defw	csvb, alvb	; check sum pointer, allocation map pointer
+	defb	ddbit		; density flag for this drive
+
+;dpbs:	;single sided single density-NOBODY uses this! [jbs]
+	defw	18		; (spt) sectors per track
+	defb	3		; (bsh) block shift factor
+	defb	7		; (blm) block mask
+	defb	0		; (exm) extent mask
+	defw	82		; (dsm) max logical block
+	defw	31		; (drm) max directory
+	defb	80H		; (al0) directory allocation map
+	defb	00H		; (al1)
+	defw	8		; (cks) size of directory check vector
+	defw	3		; (off) reserved tracks
+
+ssdpbd: ; single sided double density -Original K-II [jbs]
+	defw	40		; (spt) sectors per track
+	defb	3		; (bsh) block shift factor
+	defb	7		; (blm) block mask
+	defb	0		; (exm) extent mask
+	defw	194		; (dsm) max logical block
+	defw	63		; (drm) max directory
+	defb	0F0H		; (al0) directory allocation map & BIOS space
+	defb	00H		; (al1)
+	defw	16		; (cks) size of directory check vector
+	defw	1		; (off) reserved tracks
+
+; sector interleave table
+stbl:	defb	1,6,11,16
+	defb	3,8,13,18
+	defb	5,10,15,2
+	defb	7,12,17,4
+	defb	9,14
+enddph:
+
+dphx:	defw	0,0,0,0 	; dph for c:
+	defw	dirbuf,dpbd
+	defw	csvc,alvc
+	defb	ddbit
+
+	defw	0,0,0,0 	; dph for d:
+	defw	dirbuf,dpbd
+	defw	csvd,alvd
+	defb	ddbit
+xendx:
+
+dsdpbd: ;double sided double density - Original K-IV [jbs]
+	defw	40		; (spt) sectors per track
+	defb	4		; (bsh) block shift factor
+	defb	15		; (blm) block mask
+	defb	1		; (exm) extent mask
+	defw	196		; (dsm) max logical block
+	defw	63		; (drm) max directory
+	defb	0C0H		; (al0) directory allocation map & BIOS space
+	defb	00H		; (al1)
+	defw	16		; (cks) size of directory check vector
+	defw	1		; (off) reserved tracks
+
+dtrk:	; Double sided quad density - uC's K-VIII
+	defw	40
+	defb	05h
+	defb	1fh
+	defb	03h
+	defb	0C4h,0
+	defb	5fh,0
+	defb	80h,0
+	defb	18h,0
+	defb	2,0
+
+; Logical BIOS entry points & Deblocking
+;	Logical BIOS entry points
+;	Sector Deblocking Algorithms
+
+blksiz	equ	1024		;CP/M allocation size
+hstsiz	equ	512		;host disk sector size
+hstspt	equ	10		;host disk sectors/trk
+hstblk	equ	hstsiz/128	;CP/M sects/host buff
+cpmspt	equ	hstblk * hstspt ;CP/M sectors/track
+secmsk	equ	hstblk-1	;sector mask
+secshf	equ	2		;log2(hstblk) sector mask
+wrall	equ	0		;write to allocated
+wrdir	equ	1		;write to directory
+wrual	equ	2		;write to unallocated
+
+That's IT folks...!!!
+

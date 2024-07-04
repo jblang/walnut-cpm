@@ -1,0 +1,69 @@
+
+# Makefile for cpm
+# Written by D'Arcy J.M. Cain
+#
+
+DIST =		readme Makefile cpm-i386.h cpm.c dasm.c decode.c mk_tests.c 
+			mkbin.c hexcom.c z80test.z
+NAME =		cp_emu
+#CFLAGS=	-O -Wall -ansi -pedantic -Wcast-qual -Wid-clash-31 -Wshadow 
+#			-Wpointer-arith -Wwrite-strings -Dscanf=DONT_USE_SCANF -g
+CFLAGS =	-O -Xa -v
+# LDLIBS =	-lcain
+BINARIES =	cpm dcpm tcpm mk_tests hexcom
+BIN =		/usr/lbin
+LBINS =		$(foreach i, $(BINARIES), $(BIN)/$i)
+
+all:	$(BINARIES) z80test.com
+
+clean:
+	rm  -f *.o *.obj core
+
+clobber:	clean
+	rm -f $(BINARIES) $(NAME).0?
+
+install:	all
+	rm -f $(LBINS1)
+	chmod 711 $(BINARIES)
+	ln $(BINARIES) $(BIN)
+
+$(NAME).01:		$(DIST)
+	shar -L50 -vxf -o $(NAME) $^
+
+gen:	$(NAME).gen
+
+$(NAME).gen:	$(DIST)
+	mkscript $^ > $(NAME).gen
+
+shar:	$(NAME).01
+
+strip:	$(BINARIES)
+	strip $(BINARIES)
+
+mcs:	$(BINARIES)
+	mcs -d $(BINARIES)
+
+cpm:	cpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) cpm.o decode.o dasm.o -o cpm
+
+tcpm:	tcpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) tcpm.o decode.o dasm.o -o tcpm
+
+tcpm.o:	cpm.c
+	rm -f temp.c
+	ln cpm.c temp.c
+	$(CC) $(CFLAGS) -DCOMPILE_TEST -c temp.c
+	mv temp.o tcpm.o
+	rm -f temp.c
+
+dcpm:	dcpm.o decode.o dasm.o
+	$(CC) $(CFLAGS) dcpm.o decode.o dasm.o -o dcpm
+
+dcpm.o:	cpm.c
+	rm -f temp.c
+	ln cpm.c temp.c
+	$(CC) $(CFLAGS) -DCPM_DEBUG -c temp.c
+	mv temp.o dcpm.o
+	rm -f temp.c
+
+cpm.o decode.o dasm.o:	cpm.h

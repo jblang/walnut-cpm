@@ -1,0 +1,144 @@
+TELL YOU KAYPRO TO SUBMIT!
+
+by Lindsay Haisley
+
+
+There is a program that comes with every CP/M software package, right
+along with PIP, ED, STAT, and the others, which has been described as
+one of CP/M's best kept secrets.  This program is called SUBMIT.COM, and
+proper use of it can save you a lot of time (and the aggravation of
+making lots of mistakes) when doing repetitive tasks at the CP/M
+operating level.
+
+Let's suppose that you are writing a series of after-Christmas "thank
+you" notes to all your relatives in College Station.  All the letters
+start out with your address and the date and all end with "Love" and
+your name.  Now to save time, you have made up a short file containing
+your address and the date and another containing "Love" and your name.
+You could, of course, use your word processor's "include file" facility
+to call in each of these two short files at the appropriate point in
+each letter, however for the sake of this example let's assume that your
+word processor doesn't have such a facility, and that you have to do the
+job on each letter "by hand".  This makes it a truly stupid (and
+fictitious) word processor which we shall call STUPIDWP.COM.  Your
+address and date are in a file called ADRSDATE and your closing is in a
+file called LOVE.
+
+You are about to write a thank you to your Aunt Mary for the wool
+sweater she sent you which you are going to call AUNTMARY.LET.  To do
+the job by hand, start by copying ADRSDATE to your letter using PIP.  At
+your CP/M command prompt type "PIP AUNTMARY.LET = ADRSDATE <Return>".
+When PIP has finished putting the address and date into your letter,
+which it has just created, you can use your word processor to write the
+text of the letter.  You type "STUPIDWP AUNTMARY.LET <Return>" and your
+word processor logs on and reads in your letter which already has your
+address and the date in it.  After you have finished the text of your
+letter you tell your word processor to save your work and go back to the
+CP/M command level.  You then type "PIP AUNTMARY.LET = AUNTMARY.LET,LOVE
+<Return>", and PIP obligingly concatenates your closing onto your
+letter.  You then want to move your letter onto your B disk, erase it
+from your A disk and look at your directory of files on B to see which
+relatives you have already written.  You type, in succession, PIP
+B:=A:AUNTMARY.LET <Return>", "ERA A:AUNTMARY.LET <Return>" and "DIR B:
+<Return>".
+
+Now this is a fair number of CP/M command entries.  Since you will use
+almost the same series of CP/M commands for each letter, it is easy to
+guess that your computer (which is good at repetitive almost identical
+tasks) could be made to automate the process and save you the hassle of
+typing all the commands for each letter.  This, indeed, is what
+SUBMIT.COM is for.  Before you start typing your letters you will use
+your word processor to make up what is called a "submit file".  We will
+call this file THANK-U.SUB (submit file names ALWAYS end with SUB), and
+it will look like this:
+
+PIP $1.LET = ADRSDATE
+STUPIDWP $1.LET
+PIP $1.LET = $1.LET,LOVE
+PIP B: = A:$1.LET
+ERA A:$1.LET
+DIR B:
+
+As you can see, this looks ALMOST like the series of commands which you
+typed at the keyboard to accomplish the letter writing job by hand.  You
+will note right away, however, that poor AUNTMARY has become simply $1.
+To let your computer do the CP/M command job automatically, make sure
+that SUBMIT.COM is on your A disk and type "SUBMIT THANK-U AUNTMARY
+<Return>".  Your computer will load and execute SUBMIT.COM, which will
+in turn look for the file THANK-U.SUB.  SUBMIT will then create its own
+little work file called $$$.SUB (If STUPIDWP has a directory listing
+facility, you can see this filename in the directory while your are
+writing your letter) and will execute each line of THANK-U.SUB exactly
+as if you had typed it at the keyboard, substituting "AUNTMARY" for
+every occurrence of "$1".  The "$1" is called a "formal parameter" and
+you may use as many of them as you need ($2, $3 and etc.) in a submit
+file as long as each formal parameter is matched by a character or group
+of characters on your command line following the name of your submit
+file.  After this letter is finished you may type "SUBMIT THANK-U
+UNCLJOHN <Return>" and repeat the process for a letter to your uncle.
+Slick?  I guess so!!
+
+You can include any command in a submit file which you would normally
+enter at your CP/M command prompt.  SUBMIT will not, however, give
+commands to a program once that program has taken over control of your
+computer from your CP/M command processor.  If this seems like a
+disadvantage to you, rest assured that it also gave a pause for thought
+to the programmers at Digital Research, and so they created a program
+called XSUB.COM to enable you to give commands TO A PROGRAM from a
+submit file.  If you include the command "XSUB" in a submit file (or
+enter it from your keyboard) XSUB will place a short program in an
+out-of-the-way portion of your computer memory, and until your next
+keyboard initiated warm boot every program in your submit file which
+requires keyboard input will take it's input from your submit file
+instead.  Thus, you might have a submit file, lets call it SEE.SUB, to
+use DDT (The Dynamic Debugging Tool included with your CP/M software)
+which looks like this:
+
+XSUB
+DDT $1
+D0100
+G0
+SAVE 10 $1
+
+Typing "SUBMIT SEE FOO.TXT <Return>" at your CP/M command prompt will
+first RUN XSUB and then load DDT, which will in turn read FOO.TXT into
+memory.  Because XSUB has been run, DDT will get its commands from the
+SEE.SUB instead of from your keyboard.  The command D0100 is a DDT
+command which will display what is in your computer's memory starting at
+memory address 100 (the beginning of FOO.TXT), while the command G0
+causes DDT to hand control back to CP/M.  The submit file then tells
+CP/M to save ten "pages" as the file FOO.TXT.
+
+Now SUBMIT.COM has one drawback that is difficult to overcome.  If you
+change user areas within a submit file by including the command "USER n"
+in the file, CP/M will dutifully change user areas; however it will
+leave SUBMIT's $$$.SUB work file behind so that when SUBMIT looks for
+the next command to execute it finds itself abandoned and throws up its
+hands and quits.  Once again, a group of enterprising young programmers
+saw a challenge and rose to meet it.  The result was a public domain
+program called EX14.COM, which keeps it's command information in memory
+instead of in a disk file.  It also combines the functions of SUBMIT and
+XSUB which saves disk space and is quite convenient.  EX14.COM has been
+around for a few years, and you will find it, along with its DOC file in
+most user's group libraries (including the KCA's).
+
+Murphey's law still haunts us, however.  As fine a program as EX14 is,
+it has one drawback.  Because it includes the capabilities of XSUB, it
+will ALWAYS try feed characters from the current submit file to whatever
+program is running every time that program expects keyboard input.
+Thus, if we were to try to run our THANK-U.SUB program under EX14, we
+would find our word processor reading the lines of our submit file into
+our letter instead of waiting for us to type input from the keyboard.
+Aunt Mary would be very puzzled indeed!
+
+Very recently a SUBMIT style program has come on the public domain scene
+which gives us the option of telling the computer when to pause for
+keyboard input and when to get its input from a submit file.  This
+program, by Erik Ganz, is called GSUB.COM, and seems to be the Last Word
+in using CP/M's submit capabilities.  The KCA library will soon have
+this file, and you will find it in the B0 section of the KCA RCP/M,
+along with a short DOC file.  If you use submit files at all, I suggest
+that you give this one a try.
+
+- Kaypro Club Austin
+
