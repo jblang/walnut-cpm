@@ -3,6 +3,7 @@
 import sqlite3
 import os
 import json
+from pathlib import Path
 
 def parse_header(data):
     data = data.splitlines()
@@ -30,7 +31,7 @@ def parse_directory(data):
     for line in lines[2:]:
         line = line.strip()
         if line.startswith("|"):
-            files[-1]["description"] += " " + line[2:].strip()
+            files[-1]["description"] += "\n" + line[2:].strip()
         else:
             files.append(parse_file(line))
     return files
@@ -47,6 +48,20 @@ def parse_index(filename):
             else:
                 directories.append(parse_header(section))
     return directories
+def file_dir():
+    return Path(__file__).parent.absolute()
+
+def root_dir():
+    return file_dir().parent.absolute()
+
+def input_file():
+    return root_dir().joinpath("00-INDEX.TXT")
+
+def json_file():
+    return file_dir().joinpath("index.json")
+
+def db_file():
+    return file_dir().joinpath("index.db")
 
 CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS directories (
@@ -72,11 +87,11 @@ VALUES(:path, :name, :size, :date, :description);
 
 def sqlite_index(index):
     try:
-        os.remove("index.db")
+        os.remove(db_file())
     except Exception:
         pass
     path = None
-    db = sqlite3.connect("index.db")
+    db = sqlite3.connect(db_file())
     db.executescript(CREATE_TABLES)
     for directory in index:
         path = "/".join(directory["path"])
@@ -86,9 +101,9 @@ def sqlite_index(index):
             file["path"] = path
             db.execute(INSERT_FILE, file)
     db.close()
-
+    
 if __name__ == "__main__":
-    index = parse_index("00-INDEX.TXT")
+    index = parse_index(input_file())
     with open("index.json", "w") as f:
         json.dump(index, f, indent=4)
     sqlite_index(index)
