@@ -1,9 +1,11 @@
-# Modern Indexer
+# Modern Indexers
 
-The software in this directory aims to implement a modern interface to browse the files on the Walnut Creek CP/M CD:
+The software in this directory aims to provide various interface for browsing the files on the Walnut Creek CP/M CD:
 
-- Right now, there is `index.py`, which parses the "00-INDEX.TXT" file in the root directory and outputs `index.json` (json index) and `index.db` (sqlite index) in this directory.
-- The next goal is to implement a gopher server that simulates the interface of the VIEW.EXE DOS program in the root directory.  This will be useful for navigating the repository using the [Snail](https://github.com/nihirash/Agon-MOS-Tools/tree/main/esp8266/snail) gopher browser on the Agon.
-- After that, I may also implement the following:
+- `index.py`, which parses the "00-INDEX.TXT" file in the each directory and converts it to a `gophermap` file in the same directory. This can be used to serve the files via gopher.
+- `gopher.py` runs a gopher server that roughly approximates the interface of the VIEW.EXE DOS program in the root directory.  
+  - The script uses the [Pitophius](https://github.com/dotcomboom/Pituophis) gopher library for Python. It can be installed with `pip install pituophis`.
+  - This has been tested with [Gophie](https://gophie.org/) on Windows and [Snail](https://github.com/nihirash/agon-snail) on the Agon.
+- Later, I may also implement the following:
   - Telnet command-line interface for use with a terminal program on platforms that don't have a gopher browser.
   - Oldskool web interface that is basically a simulated gopher interface with `<pre>` formatted ASCII and links.
