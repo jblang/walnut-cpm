@@ -55,10 +55,10 @@ def parse_index(path):
         return
     menu = [
         f"!Walnut Creek CP/M CD-ROM: {relpath}",
-        "=" * 80,
         "",
-        "Name             Size  Date        Description",
-        "------------     ----  ----        -----------"
+        "",
+        " Name            Size  Date        Description",
+        " ------------    ----  ----        -----------"
     ]
     with open(index) as f:
         lines = read_lines(f)
@@ -84,13 +84,13 @@ def parse_index(path):
 def parse_dirs():
     menu = [
         "!Walnut Creek CP/M CD-ROM",
-        "=" * 80,
+        "",
         "",
     ]
     with open(cd_file("DIRS.TXT")) as f:
         lines = read_lines(f)
     for line in lines:
-        path = line.split()[0]
+        path = line.split()[0].upper()
         if "<DIR>" in line:
             tchar = "1"
         else:
