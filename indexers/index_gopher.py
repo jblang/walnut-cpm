@@ -55,10 +55,10 @@ def parse_index(path):
         return
     menu = [
         f"!Walnut Creek CP/M CD-ROM: {relpath}",
-        "",
-        "",
-        " Name            Size  Date        Description",
-        " ------------    ----  ----        -----------"
+        "i" + "=" * 80 + "\t",
+        "i\t",
+        "iName             Size  Date      Description\t",
+        "i------------     ----  ----      -----------\t"
     ]
     with open(index) as f:
         lines = read_lines(f)
@@ -84,8 +84,13 @@ def parse_index(path):
 def parse_dirs():
     menu = [
         "!Walnut Creek CP/M CD-ROM",
-        "",
-        "",
+        "i" + "=" * 80 + "\t",
+        "iWalnut Creek was a distributor of shareware CD-ROMS in the 1990s.\t",
+        "iIn November 1994, they released this compilation of CP/M software.\t",
+        "i\t",
+        "0Read more about Walnut Creek CDROM on Wikipedia\tWalnut Creek CDROM\tgopherpedia.com\t70",
+        "1Read more about the scripts used to generate this site\tindexers",
+        "i\t",
     ]
     with open(cd_file("DIRS.TXT")) as f:
         lines = read_lines(f)
@@ -95,7 +100,8 @@ def parse_dirs():
             tchar = "1"
         else:
             tchar = "0"
-        menu.append(f"{tchar}{line}\t{path}")
+        if "allfiles.txt" not in line:
+            menu.append(f"{tchar}{line}\t{path}")
     with open(cd_file("gophermap"), "w") as f:
         f.write("\n".join(menu))
 
